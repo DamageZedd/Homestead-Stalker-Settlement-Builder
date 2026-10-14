@@ -3,10 +3,10 @@
 ***IMPORTANT NOTICE***  
 **PLEASE READ BEFORE INSTALLING**
 
-Homestead is a comprehensive, deep settlement simulation overhaul. While v1.2.3 is a tested, architecturally unified release featuring full offline ALife simulation, always back up your saved games before updating or modifying large modlists.
+Homestead is a comprehensive, deep settlement simulation overhaul. While v1.2.4 is a tested, architecturally unified release featuring full offline ALife simulation, always back up your saved games before updating or modifying large modlists.
 
 **Author:** Damage_Zedd  
-**Version:** v1.2.3  
+**Version:** v1.2.4  
 
 ---
 
