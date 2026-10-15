@@ -1627,6 +1627,9 @@
     <string id="st_camp_scrapper_tools_ask">
         <text>Here are heavy demolition tools (crowbar / sledgehammer / toolkit) for salvaging.</text>
     </string>
+    <string id="st_camp_scrapper_tools_offer">
+        <text>Take this for your salvage work: %s.</text>
+    </string>
     <string id="st_camp_scrapper_tools_done">
         <text>Heavy duty iron! With these tools I can tear apart rusted machinery twice as fast!</text>
     </string>

@@ -288,7 +288,7 @@ local dialogues = [[
         </phrase>
         <phrase id="72">
             <precondition>stalker_camp_builder.actor_has_scrapper_tools</precondition>
-            <text>st_camp_scrapper_tools_ask</text>
+            <script_text>stalker_camp_builder.get_scrapper_tools_text</script_text>
             <action>stalker_camp_builder.give_scrapper_tools</action>
             <next>721</next>
         </phrase>
