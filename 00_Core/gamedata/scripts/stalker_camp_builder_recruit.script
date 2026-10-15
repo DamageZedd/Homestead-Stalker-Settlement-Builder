@@ -3325,8 +3325,9 @@ end
 function stalker_camp_builder.actor_has_brewer_drugkit(p1, p2)
     local actor = db.actor
     if not actor then return false end
-    local surv = get_speaker_survivor_and_camp(p1, p2)
-    if not (surv and surv.job == "brewer" and not surv.has_drugkit) then return false end
+    local surv, camp = get_speaker_survivor_and_camp(p1, p2)
+    -- process_brewer_job counts the camp's kit (the medic's, or another brewer's) as his own
+    if not (surv and surv.job == "brewer" and not surv.has_drugkit and not (camp and camp.has_drugkit)) then return false end
     return (actor:object("itm_drugkit") ~= nil) or (actor:object("drugkit") ~= nil)
 end
 
@@ -3334,7 +3335,7 @@ function stalker_camp_builder.give_brewer_drugkit(p1, p2)
     local actor = db.actor
     if not actor then return end
     local surv, camp = get_speaker_survivor_and_camp(p1, p2)
-    if not (surv and surv.job == "brewer" and not surv.has_drugkit) then return end
+    if not (surv and surv.job == "brewer" and not surv.has_drugkit and not (camp and camp.has_drugkit)) then return end
     local itm = actor:object("itm_drugkit") or actor:object("drugkit")
     if itm then
         alife_release(alife_object(itm:id()))
