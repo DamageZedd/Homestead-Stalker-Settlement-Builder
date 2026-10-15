@@ -1316,8 +1316,8 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
                 end
             end
 
-            if item_w and cid then
-                snapshot.box_weights[cid] = (snapshot.box_weights[cid] or 0) + item_w
+            if cid then
+                snapshot.box_weights[cid] = (snapshot.box_weights[cid] or 0) + w
             end
 
             if sec == "charcoal" or sec:find("charcoal") then
@@ -1390,6 +1390,7 @@ function stalker_camp_builder.camp_consume_item(hub_id, camp, filter_fn, priorit
         end
         if camp then
             camp._inv_snapshot_dirty = true
+            camp._cached_box_weights = nil
             camp._cached_chest_supplies_tg = nil
             camp._cached_storage_metrics_tg = nil
         end
@@ -4447,6 +4448,7 @@ function load_state(m_data)
         camp._last_periodic_scan = nil
         camp._inv_snapshot = nil
         camp._inv_snapshot_tg = nil
+        camp._cached_box_weights = nil
         if camp.survivors then
             for nid, surv in pairs_(camp.survivors) do
                 surv.job_start_realtime = nil
