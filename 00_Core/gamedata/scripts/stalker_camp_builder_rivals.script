@@ -1241,7 +1241,10 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                         if not same_level or actor_dist > safe_dist then
                             local is_mutant_attack = (mrandom(100) <= 20)
                             if is_mutant_attack and camp.status ~= "mutant_nest" then
-                                sb.transform_to_mutant_nest(camp, "simulation_bloodsucker")
+                                -- the Emission Effects & Mutant Nests option: off, the outpost holds
+                                if sb.cfg.rival_camp_surge_effects ~= false then
+                                    sb.transform_to_mutant_nest(camp, "simulation_bloodsucker")
+                                end
                             else
                                 local enemy_fac = nil
                                 if camp.status == "mutant_nest" then
