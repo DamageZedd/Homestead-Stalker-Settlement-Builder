@@ -1163,8 +1163,7 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
                 end
             end
 
-            if s == "flask" or s == "mineral_water" or s == "water_can_clean" or s == "purified_water"
-               or s == "water_clean" or s:find("clean_water") ~= nil or s:find("bottle_clean") ~= nil then
+            if sb.is_clean_water and sb.is_clean_water(sec) then
                 snapshot.clean_water_count = snapshot.clean_water_count + 1
             end
 
@@ -1181,13 +1180,13 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
             end
 
             if not snapshot.has_powder then
-                if s == "powder_1" or s == "powder_2" or s == "powder_3" or s == "powder_4" or s:find("gunpowder") ~= nil or s:find("powder") ~= nil then
+                if sb.is_gunpowder and sb.is_gunpowder(s) then
                     snapshot.has_powder = true
                 end
             end
 
             if not snapshot.has_scrap then
-                if sec == "prt_i_scrap" or s == "prt_i_scrap" then
+                if sb.is_scrap and sb.is_scrap(sec) then
                     snapshot.has_scrap = true
                 end
             end
@@ -1223,7 +1222,7 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
             end
 
             if not snapshot.has_repair_fee then
-                if s == "vodka" or s:find("vodka") or s:find("conserva") or s:find("tushonka") or s:find("kolbasa") or s == "mre" or s == "ration" then
+                if sb.is_repair_fee and sb.is_repair_fee(sec) then
                     snapshot.has_repair_fee = true
                 end
             end
@@ -1263,18 +1262,18 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
             end
 
             if not snapshot.has_cloth then
-                if s == "prt_i_cloth" or sec == "prt_i_cloth" then
+                if sb.is_cloth and sb.is_cloth(sec) then
                     snapshot.has_cloth = true
                 end
             end
 
             if not snapshot.has_battery then
-                if s:find("battery") or s:find("akkum") or s:find("accumulator") or s == "batteries_commercial" or s == "batteries_dead" then
+                if sb.is_lamp_battery and sb.is_lamp_battery(sec) then
                     snapshot.has_battery = true
                 end
             end
 
-            if s:find("wood") or s:find("prt_i_wood") or s:find("timber") or s:find("log") or s:find("firewood") then
+            if sb.is_wood_part and sb.is_wood_part(sec) then
                 snapshot.wood_count = snapshot.wood_count + u
             end
         end)

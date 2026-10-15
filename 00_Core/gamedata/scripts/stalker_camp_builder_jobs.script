@@ -75,6 +75,14 @@ local function is_gunpowder(sec) return GUNPOWDER_TIER[sec] ~= nil end
 local function is_scrap(sec) return sec and CRAFT_SCRAP[sec:lower()] == true end
 local function is_cloth(sec) return sec and MEDIC_CLOTH[sec:lower()] == true end
 
+-- get_camp_inventory_snapshot (main script) counts materials with the jobs' own tests
+stalker_camp_builder.is_wood_part = is_wood_part
+stalker_camp_builder.is_clean_water = is_clean_water
+stalker_camp_builder.is_lamp_battery = is_lamp_battery
+stalker_camp_builder.is_gunpowder = is_gunpowder
+stalker_camp_builder.is_scrap = is_scrap
+stalker_camp_builder.is_cloth = is_cloth
+
 -- set_survivor_job -- assigns a job to a settler and re-syncs their
 function stalker_camp_builder.set_survivor_job(npc_id, job)
     local sb = stalker_camp_builder
@@ -706,6 +714,7 @@ end
 -- What a technician takes as payment; the paused check and the job must agree
 local REPAIR_FEES = { vodka = true, conserva = true, tushonka = true }
 local function is_repair_fee(sec) return REPAIR_FEES[sec] == true end
+stalker_camp_builder.is_repair_fee = is_repair_fee
 
 -- a gun with a part below 95%: G.A.M.M.A. holds a fired gun's condition at 0.83 and keeps its wear
 -- in the WPO parts, which don't follow condition. Only the parts in its list count, the ones a
