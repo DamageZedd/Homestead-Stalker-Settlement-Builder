@@ -2859,19 +2859,19 @@ function stalker_camp_builder.update_camp_jobs()
                                     survivor.shortfall_reason = "Awaiting Supplies"
                                 end
                             end
+                            end
                         end
                     end
-                    end
                 end
+            end
 
             if sb.process_turret_maintenance and camp and camp.structures and camp_box_id then
                 pcall(sb.process_turret_maintenance, nil, camp_box_id, camp, camp_box_id)
             end
-            end
+        end
         end
     end
     last_round_robin_camp_idx = (last_round_robin_camp_idx % num_camps) + 1
-end
 end
 
 -- get_job_progress / get_job_time_remaining -- UI helpers used by the PDA
