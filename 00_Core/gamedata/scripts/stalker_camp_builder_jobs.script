@@ -1152,12 +1152,10 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         end
 
         if snap then
-            if sb.cfg and sb.cfg.enable_surplus_cap ~= false then
-                local c_order = survivor.craft_order or "auto"
-                local cap = (c_order == "pistol" or c_order == "shotgun") and 8 or ((c_order == "turret" or c_order == "auto") and 10 or 6)
-                if (snap.ammo_counts[c_order] or 0) >= cap then
-                    return true, "Stockpile Full", "Target ammunition supplies are fully stocked (6+ boxes stored)"
-                end
+            -- the job's own limit (process_ammo_crafting): 15 boxes on Auto, and none while the turrets
+            -- need more 9 mm rounds than storage holds
+            if sb.is_camp_supply_capped and sb.is_camp_supply_capped(hub_id, camp, "ammo", survivor) then
+                return true, "Stockpile Full", "Target ammunition supplies are fully stocked (6+ boxes stored)"
             end
             if not snap.has_powder and not snap.has_scrap then
                 return true, "Need Powder & Scrap", "Missing gunpowder and scrap metal in settlement storage"
