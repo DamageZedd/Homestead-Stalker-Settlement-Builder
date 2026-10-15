@@ -1347,8 +1347,10 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
 
     local banner_y = 22 + math.max(30, self.camp_spec_badge:GetHeight()) + 2
     local smart_hazard, smart_dist = camp.near_smart, camp.near_smart_dist
-    if not smart_hazard and stalker_camp_builder.get_nearby_smart_terrain_hazard and hub_obj and hub_obj.position then
-        smart_hazard, smart_dist = stalker_camp_builder.get_nearby_smart_terrain_hazard(hub_obj.position)
+    -- on the settlement's level, not the player's: the list holds settlements from every level
+    if not smart_hazard and camp.level and camp.level ~= "unknown"
+        and stalker_camp_builder.get_nearby_smart_terrain_hazard and hub_obj and hub_obj.position then
+        smart_hazard, smart_dist = stalker_camp_builder.get_nearby_smart_terrain_hazard(hub_obj.position, nil, camp.level)
     end
 
     if self.raid_banner_bg then
