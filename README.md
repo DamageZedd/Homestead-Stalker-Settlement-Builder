@@ -53,7 +53,7 @@ With the **PDA Settlement Manager**, you can remotely monitor all of your active
 - **Dismantle Camp**: Cleanly remove a camp hub, furniture, and dismiss survivors from the PDA.
 - **Survivor Rename**: Give your settlers custom names via the PDA.
 - **Resource Dashboard**: Aggregate food/water/medical/ammo totals across all camps, displayed in the PDA Overview.
-- **Automated Water Pumps & Sinks**: In Hideout Furniture, placeable Metal Barrels (`placeable_barrel_metal`) or Sinks (`placeable_decor_sink`) function as water pumps. They produce clean drinking water flasks directly into camp refrigerators (or storage chests) every 6 in-game hours, consuming one charcoal or paper filter per batch from camp storage.
+- **Automated Water Pumps & Sinks**: In Hideout Furniture, placeable Metal Barrels (`placeable_barrel_metal`), Sinks (`placeable_sink`), or Milk Cans (`placeable_bidon`) function as water pumps. They produce clean drinking water flasks directly into camp refrigerators (or storage chests) every 6 in-game hours, consuming one charcoal or paper filter per batch from camp storage.
 - **Fridge Preservation**: Chills raw meat and food every 12 hours, restoring condition incrementally by +0.25 to simulate decay prevention.
 - **Morale Boosters**: Radios and pianos boost camp happiness/morale (+10% each) and attract idle survivors who play guitars or relax nearby.
 - **Camp Raids & Alarm Sirens**: Defensive gaps trigger raids by hostile squads (including advanced/veteran Bandits and Zombied). Placed alarms play subway sirens to warn of attacks. Post-raid summary shows raiders killed and guards lost.
