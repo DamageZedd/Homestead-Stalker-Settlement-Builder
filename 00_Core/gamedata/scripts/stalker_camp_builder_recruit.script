@@ -1621,6 +1621,39 @@ function stalker_camp_builder.return_to_settlement(p1, p2)
     end
 end
 
+-- The camp and entry of a settler away with the player as a companion, or nothing
+function stalker_camp_builder.find_companion_settler(npc_id)
+    for hub_id, camp in pairs(stalker_camp_builder.active_camps or {}) do
+        local s = camp.survivors and (camp.survivors[npc_id] or camp.survivors[tostring(npc_id)])
+        if s then
+            if s.job == "companion" or s.is_companion then
+                return hub_id, camp, s
+            end
+            return nil
+        end
+    end
+end
+
+-- A settler the base game took out of the party (the companion dialog's "Leave", a paid escort's
+-- contract running out) goes back to their camp job, as return_to_settlement sends them. The
+-- remove_from_actor_squad wrap (on_game_start) runs it a tick after the dismissal.
+function stalker_camp_builder.return_dismissed_settler(npc_id)
+    local sb = stalker_camp_builder
+    local hub_id, camp, s = sb.find_companion_settler(npc_id)
+    if not s or (sb.is_companion and sb.is_companion(npc_id)) then return end
+    s.job = s.paused_job or "idle"
+    s.paused_job = nil
+    s.is_companion = nil
+    s.job_start_time = sb.game_sec()
+    s.job_start_realtime = time_global()
+
+    sb.set_camp_settler_relations(hub_id, npc_id, true)
+    sb.teleport_npc_to_camp_hub(npc_id, hub_id, true)
+
+    local c_name = sb.get_camp_label(camp)
+    actor_menu.set_msg(1, string.format(game.translate_string("st_return_to_settlement_msg") or "%s is returning to settlement duties at %s.", s.name or "Settler", c_name), 4)
+end
+
 -- ============================================================================
 -- heal_stuck_companion_settlers -- Migration/Safety sweep for existing saves
 -- ----------------------------------------------------------------------------
@@ -3808,6 +3841,31 @@ function on_game_start()
                 local banished = m_data and m_data.stalker_camp_builder_banished_companions
                 if banished then
                     banished[npc:id()] = nil
+                end
+                -- nor may their next spawn strip them as a freed settler (main's game_object_on_net_spawn
+                -- takes the purge's mark and a wait order with it)
+                local freed = m_data and m_data.stalker_camp_builder_freed_settlers
+                if freed then freed[npc:id()] = nil end
+            end
+            return ret
+        end
+    end
+    -- the companion dialog's "Leave" (dialogs_axr_companion.remove_companions_from_squad) and a paid
+    -- escort's contract end (txr_paid_companions) call remove_from_actor_squad and leave a settler marked
+    -- as a companion. Homestead's own callers set the job themselves, by the next tick.
+    if axr_companions and axr_companions.remove_from_actor_squad and not axr_companions._homestead_dismiss_wrapped then
+        axr_companions._homestead_dismiss_wrapped = true
+        local remove_from_actor_squad = axr_companions.remove_from_actor_squad
+        axr_companions.remove_from_actor_squad = function(npc, ...)
+            local ret = remove_from_actor_squad(npc, ...)
+            if npc and npc.id then
+                local npc_id = npc:id()
+                local find = stalker_camp_builder.find_companion_settler
+                if find and find(npc_id) then
+                    CreateTimeEvent("homestead_dismissed_" .. npc_id, "dismissed_" .. npc_id, 0, function()
+                        stalker_camp_builder.return_dismissed_settler(npc_id)
+                        return true
+                    end)
                 end
             end
             return ret
