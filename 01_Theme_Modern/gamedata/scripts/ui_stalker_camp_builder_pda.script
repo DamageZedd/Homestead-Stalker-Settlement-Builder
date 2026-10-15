@@ -1547,6 +1547,13 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
 
     -- 4. Module C: Logistics, Life Support & Morale
     local water_pumps_str = stats.water_pumps > 0 and sformat("%d Active Pumps (Supply: OK)", stats.water_pumps) or "0 Pumps (Water Supply LOW)"
+    if stats.water_pumps > 0 and stalker_camp_builder.get_camp_inventory_snapshot then
+        -- each batch uses up a filter from camp storage: without one the pumps make no water
+        local snap = stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, false)
+        if snap and (snap.water_filter_count or 0) == 0 then
+            water_pumps_str = sformat(game.translate_string("st_pda_camp_water_no_filter"), stats.water_pumps)
+        end
+    end
     self.camp_water:SetText(sformat("Water Infrastructure: %s", water_pumps_str))
 
     local has_food, has_water = stalker_camp_builder.check_camp_chest_supplies(camp, hub_obj)
