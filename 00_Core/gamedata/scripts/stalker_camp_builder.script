@@ -7625,14 +7625,6 @@ local function get_camp_categorized_boxes(camp, hub_id)
         end
     end
 
-    local fallback_chest = (chest_boxes[1] and chest_boxes[1].id)
-        or (tech_boxes[1] and tech_boxes[1].id)
-        or (crafter_boxes[1] and crafter_boxes[1].id)
-        or (other_boxes[1] and other_boxes[1].id)
-        or (weapon_boxes[1] and weapon_boxes[1].id)
-        or (armor_boxes[1] and armor_boxes[1].id)
-        or (all_boxes[1] and all_boxes[1].id)
-
     local res = {
         boxes_by_bucket = {
             fridge = fridge_boxes,
@@ -7646,7 +7638,6 @@ local function get_camp_categorized_boxes(camp, hub_id)
             other = other_boxes,
         },
         all_boxes = all_boxes,
-        fallback_chest = fallback_chest,
     }
     camp._cached_categorized_boxes = res
     return res
@@ -7767,11 +7758,7 @@ function stalker_camp_builder.get_auto_sort_target_box(camp, hub_id, sec_or_item
     local general_fallback = pick_box({ b.chest, b.other, b.tech, b.crafter, b.weapon, b.armor })
     if general_fallback then return general_fallback end
 
-    -- If all categorized containers are full, check if fallback_chest itself has room
-    if cat.fallback_chest and sb.box_has_room_for(cat.fallback_chest, item_weight, weight_cache) then
-        return cat.fallback_chest
-    end
-
+    -- no box that takes the item has room: deposit_item_to_camp drops it at the hub
     return nil
 end
 
