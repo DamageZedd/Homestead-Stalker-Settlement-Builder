@@ -776,10 +776,10 @@
         <text>%c[255,238,196,112]>> WORKSTATION%c[default]\n \n  - Requires Medical Table, Clinic Equipment, or First Aid Station.\n \n%c[255,238,196,112]>> COMPLETE DIAGNOSTIC TRIAGE MENU%c[default]\n \n  - %c[255,100,200,255]Patch Wounds &amp; Bleeding (1,850 RU):%c[default] Restores health, stamina, stops bleeding, heals Body Health System (BHS) limbs, and plays medkit animation.\n  - %c[255,100,200,255]Cure Radiation Poisoning (1,480 RU):%c[default] Purges radiation to 0 mSv with anti-rad injection animation.\n  - %c[255,100,200,255]Complete Treatment (3,350 RU):%c[default] Full physical and radiological restoration.\n \n%c[255,238,196,112]>> DRUGKIT DELIVERIES &amp; PHARMACY%c[default]\n \n  - Synthesizes Bandages (1x Vodka or 1 cloth), AI-2 Medkits (4x Vodka + 1 Bandage), Potassium Iodide (3x Vodka), and Ibuprofen (5x Vodka) directly into Medical Chests using Nemiroff Vodka provided by your Brewer. Each Vodka is one use; a bottle holds 3.\n  - Production directives can be configured via dialogue or the PDA Survivors tab.\n  - Delivering a %c[255,144,238,144]Drug-Making Kit%c[default] doubles pharmaceutical output (2x Boost)!</text>
     </string>
     <string id="st_guide_s3h_header">
-        <text>JOB: ELECTRICIAN (POWER GRID, LAMPS &amp; BATTERY RECHARGING)</text>
+        <text>JOB: ELECTRICIAN (POWER GRID &amp; LAMPS)</text>
     </string>
     <string id="st_guide_s3h_body">
-        <text>%c[255,238,196,112]>> CAMP ILLUMINATION &amp; POWER GRID%c[default]\n \n  - Keeps placed lamps lit: when a lamp is below half its fuel, the electrician uses one Battery Pack from camp storage and refills every such lamp. Without batteries in storage the job waits.\n  - %c[255,144,238,144]Night Defense Boost:%c[default] Active lighting provides +5 Defense rating per illuminated sector.</text>
+        <text>%c[255,238,196,112]>> CAMP ILLUMINATION &amp; POWER GRID%c[default]\n \n  - Keeps placed lamps lit: when a lamp is below half its fuel, the electrician uses one Battery Pack from camp storage and refills every such lamp. Without batteries in storage the job waits.\n  - %c[255,144,238,144]Defense:%c[default] Lamps and spotlights light the camp but add no Defense rating.</text>
     </string>
     <string id="st_guide_s3i_header">
         <text>JOB: WOODCUTTER (TIMBER LOGGING &amp; CHARCOAL KILN)</text>
