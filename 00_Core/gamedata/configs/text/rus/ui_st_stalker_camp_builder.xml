@@ -1555,6 +1555,12 @@
     <string id="ui_mcm_stalker_camp_builder_enforce_territory_safety_desc">
         <text>При включении, сталкеры враждебных правящей группировке фракций (напр. Свобода на Ростке) не могут быть наняты на эту локацию. Одиночки разрешены везде.</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_block_respawn_in_settlements">
+        <text>Блокировка естественного спавна в поселениях</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_block_respawn_in_settlements_desc">
+        <text>Отменяет появление новых отрядов A-Life из смарт-террейнов Зоны, центр которых находится внутри границ активного поселения. Опционально: отключите, если задания зависят от местных точек спавна.</text>
+    </string>
 
     <!-- v1.1.3 Job Automation: Woodcutter, Brewer, Scrapper & Medical Supply Chain -->
     <string id="st_job_woodcutter_btn">

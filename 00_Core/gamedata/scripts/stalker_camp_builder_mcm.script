@@ -32,6 +32,7 @@ function on_mcm_load()
             { id = "recruitment_rank_requirements", type = "check", val = 1, def = true },
             { id = "recruitment_cost_mult", type = "track", val = 2, min = 0.0, max = 3.0, step = 0.1, def = 1.0 },
             { id = "enforce_territory_safety", type = "check", val = 1, def = true },
+            { id = "block_respawn_in_settlements", type = "check", val = 1, def = false },
             { id = "camp_rest_bonus", type = "check", val = 1, def = true },
             { id = "fast_travel_cost", type = "track", val = 2, min = 0, max = 20000, step = 500, def = 2000 },
             { id = "settlement_map_spot_style", type = "list", val = 2, def = 0, no_str = true,

@@ -1561,6 +1561,12 @@
     <string id="ui_mcm_stalker_camp_builder_enforce_territory_safety_desc">
         <text>When enabled, recruits from factions hostile to a level's ruling faction (e.g. Freedom in Duty-held Rostok) cannot be assigned to settlements on that level. Loners are always allowed anywhere.</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_block_respawn_in_settlements">
+        <text>Block Natural Spawns in Settlements</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_block_respawn_in_settlements_desc">
+        <text>Cancels natural ALife squad respawns from Zone smart terrains whose center lies inside an active settlement perimeter. Opt-in: keep disabled if quests depend on specific local spawns.</text>
+    </string>
 
     <!-- v1.1.3 Job Automation: Woodcutter, Brewer, Scrapper & Medical Supply Chain -->
     <string id="st_job_woodcutter_btn">

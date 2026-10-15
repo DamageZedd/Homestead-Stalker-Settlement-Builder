@@ -1502,6 +1502,7 @@ local defaults = {
     recruitment_rank_requirements = true, -- Enforce rank/fee/defense checks for recruiting experienced/veteran stalkers
     recruitment_cost_mult = 1.0,  -- Multiplier for recruitment fees
     enforce_territory_safety = true, -- Check faction safety against territory ruling factions
+    block_respawn_in_settlements = false, -- Opt-in: cancel natural smart terrain ALife squad respawns inside settlement perimeter
     max_rival_camps = 25,         -- Maximum number of active rival camps across the Zone (default: 25)
     rival_camps_per_level_max = 3,-- Maximum rival outposts per level (default: 3)
     rival_camp_min_spacing = 35,  -- Minimum distance between separate rival camps (meters)
@@ -1602,6 +1603,7 @@ local mcm_option_path = {
     recruitment_rank_requirements = "stalker_camp_builder/general/recruitment_rank_requirements",
     recruitment_cost_mult = "stalker_camp_builder/general/recruitment_cost_mult",
     enforce_territory_safety = "stalker_camp_builder/general/enforce_territory_safety",
+    block_respawn_in_settlements = "stalker_camp_builder/general/block_respawn_in_settlements",
     camp_rest_bonus = "stalker_camp_builder/general/camp_rest_bonus",
     fast_travel_cost = "stalker_camp_builder/general/fast_travel_cost",
     settlement_map_spot_style = "stalker_camp_builder/general/settlement_map_spot_style",
@@ -1926,6 +1928,52 @@ function stalker_camp_builder.get_nearby_smart_terrain_hazard(pos, check_dist, l
     return nil
 end
 local get_nearby_smart_terrain_hazard = stalker_camp_builder.get_nearby_smart_terrain_hazard
+
+function stalker_camp_builder.is_smart_respawn_blocked_in_camp(smart)
+    local sb = stalker_camp_builder
+    if not (sb.cfg and sb.cfg.block_respawn_in_settlements) then return false end
+    if not (smart and smart.position) then return false end
+
+    local sim = alife()
+    local gg = game_graph()
+    local s_lvl = nil
+    if smart.m_game_vertex_id and sim and gg then
+        local ok, lvl = pcall(function()
+            return sim:level_name(gg:vertex(smart.m_game_vertex_id):level_id())
+        end)
+        if ok then s_lvl = lvl end
+    end
+    if not s_lvl and smart.is_on_actor_level and level and level.name then
+        s_lvl = level.name()
+    end
+
+    local boundary = (sb.cfg and sb.cfg.boundary_dist) or 50
+    local b_sqr = boundary * boundary
+
+    for hub_id, camp in pairs(sb.active_camps or {}) do
+        local camp_lvl = camp.level
+        local match_level = (not camp_lvl or camp_lvl == "unknown" or not s_lvl or camp_lvl == s_lvl)
+        if match_level then
+            local hub = alife_object(hub_id)
+            local hp = (camp.position and vector():set(camp.position.x, camp.position.y, camp.position.z))
+                or (hub and hub.position)
+            if hp then
+                local dx = smart.position.x - hp.x
+                local dy = smart.position.y - hp.y
+                local dz = smart.position.z - hp.z
+                if (dx * dx + dy * dy + dz * dz) <= b_sqr then
+                    if sb.cfg.debug_logging then
+                        printf("[Homestead] Blocked natural respawn at smart terrain %s (inside settlement perimeter)", smart:name())
+                    end
+                    return true
+                end
+            end
+        end
+    end
+
+    return false
+end
+local is_smart_respawn_blocked_in_camp = stalker_camp_builder.is_smart_respawn_blocked_in_camp
 
 function get_camp_bed_capacity(camp)
     local capacity = 0
@@ -4418,6 +4466,7 @@ function save_state(m_data)
         m_data.stalker_camp_builder_active_stash_expeditions = pack_table_vectors(stalker_camp_builder.active_stash_expeditions or {})
         m_data.stalker_camp_builder_active_convoys = pack_table_vectors(stalker_camp_builder.active_convoys or {})
         m_data.stalker_camp_builder_hospitality_end_sec = stalker_camp_builder.hospitality_buff_end_sec
+        m_data.stalker_camp_builder_faction_retaliation_timers = stalker_camp_builder.faction_retaliation_timers or {}
     end)
 end
 
@@ -4510,6 +4559,7 @@ function load_state(m_data)
     stalker_camp_builder.active_convoys = keys_to_numbers(unpack_table_vectors(m_data.stalker_camp_builder_active_convoys or {}))
     local raw_hosp = m_data.stalker_camp_builder_hospitality_end_sec
     stalker_camp_builder.hospitality_buff_end_sec = (type_(raw_hosp) == "number") and raw_hosp or nil
+    stalker_camp_builder.faction_retaliation_timers = m_data.stalker_camp_builder_faction_retaliation_timers or {}
 
     if save_version < 2 then
         for hub_id, camp in pairs_(stalker_camp_builder.active_camps) do
@@ -7141,6 +7191,21 @@ function on_game_start()
         pcall(RegisterScriptCallback, "map_spot_menu_add_property", map_spot_menu_add_property)
         pcall(RegisterScriptCallback, "map_spot_menu_property_clicked", map_spot_menu_property_clicked)
         pcall(RegisterScriptCallback, "on_luabind_fatal_error", homestead_luabind_fatal_diag)
+        pcall(RegisterScriptCallback, "on_try_respawn", function(smart, flags)
+            if is_smart_respawn_blocked_in_camp(smart) then
+                if flags then flags.disabled = true end
+            end
+        end)
+    end
+    local st_class = se_smart_terrain or (smart_terrain and smart_terrain.se_smart_terrain)
+    if st_class and st_class.try_respawn then
+        local orig_smart_try_respawn = st_class.try_respawn
+        st_class.try_respawn = function(self)
+            if is_smart_respawn_blocked_in_camp(self) then
+                return
+            end
+            return orig_smart_try_respawn(self)
+        end
     end
     safe_register_callback("actor_on_net_destroy", function()
         homestead_is_disconnecting = true

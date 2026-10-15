@@ -1207,7 +1207,11 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                         end
                     end
 
-                    if mrandom(1000) <= 5 then -- 0.5% roll every 10s tick
+                    local skirmish_cooldown_sec = 21600 -- 6 game hours
+                    local is_on_cooldown = (camp.skirmish_cooldown_until and current_sec < camp.skirmish_cooldown_until)
+                        or (camp.setup_sec and (current_sec - camp.setup_sec < skirmish_cooldown_sec))
+                    if not is_on_cooldown and mrandom(1000) <= 5 then -- 0.5% roll every 10s tick
+                        camp.skirmish_cooldown_until = current_sec + skirmish_cooldown_sec
                         local actor_dist = 999
                         if actor and camp.position then
                             local act_p = actor:position()
@@ -1227,8 +1231,13 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                                 camp.sos_faction = camp.faction
                                 local faction_name = game.translate_string(camp.faction or "stalker")
                                 local lvl_name = game.translate_string(camp.level or level_name)
-                                if actor then
-                                    stalker_camp_builder.camp_send_tip(actor, sformat(game.translate_string("st_mayday_forces_taking_fire"), faction_name, camp.name, lvl_name), nil, "red_danger", 14000, nil, "combat", true)
+                                local mayday_text = sformat(game.translate_string("st_mayday_forces_taking_fire"), faction_name, camp.name, lvl_name)
+                                if same_level or in_player_settlement(camp.level or level_name, camp.position) then
+                                    if actor then
+                                        stalker_camp_builder.camp_send_tip(actor, mayday_text, nil, "red_danger", 14000, nil, "combat", true)
+                                    end
+                                else
+                                    stalker_camp_builder.add_camp_radio_log(nil, "combat", mayday_text)
                                 end
                             end
                         end
@@ -1263,6 +1272,7 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                                     camp.faction = enemy_fac
                                     camp.setup_sec = current_sec
                                     camp.setup_duration = mrandom(21600, 64800)
+                                    camp.skirmish_cooldown_until = current_sec + 21600
                                     -- the tier stays with the furniture it built: reset, it would build it again
 
                                     local squad_pos = v_scratch_pos:set(camp.position.x, camp.position.y, camp.position.z)
@@ -1286,8 +1296,13 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                                     local is_hostile = (rel <= -1000)
                                     camp.cleared = not is_hostile
                                     sb.sync_rival_camp_map_spot(camp)
-                                    if actor then
-                                        stalker_camp_builder.camp_send_tip(actor, sformat(game.translate_string("st_zone_skirmish_cleansed"), new_fac_name, camp.name, old_fac_name), nil, is_hostile and "red_danger" or "general_stalker", 12000, nil, "combat")
+                                    local skirmish_text = sformat(game.translate_string("st_zone_skirmish_cleansed"), new_fac_name, camp.name, old_fac_name)
+                                    if same_level or in_player_settlement(camp.level or level_name, camp.position) then
+                                        if actor then
+                                            stalker_camp_builder.camp_send_tip(actor, skirmish_text, nil, is_hostile and "red_danger" or "general_stalker", 12000, nil, "combat")
+                                        end
+                                    else
+                                        stalker_camp_builder.add_camp_radio_log(nil, "combat", skirmish_text)
                                     end
                                 end
                             end
@@ -1310,6 +1325,17 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                 if actor then
                     local faction_name = old_faction and game.translate_string(old_faction) or "occupying"
                     stalker_camp_builder.camp_send_tip(actor, sformat(game.translate_string("st_recon_garrison_eliminated"), camp.name, faction_name), nil, "general_stalker", 10000, nil, "general")
+                end
+
+                if sb.cfg.rival_camp_retaliation_raids ~= false and old_faction and old_faction ~= "monster" and old_faction ~= "zombied" then
+                    local actor_comm = (actor and actor.character_community) and actor:character_community() or "stalker"
+                    local rel = relation_registry.community_relation(old_faction, actor_comm)
+                    if rel <= -1000 then
+                        sb.faction_retaliation_timers = sb.faction_retaliation_timers or {}
+                        if not sb.faction_retaliation_timers[old_faction] then
+                            sb.faction_retaliation_timers[old_faction] = current_sec + mrandom(7200, 14400) -- 2 to 4 game hours
+                        end
+                    end
                 end
             end
         elseif camp.status == "unoccupied" then
@@ -1345,6 +1371,7 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                 camp.despawn_chest_when_empty = nil
                 camp.setup_sec = current_sec
                 camp.setup_duration = mrandom(21600, 64800) -- 6 to 18 game hours
+                camp.skirmish_cooldown_until = current_sec + 21600
 
                 local actor_comm = (actor and actor.character_community) and actor:character_community() or "stalker"
                 local rel = relation_registry.community_relation(camp.faction, actor_comm)
@@ -2339,6 +2366,7 @@ function stalker_camp_builder.spawn_single_rival_camp(target_level, specific_fac
                             ground_snapped_v4 = (target_level == level_name),
                             setup_sec = current_sec,
                             setup_duration = mrandom(21600, 64800),
+                            skirmish_cooldown_until = current_sec + 21600,
                             tier = 1
                         }
 
