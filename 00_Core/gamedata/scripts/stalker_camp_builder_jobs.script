@@ -1101,7 +1101,8 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
             if sb.cfg and sb.cfg.enable_surplus_cap ~= false and snap.food_count >= 15 then
                 return true, "Stockpile Full", "Food stockpile is full (15+ rations stored)"
             end
-            local has_meat = (snap.fridge_id and snap.fridge_raw_meat_count > 0) or (not snap.fridge_id and snap.raw_meat_count > 0)
+            -- process_cook_job takes raw meat from any box, the fridge first
+            local has_meat = snap.raw_meat_count > 0
             if not has_meat then
                 return true, "No Raw Meat", "No raw mutant meat in settlement storage"
             end
