@@ -144,6 +144,9 @@ function stalker_camp_builder.set_survivor_job(npc_id, job)
                     local hub_obj = alife_object(hub_id)
                     if se_npc and hub_obj and not se_npc:can_switch_online() then
                         utils_obj.switch_online(matched_id)
+                        if sb.allow_home_squad_online then
+                            sb.allow_home_squad_online(matched_id, true)
+                        end
                         se_npc.position = hub_obj.position
                         se_npc.m_level_vertex_id = hub_obj.m_level_vertex_id
                         se_npc.m_game_vertex_id = hub_obj.m_game_vertex_id
