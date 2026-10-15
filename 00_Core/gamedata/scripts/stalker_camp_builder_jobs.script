@@ -723,6 +723,8 @@ local function gun_parts_worn(item_id, sec)
     end
     return false
 end
+-- get_camp_inventory_snapshot (main script) calls it for the technician's paused check
+stalker_camp_builder.gun_parts_worn = gun_parts_worn
 
 -- process_gear_repair -- repair one or more damaged items in exchange for food
 function stalker_camp_builder.process_gear_repair(npc_id, box_id, camp, survivor, fallback_box_id)
