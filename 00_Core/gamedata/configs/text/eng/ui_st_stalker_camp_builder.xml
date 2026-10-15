@@ -752,7 +752,7 @@
         <text>JOB: HUNTER (MUTANT TROPHIES &amp; PANTRY STOCKING)</text>
     </string>
     <string id="st_guide_s3_hunter_body">
-        <text>%c[255,238,196,112]>> WILDERNESS HUNTING EXPEDITIONS%c[default]\n \n  - Dispatched into the surrounding wilderness to hunt mutants, skin beasts, and harvest valuable monster parts.\n  - Yields fresh mutant meats (boar, flesh, pseudodog, bloodsucker, chimera), animal hides, and rare trophies.\n \n%c[255,238,196,112]>> AMBUSH DANGER &amp; EXPERIENCE%c[default]\n \n  - Hunters face mutant pack ambushes in the wild; successful hunts award survival XP and higher harvest yields.\n \n%c[255,238,196,112]>> SMART PANTRY STORAGE%c[default]\n \n  - %c[255,144,238,144]Fridge &amp; Pantry Priority:%c[default] Automatically stocks hunted meat directly into Camp Refrigerators and food containers for your Chef!</text>
+        <text>%c[255,238,196,112]>> HUNTING FROM CAMP%c[default]\n \n  - Works from camp and never leaves it: each job cycle's catch goes straight into camp storage.\n  - Yields fresh mutant meats (boar, flesh, pseudodog, bloodsucker, chimera), animal hides, and rare trophies.\n \n%c[255,238,196,112]>> AMBUSH DANGER &amp; EXPERIENCE%c[default]\n \n  - Hunters face mutant pack ambushes; successful hunts award survival XP and higher harvest yields.\n \n%c[255,238,196,112]>> SMART PANTRY STORAGE%c[default]\n \n  - %c[255,144,238,144]Fridge &amp; Pantry Priority:%c[default] Automatically stocks hunted meat directly into Camp Refrigerators and food containers for your Chef!</text>
     </string>
     <string id="st_guide_s3d_header">
         <text>JOB: CRAFTER (AMMUNITION SYNTHESIS &amp; TURRETS)</text>
@@ -2002,25 +2002,25 @@
         <text>%s was ambushed while scavenging!</text>
     </string>
     <string id="st_job_scavenger_returned">
-        <text>%s returned from a perimeter patrol (%d items)! Heading out again...</text>
+        <text>%s finished a perimeter patrol (%d items)!</text>
     </string>
     <string id="st_job_scavenger_radio_feed">
-        <text>%s brought back a perimeter patrol haul to %s (%d items).</text>
+        <text>%s stored a perimeter patrol haul in %s storage (%d items).</text>
     </string>
     <string id="st_job_scavenger_no_chest">
-        <text>%s returned from scavenging, but could not find a chest to deposit items.</text>
+        <text>%s could not find a chest to deposit items.</text>
     </string>
     <string id="st_job_hunter_ambushed">
         <text>%s was ambushed by mutants while hunting!</text>
     </string>
     <string id="st_job_hunter_returned">
-        <text>%s returned from hunting with %s! Heading out again...</text>
+        <text>%s stocked camp storage with %s from the hunt!</text>
     </string>
     <string id="st_job_hunter_radio_feed">
-        <text>%s brought back %s to %s.</text>
+        <text>%s stored %s in %s storage.</text>
     </string>
     <string id="st_job_hunter_no_chest">
-        <text>%s returned from hunting, but could not find a fridge/chest to deposit meat.</text>
+        <text>%s could not find a fridge/chest to deposit meat.</text>
     </string>
     <string id="st_event_refugees_departed">
         <text>The refugees at your camp have moved on (%d group(s)).</text>

@@ -2820,7 +2820,7 @@ function stalker_camp_builder.update_camp_jobs()
                                                 local ok, tip_msg = pcall(string.format, tip_tmpl, hunter_name, meat_desc)
                                                 if not ok then
                                                     local ok2, tip_msg2 = pcall(string.format, tip_tmpl, hunter_name, meat_count)
-                                                    tip_msg = ok2 and tip_msg2 or (hunter_name .. " returned from hunting with " .. tostring(meat_desc) .. "!")
+                                                    tip_msg = ok2 and tip_msg2 or (hunter_name .. " stocked camp storage with " .. tostring(meat_desc) .. " from the hunt!")
                                                 end
                                                 sb.camp_send_tip(actor, tip_msg, nil, "general_stalker", 10000)
                                             end
@@ -2829,7 +2829,7 @@ function stalker_camp_builder.update_camp_jobs()
                                                 local ok_r, radio_msg = pcall(string.format, radio_tmpl, hunter_name, meat_desc, camp.name or "Camp")
                                                 if not ok_r then
                                                     local ok_r2, radio_msg2 = pcall(string.format, radio_tmpl, hunter_name, meat_count, camp.name or "Camp")
-                                                    radio_msg = ok_r2 and radio_msg2 or (hunter_name .. " brought back " .. tostring(meat_desc) .. " to " .. (camp.name or "Camp") .. ".")
+                                                    radio_msg = ok_r2 and radio_msg2 or (hunter_name .. " stored " .. tostring(meat_desc) .. " in " .. (camp.name or "Camp") .. " storage.")
                                                 end
                                                 sb.add_radio_feed_entry("work", radio_msg)
                                             end
