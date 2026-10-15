@@ -2721,14 +2721,13 @@ function stalker_camp_builder.update_camp_jobs()
                                             local scav_mult = tier_mult * spec_mult
                                             local scav_box = loot_box
                                             local scav_name = survivor.name or "Scavenger"
-                                            local deposited, is_yellow = sb.spawn_scavenged_loot(scav_box, scav_mult, hub_id, camp, survivor)
+                                            local deposited = sb.spawn_scavenged_loot(scav_box, scav_mult, hub_id, camp, survivor)
                                             local num_items = (type(deposited) == "table") and #deposited or 0
-                                            local type_desc = is_yellow and "Yellow (Rare) Stash" or "White (Common) Stash"
                                             if not is_catchup then
-                                                sb.camp_send_tip(actor, string.format(game.translate_string("st_job_scavenger_returned"), scav_name, type_desc, num_items), nil, "general_stalker", 10000, nil, "expedition")
+                                                sb.camp_send_tip(actor, string.format(game.translate_string("st_job_scavenger_returned"), scav_name, num_items), nil, "general_stalker", 10000, nil, "expedition")
                                             end
                                             if sb.add_radio_feed_entry and camp then
-                                                sb.add_radio_feed_entry("expedition", string.format(game.translate_string("st_job_scavenger_radio_feed"), scav_name, is_yellow and "Rare" or "Common", camp.name or "Camp", num_items))
+                                                sb.add_radio_feed_entry("expedition", string.format(game.translate_string("st_job_scavenger_radio_feed"), scav_name, camp.name or "Camp", num_items))
                                             end
                                         else
                                             if not is_catchup then

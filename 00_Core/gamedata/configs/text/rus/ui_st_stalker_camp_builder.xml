@@ -1990,10 +1990,10 @@
         <text>%s попал в засаду во время вылазки!</text>
     </string>
     <string id="st_job_scavenger_returned">
-        <text>%s вернулся с вылазки с добычей ([%s], %d предм.)! Снова отправляется в путь...</text>
+        <text>%s вернулся с обхода периметра (%d предм.)! Снова отправляется в путь...</text>
     </string>
     <string id="st_job_scavenger_radio_feed">
-        <text>%s доставил хабар из тайника (%s) в лагерь %s (%d предм.).</text>
+        <text>%s доставил хабар с обхода периметра в лагерь %s (%d предм.).</text>
     </string>
     <string id="st_job_scavenger_no_chest">
         <text>%s вернулся с вылазки, но не нашел подходящего ящика для сдачи хабара.</text>

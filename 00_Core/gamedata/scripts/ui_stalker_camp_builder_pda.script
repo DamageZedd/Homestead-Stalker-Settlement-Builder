@@ -2618,8 +2618,19 @@ function SettlementManagerPDA:RefreshJobProgress(force, hub_id_override)
                                 if self.survivor_pos_txt then self.survivor_pos_txt:SetText(sformat("Status: En Route to Stash in %s", target_lvl)) end
                             end
                         else
-                            display = sformat("%s (Waiting for Orders)", job_label)
-                            if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Waiting at Camp for Orders") end
+                            -- at camp the scavenger patrols on the job's cycle, as the roster row shows
+                            local progress = stalker_camp_builder.get_job_progress and stalker_camp_builder.get_job_progress(survivor, camp, hub_id) or 0
+                            local time_remaining = stalker_camp_builder.get_job_time_remaining and stalker_camp_builder.get_job_time_remaining(survivor, camp, hub_id) or 0
+                            if time_remaining > 0 then
+                                local mins = math.floor(time_remaining / 60)
+                                local secs = math.floor(time_remaining % 60)
+                                local time_str = mins > 0 and sformat("%dm %02ds", mins, secs) or sformat("%ds", secs)
+                                display = sformat("%s: Patrolling Camp (%d%% - %s remaining)", job_label, math.floor(progress * 100), time_str)
+                                if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Local Area Scavenging & Perimeter Patrol") end
+                            else
+                                display = sformat("%s (Available for Expedition)", job_label)
+                                if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Waiting at Camp for Expedition Orders") end
+                            end
                         end
                     elseif job == "hunter" then
                         local progress = stalker_camp_builder.get_job_progress and stalker_camp_builder.get_job_progress(survivor, camp, hub_id) or 0

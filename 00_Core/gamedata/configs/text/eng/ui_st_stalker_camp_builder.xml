@@ -1996,10 +1996,10 @@
         <text>%s was ambushed while scavenging!</text>
     </string>
     <string id="st_job_scavenger_returned">
-        <text>%s returned from scavenging with a [%s] haul (%d items)! Heading out again...</text>
+        <text>%s returned from a perimeter patrol (%d items)! Heading out again...</text>
     </string>
     <string id="st_job_scavenger_radio_feed">
-        <text>%s brought back a %s stash haul to %s (%d items).</text>
+        <text>%s brought back a perimeter patrol haul to %s (%d items).</text>
     </string>
     <string id="st_job_scavenger_no_chest">
         <text>%s returned from scavenging, but could not find a chest to deposit items.</text>
