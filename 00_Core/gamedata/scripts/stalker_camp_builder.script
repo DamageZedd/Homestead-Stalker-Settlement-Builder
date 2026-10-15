@@ -884,7 +884,12 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                 if camp and camp.stored_items then
                     for stored_iid, stored_it in pairs(camp.stored_items) do
                         if stored_it.box_id == cid and not seen_in_box[stored_iid] then
-                            camp.stored_items[stored_iid] = nil
+                            -- the listing misses what a stopped scan never reached, and what was spawned
+                            -- into the box this update (the client lists it from the next frame)
+                            local se_stored = sim:object(stored_iid)
+                            if not (se_stored and se_stored.parent_id == cid) then
+                                camp.stored_items[stored_iid] = nil
+                            end
                         end
                     end
                 end
