@@ -5259,6 +5259,10 @@ local function verify_and_heal_settlers()
             if se and stalker_camp_builder.pin_settler_home_squad then
                 stalker_camp_builder.pin_settler_home_squad(id_num)
             end
+            -- the save keeps a squad's switch flags: lift an expedition's hold for a settler who is back
+            if se and not survivor.on_expedition and stalker_camp_builder.allow_home_squad_online then
+                stalker_camp_builder.allow_home_squad_online(id_num, true)
+            end
         end
 
         for _, npc_id in ipairs(stale) do
@@ -8409,6 +8413,9 @@ function stalker_camp_builder.recall_scavenger_expedition(stash_id)
         -- set_switch_online on an id with no server object is an engine crash
         if se_npc then
             utils_obj.switch_online(exp.npc_id)
+            if sb.allow_home_squad_online then
+                sb.allow_home_squad_online(exp.npc_id, true)
+            end
             if sb.teleport_settler_to_camp_level then
                 sb.teleport_settler_to_camp_level(exp.npc_id, exp.hub_id, true)
             end
@@ -8445,6 +8452,9 @@ function stalker_camp_builder.get_available_scavengers()
                     local hub_obj = alife_object(hub_id)
                     if se_npc and hub_obj and not se_npc:can_switch_online() then
                         utils_obj.switch_online(n_id)
+                        if sb.allow_home_squad_online then
+                            sb.allow_home_squad_online(n_id, true)
+                        end
                         se_npc.position = hub_obj.position
                         se_npc.m_level_vertex_id = hub_obj.m_level_vertex_id
                         se_npc.m_game_vertex_id = hub_obj.m_game_vertex_id
@@ -9405,6 +9415,24 @@ function map_spot_menu_property_clicked(property_ui, id, level_name, prop)
     end
 end
 
+-- A settler's home squad brings him online and takes him offline, whatever his own switch flags say,
+-- and the save keeps its flags. An expedition holds it offline; every way back must allow it online
+-- again (the engine's default: online and offline both allowed), or it never comes online, nor he
+-- with it. Only his own squad, as pin_settler_home_squad takes it: a shared squad's other members
+-- would go with him. Returns it.
+function stalker_camp_builder.allow_home_squad_online(npc_id, allow)
+    local sim = alife()
+    local se_npc = sim and alife_object(npc_id)
+    local squad = se_npc and get_object_squad(se_npc)
+    if not (squad and squad:section_name() == "online_offline_group" and squad:npc_count() == 1) then return end
+    if axr_companions and axr_companions.companion_squads and axr_companions.companion_squads[squad.id] ~= nil then
+        return
+    end
+    sim:set_switch_online(squad.id, allow)
+    sim:set_switch_offline(squad.id, true)
+    return squad
+end
+
 local function teleport_scavenger_on_departure(npc_id, stash_id, target_level)
     local sim = alife()
     if not (sim and npc_id) then return end
@@ -9435,11 +9463,7 @@ local function teleport_scavenger_on_departure(npc_id, stash_id, target_level)
     sim:set_switch_online(npc_id, false)
     sim:set_switch_offline(npc_id, true)
 
-    local squad = get_object_squad(se_npc)
-    if squad then
-        sim:set_switch_online(squad.id, false)
-        sim:set_switch_offline(squad.id, true)
-    end
+    local squad = stalker_camp_builder.allow_home_squad_online and stalker_camp_builder.allow_home_squad_online(npc_id, false)
 
     if dest_gvid and dest_lvid and dest_pos then
         pcall(sim.teleport_object, sim, npc_id, dest_gvid, dest_lvid, dest_pos)
@@ -9800,6 +9824,9 @@ local function reposition_survivor_at_camp(exp, camp, hub_obj, box_se, surv)
     if se_npc and final_pos then
         sim_alao:set_switch_online(se_npc.id, true)
         sim_alao:set_switch_offline(se_npc.id, true)
+        if stalker_camp_builder.allow_home_squad_online then
+            stalker_camp_builder.allow_home_squad_online(se_npc.id, true)
+        end
         se_npc.position           = final_pos
         if final_lvid then se_npc.m_level_vertex_id = final_lvid end
         if spawn_gvid then se_npc.m_game_vertex_id  = spawn_gvid end
