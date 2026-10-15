@@ -80,10 +80,20 @@ Without these base mods active, you will experience missing section crashes when
 				<group name="G.A.M.M.A. Compatibility Options" type="SelectExactlyOne">
 					<plugins order="Explicit">
 						<plugin name="Standard S.T.A.L.K.E.R. Anomaly">
-							<description>Select this if you are playing standard Anomaly. No G.A.M.M.A. patches will be installed.</description>
+							<description>Select this if you are playing standard Anomaly. No G.A.M.M.A. patches will be installed. On G.A.M.M.A. this option stops the game at startup with a duplicate [alarm_system] section: pick the G.A.M.M.A. pack instead.</description>
 							<files />
 							<typeDescriptor>
-								<type name="Recommended" />
+								<dependencyType>
+									<defaultType name="Recommended" />
+									<patterns>
+										<pattern>
+											<dependencies operator="And">
+												<fileDependency file="gamedata\configs\items\items\items_hf_gadgets_gamma.ltx" state="Active" />
+											</dependencies>
+											<type name="Optional" />
+										</pattern>
+									</patterns>
+								</dependencyType>
 							</typeDescriptor>
 						</plugin>
 						<plugin name="G.A.M.M.A. Compatibility Pack (All Patches)">
@@ -93,7 +103,17 @@ Without these base mods active, you will experience missing section crashes when
 								<folder source="04_HideoutGadgetsGammaPatch/gamedata" destination="gamedata" priority="4" />
 							</files>
 							<typeDescriptor>
-								<type name="Optional" />
+								<dependencyType>
+									<defaultType name="Optional" />
+									<patterns>
+										<pattern>
+											<dependencies operator="And">
+												<fileDependency file="gamedata\configs\items\items\items_hf_gadgets_gamma.ltx" state="Active" />
+											</dependencies>
+											<type name="Recommended" />
+										</pattern>
+									</patterns>
+								</dependencyType>
 							</typeDescriptor>
 						</plugin>
 					</plugins>
