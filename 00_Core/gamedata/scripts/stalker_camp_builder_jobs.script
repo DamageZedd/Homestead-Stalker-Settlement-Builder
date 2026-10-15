@@ -547,7 +547,9 @@ function stalker_camp_builder.is_camp_supply_capped(hub_id, camp, category, surv
     if not check_func then return false end
 
     if sb.camp_count_item then
-        return sb.camp_count_item(hub_id, camp, check_func, cap) >= cap
+        -- and the room left under the cap, which a producing job's batch shouldn't pass
+        local n = sb.camp_count_item(hub_id, camp, check_func, cap)
+        return n >= cap, cap - n
     end
     return false
 end
@@ -1696,7 +1698,11 @@ function stalker_camp_builder.process_medic_job(npc_id, box_id, camp, survivor)
 
     local m_order = survivor and survivor.medic_order or "auto"
 
-    if sb.is_camp_supply_capped and sb.is_camp_supply_capped(hub_id, camp, "meds", survivor) then
+    local meds_capped, meds_room = false, nil
+    if sb.is_camp_supply_capped then
+        meds_capped, meds_room = sb.is_camp_supply_capped(hub_id, camp, "meds", survivor)
+    end
+    if meds_capped then
         sb.camp_send_tip(actor, string.format(game.translate_string("st_job_meds_stocked"), npc_name), nil, "general_stalker", 10000)
         if survivor then survivor.shortfall_reason = "Stockpile Full" end
         return false
@@ -1721,6 +1727,7 @@ function stalker_camp_builder.process_medic_job(npc_id, box_id, camp, survivor)
     end
 
     local target_sec = nil
+    local item_room = nil
     local req_vodka = 0
     local use_cloth = false
     local req_bandage = false
@@ -1783,25 +1790,26 @@ function stalker_camp_builder.process_medic_job(npc_id, box_id, camp, survivor)
         local cap_enabled = (sb.cfg and sb.cfg.enable_surplus_cap ~= false)
         if total_ethanol >= 5 and (not cap_enabled or stock_akvatab < 8) then
             local sec_akv = (ini_sys and ini_sys:section_exist("akvatab") and "akvatab") or "drug_booster"
-            candidates[#candidates+1] = { sec = sec_akv, count = stock_akvatab, req_vodka = 5, use_cloth = false }
+            candidates[#candidates+1] = { sec = sec_akv, count = stock_akvatab, cap = 8, req_vodka = 5, use_cloth = false }
         end
         if total_ethanol >= 3 and (not cap_enabled or stock_kalium < 8) then
             local sec_kal = (ini_sys and ini_sys:section_exist("antirad_kalium") and "antirad_kalium") or "antirad"
-            candidates[#candidates+1] = { sec = sec_kal, count = stock_kalium, req_vodka = 3, use_cloth = false }
+            candidates[#candidates+1] = { sec = sec_kal, count = stock_kalium, cap = 8, req_vodka = 3, use_cloth = false }
         end
         if total_ethanol >= 4 and (not cap_enabled or stock_medkit < 8) and sb.camp_has_item and sb.camp_has_item(hub_id, camp, function(s) return s == "bandage" end) then
             local sec_med = "medkit" -- DANZY: was medkit_ai2 (Army Medical Package)
-            candidates[#candidates+1] = { sec = sec_med, count = stock_medkit, req_vodka = 4, use_cloth = false, req_bandage = true }
+            candidates[#candidates+1] = { sec = sec_med, count = stock_medkit, cap = 8, req_vodka = 4, use_cloth = false, req_bandage = true }
         end
         local has_cloth = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_cloth)
         if (has_cloth or total_ethanol >= 1) and (not cap_enabled or stock_bandage < 15) then
-            candidates[#candidates+1] = { sec = "bandage", count = stock_bandage, req_vodka = (has_cloth and 0 or 1), use_cloth = has_cloth }
+            candidates[#candidates+1] = { sec = "bandage", count = stock_bandage, cap = 15, req_vodka = (has_cloth and 0 or 1), use_cloth = has_cloth }
         end
 
         if #candidates > 0 then
             table.sort(candidates, function(a, b) return a.count < b.count end)
             local best = candidates[1]
             target_sec = best.sec
+            if cap_enabled then item_room = best.cap - best.count end
             req_vodka = best.req_vodka
             use_cloth = best.use_cloth
             req_bandage = best.req_bandage
@@ -1867,6 +1875,10 @@ function stalker_camp_builder.process_medic_job(npc_id, box_id, camp, survivor)
     local spec_mult = (sb.get_specialization_mult and camp and sb.get_specialization_mult(camp, "medic")) or 1.0
     local total_med = mult * spec_mult
     mult = math.max(1, math.floor(total_med) + (math.random() < (total_med - math.floor(total_med)) and 1 or 0))
+    -- the batch tops the stock up to its cap and no further
+    local room = meds_room
+    if item_room and (not room or item_room < room) then room = item_room end
+    if room then mult = math.max(1, math.min(mult, room)) end
     if sb.deposit_item_to_camp and camp and hub_id then
         for i = 1, mult do
             sb.deposit_item_to_camp(hub_id, camp, target_sec)
