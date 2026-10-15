@@ -2600,7 +2600,6 @@ function stalker_camp_builder.update_camp_jobs()
             camp.last_water_time = camp.last_water_time or current_sec
             local water_elapsed = current_sec - camp.last_water_time
             if water_elapsed >= sb.cfg.water_interval then
-                camp.last_water_time = current_sec
                 local pumps_count = 0
                 for id, struct_type in pairs_(camp.structures) do
                     if struct_type == "water_pump" then
@@ -2609,13 +2608,20 @@ function stalker_camp_builder.update_camp_jobs()
                 end
 
                 if pumps_count > 0 and camp_box_id then
-                    local consumed_filter = sb.camp_consume_item(hub_id, camp, function(sec)
-                        if not sec then return false end
-                        local s = sec:lower()
-                        return sb.cfg.water_filters and (sb.cfg.water_filters[sec] or sb.cfg.water_filters[s])
-                    end, camp_box_id)
+                    -- the cycle waits for a filter, so this runs on every update while there is none:
+                    -- the snapshot's count spares a camp without one the box scan
+                    local consumed_filter = nil
+                    if not camp_snap or (camp_snap.water_filter_count or 0) > 0 then
+                        consumed_filter = sb.camp_consume_item(hub_id, camp, function(sec)
+                            if not sec then return false end
+                            local s = sec:lower()
+                            return sb.cfg.water_filters and (sb.cfg.water_filters[sec] or sb.cfg.water_filters[s])
+                        end, camp_box_id)
+                    end
 
                     if consumed_filter then
+                        camp.last_water_time = current_sec
+                        camp.water_filter_warned = nil
                         local spec_mult = (sb.get_specialization_mult and sb.get_specialization_mult(camp, "water")) or 1.0
                         local total_flasks = pumps_count * spec_mult
                         local flasks_to_deposit = math.max(1, math.floor(total_flasks) + (math.random() < (total_flasks - math.floor(total_flasks)) and 1 or 0))
@@ -2635,9 +2641,12 @@ function stalker_camp_builder.update_camp_jobs()
                             end
                         end
                         sb.camp_send_tip(actor, game.translate_string("st_job_water_pumped"), nil, "general_stalker", 10000)
-                    else
+                    elseif not camp.water_filter_warned then
+                        camp.water_filter_warned = true
                         sb.camp_send_tip(actor, game.translate_string("st_job_water_no_filters"), nil, "red_danger", 10000, hub_id, "work", true)
                     end
+                else
+                    camp.last_water_time = current_sec
                 end
             end
 
