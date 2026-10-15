@@ -838,9 +838,11 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
             local box_obj = level and level.object_by_id and level.object_by_id(cid)
             if box_obj and box_obj.iterate_inventory_box then
                 local stopped = false
+                local seen_in_box = {}
                 sb.safe_iterate_inventory_box(box_obj, function(temp, cl_item)
                     if not cl_item then return end
                     local iid = cl_item:id()
+                    seen_in_box[iid] = true
                     -- An item released earlier in this update has no server object any more, but the
                     -- box lists it until the client handles the destroy event next frame: skip it, or
                     -- every later count and consume in this update finds it again
@@ -879,6 +881,13 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                         return true
                     end
                 end)
+                if camp and camp.stored_items then
+                    for stored_iid, stored_it in pairs(camp.stored_items) do
+                        if stored_it.box_id == cid and not seen_in_box[stored_iid] then
+                            camp.stored_items[stored_iid] = nil
+                        end
+                    end
+                end
                 if stopped then return true end
             else
                 local stopped = false
@@ -891,20 +900,21 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                     local seen = camp and camp.stored_items and camp.stored_items[child_id]
                     if seen and seen.sec == sec and seen.uses then
                         uses = seen.uses
-                    elseif ini and ini:section_exist(sec) and ini:r_bool_ex(sec, "use_condition", false) then
-                        uses = ini:r_float_ex(sec, "max_uses") or 1
+                    else
+                        uses = 1
                     end
 
                     if camp and camp.stored_items then
-                        local max_u = (seen and seen.max_uses) or (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or uses
+                        local same_sec = seen and seen.sec == sec
+                        local max_u = (same_sec and seen.max_uses) or (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or uses
                         camp.stored_items[child_id] = {
                             sec = sec,
                             cond = cond,
                             uses = uses,
                             max_uses = max_u,
                             box_id = cid,
-                            weight = (seen and seen.weight) or nil,
-                            verified = (seen and seen.verified) or false
+                            weight = (same_sec and seen.weight) or nil,
+                            verified = (same_sec and seen.verified) or false
                         }
                     end
 
@@ -932,14 +942,12 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                             local cond = se_item.condition or 1.0
                             local ini = ini_sys or sys_ini or system_ini()
                             local uses = 1
-                            if ini and ini:section_exist(sec) and ini:r_bool_ex(sec, "use_condition", false) then
-                                uses = ini:r_float_ex(sec, "max_uses") or 1
-                            end
+                            local max_u = (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or 1
                             camp.stored_items[child_id] = {
                                 sec = sec,
                                 cond = cond,
                                 uses = uses,
-                                max_uses = uses,
+                                max_uses = max_u,
                                 box_id = cid
                             }
                         end
@@ -988,6 +996,8 @@ function stalker_camp_builder.invalidate_camp_inventory_cache(hub_id, camp)
     if camp then
         camp._inv_snapshot = nil
         camp._inv_snapshot_tg = nil
+        camp._inv_snapshot_dirty = nil
+        camp._cached_box_weights = nil
         camp._cached_chest_supplies_tg = nil
         camp._cached_storage_metrics_tg = nil
         if camp.survivors then
@@ -999,7 +1009,7 @@ function stalker_camp_builder.invalidate_camp_inventory_cache(hub_id, camp)
 end
 local invalidate_camp_inventory_cache = stalker_camp_builder.invalidate_camp_inventory_cache
 
-function stalker_camp_builder.on_actor_box_change(box_id)
+function stalker_camp_builder.on_actor_box_change(box_id, obj, is_put)
     if not box_id then return end
     local sb = stalker_camp_builder
     if not sb.active_camps then return end
@@ -1018,6 +1028,32 @@ function stalker_camp_builder.on_actor_box_change(box_id)
             end
         end
         if is_camp_box then
+            if obj and camp.stored_items then
+                local iid = obj:id()
+                if is_put == false then
+                    camp.stored_items[iid] = nil
+                elseif is_put == true then
+                    local sec = obj:section()
+                    local cond = 1.0
+                    local ok_c, c = pcall(function() return obj:condition() end)
+                    if ok_c and c then cond = c end
+                    local uses = 1
+                    local ok_u, u = pcall(function() return obj:get_remaining_uses() end)
+                    if ok_u and u then uses = u end
+                    local item_w = (obj.weight and obj:weight()) or nil
+                    local ini = ini_sys or sys_ini or system_ini()
+                    local max_u = (obj.get_max_uses and obj:get_max_uses()) or (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or uses
+                    camp.stored_items[iid] = {
+                        sec = sec,
+                        cond = cond,
+                        uses = uses,
+                        max_uses = max_u,
+                        box_id = box_id,
+                        weight = item_w,
+                        verified = true
+                    }
+                end
+            end
             invalidate_camp_inventory_cache(hub_id, camp)
             break
         end
@@ -1035,7 +1071,7 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
     if not camp then return nil end
 
     local now_tg = time_global()
-    if not force and camp._inv_snapshot and camp._inv_snapshot_tg and (now_tg - camp._inv_snapshot_tg) < 10000 then
+    if not force and not camp._inv_snapshot_dirty and camp._inv_snapshot and camp._inv_snapshot_tg and (now_tg - camp._inv_snapshot_tg) < 10000 then
         return camp._inv_snapshot
     end
 
@@ -1106,6 +1142,8 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
         has_bandage = false,
         has_battery = false,
         wood_count = 0,
+        charcoal_count = 0,
+        box_weights = {},
     }
 
     local raw_meats = {
@@ -1273,6 +1311,14 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
                 end
             end
 
+            if item_w and cid then
+                snapshot.box_weights[cid] = (snapshot.box_weights[cid] or 0) + item_w
+            end
+
+            if sec == "charcoal" or sec:find("charcoal") then
+                snapshot.charcoal_count = snapshot.charcoal_count + u
+            end
+
             if sb.is_wood_part and sb.is_wood_part(sec) then
                 snapshot.wood_count = snapshot.wood_count + u
             end
@@ -1283,6 +1329,8 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
 
     camp._inv_snapshot = snapshot
     camp._inv_snapshot_tg = now_tg
+    camp._inv_snapshot_dirty = nil
+    camp._cached_box_weights = snapshot.box_weights
     camp._cached_chest_supplies_tg = now_tg
     camp._cached_has_food = snapshot.has_food
     camp._cached_has_water = snapshot.has_water
@@ -1336,8 +1384,7 @@ function stalker_camp_builder.camp_consume_item(hub_id, camp, filter_fn, priorit
             camp = sb.active_camps[hub_id]
         end
         if camp then
-            camp._inv_snapshot = nil
-            camp._inv_snapshot_tg = nil
+            camp._inv_snapshot_dirty = true
             camp._cached_chest_supplies_tg = nil
             camp._cached_storage_metrics_tg = nil
         end
@@ -4164,7 +4211,7 @@ function hf_on_furniture_place(obj_id)
                     local warn_txt = string.format(game.translate_string("st_hub_spawn_hazard_warn"), s_disp, math.floor(s_dist))
                     CreateTimeEvent("homestead_smart_warn_" .. tostring(obj_id), "warn", 1.5, function()
                         if db.actor then
-                            news_manager.send_tip(db.actor, warn_txt, nil, "red_danger", 14000)
+                            camp_send_tip(db.actor, warn_txt, nil, "red_danger", 14000, obj_id, "combat", true)
                         end
                         return true
                     end)
@@ -7201,13 +7248,13 @@ function on_game_start()
     end)
     safe_register_callback("actor_on_item_put_in_box", function(box, obj)
         if box and stalker_camp_builder.on_actor_box_change then
-            stalker_camp_builder.on_actor_box_change(box:id())
+            stalker_camp_builder.on_actor_box_change(box:id(), obj, true)
         end
     end)
     safe_register_callback("actor_on_item_take_from_box", function(box, obj)
         stalker_camp_builder.apply_pending_cond(obj)
         if box and stalker_camp_builder.on_actor_box_change then
-            stalker_camp_builder.on_actor_box_change(box:id())
+            stalker_camp_builder.on_actor_box_change(box:id(), obj, false)
         end
     end)
     safe_register_callback("ActorMenu_on_mode_changed", function(mode, last_mode)
@@ -7370,31 +7417,37 @@ function stalker_camp_builder.get_box_current_weight(box_id)
         local camp = nil
         local sb = stalker_camp_builder
         if sb and sb.active_camps then
-            for _, c in pairs(sb.active_camps) do
-                if type(c) == "table" and (c.primary_chest_id == box_id or c.box_id == box_id or (c.containers and c.containers[box_id])) then
-                    camp = c
-                    break
+            for hid, c in pairs(sb.active_camps) do
+                if type(c) == "table" then
+                    local containers = sb.get_camp_containers and sb.get_camp_containers(hid, c)
+                    if containers then
+                        for _, cid in ipairs(containers) do
+                            if cid == box_id then
+                                camp = c
+                                break
+                            end
+                        end
+                        if camp then break end
+                    elseif c.primary_chest_id == box_id or (c.structures and c.structures[box_id]) then
+                        camp = c
+                        break
+                    end
                 end
             end
         end
 
         sb.iterate_server_container(se_box, function(child_id, se_item)
             if se_item then
+                local sec = se_item:section_name()
                 local it = camp and camp.stored_items and camp.stored_items[child_id]
-                if not it and sb and sb.active_camps then
-                    for _, c in pairs(sb.active_camps) do
-                        if c.stored_items and c.stored_items[child_id] then
-                            it = c.stored_items[child_id]
-                            break
-                        end
-                    end
+                if it and it.sec ~= sec then
+                    it = nil
                 end
 
                 local w = nil
                 if it and it.weight and it.weight > 0 then
                     w = it.weight
                 else
-                    local sec = se_item:section_name()
                     local inv_w = (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "inv_weight")) or 0.05
                     if it and it.uses and ini and ini:section_exist(sec) and ini:r_bool_ex(sec, "use_condition", false) then
                         local max_u = it.max_uses or ini:r_float_ex(sec, "max_uses")
@@ -7450,11 +7503,12 @@ function stalker_camp_builder.camp_has_storage_room(camp, hub_id, weight)
 
     local needed_w = weight or 0.1
     local checked = {}
+    local weight_cache = camp._cached_box_weights
 
     -- Check primary chest
     if camp.primary_chest_id and is_valid_camp_box(camp.primary_chest_id, hub_id, camp) then
         checked[camp.primary_chest_id] = true
-        if sb.box_has_room_for(camp.primary_chest_id, needed_w) then
+        if sb.box_has_room_for(camp.primary_chest_id, needed_w, weight_cache) then
             return true
         end
     end
@@ -7465,7 +7519,7 @@ function stalker_camp_builder.camp_has_storage_room(camp, hub_id, weight)
         local ws_id = m_data.workshop_stashes[hub_id]
         if ws_id and not checked[ws_id] and is_valid_camp_box(ws_id, hub_id, camp) then
             checked[ws_id] = true
-            if sb.box_has_room_for(ws_id, needed_w) then
+            if sb.box_has_room_for(ws_id, needed_w, weight_cache) then
                 return true
             end
         end
@@ -7480,7 +7534,7 @@ function stalker_camp_builder.camp_has_storage_room(camp, hub_id, weight)
             end
             if not checked[target_id] and is_valid_camp_box(target_id, hub_id, camp) then
                 checked[target_id] = true
-                if sb.box_has_room_for(target_id, needed_w) then
+                if sb.box_has_room_for(target_id, needed_w, weight_cache) then
                     return true
                 end
             end
@@ -8078,9 +8132,25 @@ function stalker_camp_builder.deposit_item_to_camp(hub_id, camp, sec, is_yellow,
             weight = item_w,
             verified = true
         }
+        if camp._cached_box_weights and target_box_id then
+            camp._cached_box_weights[target_box_id] = (camp._cached_box_weights[target_box_id] or 0) + item_w
+        end
+        if camp._inv_snapshot then
+            local snap = camp._inv_snapshot
+            snap.total_items = (snap.total_items or 0) + 1
+            snap.total_weight = (snap.total_weight or 0) + item_w
+            snap.has_storage_room = (snap.total_weight + 0.5) <= snap.max_weight
+            if camp._cached_box_weights and target_box_id then
+                snap.box_weights = camp._cached_box_weights
+            end
+            if sec == "charcoal" or sec:find("charcoal") then
+                snap.charcoal_count = (snap.charcoal_count or 0) + uses
+            elseif sb.is_wood_part and sb.is_wood_part(sec) then
+                snap.wood_count = (snap.wood_count or 0) + uses
+            end
+        end
+        camp._inv_snapshot_dirty = true
         camp._cached_storage_metrics_tg = nil
-        camp._inv_snapshot = nil
-        camp._inv_snapshot_tg = nil
         camp._cached_chest_supplies_tg = nil
     end
 

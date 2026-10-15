@@ -1101,9 +1101,38 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
 
     local is_producing_job = (job == "cook" or job == "craft" or job == "medic" or job == "hunter" or job == "scrapper" or job == "woodcutter" or job == "brewer")
     if is_producing_job then
-        local has_room = (snap and snap.has_storage_room) or (sb.camp_has_storage_room and sb.camp_has_storage_room(camp, hub_id, 0.5))
+        local test_sec = "prt_i_scrap"
+        local test_w = 0.5
+        if job == "cook" then
+            test_sec = "meat_flesh_b"
+            test_w = 0.3
+        elseif job == "craft" then
+            test_sec = "ammo_9x18_fmj"
+            test_w = 0.5
+        elseif job == "medic" then
+            test_sec = "bandage"
+            test_w = 0.1
+        elseif job == "hunter" then
+            test_sec = "mutant_part_boar_chop"
+            test_w = 0.5
+        elseif job == "woodcutter" then
+            local dir = survivor.job_directive or survivor.woodcutter_mode or "auto"
+            test_sec = (dir == "charcoal" or (dir == "auto" and (survivor._woodcutter_alt == true))) and "charcoal" or "prt_i_wood"
+            test_w = 0.5
+        elseif job == "brewer" then
+            test_sec = "vodka"
+            test_w = 0.5
+        end
+
+        local has_room = false
+        if sb.get_auto_sort_target_box then
+            has_room = sb.get_auto_sort_target_box(camp, hub_id, test_sec, false, test_w) ~= nil
+        else
+            has_room = (snap and snap.has_storage_room) or (sb.camp_has_storage_room and sb.camp_has_storage_room(camp, hub_id, test_w))
+        end
+
         if not has_room then
-            return true, "Storage Full", "All settlement storage containers are at maximum capacity"
+            return true, "Storage Full", "All settlement storage containers for this job's output are at maximum capacity"
         end
     end
 
@@ -1346,7 +1375,12 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         if not has_container then
             return true, "No Storage", "No storage container to deposit loot"
         end
-        local has_room = (snap and snap.has_storage_room) or (sb.camp_has_storage_room and sb.camp_has_storage_room(camp, hub_id, 0.5))
+        local has_room = false
+        if sb.get_auto_sort_target_box then
+            has_room = sb.get_auto_sort_target_box(camp, hub_id, "prt_i_scrap", false, 0.5) ~= nil
+        else
+            has_room = (snap and snap.has_storage_room) or (sb.camp_has_storage_room and sb.camp_has_storage_room(camp, hub_id, 0.5))
+        end
         if not has_room then
             return true, "Storage Full", "All settlement storage containers are at maximum capacity"
         end
@@ -1439,7 +1473,7 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
     return false, nil, nil
 end
 
-function stalker_camp_builder.get_job_paused_status(survivor, camp, hub_id, max_age_ms)
+function stalker_camp_builder.get_job_paused_status(survivor, camp, hub_id, max_age_ms, snap)
     if not survivor then return false, nil, nil end
     local job = survivor.job or "idle"
 
@@ -1458,7 +1492,7 @@ function stalker_camp_builder.get_job_paused_status(survivor, camp, hub_id, max_
         return survivor._cached_is_paused, survivor._cached_reason_short, survivor._cached_reason_detail
     end
 
-    local is_p, r_short, r_detail = stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id)
+    local is_p, r_short, r_detail = stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, snap)
     survivor._cached_paused_tg = now_tg
     survivor._cached_paused_job = job
     survivor._cached_is_paused = is_p
@@ -1963,13 +1997,25 @@ function stalker_camp_builder.process_woodcutter_job(npc_id, hub_id, camp, survi
         end
         if has_camp_brewer then
             local wood_avail = 0
+            local charcoal_count = 0
             if camp and camp._inv_snapshot then
                 wood_avail = camp._inv_snapshot.wood_count or 0
+                charcoal_count = camp._inv_snapshot.charcoal_count or 0
             elseif sb.camp_count_item then
                 wood_avail = sb.camp_count_item(hub_id, camp, is_wood_part, 10) or 0
+                charcoal_count = sb.camp_count_item(hub_id, camp, function(s) return s == "charcoal" or s:find("charcoal") end, 5) or 0
             end
-            if wood_avail < 10 then
-                do_charcoal = false
+            -- Maintain a critical charcoal reserve (up to 5 bags) for stoves & water pumps.
+            -- If charcoal is low (< 5 bags) and we have at least 5 wood to burn, produce charcoal.
+            -- Once charcoal reserve is met (>= 5 bags), prioritize the brewery by requiring 10+ wood.
+            if charcoal_count < 5 then
+                if wood_avail < 5 then
+                    do_charcoal = false
+                end
+            else
+                if wood_avail < 10 then
+                    do_charcoal = false
+                end
             end
         end
     end
