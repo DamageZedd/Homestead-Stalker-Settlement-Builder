@@ -10355,6 +10355,10 @@ function get_camp_storage_metrics(camp, hub_obj)
         return c.weight, c.max_weight, c.total_items, c.pct
     end
 
+    local total_items = 0
+    local total_weight = 0
+    local max_weight = 200
+
     local hub_id = camp.hub_id or (hub_obj and hub_obj.id)
     if not hub_id then return 0, 100, 0, 0 end
 
