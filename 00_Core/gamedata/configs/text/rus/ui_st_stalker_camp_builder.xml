@@ -1624,6 +1624,9 @@
     <string id="st_camp_scrapper_tools_ask">
         <text>Вот тяжелый инструмент (лом / кувалда) для разбора конструкций.</text>
     </string>
+    <string id="st_camp_scrapper_tools_offer">
+        <text>Держи для разбора конструкций: %s.</text>
+    </string>
     <string id="st_camp_scrapper_tools_done">
         <text>Тяжелый металл! С этим инструментом я разберу любую рухлядь вдвое быстрее!</text>
     </string>

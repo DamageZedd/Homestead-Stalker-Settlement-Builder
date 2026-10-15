@@ -3266,15 +3266,38 @@ local function get_speaker_survivor_and_camp(p1, p2)
     return nil, nil, nil
 end
 
+-- no toolkit_1..3: they are quest items (kind = i_quest, can_trade = false), the instruments the
+-- technicians' quests ask for (dialogs_zaton.give_toolkit_1..3)
 local SCRAPPER_TOOL_SECTIONS = {
     "wpn_axe3", "wpn_sledgehammer", "crowbar", "itm_crowbar", "wpn_crowbar",
     "hammer", "ball_hammer",
     "itm_basickit", "itm_advancedkit", "itm_expertkit",
-    "toolkit_1", "toolkit_2", "toolkit_3",
     "toolkit_p", "toolkit_s", "toolkit_r5", "toolkit_r7",
     "itm_repairkit_tier_1", "itm_repairkit_tier_2", "itm_repairkit_tier_3",
     "itm_gunsmith_toolkit", "itm_outfit_toolkit"
 }
+
+-- the tool the scrapper's hand-in takes: the first one on the list the player carries
+local function get_scrapper_tool()
+    local actor = db.actor
+    if not actor then return nil end
+    for _, sec in ipairs(SCRAPPER_TOOL_SECTIONS) do
+        local itm = actor:object(sec)
+        if itm then return itm, sec end
+    end
+    return nil
+end
+
+-- phrase 72's <script_text>, naming the tool that goes. The engine calls it with the NPC, the dialog
+-- id and the phrase id (PhraseDialog.cpp 211-219); a Lua error or a nil there is fatal.
+function stalker_camp_builder.get_scrapper_tools_text(npc, dialog_id, phrase_id)
+    local _, sec = get_scrapper_tool()
+    local name = sec and ui_item and ui_item.get_sec_name and ui_item.get_sec_name(sec)
+    if not name or name == "" then
+        return game.translate_string("st_camp_scrapper_tools_ask")
+    end
+    return string.format(game.translate_string("st_camp_scrapper_tools_offer"), name)
+end
 
 function stalker_camp_builder.actor_has_woodcutter_axe(p1, p2)
     local actor = db.actor
@@ -3329,10 +3352,7 @@ function stalker_camp_builder.actor_has_scrapper_tools(p1, p2)
     if not actor then return false end
     local surv = get_speaker_survivor_and_camp(p1, p2)
     if not (surv and surv.job == "scrapper" and not surv.has_tools) then return false end
-    for _, sec in ipairs(SCRAPPER_TOOL_SECTIONS) do
-        if actor:object(sec) then return true end
-    end
-    return false
+    return get_scrapper_tool() ~= nil
 end
 
 function stalker_camp_builder.give_scrapper_tools(p1, p2)
@@ -3340,11 +3360,7 @@ function stalker_camp_builder.give_scrapper_tools(p1, p2)
     if not actor then return end
     local surv, camp = get_speaker_survivor_and_camp(p1, p2)
     if not (surv and surv.job == "scrapper" and not surv.has_tools) then return end
-    local itm = nil
-    for _, sec in ipairs(SCRAPPER_TOOL_SECTIONS) do
-        itm = actor:object(sec)
-        if itm then break end
-    end
+    local itm = get_scrapper_tool()
     if itm then
         alife_release(alife_object(itm:id()))
         surv.has_tools = true
