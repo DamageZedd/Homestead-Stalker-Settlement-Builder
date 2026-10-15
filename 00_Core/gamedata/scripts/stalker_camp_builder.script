@@ -247,7 +247,8 @@ function stalker_camp_builder.iterate_server_container(box_id_or_se, callback)
             for child_id in sim:get_children(se_box) do
                 if child_id and child_id < 65535 then
                     local se_item = sim:object(child_id)
-                    if se_item then
+                    -- a reused id in the list names an object that isn't in the box
+                    if se_item and se_item.parent_id == se_box.id then
                         items_found = items_found + 1
                         local stop = callback(child_id, se_item)
                         if stop == true then
@@ -268,7 +269,7 @@ function stalker_camp_builder.iterate_server_container(box_id_or_se, callback)
             for _, child_id in ipairs(se_box.children) do
                 if child_id and child_id < 65535 then
                     local se_item = sim:object(child_id)
-                    if se_item then
+                    if se_item and se_item.parent_id == se_box.id then
                         items_found = items_found + 1
                         local stop = callback(child_id, se_item)
                         if stop == true then
@@ -9091,7 +9092,8 @@ local function loot_and_clear_stash(s_id, exp)
         pcall(function()
             for child_id in sim:get_children(se_stash) do
                 local child_se = sim:object(child_id)
-                if child_se then
+                -- only what is in the stash: a reused id would release an unrelated object
+                if child_se and child_se.parent_id == se_stash.id then
                     local sec = child_se:section_name()
                     if sec and ini_sys:section_exist(sec) then
                         local child_cond = nil
