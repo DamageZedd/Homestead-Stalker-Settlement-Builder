@@ -8509,6 +8509,12 @@ function stalker_camp_builder.is_quest_or_task_stash(id)
                 if tsk and (tsk.current_target == id or tsk.target == id) then
                     return true
                 end
+                -- or an item in the stash: New Tasks' stash quests target the documents or PDA they put there
+                local target_id = tsk and tsk.current_target
+                local se_target = type(target_id) == "number" and target_id < 65535 and alife_object(target_id)
+                if se_target and se_target.parent_id == id then
+                    return true
+                end
             end
         end
     end
@@ -8520,12 +8526,24 @@ function stalker_camp_builder.is_quest_or_task_stash(id)
             is_quest = true
             return true
         end
-        if utils_item and utils_item.is_quest and utils_item.is_quest(sec) then
+        -- most quest items have kind = i_quest and no quest_item key; IsItem("quest") lists both
+        if sec and IsItem and IsItem("quest", sec) then
             is_quest = true
             return true
         end
     end)
     if is_quest then return true end
+
+    -- and the items not spawned yet, which treasure_manager lists as "section" or "section__uses"
+    local unspawned = treasure_manager and treasure_manager.caches and treasure_manager.caches[id]
+    if type(unspawned) == "string" and str_explode then
+        for _, entry in ipairs(str_explode(unspawned, ",")) do
+            local sec = stalker_camp_builder.split_stash_entry(entry)
+            if sec and IsItem and IsItem("quest", sec) then
+                return true
+            end
+        end
+    end
 
     return false
 end
@@ -9034,6 +9052,9 @@ local function loot_and_clear_stash(s_id, exp)
     if alife_object(s_id) and not is_stash_box(s_id) then return end
 
     local sb = stalker_camp_builder
+    -- a quest can have picked the stash since dispatch (New Tasks rolls any stash on the level), and
+    -- looting it would release its quest item or drop it with the unspawned list: leave it whole
+    if sb and sb.is_quest_or_task_stash and sb.is_quest_or_task_stash(s_id) then return end
     if sb and sb.active_stash_expeditions then
         for other_id, other_exp in pairs(sb.active_stash_expeditions) do
             if other_exp ~= exp and other_exp.looted_stashes and other_exp.looted_stashes[s_id] then
