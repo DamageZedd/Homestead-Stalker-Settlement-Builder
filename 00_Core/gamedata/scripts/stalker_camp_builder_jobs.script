@@ -1250,7 +1250,7 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
             end
             if m_order == "bandage" or m_order == "auto" then
                 if not snap.has_cloth and snap.total_ethanol < 1 then
-                    return true, "No Materials", "Requires Vodka, Antiseptic, or Cloth to synthesize medical supplies"
+                    return true, "No Materials", "Requires Vodka or Antiseptic to synthesize medical supplies"
                 end
             else
                 if snap.total_ethanol < req_vodka then
@@ -1284,12 +1284,12 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         if m_order == "bandage" then
             local has_cloth = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_cloth)
             if not has_cloth and total_ethanol < 1 then
-                return true, "No Materials", "Requires Vodka, Antiseptic, or Cloth to craft Bandages"
+                return true, "No Materials", "Requires Vodka or Antiseptic to craft Bandages"
             end
         elseif m_order == "auto" then
             local has_cloth = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_cloth)
             if not has_cloth and total_ethanol < 1 then
-                return true, "No Materials", "Requires Vodka, Antiseptic, or Cloth to synthesize medical supplies"
+                return true, "No Materials", "Requires Vodka or Antiseptic to synthesize medical supplies"
             end
         else
             if total_ethanol < req_vodka then
