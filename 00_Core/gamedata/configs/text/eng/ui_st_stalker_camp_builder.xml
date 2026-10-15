@@ -2120,6 +2120,15 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_hub_established">
         <text>Settlement Camp Hub established!</text>
     </string>
+    <string id="st_hub_spawn_hazard_warn">
+        <text>WARNING: Natural Zone Spawn Point detected nearby (%s, %dm)! Hostile squads or mutants may spawn inside your settlement perimeter.</text>
+    </string>
+    <string id="st_pda_spawn_hazard_badge">
+        <text>[! WARNING: NATURAL SPAWN POINT IN PERIMETER !]</text>
+    </string>
+    <string id="st_pda_spawn_hazard_desc">
+        <text>Zone Spawn Hazard: %s (%dm from hub). Hostile ALife or mutants may appear inside camp.</text>
+    </string>
     <string id="st_hub_furniture_joined_warn">
         <text>%s is now part of %s (Warning: near %dm boundary!)</text>
     </string>

@@ -1,5 +1,20 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## v1.2.5 — Medical Synthesis Stockpile Capping, Scavenger Expedition Teleportation & Settlement Natural Spawn Point Warnings
+
+### 💊 Medical Synthesis & Stockpile Capping (Community / Kruglov):
+- **Medic Ibuprofen & Drug Booster Stockpile Capping (PR #243)**: Resolved a bug where medics accumulated excessive stockpiles of ibuprofen (24+ units in the medstation) by incorporating `drug_booster` and `ibuprofen` into `is_camp_supply_capped` (`auto` mode) and `snapshot.med_counts.auto`.
+- **Per-Item Candidate Surplus Threshold in Auto-Balanced Mode (PR #244)**: Enforced per-item caps (8+ units) on individual medicine candidates in `process_medic_job` auto mode and prevented endless fallback production when surplus ethanol was available. Medics now properly recognize when medical stockpiles are full, set `shortfall_reason = "Stockpile Full"`, send the stocked notification tip, and transition to passive medical healing for wounded settlers.
+
+### 🎒 Scavenger Expeditions & Offline ALife Simulation (Community / dynz):
+- **Expedition Scavenger Offline Teleportation & Despawn (PR #245)**: Fixed an issue where scavengers dispatched on distant expeditions (e.g. from Rostok to Pripyat) remained physically standing idle at camp in front of the player. `teleport_scavenger_on_departure` now switches both the scavenger server object and their dedicated single-member `home_squad` offline and teleports both entities directly to the target stash coordinates/level via `sim:teleport_object`. When targeting a different map, the X-Ray engine immediately unregisters their client game object from the active level.
+- **Recalled Scavenger Workstation Snapping & Home Squad Re-Pinning (PR #246)**: Updated `recall_scavenger_expedition` and natural expedition completion to invoke `teleport_settler_to_camp_level` and `pin_settler_home_squad`, cleanly snapping returning scavengers back to camp workstations and re-anchoring their home squads to the camp hub.
+
+### 🛡️ Settlement Natural Spawn Point Sweep, Warnings & Defensive Readiness (Community / Seprious, WindWalker, Queen Jadwiga, dynz):
+- **Proactive Natural Spawn Point Proximity Sweep on Camp Placement (PR #247)**: Added `get_nearby_smart_terrain_hazard` to sweep active Zone smart terrains within the settlement perimeter (~65m) whenever a workbench (`placeable_workshop`) is placed to establish a new camp. If a natural ALife spawn point is detected, the game issues an immediate high-visibility warning notification and audio alert naming the smart terrain and distance, warning players against building living quarters directly over hostile spawn nests (such as the Jupiter railway tunnel UNISG spawn).
+- **PDA Settlement Overview Spawn Hazard Alert Badge (PR #248)**: Added persistent `camp.near_smart` and `camp.near_smart_dist` tracking. If a settlement contains a natural Zone smart terrain inside its borders, the PDA Settlement Manager Overview tab displays a prominent `[! SPAWN HAZARD: NATURAL SPAWN POINT IN PERIMETER !]` threat banner and updates the sector threat rating to `ELEVATED`.
+- **Settler Defensive Readiness & Breakable Wait Lock (PR #249)**: Changed `combat_ignore_keep_when_attacked = false` in `beh_settler.ltx` and updated `npc_on_hit_callback` so settlers under fire by hostile NPCs or mutants immediately break their stationary `npcx_beh_wait` workstation lock and receive `npcx_beh_hide_in_cover`, allowing them to seek cover, draw weapons, and defend themselves rather than remaining helpless standing targets.
+
 ## v1.2.4 — Comprehensive Simulation Stability, Precision Game Clock, ALife Hardening & Full UI/PDA Polish
 
 ### ⏱️ Engine Simulation Clock, Save State Integrity & ALife Scheduling (Community / devinhorowitz):

@@ -1345,8 +1345,15 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
         name = level_name .. " Settlement"
     end
 
+    local smart_hazard, smart_dist = camp.near_smart, camp.near_smart_dist
+    if not smart_hazard and stalker_camp_builder.get_nearby_smart_terrain_hazard and hub_obj and hub_obj.position then
+        smart_hazard, smart_dist = stalker_camp_builder.get_nearby_smart_terrain_hazard(hub_obj.position)
+    end
+
     if self.raid_banner_bg then
         if camp.active_raid then
+            hs_theme.banner(self.raid_banner_bg, "threat")
+        elseif smart_hazard then
             hs_theme.banner(self.raid_banner_bg, "threat")
         else
             hs_theme.banner(self.raid_banner_bg, "secure")
@@ -1374,6 +1381,11 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
         if camp.active_raid then
             self.raid_banner_lbl:SetText("[! THREAT ALERT: SETTLEMENT UNDER ACTIVE HOSTILE ASSAULT !]")
             self.raid_banner_lbl:SetTextColor(hs_theme.argb("danger"))
+        elseif smart_hazard then
+            local s_disp = game.translate_string(smart_hazard)
+            if not s_disp or s_disp == "" or s_disp == smart_hazard then s_disp = smart_hazard end
+            self.raid_banner_lbl:SetText(sformat("[! SPAWN HAZARD: NATURAL SPAWN POINT IN PERIMETER (%s - %dm) !]", s_disp, math.floor(smart_dist or 0)))
+            self.raid_banner_lbl:SetTextColor(hs_theme.argb("warn") or hs_theme.argb("danger"))
         else
             self.raid_banner_lbl:SetText("[ DEFENSE STATUS: SECURE // PERIMETER INTACT ]")
             self.raid_banner_lbl:SetTextColor(hs_theme.argb("body"))
@@ -1397,7 +1409,9 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
     self.camp_def_breakdown:SetText(sformat("Perimeter Grid: %d Barricades   |   %d Guards   |   %d Turrets", stats.barricades, stats.guards, stats.gadgets))
     if self.camp_threat_lvl then
         -- against the defense cap, as the rating above: 40% is the old 60 of the default 150
-        local threat_str = camp.active_raid and "CRITICAL (Active Raid)" or (def_pct >= 40 and "LOW (Sector Fortified)" or "MODERATE (Standard Patrols)")
+        local threat_str = camp.active_raid and "CRITICAL (Active Raid)"
+            or (smart_hazard and sformat("ELEVATED (Natural Spawn Point %s inside perimeter)", tostring(smart_hazard))
+            or (def_pct >= 40 and "LOW (Sector Fortified)" or "MODERATE (Standard Patrols)"))
         self.camp_threat_lvl:SetText(sformat("Threat Level: %s", threat_str))
     end
 

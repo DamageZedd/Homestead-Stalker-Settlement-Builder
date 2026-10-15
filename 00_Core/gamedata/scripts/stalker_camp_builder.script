@@ -1241,7 +1241,7 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
                 end
             end
 
-            if s:find("medkit") or s:find("bandage") or s:find("antirad") or s:find("stimpack") or s:find("salve") or s == "akvatab" or s == "antirad_kalium" then
+            if s:find("medkit") or s:find("bandage") or s:find("antirad") or s:find("stimpack") or s:find("salve") or s == "akvatab" or s == "antirad_kalium" or s == "drug_booster" or s:find("ibuprofen") ~= nil then
                 snapshot.med_counts.auto = snapshot.med_counts.auto + 1
             end
             if s == "akvatab" or s == "drug_booster" or s:find("ibuprofen") ~= nil then
@@ -1818,6 +1818,61 @@ function get_active_camp_near(pos, custom_dist, opt_level_name)
     return nil, nil
 end
 stalker_camp_builder.get_active_camp_near = get_active_camp_near
+
+function stalker_camp_builder.get_nearby_smart_terrain_hazard(pos, check_dist, lvl_name)
+    if not pos then return nil end
+    local current_lvl = lvl_name or (level and level.name and level.name())
+    if not current_lvl then return nil end
+
+    check_dist = check_dist or ((stalker_camp_builder.cfg and stalker_camp_builder.cfg.boundary_dist or 50) + 15)
+
+    local smarts = nil
+    if stalker_camp_builder.get_smart_terrains_on_level then
+        smarts = stalker_camp_builder.get_smart_terrains_on_level(current_lvl)
+    end
+
+    local nearest_name, nearest_dist, nearest_obj = nil, math.huge, nil
+
+    if smarts and #smarts > 0 then
+        for _, entry in ipairs(smarts) do
+            local sm = entry.obj
+            if sm and sm.position then
+                local d = pos:distance_to(sm.position)
+                if d <= check_dist and d < nearest_dist then
+                    nearest_dist = d
+                    nearest_name = entry.name or (sm.name and sm:name())
+                    nearest_obj = sm
+                end
+            end
+        end
+    elseif SIMBOARD and SIMBOARD.smarts_by_names then
+        local sim = alife()
+        local gg = game_graph()
+        if sim and gg then
+            for name, smart in pairs(SIMBOARD.smarts_by_names) do
+                if smart and smart.position and smart.m_game_vertex_id then
+                    local ok, s_lvl = pcall(function()
+                        return sim:level_name(gg:vertex(smart.m_game_vertex_id):level_id())
+                    end)
+                    if ok and s_lvl == current_lvl then
+                        local d = pos:distance_to(smart.position)
+                        if d <= check_dist and d < nearest_dist then
+                            nearest_dist = d
+                            nearest_name = name
+                            nearest_obj = smart
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    if nearest_name then
+        return nearest_name, nearest_dist, nearest_obj
+    end
+    return nil
+end
+local get_nearby_smart_terrain_hazard = stalker_camp_builder.get_nearby_smart_terrain_hazard
 
 function get_camp_bed_capacity(camp)
     local capacity = 0
@@ -4095,6 +4150,27 @@ function hf_on_furniture_place(obj_id)
             end
 
             actor_menu.set_msg(1, game.translate_string("st_hub_established"), 3)
+
+            -- Proactive sweep for natural Zone smart terrain spawn points within camp boundary
+            if stalker_camp_builder.get_nearby_smart_terrain_hazard then
+                local s_name, s_dist = stalker_camp_builder.get_nearby_smart_terrain_hazard(se_obj.position)
+                if s_name and s_dist then
+                    local new_camp = stalker_camp_builder.active_camps[obj_id]
+                    if new_camp then
+                        new_camp.near_smart = s_name
+                        new_camp.near_smart_dist = math.floor(s_dist)
+                    end
+                    local s_disp = game.translate_string(s_name)
+                    if not s_disp or s_disp == "" or s_disp == s_name then s_disp = s_name end
+                    local warn_txt = string.format(game.translate_string("st_hub_spawn_hazard_warn"), s_disp, math.floor(s_dist))
+                    CreateTimeEvent("homestead_smart_warn_" .. tostring(obj_id), "warn", 1.5, function()
+                        if db.actor then
+                            news_manager.send_tip(db.actor, warn_txt, nil, "red_danger", 14000)
+                        end
+                        return true
+                    end)
+                end
+            end
 
             scan_camp_structures(obj_id)
         end
@@ -6684,15 +6760,25 @@ function npc_on_death_callback(npc, who)
     end
 end
 
--- npc_on_hit_callback -- immediate damage recovery for invincible settlers
+-- npc_on_hit_callback -- combat defense reaction and damage recovery for settlers
 function npc_on_hit_callback(npc, amount, local_direction, who, bone_index)
     if not npc then return end
-    if not cfg.settler_invincible then return end
     if not npc:alive() then return end
     local npc_id = npc:id()
     local lookup = stalker_camp_builder.settler_lookup[npc_id]
     if not lookup or lookup.is_rival then return end
-    pcall(function() npc:set_health_ex(1.0) end)
+
+    -- Settler Defensive Readiness: when hit by hostile NPC or monster, drop rigid beh_wait standing lock
+    if who and who:id() ~= npc_id and (IsStalker(who) or IsMonster(who)) then
+        pcall(function()
+            npc:disable_info_portion("npcx_beh_wait")
+            npc:give_info_portion("npcx_beh_hide_in_cover")
+        end)
+    end
+
+    if cfg.settler_invincible then
+        pcall(function() npc:set_health_ex(1.0) end)
+    end
 end
 
 local function safe_register_callback(name, func)
@@ -8265,6 +8351,12 @@ function stalker_camp_builder.recall_scavenger_expedition(stash_id)
         -- set_switch_online on an id with no server object is an engine crash
         if se_npc then
             utils_obj.switch_online(exp.npc_id)
+            if sb.teleport_settler_to_camp_level then
+                sb.teleport_settler_to_camp_level(exp.npc_id, exp.hub_id, true)
+            end
+            if sb.pin_settler_home_squad then
+                sb.pin_settler_home_squad(exp.npc_id)
+            end
         end
     end
 
@@ -9255,6 +9347,50 @@ function map_spot_menu_property_clicked(property_ui, id, level_name, prop)
     end
 end
 
+local function teleport_scavenger_on_departure(npc_id, stash_id, target_level)
+    local sim = alife()
+    if not (sim and npc_id) then return end
+    local se_npc = alife_object(npc_id)
+    if not se_npc then return end
+
+    local dest_gvid, dest_lvid, dest_pos = nil, nil, nil
+    if stash_id then
+        local se_stash = alife_object(stash_id)
+        if se_stash and se_stash.m_game_vertex_id then
+            dest_gvid = se_stash.m_game_vertex_id
+            dest_lvid = se_stash.m_level_vertex_id
+            dest_pos = se_stash.position
+        end
+    end
+
+    if not dest_gvid and target_level then
+        local smarts = stalker_camp_builder.get_smart_terrains_on_level and stalker_camp_builder.get_smart_terrains_on_level(target_level)
+        if smarts and #smarts > 0 and smarts[1].obj then
+            local sm = smarts[1].obj
+            dest_gvid = sm.m_game_vertex_id
+            dest_lvid = sm.m_level_vertex_id
+            dest_pos = sm.position
+        end
+    end
+
+    -- Switch the NPC and home squad offline
+    sim:set_switch_online(npc_id, false)
+    sim:set_switch_offline(npc_id, true)
+
+    local squad = get_object_squad(se_npc)
+    if squad then
+        sim:set_switch_online(squad.id, false)
+        sim:set_switch_offline(squad.id, true)
+    end
+
+    if dest_gvid and dest_lvid and dest_pos then
+        pcall(sim.teleport_object, sim, npc_id, dest_gvid, dest_lvid, dest_pos)
+        if squad then
+            pcall(sim.teleport_object, sim, squad.id, dest_gvid, dest_lvid, dest_pos)
+        end
+    end
+end
+
 function stalker_camp_builder.dispatch_scavenger_to_stash(stash_id, target_level, specific_npc_id, specific_hub_id, is_yellow)
     local pairs_ = pairs
     local sb = stalker_camp_builder
@@ -9359,7 +9495,7 @@ function stalker_camp_builder.dispatch_scavenger_to_stash(stash_id, target_level
     local msg = string.format(game.translate_string("st_scavenger_expedition_departed"), best_surv.name or "Scavenger", best_camp.name or "Camp", disp_lvl, type_str, real_est)
     camp_send_tip(actor, msg, nil, "general_stalker", 10000, best_hub_id, "expedition", true)
 
-    utils_obj.switch_offline(best_surv.npc_id)
+    teleport_scavenger_on_departure(best_surv.npc_id, stash_id, target_level)
     return true
 end
 
@@ -9448,7 +9584,7 @@ function stalker_camp_builder.dispatch_scavenger_regional_sweep(all_stashes, tar
     local msg = string.format(game.translate_string("st_scavenger_sweep_departed"), best_surv.name or "Scavenger", best_camp.name or "Camp", count, disp_lvl, real_est)
     camp_send_tip(actor, msg, nil, "general_stalker", 11000, best_hub_id, "expedition", true)
 
-    utils_obj.switch_offline(best_surv.npc_id)
+    teleport_scavenger_on_departure(best_surv.npc_id, primary_stash_id, target_level)
     return true
 end
 
@@ -9613,6 +9749,9 @@ local function reposition_survivor_at_camp(exp, camp, hub_obj, box_se, surv)
 
     if stalker_camp_builder.teleport_settler_to_camp_level then
         stalker_camp_builder.teleport_settler_to_camp_level(exp.npc_id, exp.hub_id, true)
+    end
+    if stalker_camp_builder.pin_settler_home_squad then
+        stalker_camp_builder.pin_settler_home_squad(exp.npc_id)
     end
 
     if is_same_level then

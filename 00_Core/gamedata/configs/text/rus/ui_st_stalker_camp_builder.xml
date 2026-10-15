@@ -2114,6 +2114,15 @@
     <string id="st_hub_established">
         <text>Хаб поселения основан!</text>
     </string>
+    <string id="st_hub_spawn_hazard_warn">
+        <text>ВНИМАНИЕ: Поблизости обнаружена естественная точка спавна Зоны (%s, %d м)! Враждебные отряды или мутанты могут появляться прямо внутри периметра вашего поселения.</text>
+    </string>
+    <string id="st_pda_spawn_hazard_badge">
+        <text>[! ВНИМАНИЕ: ТОЧКА СПАВНА В ПЕРИМЕТРЕ !]</text>
+    </string>
+    <string id="st_pda_spawn_hazard_desc">
+        <text>Опасность спавна: %s (%d м от хаба). Внутри лагеря могут появляться враждебные отряды или мутанты.</text>
+    </string>
     <string id="st_hub_furniture_joined_warn">
         <text>%s теперь часть %s (Внимание: рядом с границей в %d м!)</text>
     </string>

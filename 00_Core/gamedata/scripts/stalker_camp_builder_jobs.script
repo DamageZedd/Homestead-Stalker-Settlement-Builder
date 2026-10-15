@@ -406,7 +406,7 @@ function stalker_camp_builder.is_camp_supply_capped(hub_id, camp, category, surv
             cap = 15
             check_func = function(sec)
                 local s = sec:lower()
-                return s:find("medkit") or s:find("bandage") or s:find("antirad") or s:find("stimpack") or s:find("salve") or s == "akvatab" or s == "antirad_kalium"
+                return s:find("medkit") or s:find("bandage") or s:find("antirad") or s:find("stimpack") or s:find("salve") or s == "akvatab" or s == "antirad_kalium" or s == "drug_booster" or s:find("ibuprofen") ~= nil
             end
         end
     elseif category == "ammo" then
@@ -1736,20 +1736,21 @@ function stalker_camp_builder.process_medic_job(npc_id, box_id, camp, survivor)
         local stock_akvatab = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, function(s) return s == "akvatab" or s == "drug_booster" or s:find("ibuprofen") ~= nil end, 20)) or 0
 
         local candidates = {}
-        if total_ethanol >= 5 then
+        local cap_enabled = (sb.cfg and sb.cfg.enable_surplus_cap ~= false)
+        if total_ethanol >= 5 and (not cap_enabled or stock_akvatab < 8) then
             local sec_akv = (ini_sys and ini_sys:section_exist("akvatab") and "akvatab") or "drug_booster"
             candidates[#candidates+1] = { sec = sec_akv, count = stock_akvatab, req_vodka = 5, use_cloth = false }
         end
-        if total_ethanol >= 3 then
+        if total_ethanol >= 3 and (not cap_enabled or stock_kalium < 8) then
             local sec_kal = (ini_sys and ini_sys:section_exist("antirad_kalium") and "antirad_kalium") or "antirad"
             candidates[#candidates+1] = { sec = sec_kal, count = stock_kalium, req_vodka = 3, use_cloth = false }
         end
-        if total_ethanol >= 4 and sb.camp_has_item and sb.camp_has_item(hub_id, camp, function(s) return s == "bandage" end) then
+        if total_ethanol >= 4 and (not cap_enabled or stock_medkit < 8) and sb.camp_has_item and sb.camp_has_item(hub_id, camp, function(s) return s == "bandage" end) then
             local sec_med = "medkit" -- DANZY: was medkit_ai2 (Army Medical Package)
             candidates[#candidates+1] = { sec = sec_med, count = stock_medkit, req_vodka = 4, use_cloth = false, req_bandage = true }
         end
         local has_cloth = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_cloth)
-        if has_cloth or total_ethanol >= 1 then
+        if (has_cloth or total_ethanol >= 1) and (not cap_enabled or stock_bandage < 15) then
             candidates[#candidates+1] = { sec = "bandage", count = stock_bandage, req_vodka = (has_cloth and 0 or 1), use_cloth = has_cloth }
         end
 
@@ -1776,8 +1777,15 @@ function stalker_camp_builder.process_medic_job(npc_id, box_id, camp, survivor)
                 if survivor then survivor.shortfall_reason = nil end
                 return true
             else
-                if survivor then survivor.shortfall_reason = "No Materials" end
-                sb.camp_send_tip(actor, string.format(game.translate_string("st_job_meds_need_materials"), npc_name), nil, "general_stalker", 10000)
+                local is_stocked = (sb.is_camp_supply_capped and sb.is_camp_supply_capped(hub_id, camp, "meds", survivor))
+                                   or (stock_akvatab >= 8 and stock_kalium >= 8 and stock_bandage >= 8)
+                if is_stocked then
+                    if survivor then survivor.shortfall_reason = "Stockpile Full" end
+                    sb.camp_send_tip(actor, string.format(game.translate_string("st_job_meds_stocked"), npc_name), nil, "general_stalker", 10000)
+                else
+                    if survivor then survivor.shortfall_reason = "No Materials" end
+                    sb.camp_send_tip(actor, string.format(game.translate_string("st_job_meds_need_materials"), npc_name), nil, "general_stalker", 10000)
+                end
                 return false
             end
         end
