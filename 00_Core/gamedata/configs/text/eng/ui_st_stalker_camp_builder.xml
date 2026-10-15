@@ -103,6 +103,9 @@
     <string id="st_camp_status_ask">
         <text>How is the camp doing?</text>
     </string>
+    <string id="st_camp_status_noted">
+        <text>Good to know.</text>
+    </string>
     <string id="st_hf_requirement_warning">
         <text>WARNING: Stalker Camp Builder requires 'Hideout Furniture [Base]' mod to be installed!</text>
     </string>

@@ -237,6 +237,11 @@ local dialogues = [[
         </phrase>
         <phrase id="77">
             <script_text>stalker_camp_builder.get_camp_status_text</script_text>
+            <next>771</next>
+        </phrase>
+        <!-- 771: the player's reply. Speakers alternate by phrase, so the menu header (100) must follow a player line -->
+        <phrase id="771">
+            <text>st_camp_status_noted</text>
             <next>100</next>
         </phrase>
         <phrase id="18">

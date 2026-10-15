@@ -103,6 +103,9 @@
     <string id="st_camp_status_ask">
         <text>Как дела в лагере?</text>
     </string>
+    <string id="st_camp_status_noted">
+        <text>Хорошо, буду знать.</text>
+    </string>
     <string id="st_hf_requirement_warning">
         <text>ВНИМАНИЕ: Для работы мода Stalker Camp Builder требуется установить мод 'Hideout Furniture [Base]'!</text>
     </string>
