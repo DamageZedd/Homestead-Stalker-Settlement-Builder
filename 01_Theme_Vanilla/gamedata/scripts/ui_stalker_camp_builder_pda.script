@@ -1655,7 +1655,7 @@ function SettlementManagerPDA:OnSurvivorSelected()
                 local secs = mfloor(rem_sec % 60)
                 local time_str = mins > 0 and sformat("%dm %02ds", mins, secs) or sformat("%ds", secs)
                 job_str = sformat("%s: Patrolling Camp (%d%% - %s remaining)", job_lbl, pct, time_str)
-                self.survivor_pos_txt:SetText("Status: Local Area Scavenging & Perimeter Patrol")
+                self.survivor_pos_txt:SetText("Status: Camp Perimeter Patrol & Salvage")
             else
                 job_str = sformat("%s (Available for Expedition)", job_lbl)
                 self.survivor_pos_txt:SetText("Status: Waiting at Camp for Expedition Orders")
@@ -1670,13 +1670,13 @@ function SettlementManagerPDA:OnSurvivorSelected()
             local secs = mfloor(rem_sec % 60)
             local time_str = mins > 0 and sformat("%dm %02ds", mins, secs) or sformat("%ds", secs)
             job_str = sformat("%s: Tracking Mutants (%d%% - %s remaining)", job_lbl, pct, time_str)
-            self.survivor_pos_txt:SetText("Status: Tracking & Field Dressing Mutants")
+            self.survivor_pos_txt:SetText("Status: Hunting from Camp")
         elseif pct >= 100 then
             job_str = sformat("%s (%d%% - Harvest Ready)", job_lbl, pct)
-            self.survivor_pos_txt:SetText("Status: Returning with Harvested Meat")
+            self.survivor_pos_txt:SetText("Status: Storing Harvested Meat at Camp")
         else
             job_str = sformat("%s (%d%%)", job_lbl, pct)
-            self.survivor_pos_txt:SetText("Status: Hunting Out in the Zone")
+            self.survivor_pos_txt:SetText("Status: Hunting from Camp")
         end
     elseif job ~= "idle" then
         local rem_sec = stalker_camp_builder.get_job_time_remaining
@@ -2638,7 +2638,7 @@ function SettlementManagerPDA:RefreshJobProgress(force, hub_id_override)
                                 local secs = math.floor(time_remaining % 60)
                                 local time_str = mins > 0 and sformat("%dm %02ds", mins, secs) or sformat("%ds", secs)
                                 display = sformat("%s: Patrolling Camp (%d%% - %s remaining)", job_label, math.floor(progress * 100), time_str)
-                                if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Local Area Scavenging & Perimeter Patrol") end
+                                if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Camp Perimeter Patrol & Salvage") end
                             else
                                 display = sformat("%s (Available for Expedition)", job_label)
                                 if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Waiting at Camp for Expedition Orders") end
@@ -2653,13 +2653,13 @@ function SettlementManagerPDA:RefreshJobProgress(force, hub_id_override)
                             local secs = math.floor(time_remaining % 60)
                             local time_str = mins > 0 and sformat("%dm %02ds", mins, secs) or sformat("%ds", secs)
                             display = sformat("%s: Tracking Mutants (%d%% - %s remaining)", job_label, pct, time_str)
-                            if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Tracking & Field Dressing Mutants") end
+                            if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Hunting from Camp") end
                         elseif pct >= 100 then
                             display = sformat("%s (%d%% - Harvest Ready)", job_label, pct)
-                            if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Returning with Harvested Meat") end
+                            if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Storing Harvested Meat at Camp") end
                         else
                             display = sformat("%s (%d%%)", job_label, pct)
-                            if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Hunting Out in the Zone") end
+                            if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Hunting from Camp") end
                         end
                     else
                         local progress = stalker_camp_builder.get_job_progress
