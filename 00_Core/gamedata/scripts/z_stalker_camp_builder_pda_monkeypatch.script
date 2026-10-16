@@ -507,4 +507,87 @@ function on_game_start()
         RegisterScriptCallback("on_level_changing", engage_homestead_disconnect_grace)
         RegisterScriptCallback("actor_on_net_destroy", engage_homestead_disconnect_grace)
     end
+    -- =========================================================================
+    -- Engine & Shader Hardening: SSS Weapons DOF & Quick-Melee Blur Neutralizer
+    -- Prevents recurring blur when pulling out PDA (slot 8) or Quick Melee (slot 14),
+    -- and prevents SSS on_option_change from endlessly forcing 'r2_dof_enable 1' back on.
+    -- =========================================================================
+    if ssfx_weapons_dof then
+        -- 1. Wrap ssfx_set_dof to block unwanted blur on Quick Melee (slot 14) and PDA (slot 8)
+        local og_ssfx_set_dof = ssfx_weapons_dof.ssfx_set_dof
+        if og_ssfx_set_dof then
+            ssfx_weapons_dof.ssfx_set_dof = function(var1, var2, var3, var4)
+                local slot = db.actor and db.actor:active_slot() or 0
+                -- Slot 14 is quickdraw.script melee knife animation, NOT a PDA!
+                if slot == 14 then
+                    return og_ssfx_set_dof(0, 0, 0, 0)
+                end
+                -- If viewing PDA (slot 8) and PDA DOF is disabled or blur is zeroed
+                if slot == 8 then
+                    local pda_dof = ssfx_weapons_dof.ssfx_wpn_dof_pda
+                    if pda_dof == false or (var4 and var4 == 0) then
+                        return og_ssfx_set_dof(0, 0, 0, 0)
+                    end
+                end
+                return og_ssfx_set_dof(var1, var2, var3, var4)
+            end
+        end
+
+        -- 2. Guard on_option_change from forcing r2_dof_enable 1 when user disabled DOF / blur
+        local og_on_option_change = ssfx_weapons_dof.on_option_change
+        if og_on_option_change then
+            ssfx_weapons_dof.on_option_change = function(...)
+                local user_wants_dof_off = false
+                if ui_mcm then
+                    local pda_mcm = ui_mcm.get("ssfx_module/wpn_dof/pda_mcm")
+                    local blur_mcm = ui_mcm.get("ssfx_module/wpn_dof/blur_mcm")
+                    if pda_mcm == false and (blur_mcm == nil or blur_mcm == 0) then
+                        user_wants_dof_off = true
+                    end
+                end
+                local prev_console_dof = false
+                pcall(function()
+                    prev_console_dof = get_console():get_bool("r2_dof_enable")
+                end)
+                og_on_option_change(...)
+                if user_wants_dof_off or (prev_console_dof == false) then
+                    pcall(function()
+                        get_console():execute("r2_dof_enable 0")
+                    end)
+                end
+            end
+        end
+    end
+
+    -- Enforce DOF off and zero motion blur on first update if MCM blur settings are 0
+    if RegisterScriptCallback then
+        local function enforce_blur_suppression()
+            local user_wants_dof_off = false
+            if ui_mcm then
+                local pda_mcm = ui_mcm.get("ssfx_module/wpn_dof/pda_mcm")
+                local blur_mcm = ui_mcm.get("ssfx_module/wpn_dof/blur_mcm")
+                if pda_mcm == false and (blur_mcm == nil or blur_mcm == 0) then
+                    user_wants_dof_off = true
+                end
+            end
+            if user_wants_dof_off then
+                pcall(function()
+                    get_console():execute("r2_dof_enable 0")
+                    get_console():execute("ssfx_wpn_dof_1 (0,0,0,0)")
+                    get_console():execute("ssfx_wpn_dof_2 0")
+                end)
+            end
+            if ui_mcm then
+                local mblur_int = ui_mcm.get("ssfx_module/ssfx_pp/ssfx_motionblur/intensity_mcm")
+                if mblur_int ~= nil and mblur_int == 0 then
+                    pcall(function()
+                        get_console():execute("ssfx_motionblur (0,0,0,0)")
+                    end)
+                end
+            end
+        end
+        RegisterScriptCallback("actor_on_first_update", enforce_blur_suppression)
+        RegisterScriptCallback("on_option_change", enforce_blur_suppression)
+    end
 end
+
