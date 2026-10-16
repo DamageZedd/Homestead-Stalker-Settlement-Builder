@@ -320,6 +320,100 @@ function on_game_start()
         end
     end
 
+    -- =========================================================================
+    -- Engine Hardening: Universal CCharacterInfo [(null)] Profile Shield
+    -- Prevents fatal CTD in CXML_IdToIndex<CCharacterInfo>::GetById (xml_str_id_loader.h:115)
+    -- "item not found, id [(null)]" which crashes when any stalker/corpse with an
+    -- unassigned or stripped character_profile is queried by UICharacterInfo (looting
+    -- corpses, trade, talking, inventory) or offline/online specific_character resolution.
+    -- =========================================================================
+    local function get_safe_profile_for_se(se_obj)
+        local comm = "stalker"
+        if se_obj and se_obj.community then
+            pcall(function()
+                comm = se_obj:community()
+            end)
+        end
+        if not comm or comm == "" or comm == "unknown" then
+            comm = "stalker"
+        end
+        local candidate = "sim_default_" .. comm .. "_0"
+        if not (ini_sys and ini_sys:section_exist(candidate)) then
+            candidate = "default"
+        end
+        return candidate
+    end
+
+    local function sanitize_se_profile(se_obj)
+        if not se_obj then return end
+        local cls = nil
+        pcall(function() cls = se_obj:clsid() end)
+        if not cls then return end
+        if (IsStalker and IsStalker(nil, cls)) or cls == clsid.stalker or cls == clsid.script_stalker then
+            local prof = nil
+            pcall(function() prof = se_obj:profile_name() end)
+            if (not prof) or prof == "" or prof == "(null)" or prof == "nil" then
+                local fallback = get_safe_profile_for_se(se_obj)
+                pcall(function() se_obj:set_profile_name(fallback) end)
+                printf("[Homestead Shield] Fixed missing character_profile on stalker id=%s sec=%s -> assigned '%s'", tostring(se_obj.id), tostring(se_obj:section_name()), tostring(fallback))
+            end
+        end
+    end
+
+    -- 1. Sweep all ALife stalkers on game load / level load to sanitize existing broken profiles
+    local function sanitize_all_stalker_profiles()
+        pcall(function()
+            local sim = alife()
+            if not sim then return end
+            for id = 1, 65534 do
+                local se_obj = sim:object(id)
+                if se_obj then
+                    sanitize_se_profile(se_obj)
+                end
+            end
+        end)
+    end
+
+    if RegisterScriptCallback then
+        RegisterScriptCallback("load_state", sanitize_all_stalker_profiles)
+        RegisterScriptCallback("actor_on_first_update", sanitize_all_stalker_profiles)
+        RegisterScriptCallback("server_entity_on_register", sanitize_se_profile)
+    end
+
+    -- 2. Intercept UI inventory / loot opening before CUICharacterInfo::InitCharacter queries the entity
+    if ui_inventory and ui_inventory.start then
+        local og_ui_inventory_start = ui_inventory.start
+        ui_inventory.start = function(mode, obj)
+            if obj and (mode == "loot" or mode == "trade" or mode == "repair") then
+                local obj_id = (type(obj.id) == "function" and obj:id()) or obj.id
+                if obj_id then
+                    local se_obj = alife_object(obj_id)
+                    if se_obj then
+                        sanitize_se_profile(se_obj)
+                    end
+                end
+            end
+            return og_ui_inventory_start(mode, obj)
+        end
+    end
+
+    -- 3. Intercept corpse loot generation in death_manager
+    if death_manager and death_manager.create_release_item then
+        local og_create_release_item = death_manager.create_release_item
+        death_manager.create_release_item = function(npc)
+            if npc then
+                local npc_id = (type(npc.id) == "function" and npc:id()) or npc.id
+                if npc_id then
+                    local se_obj = alife_object(npc_id)
+                    if se_obj then
+                        sanitize_se_profile(se_obj)
+                    end
+                end
+            end
+            return og_create_release_item(npc)
+        end
+    end
+
     -- If Interactive PDA is not installed, or if Mod App Creator is active with our patch, we don't need to patch the left rail
     local enable_tab = true
     if ui_mcm then
