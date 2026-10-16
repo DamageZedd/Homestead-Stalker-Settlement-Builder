@@ -554,6 +554,7 @@ local dialogues = [[
         <phrase id="1">
             <text>st_camp_tech_reply</text>
             <next>10</next>
+            <next>12</next>
             <next>15</next>
             <next>20</next>
             <next>30</next>
@@ -566,6 +567,13 @@ local dialogues = [[
         <phrase id="10">
             <text>st_camp_tech_upgrade_ask</text>
             <action>stalker_camp_builder.open_technician_upgrade_ui</action>
+        </phrase>
+
+        <!-- 12: Actor selects: "Overhaul equipped weapon and parts..." -->
+        <phrase id="12">
+            <script_text>stalker_camp_builder.get_tech_overhaul_ask_text</script_text>
+            <action>stalker_camp_builder.repair_equipped_weapon_and_parts</action>
+            <next>100</next>
         </phrase>
 
         <!-- 15: Actor selects: "Open Workshop / Workbench" -->

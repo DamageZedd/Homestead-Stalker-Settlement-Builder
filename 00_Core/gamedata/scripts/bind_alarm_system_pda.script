@@ -136,12 +136,9 @@ end
 -- keep the local body only as a fallback in case bind_alarm_system is not
 -- loaded yet (X-Ray loads scripts lazily on first reference).
 function alarm_has_targets(alarm_obj, radius, rp)
-    if bind_alarm_system and bind_alarm_system.alarm_has_targets then
-        return bind_alarm_system.alarm_has_targets(alarm_obj, radius, rp)
-    end
-
     local pos = alarm_obj:position()
     local min_dot = 0.2
+    local actor_id = db.actor and db.actor:id()
 
     for _, v in pairs(db.storage) do
         if v and v.object then
@@ -150,7 +147,21 @@ function alarm_has_targets(alarm_obj, radius, rp)
             local opos = o:position()
 
             if opos:distance_to(pos) <= radius then
-                if (cls == clsid.actor or cls == clsid.script_stalker or monster_classes[cls]) and o:alive() then
+                local is_threat = false
+                if o:alive() and o:id() ~= actor_id then
+                    if monster_classes[cls] then
+                        is_threat = true
+                    elseif cls == clsid.script_stalker then
+                        if db.actor and o.relation then
+                            local rel = o:relation(db.actor)
+                            if rel == game_object.enemy then
+                                is_threat = true
+                            end
+                        end
+                    end
+                end
+
+                if is_threat then
                     local tpos = get_target_center(o)
                     if is_in_front_of_bone(alarm_obj, "bone_led", o, min_dot) and has_clear_los(alarm_obj, o, tpos, rp) then
                         return true
@@ -200,7 +211,7 @@ function alarm_system_pda_wrapper:update(delta)
     self.scan_t = (self.scan_t or 0) - dt
     if self.scan_t <= 0 then
         self.scan_t = ALARM_SCAN_INTERVAL
-        self.alarm_detected = is_on and alarm_has_targets(self.object, 5, self.rp) or false
+        self.alarm_detected = is_on and alarm_has_targets(self.object, 15, self.rp) or false
     end
 
     local alarm_detected = self.alarm_detected or false

@@ -1210,16 +1210,21 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                     local skirmish_cooldown_sec = 21600 -- 6 game hours
                     local is_on_cooldown = (camp.skirmish_cooldown_until and current_sec < camp.skirmish_cooldown_until)
                         or (camp.setup_sec and (current_sec - camp.setup_sec < skirmish_cooldown_sec))
-                    if not is_on_cooldown and mrandom(1000) <= 5 then -- 0.5% roll every 10s tick
+
+                    local actor_dist = 999
+                    if actor and camp.position then
+                        local act_p = actor:position()
+                        local dx = act_p.x - camp.position.x
+                        local dy = act_p.y - camp.position.y
+                        local dz = act_p.z - camp.position.z
+                        actor_dist = msqrt(dx*dx + dy*dy + dz*dz)
+                    end
+
+                    -- 1. Trigger SOS distress encounter with a 3-minute response window
+                    if not is_on_cooldown and not camp.pending_skirmish and mrandom(1000) <= 5 then -- 0.5% roll every 10s tick
                         camp.skirmish_cooldown_until = current_sec + skirmish_cooldown_sec
-                        local actor_dist = 999
-                        if actor and camp.position then
-                            local act_p = actor:position()
-                            local dx = act_p.x - camp.position.x
-                            local dy = act_p.y - camp.position.y
-                            local dz = act_p.z - camp.position.z
-                            actor_dist = msqrt(dx*dx + dy*dy + dz*dz)
-                        end
+                        camp.pending_skirmish = true
+                        camp.pending_skirmish_resolve_time = current_sec + 180 -- 3-minute (180s) response countdown
 
                         if sb.cfg.rival_camp_distress_calls ~= false and not camp.sos_broadcasted and camp.status ~= "mutant_nest" then
                             local actor_comm = (actor and actor.character_community) and actor:character_community() or "stalker"
@@ -1245,6 +1250,12 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                         if camp.status ~= "mutant_nest" then
                             sb.trigger_allied_reinforcement(camp)
                         end
+                    end
+
+                    -- 2. Resolve skirmish after the 3-minute countdown expires if player hasn't intervened
+                    if camp.pending_skirmish and current_sec >= (camp.pending_skirmish_resolve_time or current_sec) then
+                        camp.pending_skirmish = nil
+                        camp.pending_skirmish_resolve_time = nil
 
                         local safe_dist = get_safe_switch_distance()
                         if not same_level or actor_dist > safe_dist then
@@ -1273,16 +1284,41 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                                     camp.setup_sec = current_sec
                                     camp.setup_duration = mrandom(21600, 64800)
                                     camp.skirmish_cooldown_until = current_sec + 21600
-                                    -- the tier stays with the furniture it built: reset, it would build it again
 
                                     local squad_pos = v_scratch_pos:set(camp.position.x, camp.position.y, camp.position.z)
                                     local squad_sec = sb.get_dynamic_squad_section_for_faction(enemy_fac)
-                                    -- the old garrison stops guarding the camp it lost
-                                    release_rival_hold(sb, camp.squad_id and alife_object(camp.squad_id))
+
+                                    -- Clean up old garrison squad and members cleanly via alife_release
+                                    local old_sq = camp.squad_id and sim:object(camp.squad_id)
+                                    if old_sq then
+                                        release_rival_hold(sb, old_sq)
+                                        for k in sb.safe_squad_members(old_sq) do
+                                            if k.id then
+                                                if sb.camp_npc_released then sb.camp_npc_released[k.id] = nil end
+                                                if sb.settler_lookup then sb.settler_lookup[k.id] = nil end
+                                                local se_npc = sim:object(k.id)
+                                                if se_npc then alife_release(se_npc) end
+                                            end
+                                        end
+                                        alife_release(old_sq)
+                                    end
                                     for _, ex_id in ipairs_(camp.extra_squad_ids or {}) do
-                                        release_rival_hold(sb, alife_object(ex_id))
+                                        local ex_sq = sim:object(ex_id)
+                                        if ex_sq then
+                                            release_rival_hold(sb, ex_sq)
+                                            for k in sb.safe_squad_members(ex_sq) do
+                                                if k.id then
+                                                    if sb.camp_npc_released then sb.camp_npc_released[k.id] = nil end
+                                                    if sb.settler_lookup then sb.settler_lookup[k.id] = nil end
+                                                    local se_npc = sim:object(k.id)
+                                                    if se_npc then alife_release(se_npc) end
+                                                end
+                                            end
+                                            alife_release(ex_sq)
+                                        end
                                     end
                                     camp.extra_squad_ids = nil
+
                                     local new_squad = sb.create_squad_at_pos(squad_sec, squad_pos, camp.level_vertex_id, camp.game_vertex_id)
                                     if new_squad then
                                         camp.squad_id = new_squad.id
@@ -2819,7 +2855,18 @@ function stalker_camp_builder.update_active_convoys()
                 local dz = squad.position.z - convoy.target_pos.z
                 local dist_sqr = dx*dx + dy*dy + dz*dz
 
-                if dist_sqr <= 625.0 or overdue then
+                local dist_to_smart_sqr = 999999
+                if convoy.target_smart_id then
+                    local sm = sim:object(convoy.target_smart_id)
+                    if sm and sm.position then
+                        local sx = squad.position.x - sm.position.x
+                        local sy = squad.position.y - sm.position.y
+                        local sz = squad.position.z - sm.position.z
+                        dist_to_smart_sqr = sx*sx + sy*sy + sz*sz
+                    end
+                end
+
+                if dist_sqr <= 1225.0 or dist_to_smart_sqr <= 1225.0 or overdue then
                     local target_chest = (level and level.object_by_id(convoy.target_camp_chest)) or se_chest
                     if target_chest then
                         local delivery_items = {"conserva", "kolbasa", "vodka", "bandage", "medkit", "ammo_5.45x39_fmj", "ammo_5.56x45_fmj"}
@@ -3043,6 +3090,8 @@ function stalker_camp_builder.check_sos_rescue_reward(actor)
             and (current_sec - (camp.sos_time or current_sec) > 7200 or camp.faction ~= camp.sos_faction) then
             camp.sos_active = false
             camp.sos_broadcasted = false
+            camp.pending_skirmish = nil
+            camp.pending_skirmish_resolve_time = nil
         end
         if type(camp) == "table" and camp.sos_active and camp.chest_id and camp.position and camp.level == level.name() then
             local dx = actor_pos.x - camp.position.x
@@ -3055,6 +3104,8 @@ function stalker_camp_builder.check_sos_rescue_reward(actor)
                 if squad and is_squad_alive(squad) then
                     camp.sos_active = false
                     camp.sos_broadcasted = false
+                    camp.pending_skirmish = nil
+                    camp.pending_skirmish_resolve_time = nil
 
                     local reward_rubles = math.random(3000, 5500)
                     dialogs.relocate_money_to_actor(db.actor, nil, reward_rubles)

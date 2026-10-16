@@ -1,44 +1,40 @@
-;[alarm_system]:tch_junk
-;class									= II_ATTCH
-;kind								    = i_tool
-;visual									= dynamics\Decor\alarm_system.ogf
-;
-;description								= st_alarm_system_descr
-;inv_name								= st_alarm_system
-;inv_name_short							= st_alarm_system
-;
-;icons_texture							= ui\ui_icon_pistol_turret
-;inv_grid_x								= 4
-;inv_grid_y								= 0
-;inv_grid_width							= 1
-;inv_grid_height							= 1
-;
-;cost									= 600
-;inv_weight								= 0.4
-;
-;use1_functor         				    = placeable_furniture.place_item
-;use1_action_functor  					= placeable_furniture.func_place_item
-;
-;placeable_type                          = prop
-;placeable_section                       = placeable_alarm_system
-;
-;[placeable_alarm_system]:physic_object
-;visual									= dynamics\Decor\alarm_system.ogf
-;placeable_type                          = prop
-;base_rotation                           = 0
-;
-;
-;
-;script_binding                          = bind_hf_base.init
-;
-;script_binding                          = bind_alarm_system.init
-;item_section                            = alarm_system
-;ui_on_interaction                       = bind_alarm_system.toggle_alarm_system
-;ui_on_simple_interaction                = bind_alarm_system.toggle_alarm_system
-;
-;bounding_box_size                        = 0.158000, 0.186000, 0.181000
-;bounding_box_origin                      = -0.000061, 0.093311, -0.004470
-;
+[alarm_system]:tch_junk
+class									= II_ATTCH
+kind								    = i_tool
+visual									= dynamics\Decor\alarm_system.ogf
+
+description								= st_alarm_system_descr
+inv_name								= st_alarm_system
+inv_name_short							= st_alarm_system
+
+icons_texture							= ui\ui_icon_pistol_turret
+inv_grid_x								= 4
+inv_grid_y								= 0
+inv_grid_width							= 1
+inv_grid_height							= 1
+
+cost									= 600
+inv_weight								= 0.4
+
+use1_functor         				    = placeable_furniture.place_item
+use1_action_functor  					= placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_alarm_system
+
+[placeable_alarm_system]:physic_object
+visual									= dynamics\Decor\alarm_system.ogf
+placeable_type                          = prop
+base_rotation                           = 0
+
+script_binding                          = bind_alarm_system.init
+item_section                            = alarm_system
+ui_on_interaction                       = bind_alarm_system.toggle_alarm_system
+ui_on_simple_interaction                = bind_alarm_system.toggle_alarm_system
+
+bounding_box_size                        = 0.158000, 0.186000, 0.181000
+bounding_box_origin                      = -0.000061, 0.093311, -0.004470
+
 [alarm_system_pda]:tch_junk
 class									= II_ATTCH
 kind								    = i_tool

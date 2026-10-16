@@ -1,0 +1,145 @@
+--[[
+    Homestead PDA theme: every color and widget texture the Settlements tab draws with,
+    in one place. ui_stalker_camp_builder_pda.script asks for a role ("heading", "body",
+    "danger", "button_on", ...) and never for a literal value, so a different look is a
+    change to this file and to the matching values in ui_stalker_camp_builder_pda.xml.
+
+    The default follows the vanilla PDA and the Anomaly convention: amber for headings and
+    names, light gray for body text, dim gray for what is off, and the PDA's own green,
+    orange and red for good, warning and danger. Widgets are the base game's own
+    (ui_button_ordinary, ui_inGame2_message_box, ui_inGame2_edit_box_2), so they follow
+    whatever UI pack restyles those.
+
+    Engine note: a CUI3tButton re-applies its label color for the current state from the
+    XML (<text_color><e/><h/><t/><d/></text_color>, white by default) every frame, so
+    SetTextColor on its TextControl() never shows. A selected tab, filter or job is
+    therefore marked by its texture (set_active), and a button's label color lives in the
+    XML.
+--]]
+
+-- The palette. The XML uses the same values; keep the two in step.
+local colors = {
+    heading = {238, 196, 112},  -- section headings, names, what is selected
+    body    = {200, 200, 200},  -- body text
+    bright  = {255, 255, 255},  -- a value that matters
+    dim     = {160, 160, 160},  -- what is off, secondary labels
+    good    = {56, 209, 115},   -- the PDA's green (pda_green): friendly, secured
+    warn    = {238, 155, 23},   -- the PDA's orange (ui_7): attention
+    danger  = {238, 28, 36},    -- the PDA's red (pda_red): hostile, destructive
+}
+
+-- Widget textures by role, all declared in a texture_descr (an undeclared one logs
+-- "Can't find texture" and draws nothing).
+local textures = {
+    button    = "ui_button_ordinary",   -- base game, every button
+    button_on = "ui_homestead_btn_on",  -- the vanilla button in its pressed look: selected
+    rule      = "ui_homestead_rule",    -- 1 px lines under headings
+    banner    = "ui_homestead_banner",  -- tactical colored alert banners (secure/neutral/threat)
+}
+
+-- Rival camps by faction (Homestead's own table).
+local factions = {
+    stalker = {238, 196, 112}, loner = {238, 196, 112},
+    dolg = {255, 80, 80}, duty = {255, 80, 80},
+    freedom = {80, 255, 80}, svoboda = {80, 255, 80},
+    killer = {80, 180, 255}, mercenary = {80, 180, 255},
+    csky = {80, 220, 220}, clear_sky = {80, 220, 220},
+    ecolog = {80, 255, 255}, monolith = {180, 100, 255},
+    bandit = {200, 200, 200}, renegade = {220, 180, 100},
+    army = {160, 200, 80}, military = {160, 200, 80},
+}
+
+-- Colors that strings and older Homestead code carry inline (%c[r,g,b] or %c[a,r,g,b]),
+-- and the role each one stands for; recolor() swaps them. In the guide's strings green
+-- and blue only emphasize a term, so they turn white; green that means "it went well"
+-- (Defeated, a friendly camp) is the PDA's green. Faction names keep their colors.
+local legacy = {
+    ["238,196,112"] = "heading", ["238,153,26"] = "heading", ["255,230,150"] = "heading",
+    ["220,220,220"] = "body", ["200,200,200"] = "body",
+    ["144,238,144"] = "bright", ["100,200,255"] = "bright", ["180,220,255"] = "bright",
+    ["128,222,234"] = "bright",
+    ["200,255,200"] = "good", ["100,255,100"] = "good",
+    ["255,100,100"] = "danger", ["255,120,120"] = "danger",
+    ["255,180,100"] = "warn", ["255,160,60"] = "warn",
+}
+
+local function c(role)
+    return colors[role] or colors.body
+end
+
+function rgb(role)
+    local v = c(role)
+    return v[1], v[2], v[3]
+end
+
+function argb(role, alpha)
+    local v = c(role)
+    return GetARGB(alpha or 255, v[1], v[2], v[3])
+end
+
+-- inline markup for SetText: markup("heading") .. name .. markup("body"). The engine reads
+-- %c[a,r,g,b] (four numbers) or %c[<color_defs name>]; with three numbers it silently
+-- keeps the element's default color (CUILines::GetColorFromText).
+function markup(role)
+    local v = c(role)
+    return string.format("%%c[255,%d,%d,%d]", v[1], v[2], v[3])
+end
+
+function recolor(text)
+    if type(text) ~= "string" or not text:find("%c[", 1, true) then
+        return text
+    end
+    local function swap(r, g, b)
+        local role = legacy[r .. "," .. g .. "," .. b]
+        return role and markup(role) or nil
+    end
+    -- three numbers are not a color to the engine: map them, or at least add the alpha
+    local function swap3(r, g, b)
+        return swap(r, g, b) or string.format("%%c[255,%s,%s,%s]", r, g, b)
+    end
+    text = text:gsub("%%c%[%d+,(%d+),(%d+),(%d+)%]", swap)
+    return (text:gsub("%%c%[(%d+),(%d+),(%d+)%]", swap3))
+end
+
+function texture(role)
+    return textures[role]
+end
+
+-- a faction's color for a rival camp, as ARGB; nil for an unknown faction
+function faction(key)
+    local v = key and factions[string.lower(key)]
+    return v and GetARGB(255, v[1], v[2], v[3]) or nil
+end
+
+-- every faction's color as an "a,r,g,b" string, for inline markup in log text
+function faction_codes()
+    local out = {}
+    for key, v in pairs(factions) do
+        out[key] = string.format("255,%d,%d,%d", v[1], v[2], v[3])
+    end
+    return out
+end
+
+-- mark a button selected or not, by texture (see the engine note above)
+function set_active(btn, on)
+    if btn and btn.InitTexture then
+        btn:InitTexture(on and textures.button_on or textures.button)
+    end
+end
+
+-- the backing of a status line: kind is "secure", "neutral" or "threat"
+function banner(bg, kind)
+    if not bg then return end
+    if textures.banner then
+        bg:InitTexture(textures.banner .. "_" .. kind)
+        bg:Show(true)
+    else
+        bg:Show(false)
+    end
+end
+
+-- a label without its trailing "(...)" detail, for a button too narrow for it. A button's
+-- label never wraps: what does not fit runs past both edges.
+function short(text)
+    return (tostring(text or ""):gsub("%s*%b()%s*$", ""))
+end

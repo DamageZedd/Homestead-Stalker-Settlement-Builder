@@ -1,46 +1,9 @@
+-- colors and widget textures by role: ui_stalker_camp_builder_theme.script
+local hs_theme = ui_stalker_camp_builder_theme
+
 local sformat = string.format
-local colorize_pda_text   -- defined below; the radio rows above it call it
 
-local function make_gauge_bar(current, max_val, length, fill_char, empty_char)
-    local len = length or 8
-    local f_char = fill_char or "|"
-    local e_char = empty_char or "."
-    local pct = 0
-    if max_val and max_val > 0 then
-        pct = math.min(100, math.max(0, math.floor((current / max_val) * 100)))
-    end
-    local filled = math.floor((pct / 100) * len)
-    local empty = len - filled
-    return string.format("[%s%s] %d%%", string.rep(f_char, filled), string.rep(e_char, empty), pct)
-end
-class "RadioLogItem" (CUIListBoxItem)
-function RadioLogItem:__init(time_str, cat_str, text_str, xml)
-    super()
-    self:SetWndRect(Frect():set(0, 0, 544, 48))
-    if xml then
-        self.card_bg = xml:InitStatic("radio_card_bg", self)
-        self.time_wnd = xml:InitTextWnd("radio_row_time", self)
-        self.time_wnd:SetText(string.format("[%s] [%s]", time_str or "--:--", cat_str:upper()))
-        
-        if cat_str == "combat" then
-            self.time_wnd:SetTextColor(GetARGB(255, 255, 100, 100))
-        elseif cat_str == "expedition" then
-            self.time_wnd:SetTextColor(GetARGB(255, 100, 200, 255))
-        elseif cat_str == "work" then
-            self.time_wnd:SetTextColor(GetARGB(255, 144, 238, 144))
-        else
-            self.time_wnd:SetTextColor(GetARGB(255, 238, 196, 112))
-        end
-
-        self.text_wnd = xml:InitTextWnd("radio_row_text", self)
-        self.text_wnd:SetText(colorize_pda_text(text_str or ""))
-    end
-end
-
-
--- =========================================================================
 -- PDA AUTOMATED KEYWORD COLORIZER & GAUGES (iTheon Tactical Engine)
--- =========================================================================
 local function make_gauge(pct, total_blocks, fill_char, empty_char)
     local mmax = math.max
     local blocks = total_blocks or 10
@@ -53,40 +16,34 @@ local function escape_pda_pattern(str)
     return (str:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1"))
 end
 
-function colorize_pda_text(text)
+local function colorize_pda_text_base(text)
     if not text or text == "" then return "" end
 
-    local faction_colors = {
-        dolg = "255,255,80,80", duty = "255,255,80,80",
-        freedom = "255,80,255,80", svoboda = "255,80,255,80",
-        killer = "255,80,180,255", mercenary = "255,80,180,255",
-        stalker = "255,238,196,112", loner = "255,238,196,112",
-        csky = "255,80,220,220", clear_sky = "255,80,220,220",
-        ecolog = "255,80,255,255", monolith = "255,180,100,255",
-        bandit = "255,220,220,220", renegade = "255,220,180,100",
-        army = "255,160,200,80", military = "255,160,200,80"
-    }
+    local faction_colors = hs_theme.faction_codes()
 
     for comm, clr in pairs(faction_colors) do
         local comm_str = game.translate_string(comm)
         if comm_str and comm_str ~= comm and comm_str ~= "" then
             text = text:gsub(escape_pda_pattern(comm_str), function()
-                return string.format("%%c[%s]%s%%c[255,220,220,220]", clr, comm_str)
+                return string.format("%%c[%s]%s%%c[200,200,200]", clr, comm_str)
             end)
         end
     end
 
-    -- Highlights for keywords
-    text = text:gsub("Ambushed", function() return "%c[255,255,100,100]Ambushed%c[255,220,220,220]" end)
-    text = text:gsub("Defeated", function() return "%c[255,144,238,144]Defeated%c[255,220,220,220]" end)
-    text = text:gsub("Recovered", function() return "%c[255,100,200,255]Recovered%c[255,220,220,220]" end)
-    text = text:gsub("Deposited", function() return "%c[255,238,196,112]Deposited%c[255,220,220,220]" end)
+    text = text:gsub("Ambushed", function() return "%c[255,100,100]Ambushed%c[200,200,200]" end)
+    text = text:gsub("Defeated", function() return "%c[200,255,200]Defeated%c[200,200,200]" end)
+    text = text:gsub("Recovered", function() return "%c[180,220,255]Recovered%c[200,200,200]" end)
+    text = text:gsub("Deposited", function() return "%c[238,153,26]Deposited%c[200,200,200]" end)
 
     return text
 end
 
+-- the same, in the theme's colors
+local function colorize_pda_text(text)
+    return hs_theme.recolor(colorize_pda_text_base(text))
+end
+
 local function play_pda_ui_sound(snd_path)
-    -- PDA audio disabled per user request
 end
 
 -- closes the PDA the way its key does (actor_effects). The page is the PDA's subdialog, attached
@@ -102,30 +59,22 @@ local function close_pda()
     end
 end
 
--- Homestead PDA Settlement Manager Tab UI
--- Version: v1.2.5
-
 local SINGLETON = nil
 
--- Exposed so actor_on_update in stalker_camp_builder can drive live refresh
 function get_singleton() return SINGLETON end
 
--- Named global so RegisterScriptCallback can find it by reference across the engine boundary.
--- local functions are not visible to the X-Ray callback dispatcher.
 function homestead_pda_actor_on_update()
     if not stalker_camp_builder then return end
     -- the window outlives a closed PDA; Update() refreshes it while it is on screen
     if not SINGLETON or SINGLETON._closing or not SINGLETON:IsShown() then
         return
     end
-    -- v1.1.7: also refresh the overview tab (previously survivors-only, so
-    -- timers on the default Overview view were a frozen snapshot).
     if SINGLETON.current_tab ~= "survivors" and SINGLETON.current_tab ~= "overview" then
         return
     end
     local now = time_global()
     local last = SINGLETON._last_refresh or 0
-    if (now - last) < 1000 and (now >= last) then return end
+    if (now - last) < 1000 then return end
     SINGLETON._last_refresh = now
     if SINGLETON.UpdateSurvivorsProgress then
         SINGLETON:UpdateSurvivorsProgress()
@@ -136,13 +85,10 @@ function get_ui()
     SINGLETON = SINGLETON or SettlementManagerPDA()
     SINGLETON:Reset()
     if not _G["homestead_pda_actor_on_update_registered"] then
-        -- printf("[Homestead PDA] registering actor_on_update callback")
         _G["homestead_pda_actor_on_update"] = homestead_pda_actor_on_update
         RegisterScriptCallback("actor_on_update", homestead_pda_actor_on_update)
         _G["homestead_pda_actor_on_update_registered"] = true
-        -- printf("[Homestead PDA] callback registered")
     else
-        -- printf("[Homestead PDA] callback already registered")
     end
     return SINGLETON
 end
@@ -167,7 +113,7 @@ function SettlementListItem:__init(hub_id, name, badge_str, is_raid, details_str
     if xml then
         self.card_bg = xml:InitStatic("settlement_card_bg", self)
         self.thumb = xml:InitStatic("settlement_card_thumb", self)
-        
+
         local camp_data = stalker_camp_builder and stalker_camp_builder.active_camps and stalker_camp_builder.active_camps[hub_id]
         local lvl = camp_data and camp_data.level or (level and level.name and level.name() or "default")
         local tex_id = VALID_HOMESTEAD_LEVELS[lvl] and ("ui_homestead_thumb_" .. lvl) or "ui_homestead_thumb_default"
@@ -183,7 +129,7 @@ function SettlementListItem:__init(hub_id, name, badge_str, is_raid, details_str
         self.text_item = self:GetTextItem()
         self.text_item:SetText(name or "")
         self.text_item:SetFont(GetFontLetterica18Russian())
-        self.text_item:SetTextColor(GetARGB(255, 238, 196, 112))
+        self.text_item:SetTextColor(hs_theme.argb("heading"))
     end
 end
 
@@ -192,12 +138,12 @@ function SettlementListItem:SetSelected(is_sel)
         if is_sel then
             self.card_bg:InitTexture("ui_homestead_card_selected")
             if self.name_wnd then
-                self.name_wnd:SetTextColor(GetARGB(255, 255, 230, 150))
+                self.name_wnd:SetTextColor(hs_theme.argb("heading"))
             end
         else
             self.card_bg:InitTexture("ui_homestead_card_bg")
             if self.name_wnd then
-                self.name_wnd:SetTextColor(GetARGB(255, 200, 200, 200))
+                self.name_wnd:SetTextColor(hs_theme.argb("body"))
             end
         end
     end
@@ -212,7 +158,7 @@ function SurvivorListItem:__init(survivor_id, name, status_str, icon_sec, rank_s
         self.card_bg = xml:InitStatic("survivor_card_bg", self)
         self.icon_bg = xml:InitStatic("survivor_card_icon_bg", self)
         self.icon = xml:InitStatic("survivor_card_icon", self)
-        
+
         if icon_sec and icon_sec ~= "" then
             pcall(function() self.icon:InitTexture(icon_sec) end)
         else
@@ -250,7 +196,7 @@ function SurvivorListItem:__init(survivor_id, name, status_str, icon_sec, rank_s
         self.text_item = self:GetTextItem()
         self.text_item:SetText(name)
         self.text_item:SetFont(GetFontLetterica18Russian())
-        self.text_item:SetTextColor(GetARGB(255, 238, 196, 112))
+        self.text_item:SetTextColor(hs_theme.argb("heading"))
         self:SetWndRect(Frect():set(0, 0, 158, 72))
         self:SetWndSize(vector2():set(158, 72))
     end
@@ -261,12 +207,12 @@ function SurvivorListItem:SetSelected(is_sel)
         if is_sel then
             self.card_bg:InitTexture("ui_homestead_card_selected")
             if self.name_wnd then
-                self.name_wnd:SetTextColor(GetARGB(255, 255, 230, 150))
+                self.name_wnd:SetTextColor(hs_theme.argb("heading"))
             end
         else
             self.card_bg:InitTexture("ui_homestead_card_bg")
             if self.name_wnd then
-                self.name_wnd:SetTextColor(GetARGB(255, 238, 196, 112))
+                self.name_wnd:SetTextColor(hs_theme.argb("heading"))
             end
         end
     end
@@ -289,11 +235,13 @@ class "TransferCampListItem" (CUIListBoxItem)
 function TransferCampListItem:__init(hub_id, name)
     super()
     self.hub_id = hub_id
-    self:SetWndRect(Frect():set(0, 0, 144, 24))
+    self:SetWndRect(Frect():set(0, 0, 144, 20))
     self.text_item = self:GetTextItem()
+    self.text_item:SetWndPos(vector2():set(2, 2))
+    self.text_item:SetWndSize(vector2():set(140, 16))
     self.text_item:SetText(name)
     self.text_item:SetFont(GetFontLetterica16Russian())
-    self.text_item:SetTextColor(GetARGB(255, 220, 220, 220))
+    self.text_item:SetTextColor(hs_theme.argb("body"))
 end
 
 class "RivalListItem" (CUIListBoxItem)
@@ -349,7 +297,7 @@ function RivalListItem:__init(smart, name, badge_text, location_text, is_hostile
         self.text_item = self:GetTextItem()
         self.text_item:SetText(name or "")
         self.text_item:SetFont(GetFontLetterica18Russian())
-        self.text_item:SetTextColor(GetARGB(255, 238, 196, 112))
+        self.text_item:SetTextColor(hs_theme.argb("heading"))
     end
 end
 
@@ -358,12 +306,12 @@ function RivalListItem:SetSelected(is_sel)
         if is_sel then
             self.card_bg:InitTexture("ui_homestead_card_selected")
             if self.name_wnd then
-                self.name_wnd:SetTextColor(GetARGB(255, 255, 230, 150))
+                self.name_wnd:SetTextColor(hs_theme.argb("heading"))
             end
         else
             self.card_bg:InitTexture("ui_homestead_card_bg")
             if self.name_wnd then
-                self.name_wnd:SetTextColor(GetARGB(255, 238, 196, 112))
+                self.name_wnd:SetTextColor(hs_theme.argb("heading"))
             end
         end
     end
@@ -375,12 +323,8 @@ function SettlementManagerPDA:__init() super()
 end
 
 function SettlementManagerPDA:__finalize()
-    -- Mark the singleton as no-longer-active so the actor_on_update callback
-    -- can short-circuit cleanly if the engine fires another tick before the
-    -- Lua side is fully torn down.
     if SINGLETON then
         SINGLETON._closing = true
-        -- printf("[Homestead PDA] __finalize: dialog torn down, singleton marked as closing")
     end
     SINGLETON = nil
 end
@@ -407,7 +351,7 @@ function SettlementManagerPDA:InitControls()
     self.xml = xml
 
     xml:InitFrame("background", self)
-    xml:InitFrameLine("vertical_line", self)
+    xml:InitFrame("left_frame", self)
 
     self.left_container = xml:InitStatic("left_container", self)
     self.btn_tab_overview = xml:Init3tButton("left_container:btn_tab_overview", self.left_container)
@@ -428,14 +372,13 @@ function SettlementManagerPDA:InitControls()
     self:AddCallback("btn_tab_radio", ui_events.BUTTON_CLICKED, function() self:SetTab("radio") end, self)
     self:AddCallback("btn_tab_guide", ui_events.BUTTON_CLICKED, function() self:SetTab("guide") end, self)
 
-    self.list_header_bg = xml:InitFrame("list_header_bg", self)
+    self.list_header_bg = xml:InitStatic("list_header_bg", self)
     self.settlement_header = xml:InitTextWnd("settlement_header", self)
 
     self.settlement_list = xml:InitListBox("settlement_list", self)
     self:Register(self.settlement_list, "settlement_list")
     self:AddCallback("settlement_list", ui_events.LIST_ITEM_CLICKED, self.OnSettlementSelected, self)
 
-    -- Tab 3 panel (Rivals) with ScrollView
     self.rivals_panel = xml:InitStatic("rivals_panel", self)
     self.rival_scroll = xml:InitScrollView("rivals_panel:rival_scroll", self.rivals_panel)
     self.rival_content = xml:InitStatic("rival_content", nil)
@@ -476,7 +419,6 @@ function SettlementManagerPDA:InitControls()
 
     self.no_settlements_label = xml:InitStatic("no_settlements_label", self)
 
-    -- Tab 1 details panel (overview_panel) with ScrollView
     self.overview_panel = xml:InitStatic("overview_panel", self)
     self.overview_scroll = xml:InitScrollView("overview_panel:overview_scroll", self.overview_panel)
     self.overview_content = xml:InitStatic("overview_content", nil)
@@ -488,14 +430,12 @@ function SettlementManagerPDA:InitControls()
     self.raid_banner_bg = xml:InitStatic("overview_content:raid_banner_bg", self.overview_content)
     self.raid_banner_lbl = xml:InitTextWnd("overview_content:raid_banner_lbl", self.overview_content)
 
-    -- Module A: Personnel & Habitation
     self.pop_card_bg = xml:InitStatic("overview_content:pop_card_bg", self.overview_content)
     self.pop_header_bg = xml:InitStatic("overview_content:pop_header_bg", self.overview_content)
     self.pop_card_lbl = xml:InitTextWnd("overview_content:pop_card_lbl", self.overview_content)
     self.camp_pop = xml:InitTextWnd("overview_content:camp_pop", self.overview_content)
     self.camp_pop_gauge = xml:InitTextWnd("overview_content:camp_pop_gauge", self.overview_content)
 
-    -- Module B: Defense & Perimeter Security
     self.def_card_bg = xml:InitStatic("overview_content:def_card_bg", self.overview_content)
     self.def_header_bg = xml:InitStatic("overview_content:def_header_bg", self.overview_content)
     self.def_card_lbl = xml:InitTextWnd("overview_content:def_card_lbl", self.overview_content)
@@ -503,7 +443,6 @@ function SettlementManagerPDA:InitControls()
     self.camp_def_breakdown = xml:InitTextWnd("overview_content:camp_def_breakdown", self.overview_content)
     self.camp_threat_lvl = xml:InitTextWnd("overview_content:camp_threat_lvl", self.overview_content)
 
-    -- Module C: Logistics, Life Support & Morale
     self.logistics_card_bg = xml:InitStatic("overview_content:logistics_card_bg", self.overview_content)
     self.logistics_header_bg = xml:InitStatic("overview_content:logistics_header_bg", self.overview_content)
     self.logistics_card_lbl = xml:InitTextWnd("overview_content:logistics_card_lbl", self.overview_content)
@@ -511,12 +450,10 @@ function SettlementManagerPDA:InitControls()
     self.camp_supplies = xml:InitTextWnd("overview_content:camp_supplies", self.overview_content)
     self.camp_morale = xml:InitTextWnd("overview_content:camp_morale", self.overview_content)
 
-    -- Directives & Operations Panel
     self.directives_header_bg = xml:InitStatic("overview_content:directives_header_bg", self.overview_content)
     self.directives_lbl = xml:InitTextWnd("overview_content:directives_lbl", self.overview_content)
     self.directives_bg = xml:InitStatic("overview_content:directives_bg", self.overview_content)
 
-    -- Action buttons
     self.btn_auto_sort = xml:Init3tButton("overview_content:btn_auto_sort", self.overview_content)
     self:Register(self.btn_auto_sort, "btn_auto_sort")
     self:AddCallback("btn_auto_sort", ui_events.BUTTON_CLICKED, self.OnAutoSortClicked, self)
@@ -549,7 +486,6 @@ function SettlementManagerPDA:InitControls()
     self:Register(self.btn_dismantle, "btn_dismantle")
     self:AddCallback("btn_dismantle", ui_events.BUTTON_CLICKED, self.OnDismantleClicked, self)
 
-    -- Tab 2 panel (Survivors)
     self.survivors_panel = xml:InitStatic("survivors_panel", self)
     self.survivor_filter = "all"
 
@@ -572,7 +508,6 @@ function SettlementManagerPDA:InitControls()
     self:Register(self.survivor_list, "survivor_list")
     self:AddCallback("survivor_list", ui_events.LIST_ITEM_CLICKED, self.OnSurvivorSelected, self)
 
-    -- Job sub-panel inside survivors tab with ScrollView
     self.job_panel = xml:InitStatic("survivors_panel:job_panel", self.survivors_panel)
     self.job_scroll = xml:InitScrollView("survivors_panel:job_panel:job_scroll", self.job_panel)
     self.job_content = xml:InitStatic("job_content", nil)
@@ -600,7 +535,6 @@ function SettlementManagerPDA:InitControls()
     self.transfer_lbl = xml:InitTextWnd("job_content:transfer_lbl", self.job_content)
     self.transfer_bg = xml:InitStatic("job_content:transfer_bg", self.job_content)
 
-    -- Job reassignment buttons (2 Columns x 5 Rows) with crash-proof programmatic fallback
     local function init_safe_job_btn(tag_name, job_name, fallback_ref)
         local has_node = false
         pcall(function()
@@ -620,7 +554,6 @@ function SettlementManagerPDA:InitControls()
         end
 
         if not btn then
-            -- Failsafe programmatic instantiation: guarantees engine never CTDs on missing XML tags
             btn = CUI3tButton()
             btn:SetAutoDelete(true)
             self.job_content:AttachChild(btn)
@@ -628,12 +561,12 @@ function SettlementManagerPDA:InitControls()
             if fallback_ref and fallback_ref.GetWndPos then
                 btn:SetWndPos(fallback_ref:GetWndPos())
             end
-            btn:InitTexture("ui_homestead_btn_tactical")
+            hs_theme.set_active(btn, false)
             if btn.TextControl and btn:TextControl() then
                 btn:TextControl():SetFont(GetFontLetterica16Russian())
                 local raw_lbl = game.translate_string("st_job_" .. job_name .. "_btn")
                 btn:TextControl():SetText(raw_lbl)
-                btn:TextControl():SetTextColor(GetARGB(255, 220, 220, 220))
+                btn:TextControl():SetTextColor(hs_theme.argb("body"))
             end
         end
 
@@ -655,22 +588,18 @@ function SettlementManagerPDA:InitControls()
     self.btn_job_brewer = init_safe_job_btn("btn_job_brewer", "brewer", self.btn_job_idle)
     self.btn_job_scrapper = init_safe_job_btn("btn_job_scrapper", "scrapper", self.btn_job_guard)
 
-    -- Banish button
     self.btn_banish = xml:Init3tButton("job_content:btn_banish", self.job_content)
     self:Register(self.btn_banish, "btn_banish")
     self:AddCallback("btn_banish", ui_events.BUTTON_CLICKED, self.OnBanishClicked, self)
 
-    -- Rename survivor button
     self.btn_rename_survivor = xml:Init3tButton("job_content:btn_rename_survivor", self.job_content)
     self:Register(self.btn_rename_survivor, "btn_rename_survivor")
     self:AddCallback("btn_rename_survivor", ui_events.BUTTON_CLICKED, self.OnRenameSurvivorClicked, self)
 
-    -- Manual Refresh button on the left rail
     self.btn_refresh_survivors = xml:Init3tButton("left_container:btn_refresh_survivors", self.left_container)
     self:Register(self.btn_refresh_survivors, "btn_refresh_survivors")
     self:AddCallback("btn_refresh_survivors", ui_events.BUTTON_CLICKED, self.OnManualRefresh, self)
 
-    -- Position sub-panel
     self.survivor_pos_txt = xml:InitTextWnd("job_content:survivor_pos", self.job_content)
 
     self.btn_position_here = xml:Init3tButton("job_content:btn_position_here", self.job_content)
@@ -687,7 +616,6 @@ function SettlementManagerPDA:InitControls()
         self:AddCallback("btn_job_directive", ui_events.BUTTON_CLICKED, self.OnJobDirectiveClicked, self)
     end
 
-    -- Transfer sub-panel
     self.transfer_list = xml:InitListBox("job_content:transfer_list", self.job_content)
     self:Register(self.transfer_list, "transfer_list")
 
@@ -699,7 +627,6 @@ function SettlementManagerPDA:InitControls()
     self:Register(self.close_btn, "close_btn")
     self:AddCallback("close_btn", ui_events.BUTTON_CLICKED, close_pda, self)
 
-    -- Tab 4 panel (Radio Feed & Activity Log)
     self.radio_panel = xml:InitStatic("radio_panel", self)
     xml:InitStatic("radio_panel:radio_header_bg", self.radio_panel)
     xml:InitTextWnd("radio_panel:radio_header_lbl", self.radio_panel)
@@ -729,15 +656,12 @@ function SettlementManagerPDA:InitControls()
     self:Register(self.btn_radio_clear, "btn_radio_clear")
     self:AddCallback("btn_radio_clear", ui_events.BUTTON_CLICKED, self.OnRadioClearClicked, self)
 
-    -- Tab 4 panel (How to Play / Guide)
     self.guide_panel = xml:InitStatic("guide_panel", self)
     self.guide_scroll = xml:InitScrollView("guide_panel:guide_scroll", self.guide_panel)
+    -- the guide's title and its rule: in the XML, never created before
     xml:InitStatic("guide_panel:guide_header_bg", self.guide_panel)
     xml:InitTextWnd("guide_panel:guide_header_lbl", self.guide_panel)
 
-    -- Build the guide as structured sections: header bar + body + separator.
-    -- Each section is a separate translation key for cleaner layout and easier
-    -- localization than one giant wall-of-text string.
     local guide_sections = {
         { header = "st_guide_s1_header",        body = "st_guide_s1_body"        },  -- 1. Establishing & Hubs
         { header = "st_guide_s2_header",        body = "st_guide_s2_body"        },  -- 2. Recruitment & Housing
@@ -769,21 +693,15 @@ function SettlementManagerPDA:InitControls()
         local hdr_bg_name   = is_job and "guide_job_header_bg" or "guide_section_header_bg"
         local hdr_lbl_name  = is_job and "guide_job_header_lbl" or "guide_section_header_lbl"
 
-        -- Section header bar (Gold banner for major topics, sleek card for professions)
         local hdr_cont = xml:InitStatic(hdr_cont_name, nil)
         local hdr_bg   = xml:InitStatic(hdr_bg_name, hdr_cont)
         local hdr_lbl  = xml:InitTextWnd(hdr_lbl_name, hdr_cont)
         hdr_lbl:SetText(game.translate_string(sec.header))
         self.guide_scroll:AddWindow(hdr_cont, true)
 
-        -- Section body text (indented, lighter color, multi-line complex mode)
         local body_cont = xml:InitStatic("guide_section_body_container", nil)
         local body_text = xml:InitTextWnd("guide_section_body_text", body_cont)
 
-        -- CRITICAL X-RAY ENGINE FIX:
-        -- CUITextWnd defaults to single-line mode (m_bComplexMode = false) in C++.
-        -- Without SetTextComplexMode(true), CUILines ignores all newlines and collapses
-        -- text into a single run-on block. SetTextComplexMode(true) enables multiline formatting.
         body_text:SetTextComplexMode(true)
         body_text:SetWndPos(vector2():set(10, 4))
         body_text:SetWndSize(vector2():set(524, 20))
@@ -792,27 +710,20 @@ function SettlementManagerPDA:InitControls()
         if not b_text:find("\\n") and b_text:find("\n") then
             b_text = b_text:gsub("\n", "\\n")
         end
-        body_text:SetText(b_text)
+        body_text:SetText(hs_theme.recolor(b_text))
         body_text:AdjustHeightToText()
         local bh = body_text:GetHeight()
         body_text:SetWndSize(vector2():set(524, bh))
         body_cont:SetWndSize(vector2():set(544, bh + 14))
         self.guide_scroll:AddWindow(body_cont, true)
 
-        -- Separator line between sections (skip after last)
         if i < #guide_sections then
             local sep_cont = xml:InitStatic("guide_separator_container", nil)
-            xml:InitFrameLine("guide_separator_line", sep_cont)
+            xml:InitStatic("guide_separator_line", sep_cont)
             self.guide_scroll:AddWindow(sep_cont, true)
         end
     end
 
-    -- CRITICAL: Initialize all panels to hidden except overview.
-    -- Without this, all 4 panels (overview/survivors/rivals/guide) sit at the
-    -- same screen coords and render overlapping until SetTab runs. SetTab runs
-    -- from Reset(), but if anything delays Reset (e.g. a stalker_camp_builder
-    -- nil guard firing) the user sees all 4 pages overlayed. Hiding them here
-    -- guarantees a clean first paint.
     self.overview_panel:Show(true)
     self.survivors_panel:Show(false)
     self.rivals_panel:Show(false)
@@ -825,71 +736,61 @@ function SettlementManagerPDA:InitControls()
     self.current_tab = "overview"
 end
 
-
-
 function SettlementManagerPDA:SetTab(tab_name)
     play_pda_ui_sound([[interface\inv_open]])
-    -- Defensive: do NOT bail entirely when stalker_camp_builder is nil.
-    -- Bailing leaves all 4 panels (which default to visible) overlayed on
-    -- the same screen coordinates. Instead, hide all detail panels and
-    -- show only the guide panel as a safe fallback.
     local has_sb = (stalker_camp_builder ~= nil)
     self.current_tab = tab_name or "overview"
 
-    -- Keep tab navigation buttons enabled
     self.btn_tab_overview:Enable(true)
     self.btn_tab_survivors:Enable(true)
     self.btn_tab_rivals:Enable(true)
     if self.btn_tab_radio then self.btn_tab_radio:Enable(true) end
     self.btn_tab_guide:Enable(true)
 
-    -- Visually highlight the active tab button with distinct tactical theme accents
-    local c_dim   = GetARGB(255, 160, 160, 160)
-    local c_gold  = GetARGB(255, 238, 196, 112)
-    local c_mint  = GetARGB(255, 144, 238, 144)
-    local c_red   = GetARGB(255, 255, 100, 100)
-    local c_blue  = GetARGB(255, 100, 200, 255)
-    local c_cyan  = GetARGB(255, 128, 222, 234)
+    local c_dim   = hs_theme.argb("dim")
+    local c_gold  = hs_theme.argb("heading")
+    local c_mint  = hs_theme.argb("body")
+    local c_red   = hs_theme.argb("danger")
+    local c_blue  = hs_theme.argb("body")
+    local c_cyan  = hs_theme.argb("body")
 
     if self.btn_tab_overview and self.btn_tab_overview:TextControl() then
         self.btn_tab_overview:TextControl():SetTextColor(self.current_tab == "overview" and c_gold or c_dim)
-        self.btn_tab_overview:TextControl():SetText(self.current_tab == "overview" and "[ " .. game.translate_string("st_pda_tab_overview") .. " ]" or game.translate_string("st_pda_tab_overview"))
+        self.btn_tab_overview:TextControl():SetText(self.current_tab == "overview" and game.translate_string("st_pda_tab_overview") or game.translate_string("st_pda_tab_overview"))
     end
     if self.btn_tab_survivors and self.btn_tab_survivors:TextControl() then
         self.btn_tab_survivors:TextControl():SetTextColor(self.current_tab == "survivors" and c_mint or c_dim)
-        self.btn_tab_survivors:TextControl():SetText(self.current_tab == "survivors" and "[ " .. game.translate_string("st_pda_tab_survivors") .. " ]" or game.translate_string("st_pda_tab_survivors"))
+        self.btn_tab_survivors:TextControl():SetText(self.current_tab == "survivors" and game.translate_string("st_pda_tab_survivors") or game.translate_string("st_pda_tab_survivors"))
     end
     if self.btn_tab_rivals and self.btn_tab_rivals:TextControl() then
         self.btn_tab_rivals:TextControl():SetTextColor(self.current_tab == "rivals" and c_red or c_dim)
-        self.btn_tab_rivals:TextControl():SetText(self.current_tab == "rivals" and "[ " .. game.translate_string("st_pda_tab_rivals") .. " ]" or game.translate_string("st_pda_tab_rivals"))
+        self.btn_tab_rivals:TextControl():SetText(self.current_tab == "rivals" and game.translate_string("st_pda_tab_rivals") or game.translate_string("st_pda_tab_rivals"))
     end
     if self.btn_tab_radio and self.btn_tab_radio:TextControl() then
         self.btn_tab_radio:TextControl():SetTextColor(self.current_tab == "radio" and c_blue or c_dim)
-        self.btn_tab_radio:TextControl():SetText(self.current_tab == "radio" and "[ " .. game.translate_string("st_pda_tab_radio") .. " ]" or game.translate_string("st_pda_tab_radio"))
+        self.btn_tab_radio:TextControl():SetText(self.current_tab == "radio" and game.translate_string("st_pda_tab_radio") or game.translate_string("st_pda_tab_radio"))
     end
-        -- Dynamic tab textures
     if self.btn_tab_overview and self.btn_tab_overview.InitTexture then
-        self.btn_tab_overview:InitTexture(self.current_tab == "overview" and "ui_homestead_tab_active" or "ui_homestead_tab_inactive")
+        hs_theme.set_active(self.btn_tab_overview, self.current_tab == "overview")
     end
     if self.btn_tab_survivors and self.btn_tab_survivors.InitTexture then
-        self.btn_tab_survivors:InitTexture(self.current_tab == "survivors" and "ui_homestead_tab_active" or "ui_homestead_tab_inactive")
+        hs_theme.set_active(self.btn_tab_survivors, self.current_tab == "survivors")
     end
     if self.btn_tab_rivals and self.btn_tab_rivals.InitTexture then
-        self.btn_tab_rivals:InitTexture(self.current_tab == "rivals" and "ui_homestead_tab_active" or "ui_homestead_tab_inactive")
+        hs_theme.set_active(self.btn_tab_rivals, self.current_tab == "rivals")
     end
     if self.btn_tab_radio and self.btn_tab_radio.InitTexture then
-        self.btn_tab_radio:InitTexture(self.current_tab == "radio" and "ui_homestead_tab_active" or "ui_homestead_tab_inactive")
+        hs_theme.set_active(self.btn_tab_radio, self.current_tab == "radio")
     end
     if self.btn_tab_guide and self.btn_tab_guide.InitTexture then
-        self.btn_tab_guide:InitTexture(self.current_tab == "guide" and "ui_homestead_tab_active" or "ui_homestead_tab_inactive")
+        hs_theme.set_active(self.btn_tab_guide, self.current_tab == "guide")
     end
 
     if self.btn_tab_guide and self.btn_tab_guide:TextControl() then
         self.btn_tab_guide:TextControl():SetTextColor(self.current_tab == "guide" and c_cyan or c_dim)
-        self.btn_tab_guide:TextControl():SetText(self.current_tab == "guide" and "[ " .. game.translate_string("st_pda_tab_guide") .. " ]" or game.translate_string("st_pda_tab_guide"))
+        self.btn_tab_guide:TextControl():SetText(self.current_tab == "guide" and game.translate_string("st_pda_tab_guide") or game.translate_string("st_pda_tab_guide"))
     end
 
-    -- STEP 1: Hide ALL panels unconditionally.
     self.overview_panel:Show(false)
     self.survivors_panel:Show(false)
     self.rivals_panel:Show(false)
@@ -901,13 +802,11 @@ function SettlementManagerPDA:SetTab(tab_name)
     self.settlement_list:Show(false)
     self.rival_list:Show(false)
 
-    -- STEP 2: Fallback if stalker_camp_builder is unavailable
     if not has_sb then
         self.guide_panel:Show(self.current_tab == "guide" or self.current_tab == "overview")
         return
     end
 
-    -- Check active camps count
     local active_camps = stalker_camp_builder.active_camps or {}
     local count = 0
     for _, _ in pairs(active_camps) do
@@ -973,10 +872,10 @@ function SettlementManagerPDA:UpdateTopStatusBar()
     if self.status_camp then
         if camp then
             self.status_camp:SetText(sformat("HUB: %s", camp.name or "Settlement"))
-            self.status_camp:SetTextColor(GetARGB(255, 238, 196, 112))
+            self.status_camp:SetTextColor(hs_theme.argb("heading"))
         else
             self.status_camp:SetText("HUB: NONE")
-            self.status_camp:SetTextColor(GetARGB(255, 170, 170, 170))
+            self.status_camp:SetTextColor(hs_theme.argb("dim"))
         end
     end
 
@@ -989,16 +888,16 @@ function SettlementManagerPDA:UpdateTopStatusBar()
                 local dist = camp.level == level.name() and db.actor:position():distance_to(hub_obj.position) or math.huge
                 if dist <= 100 then
                     self.status_signal:SetText("SIGNAL: 100% (LOCAL)")
-                    self.status_signal:SetTextColor(GetARGB(255, 144, 238, 144))
+                    self.status_signal:SetTextColor(hs_theme.argb("body"))
                 else
                     local sig_pct = math.max(25, math.floor(100 - (dist / 20)))
                     self.status_signal:SetText(sformat("SIGNAL: %d%% (RELAY)", sig_pct))
-                    self.status_signal:SetTextColor(GetARGB(255, 100, 200, 255))
+                    self.status_signal:SetTextColor(hs_theme.argb("body"))
                 end
             end
         else
             self.status_signal:SetText("SIGNAL: STANDBY")
-            self.status_signal:SetTextColor(GetARGB(255, 170, 170, 170))
+            self.status_signal:SetTextColor(hs_theme.argb("dim"))
         end
     end
 
@@ -1008,11 +907,11 @@ function SettlementManagerPDA:UpdateTopStatusBar()
         local w_upper = tostring(w_name):upper()
         self.status_weather:SetText(sformat("ATMOS: %s", w_upper))
         if w_name:find("psy") or w_name:find("surge") or w_name:find("emission") or w_name:find("storm") then
-            self.status_weather:SetTextColor(GetARGB(255, 255, 100, 100))
+            self.status_weather:SetTextColor(hs_theme.argb("danger"))
         elseif w_name:find("rain") or w_name:find("fog") or w_name:find("cloud") then
-            self.status_weather:SetTextColor(GetARGB(255, 100, 200, 255))
+            self.status_weather:SetTextColor(hs_theme.argb("body"))
         else
-            self.status_weather:SetTextColor(GetARGB(255, 144, 238, 144))
+            self.status_weather:SetTextColor(hs_theme.argb("body"))
         end
     end
 end
@@ -1030,9 +929,6 @@ function SettlementManagerPDA:Update()
     if pda_menu and pda_menu:GetTabControl() and not pda_menu:GetTabControl():IsShown() then
         pda_menu:GetTabControl():Show(true)
     end
-    -- v1.1.7: live-refresh on BOTH the survivors and overview tabs -- the
-    -- overview tab previously had no periodic refresh at all, so job timers
-    -- froze at their last rendered value until a map change re-rendered them.
     if self.current_tab == "survivors" or self.current_tab == "overview" then
         local tg = time_global()
         if not self._last_survivors_tick or (tg - self._last_survivors_tick) >= 500 or (tg < self._last_survivors_tick) then
@@ -1040,7 +936,6 @@ function SettlementManagerPDA:Update()
             self:UpdateSurvivorsProgress()
         end
         if self.current_tab == "overview" then
-            -- Re-render the Overview stat panels every 5 seconds.
             if not self._last_overview_tick or (tg - self._last_overview_tick) >= 5000 or (tg < self._last_overview_tick) then
                 self._last_overview_tick = tg
                 self:RefreshOverviewLive()
@@ -1085,24 +980,17 @@ function SettlementManagerPDA:Reset(tab_name)
     local camps_scroll = self.settlement_list:GetCurrentScrollPos()
     local rivals_scroll = self.rival_list:GetCurrentScrollPos()
     self.roster_scroll = self.survivor_list:GetCurrentScrollPos()
-    -- Always clear the list boxes first -- these are safe even without
-    -- stalker_camp_builder (they just stay empty).
     self.settlement_list:RemoveAll()
     self.survivor_list:RemoveAll()
     self.rival_list:RemoveAll()
     self:ClearDetails()
     self:ClearRivalDetails()
 
-    -- If stalker_camp_builder is unavailable, skip the population logic but
-    -- still call SetTab so panel visibility is properly managed (prevents
-    -- the all-panels-overlayed bug).
     if not stalker_camp_builder then
-        -- printf("[Homestead PDA] Reset: stalker_camp_builder is nil -- skipping population, calling SetTab only")
         self:SetTab(tab_name)
         return
     end
 
-    -- Populate Settlements
     local active_camps = stalker_camp_builder.active_camps or {}
     local count = 0
     for hub_id, camp in pairs_(active_camps) do
@@ -1141,13 +1029,12 @@ function SettlementManagerPDA:Reset(tab_name)
         item:SetHeight(h)
     end
 
-    -- Populate Rival Camps
     local rival_camps = stalker_camp_builder.rival_camps or {}
     local rival_count = 0
     for smart, rcamp in pairs_(rival_camps) do
         if type(rcamp) == "table" and rcamp.name then
             rival_count = rival_count + 1
-            
+
             local faction_key = rcamp.faction
             if not faction_key then
                 local squad = rcamp.squad_id and alife_object(rcamp.squad_id)
@@ -1201,7 +1088,6 @@ function SettlementManagerPDA:Reset(tab_name)
         end
     end
 
-    -- Default Selection
     if count > 0 then
         self.settlement_list:SetSelectedIndex(row_of(self.settlement_list, "hub_id", keep_hub))
         self.settlement_list:SetScrollPos(camps_scroll)
@@ -1269,7 +1155,6 @@ function SettlementManagerPDA:OnRivalSelected()
 
     self.rival_camp_name:SetText(rcamp.name or "")
 
-    -- Faction Occupying and Status
     local faction_name = game.translate_string("unknown")
     local garrison_count = 0
     local faction_key = rcamp.faction
@@ -1290,7 +1175,7 @@ function SettlementManagerPDA:OnRivalSelected()
 
     if rcamp.status == "unoccupied" then
         self.rival_camp_status:SetText(game.translate_string("st_pda_rival_status_unoccupied"))
-        self.rival_camp_status:SetTextColor(GetARGB(255, 238, 196, 112))
+        self.rival_camp_status:SetTextColor(hs_theme.argb("heading"))
         faction_name = game.translate_string("st_pda_rival_garrison_none")
         garrison_count = 0
     elseif rcamp.status == "mutant_nest" or faction_key == "monster" then
@@ -1301,10 +1186,10 @@ function SettlementManagerPDA:OnRivalSelected()
         end
         if is_hostile then
             self.rival_camp_status:SetText("[ MUTANT INFESTATION ]")
-            self.rival_camp_status:SetTextColor(GetARGB(255, 255, 100, 100))
+            self.rival_camp_status:SetTextColor(hs_theme.argb("danger"))
         else
             self.rival_camp_status:SetText("[ MUTANT SANCTUARY ]")
-            self.rival_camp_status:SetTextColor(GetARGB(255, 100, 255, 100))
+            self.rival_camp_status:SetTextColor(hs_theme.argb("good"))
         end
     elseif not rcamp.cleared then
         local squad = alife_object(rcamp.squad_id)
@@ -1321,13 +1206,12 @@ function SettlementManagerPDA:OnRivalSelected()
 
         if is_hostile then
             self.rival_camp_status:SetText(game.translate_string("st_pda_settlement_rival_status_active"))
-            self.rival_camp_status:SetTextColor(GetARGB(255, 255, 100, 100))
+            self.rival_camp_status:SetTextColor(hs_theme.argb("danger"))
         else
             self.rival_camp_status:SetText(game.translate_string("st_pda_settlement_rival_status_friendly"))
-            self.rival_camp_status:SetTextColor(GetARGB(255, 100, 255, 100))
+            self.rival_camp_status:SetTextColor(hs_theme.argb("good"))
         end
     else
-        -- Cleared/Secured
         local friendly_faction = nil
         local squad = alife_object(rcamp.squad_id)
         if squad then
@@ -1341,29 +1225,18 @@ function SettlementManagerPDA:OnRivalSelected()
         if friendly_faction then
             faction_name = friendly_faction
             self.rival_camp_status:SetText(game.translate_string("st_pda_settlement_rival_status_friendly"))
-            self.rival_camp_status:SetTextColor(GetARGB(255, 100, 255, 100))
+            self.rival_camp_status:SetTextColor(hs_theme.argb("good"))
         else
             faction_name = game.translate_string("st_pda_rival_garrison_none")
             self.rival_camp_status:SetText(game.translate_string("st_pda_rival_dismantled"))
-            self.rival_camp_status:SetTextColor(GetARGB(255, 170, 170, 170))
+            self.rival_camp_status:SetTextColor(hs_theme.argb("dim"))
         end
     end
 
     self.rival_camp_faction:SetText(faction_name)
-    local faction_colors = {
-        dolg = GetARGB(255, 255, 80, 80), duty = GetARGB(255, 255, 80, 80),
-        freedom = GetARGB(255, 80, 255, 80), svoboda = GetARGB(255, 80, 255, 80),
-        killer = GetARGB(255, 80, 180, 255), mercenary = GetARGB(255, 80, 180, 255),
-        stalker = GetARGB(255, 238, 196, 112), loner = GetARGB(255, 238, 196, 112),
-        csky = GetARGB(255, 80, 220, 220), clear_sky = GetARGB(255, 80, 220, 220),
-        ecolog = GetARGB(255, 80, 255, 255), monolith = GetARGB(255, 180, 100, 255),
-        bandit = GetARGB(255, 220, 220, 220), renegade = GetARGB(255, 220, 180, 100),
-        army = GetARGB(255, 160, 200, 80), military = GetARGB(255, 160, 200, 80)
-    }
-    local f_color = faction_key and faction_colors[faction_key:lower()] or GetARGB(255, 220, 220, 220)
+    local f_color = hs_theme.faction(faction_key) or hs_theme.argb("body")
     self.rival_camp_faction:SetTextColor(f_color)
 
-    -- Location text with distance telemetry
     local location_text = rcamp.level and game.translate_string(rcamp.level) or game.translate_string("unknown")
     -- an outpost on another level has a position in that level's coordinates
     if db.actor and rcamp.squad_id and rcamp.level == level.name() then
@@ -1375,14 +1248,12 @@ function SettlementManagerPDA:OnRivalSelected()
     end
     self.rival_camp_location:SetText(location_text)
 
-    -- Garrison strength
     if garrison_count > 0 then
         self.rival_camp_garrison:SetText(sformat(game.translate_string("st_pda_rival_garrison_count"), garrison_count))
     else
         self.rival_camp_garrison:SetText(game.translate_string("st_pda_rival_garrison_none"))
     end
 
-    -- Intel text (Auto-Extending Card)
     local intel_key = "st_pda_rival_intel_" .. (rcamp.smart_name or smart)
     local intel_text = game.translate_string(intel_key)
     if intel_text == intel_key then
@@ -1395,7 +1266,6 @@ function SettlementManagerPDA:OnRivalSelected()
         self.rival_intel_bg:SetWndSize(vector2():set(350, ih + 26))
     end
 
-    -- Tactical Banner Styling & Threat Level
     local r_tier = rcamp.tier or 1
     local tier_names = { [1] = "Tier 1 Scout Camp", [2] = "Tier 2 Outpost", [3] = "Tier 3 Stronghold" }
     if self.rival_camp_spec then
@@ -1403,34 +1273,33 @@ function SettlementManagerPDA:OnRivalSelected()
     end
 
     if rcamp.status == "unoccupied" then
-        if self.rival_banner_bg then self.rival_banner_bg:InitTexture("ui_homestead_banner_neutral") end
+        if self.rival_banner_bg then hs_theme.banner(self.rival_banner_bg, "neutral") end
         if self.rival_banner_lbl then
             self.rival_banner_lbl:SetText("[ ABANDONED OUTPOST // UNCLAIMED ]")
-            self.rival_banner_lbl:SetTextColor(GetARGB(255, 238, 196, 112))
+            self.rival_banner_lbl:SetTextColor(hs_theme.argb("heading"))
         end
     elseif is_hostile then
-        if self.rival_banner_bg then self.rival_banner_bg:InitTexture("ui_homestead_banner_threat") end
+        if self.rival_banner_bg then hs_theme.banner(self.rival_banner_bg, "threat") end
         if self.rival_banner_lbl then
             if rcamp.status == "mutant_nest" or faction_key == "monster" then
                 self.rival_banner_lbl:SetText("[ MUTANT INFESTATION // HOSTILE ]")
             else
                 self.rival_banner_lbl:SetText("[ THREAT IDENTIFIED // HOSTILE ]")
             end
-            self.rival_banner_lbl:SetTextColor(GetARGB(255, 255, 100, 100))
+            self.rival_banner_lbl:SetTextColor(hs_theme.argb("danger"))
         end
     else
-        if self.rival_banner_bg then self.rival_banner_bg:InitTexture("ui_homestead_banner_secure") end
+        if self.rival_banner_bg then hs_theme.banner(self.rival_banner_bg, "secure") end
         if self.rival_banner_lbl then
             if rcamp.status == "mutant_nest" or faction_key == "monster" then
                 self.rival_banner_lbl:SetText("[ MUTANT SANCTUARY // PACIFIED ]")
             else
                 self.rival_banner_lbl:SetText("[ ALLIED CONTROL // SECURED ]")
             end
-            self.rival_banner_lbl:SetTextColor(GetARGB(255, 144, 238, 144))
+            self.rival_banner_lbl:SetTextColor(hs_theme.argb("good"))
         end
     end
 
-    -- Selection highlight across rival cards
     local sel_smart = item and item.smart
     local total_rivals = self.rival_list:GetSize()
     for i = 0, total_rivals - 1 do
@@ -1456,11 +1325,6 @@ function SettlementManagerPDA:OnRefreshClicked()
     self:Reset("rivals")
 end
 
--- v1.1.7: renders the Overview tab's live stat panels (threat banner +
--- Modules A-D). Split out of OnSettlementSelected so the PDA can re-render
--- them periodically -- the Overview was previously a static snapshot drawn
--- once on selection, so job stats and timers appeared frozen until the
--- player changed maps/levels.
 function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
     local mmin = math.min
     local sformat = string.format
@@ -1471,7 +1335,6 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
         name = level_name .. " Settlement"
     end
 
-    -- 1. Tactical Header Banner
     self.camp_name:SetText(name)
 
     local spec = camp.specialization or "none"
@@ -1493,28 +1356,27 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
     if self.raid_banner_bg then
         self.raid_banner_bg:SetWndPos(vector2():set(0, banner_y))
         if camp.active_raid then
-            self.raid_banner_bg:InitTexture("ui_homestead_banner_threat")
+            hs_theme.banner(self.raid_banner_bg, "threat")
         elseif smart_hazard then
-            self.raid_banner_bg:InitTexture("ui_homestead_banner_threat")
+            hs_theme.banner(self.raid_banner_bg, "threat")
         else
-            self.raid_banner_bg:InitTexture("ui_homestead_banner_secure")
+            hs_theme.banner(self.raid_banner_bg, "secure")
         end
     end
 
-    -- Perimeter Security Status Banner
     if self.raid_banner_lbl then
         self.raid_banner_lbl:SetWndPos(vector2():set(0, banner_y + 3))
         if camp.active_raid then
             self.raid_banner_lbl:SetText("[! THREAT ALERT: SETTLEMENT UNDER ACTIVE HOSTILE ASSAULT !]")
-            self.raid_banner_lbl:SetTextColor(GetARGB(255, 255, 100, 100))
+            self.raid_banner_lbl:SetTextColor(hs_theme.argb("danger"))
         elseif smart_hazard then
             local s_disp = game.translate_string(smart_hazard)
             if not s_disp or s_disp == "" or s_disp == smart_hazard then s_disp = smart_hazard end
             self.raid_banner_lbl:SetText(sformat("[! SPAWN HAZARD: NATURAL SPAWN POINT IN PERIMETER (%s - %dm) !]", s_disp, math.floor(smart_dist or 0)))
-            self.raid_banner_lbl:SetTextColor(GetARGB(255, 255, 180, 50))
+            self.raid_banner_lbl:SetTextColor(hs_theme.argb("warn") or hs_theme.argb("danger"))
         else
             self.raid_banner_lbl:SetText("[ DEFENSE STATUS: SECURE // PERIMETER INTACT ]")
-            self.raid_banner_lbl:SetTextColor(GetARGB(255, 144, 238, 144))
+            self.raid_banner_lbl:SetTextColor(hs_theme.argb("good"))
         end
     end
 
@@ -1522,7 +1384,6 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
         self.btn_specialization:TextControl():SetText(sformat("Spec: %s", (tostring(spec_str):gsub("%s*%b()", ""))))
     end
 
-    -- 2. Module A: Personnel & Habitation
     local pop_pct = math.floor(mmin(100, (stats.population / math.max(1, stats.beds)) * 100))
     local pop_gauge = make_gauge(pop_pct, 10)
     self.camp_pop:SetText(sformat("Resident Settlers: %d Stalkers   /   %d Available Bunks", stats.population, stats.beds))
@@ -1532,7 +1393,6 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
         self.camp_pop_gauge:SetText(sformat("Occupancy Rate: %d%%   [%s]   %s", pop_pct, pop_gauge, cap_str))
     end
 
-    -- 3. Module B: Defense & Security Grid
     local def_cap = stalker_camp_builder.cfg and stalker_camp_builder.cfg.defense_cap or 150
     local def_pct = math.floor(mmin(100, (stats.defense / def_cap) * 100))
     local def_gauge = make_gauge(def_pct, 10)
@@ -1547,7 +1407,6 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
         self.camp_threat_lvl:SetText(sformat("Threat Level: %s", threat_str))
     end
 
-    -- 4. Module C: Logistics, Life Support & Morale
     local water_pumps_str = stats.water_pumps > 0 and sformat("%d Active Pumps (Supply: OK)", stats.water_pumps) or "0 Pumps (Water Supply LOW)"
     if stats.water_pumps > 0 and stalker_camp_builder.get_camp_inventory_snapshot then
         -- each batch uses up a filter from camp storage: without one the pumps make no water
@@ -1574,7 +1433,6 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
     local morale_desc = morale_val >= 75 and "High Comfort" or (morale_val >= 40 and "Standard" or "Poor Conditions")
     self.camp_morale:SetText(sformat("Settlement Morale: %d%%   [%s]   Comfort: %s", morale_val, morale_gauge, morale_desc))
 
-    -- Clean fixed content bounds
     if self.overview_content then
         self.overview_content:Show(true)
         self.overview_content:SetWndSize(vector2():set(350, 510))
@@ -1602,7 +1460,6 @@ function SettlementManagerPDA:OnSettlementSelected(keep_survivor)
         return
     end
 
-    -- Highlight selected card outline
     local sel_hub_id = item and item.hub_id
     local total_items = self.settlement_list:GetSize()
     for i = 0, total_items - 1 do
@@ -1612,11 +1469,8 @@ function SettlementManagerPDA:OnSettlementSelected(keep_survivor)
         end
     end
 
-    -- v1.1.7: live stat render (see RenderOverviewStats) -- previously the
-    -- Overview was drawn once per selection and never refreshed.
     self:RenderOverviewStats(hub_id, camp, hub_obj)
 
-    -- Update survivors list for Tab 2
     keep_survivor = keep_survivor or selected_value(self.survivor_list, "survivor_id")
     -- the same camp's roster keeps its scroll place (Reset saved it before clearing the list)
     local roster_scroll = self.roster_scroll or self.survivor_list:GetCurrentScrollPos()
@@ -1673,9 +1527,6 @@ function SettlementManagerPDA:OnSettlementSelected(keep_survivor)
     self.roster_hub = hub_id
 end
 
--- v1.1.7: lightweight periodic Overview re-render. Re-renders the stat
--- panels for the selected settlement WITHOUT rebuilding the survivor list,
--- so gauges, threat banner and job stats stay live on the Overview tab.
 function SettlementManagerPDA:RefreshOverviewLive()
     local item = self.settlement_list and self.settlement_list:GetSelectedItem()
     local hub_id = item and item.hub_id
@@ -1705,7 +1556,6 @@ function SettlementManagerPDA:OnSurvivorSelected()
 
     self.job_panel:Show(true)
 
-    -- Update Dossier Portrait with cached or live character icon
     if self.dossier_portrait then
         local npc_obj = level.object_by_id(survivor_id)
         if npc_obj and npc_obj.character_icon then
@@ -1730,45 +1580,39 @@ function SettlementManagerPDA:OnSurvivorSelected()
     local prev_cap = (cur_tier > 0) and (tier_caps[cur_tier - 1] or 0) or 0
     local progress_pct = (cur_tier >= 3) and 100 or mmax(0, math.min(100, math.floor(((xp - prev_cap) / mmax(1, cur_cap - prev_cap)) * 100)))
 
-    -- 1. Survivor Name (Line 1)
     self.survivor_name_txt:SetWndPos(vector2():set(52, 4))
     self.survivor_name_txt:SetText(s_item.name or "Survivor")
     self.survivor_name_txt:AdjustHeightToText()
     local name_h = mmax(18, self.survivor_name_txt:GetHeight())
 
-    -- 2. Survivor Level & Rank (Dedicated Line 2)
     local rank_y = 4 + name_h + 4
     self.survivor_rank_badge:SetWndPos(vector2():set(52, rank_y))
     self.survivor_rank_badge:SetText(string.format("Rank: %s (Tier %d)", tier_names[cur_tier] or "Novice", cur_tier))
     self.survivor_rank_badge:AdjustHeightToText()
     local rank_h = mmax(14, self.survivor_rank_badge:GetHeight())
 
-    -- 3. Survivor Experience (Dedicated Line 3)
     local xp_y = rank_y + rank_h + 4
     self.survivor_xp_bar:SetWndPos(vector2():set(52, xp_y))
     local xp_gauge = make_gauge(progress_pct, 8)
-    self.survivor_xp_bar:SetText(string.format("XP: %d / %d [%s] %d%%", xp, cur_cap, xp_gauge, progress_pct))
+    self.survivor_xp_bar:SetText(string.format("XP: %d / %d\\n[%s] %d%%", xp, cur_cap, xp_gauge, progress_pct))
     self.survivor_xp_bar:AdjustHeightToText()
     local xp_h = mmax(14, self.survivor_xp_bar:GetHeight())
 
-    -- Auto-scale Dossier Portrait Card Frame with generous padding
     local dossier_header_h = mmax(54, xp_y + xp_h + 8)
     if self.dossier_portrait_bg then
         self.dossier_portrait_bg:SetWndSize(vector2():set(162, dossier_header_h))
     end
 
-    -- Job Assignment & Telemetry String
     local job = s_item.job or "idle"
     local job_lbl = game.translate_string("st_pda_settlement_job_" .. job)
     if job_lbl == "st_pda_settlement_job_" .. job then
         job_lbl = job:sub(1,1):upper() .. job:sub(2)
     end
 
-    local si = self.settlement_list and self.settlement_list:GetSelectedItem()
     s_item.npc_id = s_item.npc_id or tonumber(survivor_id) or survivor_id
-    s_item.hub_id = s_item.hub_id or (si and si.hub_id)
-
     local is_paused, reason_short, reason_detail = false, nil, nil
+    local si = self.settlement_list and self.settlement_list:GetSelectedItem()
+    s_item.hub_id = s_item.hub_id or (si and si.hub_id)
     local camp = si and stalker_camp_builder and stalker_camp_builder.active_camps and stalker_camp_builder.active_camps[si.hub_id]
     if stalker_camp_builder and stalker_camp_builder.get_job_paused_status then
         is_paused, reason_short, reason_detail = stalker_camp_builder.get_job_paused_status(s_item, camp, si and si.hub_id)
@@ -1780,7 +1624,7 @@ function SettlementManagerPDA:OnSurvivorSelected()
 
     local job_str = game.translate_string("st_pda_settlement_assign_job") .. " " .. job_lbl
     if is_paused then
-        job_str = sformat("%s: %%c[255,255,100,100][PAUSED - %s]%%c[220,220,220]", job_lbl, reason_short or "Blocked")
+        job_str = sformat("%s: %%c[255,255,100,100][PAUSED - %s]%%c[200,200,200]", job_lbl, reason_short or "Blocked")
         self.survivor_pos_txt:SetText(sformat("Status: %s", reason_detail or "Job paused"))
     elseif job == "scavenge" then
         local exp = stalker_camp_builder.get_scavenger_expedition_for_survivor and stalker_camp_builder.get_scavenger_expedition_for_survivor(s_item, survivor_id)
@@ -1972,7 +1816,6 @@ function SettlementManagerPDA:OnSurvivorSelected()
         end
     end
 
-    -- 4. Dynamic Auto-Extension of Telemetry Card below Dossier Header with generous breathing room
     local tele_y = dossier_header_h + 12
     if self.telemetry_header_bg then self.telemetry_header_bg:SetWndPos(vector2():set(0, tele_y)) end
     if self.telemetry_lbl then self.telemetry_lbl:SetWndPos(vector2():set(8, tele_y + 2)) end
@@ -1987,13 +1830,12 @@ function SettlementManagerPDA:OnSurvivorSelected()
         self.telemetry_bg:SetWndSize(vector2():set(164, tele_box_h))
     end
 
-    -- 5. Profession Matrix Section with Distinct Header Bar
     local job_y = tele_y + 18 + tele_box_h + 14
     if self.job_header_bg then self.job_header_bg:SetWndPos(vector2():set(0, job_y)) end
     if self.job_header_lbl then self.job_header_lbl:SetWndPos(vector2():set(8, job_y + 2)) end
 
-    local c_active = GetARGB(255, 238, 196, 112) -- Gold active highlight
-    local c_normal = GetARGB(255, 220, 220, 220) -- Slate neutral
+    local c_active = hs_theme.argb("heading") -- Gold active highlight
+    local c_normal = hs_theme.argb("body") -- Slate neutral
 
     local job_btns = {
         idle = self.btn_job_idle,
@@ -2015,9 +1857,9 @@ function SettlementManagerPDA:OnSurvivorSelected()
             local is_active = (job == jname)
             btn:TextControl():SetTextColor(is_active and c_active or c_normal)
             local raw_lbl = game.translate_string("st_job_" .. jname .. "_btn")
-            btn:TextControl():SetText(is_active and ("[ " .. raw_lbl .. " ]") or raw_lbl)
+            btn:TextControl():SetText(raw_lbl)
             if btn.InitTexture then
-                btn:InitTexture(is_active and "ui_homestead_btn_primary" or "ui_homestead_btn_tactical")
+                hs_theme.set_active(btn, is_active)
             end
         end
     end
@@ -2038,7 +1880,6 @@ function SettlementManagerPDA:OnSurvivorSelected()
         if self.btn_job_scrapper then self.btn_job_scrapper:SetWndPos(vector2():set(84, btn_start_y + 160)) end
     end
 
-    -- 6. Field Station & Tactical Orders Module
     local pos_y = btn_start_y + 196
     local has_dir = (job == "medic" or job == "woodcutter" or job == "craft")
     -- the status above the buttons can run to several lines (a paused job says why in a
@@ -2074,23 +1915,21 @@ function SettlementManagerPDA:OnSurvivorSelected()
                 local order_label = game.translate_string("st_directive_medic_" .. m_order)
                 if self.btn_job_directive.TextControl and self.btn_job_directive:TextControl() then
                     self.btn_job_directive:TextControl():SetText("[ " .. order_label .. " ]")
-                    self.btn_job_directive:TextControl():SetTextColor(GetARGB(255, 100, 200, 255))
+                    self.btn_job_directive:TextControl():SetTextColor(hs_theme.argb("body"))
                 end
             elseif job == "woodcutter" then
                 local w_mode = s_item.woodcutter_mode or "auto"
-                -- a button's label never wraps: without its "(...)" detail, as the other themes'
-                -- hs_theme.short has it
-                local mode_label = (game.translate_string("st_directive_woodcutter_" .. w_mode):gsub("%s*%b()%s*$", ""))
+                local mode_label = hs_theme.short(game.translate_string("st_directive_woodcutter_" .. w_mode))
                 if self.btn_job_directive.TextControl and self.btn_job_directive:TextControl() then
                     self.btn_job_directive:TextControl():SetText("[ " .. mode_label .. " ]")
-                    self.btn_job_directive:TextControl():SetTextColor(GetARGB(255, 238, 196, 112))
+                    self.btn_job_directive:TextControl():SetTextColor(hs_theme.argb("heading"))
                 end
             elseif job == "craft" then
                 local c_order = s_item.craft_order or "auto"
-                local order_label = (game.translate_string("st_directive_craft_" .. c_order):gsub("%s*%b()%s*$", ""))
+                local order_label = hs_theme.short(game.translate_string("st_directive_craft_" .. c_order))
                 if self.btn_job_directive.TextControl and self.btn_job_directive:TextControl() then
                     self.btn_job_directive:TextControl():SetText("[ " .. order_label .. " ]")
-                    self.btn_job_directive:TextControl():SetTextColor(GetARGB(255, 255, 180, 100))
+                    self.btn_job_directive:TextControl():SetTextColor(hs_theme.argb("warn"))
                 end
             end
         else
@@ -2103,7 +1942,6 @@ function SettlementManagerPDA:OnSurvivorSelected()
         self.btn_rename_survivor:SetWndSize(vector2():set(152, 24))
     end
 
-    -- 7. Remote Outpost Transfer Module
     local tr_y = pos_y + mod4_h + 30
     if self.transfer_header_bg then self.transfer_header_bg:SetWndPos(vector2():set(0, tr_y)) end
     if self.transfer_lbl then self.transfer_lbl:SetWndPos(vector2():set(8, tr_y + 2)) end
@@ -2111,14 +1949,12 @@ function SettlementManagerPDA:OnSurvivorSelected()
         self.transfer_bg:SetWndPos(vector2():set(0, tr_y + 18))
         self.transfer_bg:SetWndSize(vector2():set(164, 114))
     end
-    if self.transfer_list then self.transfer_list:SetWndPos(vector2():set(6, tr_y + 24)) end
+    if self.transfer_list then self.transfer_list:SetWndPos(vector2():set(6, tr_y + 26)) end
     if self.btn_transfer then self.btn_transfer:SetWndPos(vector2():set(6, tr_y + 98)) end
 
-    -- 8. Banishment Emergency Directive
     local banish_y = tr_y + 140
     if self.btn_banish then self.btn_banish:SetWndPos(vector2():set(0, banish_y)) end
 
-    -- Total Scroll View Content Bounds
     local total_h = banish_y + 40
     if self.job_content then
         self.job_content:SetWndSize(vector2():set(164, total_h))
@@ -2129,7 +1965,6 @@ function SettlementManagerPDA:OnSurvivorSelected()
     self.lay_st = self.survivor_pos_txt and mmax(16, self.survivor_pos_txt:GetHeight()) or 16
     self.job_resized = true
 
-    -- Populate transfer list with all other active camps
     self.transfer_list:RemoveAll()
     local current_hub_id = nil
     local s_list_item = self.settlement_list:GetSelectedItem()
@@ -2171,7 +2006,6 @@ function SettlementManagerPDA:AssignJob(job)
     local survivor_id = item.survivor_id
     stalker_camp_builder.set_survivor_job(survivor_id, job)
 
-    -- Refresh details
     self:OnSettlementSelected()
 end
 
@@ -2187,7 +2021,6 @@ function SettlementManagerPDA:OnPositionHereClicked()
         actor_menu.set_msg(1, game.translate_string("st_pda_position_too_far"), 3)
     end
 
-    -- Refresh details
     self:OnSettlementSelected()
 end
 
@@ -2201,7 +2034,6 @@ function SettlementManagerPDA:OnPositionRecallClicked()
 
     stalker_camp_builder.clear_survivor_position(survivor_id)
 
-    -- If survivor was on an expedition, cleanly cancel it and recall
     if stalker_camp_builder.recall_scavenger_expedition_by_npc then
         stalker_camp_builder.recall_scavenger_expedition_by_npc(survivor_id)
     end
@@ -2225,7 +2057,6 @@ function SettlementManagerPDA:OnPositionRecallClicked()
         actor_menu.set_msg(1, game.translate_string("st_pda_position_cleared"), 3)
     end
 
-    -- Refresh details
     self:OnSettlementSelected()
 end
 
@@ -2287,7 +2118,6 @@ function SettlementManagerPDA:OnTransferClicked()
         actor_menu.set_msg(1, game.translate_string("st_pda_transfer_full"), 3)
     end
 
-    -- Refresh details
     self:OnSettlementSelected()
 end
 
@@ -2310,7 +2140,6 @@ function SettlementManagerPDA:OnRenameClicked()
     RENAME_CAMP_GUI:ShowDialog(true)
 end
 
--- Cycle through camp specialization types: none -> outpost -> farm -> workshop -> hideout -> clinic -> none
 function SettlementManagerPDA:OnCycleSpecialization()
     if not stalker_camp_builder or not stalker_camp_builder.cycle_specialization then return end
     local item = self.settlement_list:GetSelectedItem()
@@ -2319,7 +2148,6 @@ function SettlementManagerPDA:OnCycleSpecialization()
     self:OnSettlementSelected()  -- refresh detail panel
 end
 
--- Fast-travel to the selected camp. Deducts RU cost (configurable via MCM).
 function SettlementManagerPDA:OnFastTravelClicked()
     if not stalker_camp_builder or not stalker_camp_builder.fast_travel_to_camp then return end
     local item = self.settlement_list:GetSelectedItem()
@@ -2345,7 +2173,6 @@ function SettlementManagerPDA:OnFastTravelClicked()
     end
 end
 
--- Summon a trade caravan to the selected camp. Costs nothing but has a cooldown.
 function SettlementManagerPDA:OnSummonCaravanClicked()
     if not stalker_camp_builder or not stalker_camp_builder.summon_caravan then return end
     local item = self.settlement_list:GetSelectedItem()
@@ -2366,7 +2193,6 @@ function SettlementManagerPDA:OnSummonCaravanClicked()
     end
 end
 
--- Dismantle the selected camp. Releases hub, furniture, and dismisses survivors.
 function SettlementManagerPDA:OnDismantleClicked()
     if not stalker_camp_builder or not stalker_camp_builder.dismantle_camp then return end
     local item = self.settlement_list:GetSelectedItem()
@@ -2384,8 +2210,6 @@ function SettlementManagerPDA:OnDismantleClicked()
     end
 end
 
--- Recall all settlers to their camps. Teleports any settler whose camp is on
--- the current level to that camp. Manual fallback for cross-level travel.
 function SettlementManagerPDA:OnRecallSettlersClicked()
     if not stalker_camp_builder or not stalker_camp_builder.recall_all_settlers then return end
     local s_item = self.settlement_list:GetSelectedItem()
@@ -2399,7 +2223,6 @@ function SettlementManagerPDA:OnRecallSettlersClicked()
     self:OnSettlementSelected()
 end
 
--- Banish the selected survivor from the camp. Works whether the NPC is online or offline.
 function SettlementManagerPDA:OnBanishClicked()
     local item = self.survivor_list:GetSelectedItem()
     if not item then return end
@@ -2408,17 +2231,15 @@ function SettlementManagerPDA:OnBanishClicked()
     if self.banish_tg and now - self.banish_tg < 1000 then return end
     self.banish_tg = now
     local npc_id = item.survivor_id
-    -- Find the live client object to call banish_npc
     local npc = level.object_by_id(npc_id)
     if stalker_camp_builder and stalker_camp_builder.banish_npc then
         stalker_camp_builder.banish_npc(db.actor, npc or npc_id)
     end
-    -- Refresh the survivor list
     self:OnSettlementSelected()
 end
 
 local RENAME_SURVIVOR_GUI = nil
--- Rename the selected survivor. Opens a text input dialog.
+
 function SettlementManagerPDA:OnRenameSurvivorClicked()
     local item = self.survivor_list:GetSelectedItem()
     if not item then return end
@@ -2435,12 +2256,12 @@ function SettlementManagerPDA:FormatSurvivorStatus(survivor, camp, hub_id)
     local mmax = math.max
     local sformat = string.format
     local mfloor = math.floor
-    local c_dim    = GetARGB(255, 180, 180, 180)
-    local c_gold   = GetARGB(255, 238, 196, 112)
-    local c_mint   = GetARGB(255, 144, 238, 144)
-    local c_red    = GetARGB(255, 255, 100, 100)
-    local c_blue   = GetARGB(255, 100, 200, 255)
-    local c_orange = GetARGB(255, 255, 160, 60)
+    local c_dim    = hs_theme.argb("body")
+    local c_gold   = hs_theme.argb("heading")
+    local c_mint   = hs_theme.argb("body")
+    local c_red    = hs_theme.argb("danger")
+    local c_blue   = hs_theme.argb("body")
+    local c_orange = hs_theme.argb("warn")
 
     if not survivor then
         return "Unknown", c_dim
@@ -2499,7 +2320,6 @@ function SettlementManagerPDA:FormatSurvivorStatus(survivor, camp, hub_id)
         return sformat("%s (+Defense)", job_lbl), c_blue
     end
 
-    -- Check paused status
     local is_paused, reason_short, reason_detail = false, nil, nil
     if stalker_camp_builder and stalker_camp_builder.get_job_paused_status then
         is_paused, reason_short, reason_detail = stalker_camp_builder.get_job_paused_status(survivor, camp, hub_id)
@@ -2510,8 +2330,6 @@ function SettlementManagerPDA:FormatSurvivorStatus(survivor, camp, hub_id)
     end
 
     if survivor and survivor.shortfall_reason then
-        -- v1.1.7 hotfix #6: shortfall states show their reason AND the live
-        -- retry countdown, so a waiting job never reads as a frozen "(Ready)".
         local wait_rem = stalker_camp_builder.get_job_time_remaining and stalker_camp_builder.get_job_time_remaining(survivor, camp, hub_id)
         if wait_rem and wait_rem > 0 then
             return sformat("%s [WAITING: %s] (%ds)", job_lbl, survivor.shortfall_reason, wait_rem), c_gold
@@ -2575,7 +2393,6 @@ function SettlementManagerPDA:FormatSurvivorStatus(survivor, camp, hub_id)
         return sformat("%s: Tracking (%d%%)", job_lbl, pct), c_mint
     end
 
-    -- Active working job: show live countdown
     local progress = 0
     local rem_sec = nil
     if stalker_camp_builder then
@@ -2614,10 +2431,6 @@ function SettlementManagerPDA:UpdateSurvivorsProgress()
     if hub_id then
         camp = stalker_camp_builder.active_camps and stalker_camp_builder.active_camps[hub_id]
     end
-    -- v1.1.7: never silently freeze. If the settlement selection was lost
-    -- (or its camp vanished), resolve the camp that actually owns the
-    -- visible survivor rows so the job timers keep ticking instead of
-    -- sticking at their last rendered value.
     if not camp then
         local row_count = self.survivor_list and self.survivor_list:GetSize() or 0
         if row_count > 0 then
@@ -2662,7 +2475,6 @@ function SettlementManagerPDA:UpdateSurvivorsProgress()
         self:OnSettlementSelected()
     end
 
-    -- Also update right detail panel live
     local s_item = self.survivor_list:GetSelectedItem()
     if s_item and self.job_panel and self.job_panel:IsShown() then
         pcall(function()
@@ -2671,7 +2483,6 @@ function SettlementManagerPDA:UpdateSurvivorsProgress()
     end
 end
 
--- Manual Refresh: forces update_camp_jobs + immediate synchronous UI update
 function SettlementManagerPDA:OnManualRefresh()
     actor_menu.set_msg(1, "REFRESHING JOB PROGRESS...", 2)
 
@@ -2690,10 +2501,8 @@ function SettlementManagerPDA:OnManualRefresh()
     actor_menu.set_msg(1, "JOB PROGRESS UPDATED", 2)
 end
 
--- v1.1.7: the right detail panel is measured dynamically on survivor selection;
--- when the telemetry text or custom-location note grows/shrinks during live
--- refresh, its child widgets (and its CUIScrollView content rect) must follow.
--- Runs purely off the heights the last layout saved in self.lay_jh and self.lay_st;
+-- RefreshJobProgress rewrites the telemetry and status texts every tick. When one of them
+-- now takes more or fewer lines than OnSurvivorSelected made room for, everything under it
 -- moves by the difference. Positions only: the texts stay as the refresh wrote them.
 function SettlementManagerPDA:RefitSurvivorDetail()
     if not (self.lay_jh and self.lay_st and self.job_content and self.survivor_job_txt) then
@@ -2711,11 +2520,9 @@ function SettlementManagerPDA:RefitSurvivorDetail()
     }
     local function shift(dy, below)
         for _, w in pairs(under) do
-            if w then
-                local p = w:GetWndPos()
-                if p.y > below then
-                    w:SetWndPos(vector2():set(p.x, p.y + dy))
-                end
+            local p = w:GetWndPos()
+            if p.y > below then
+                w:SetWndPos(vector2():set(p.x, p.y + dy))
             end
         end
     end
@@ -2760,7 +2567,6 @@ function SettlementManagerPDA:RefreshJobProgress(force, hub_id_override)
         return
     end
 
-    -- Lightweight update: refresh the job text on the right panel
     local s_item = self.survivor_list and self.survivor_list:GetSelectedItem()
     if s_item and s_item.survivor_id and self.survivor_job_txt then
         local survivor_id = s_item.survivor_id
@@ -2789,7 +2595,7 @@ function SettlementManagerPDA:RefreshJobProgress(force, hub_id_override)
 
                     local display = ""
                     if is_paused then
-                        display = sformat("%s %%c[255,255,100,100][PAUSED - %s]%%c[255,220,220,220]", job_label, reason_short or "Blocked")
+                        display = sformat("%s %%c[255,255,100,100][PAUSED - %s]%%c[200,200,200]", job_label, reason_short or "Blocked")
                         if self.survivor_pos_txt and reason_detail then
                             self.survivor_pos_txt:SetText(sformat("Status: %s", reason_detail))
                         end
@@ -2994,7 +2800,6 @@ function UIRenameCamp:Close()
     end
 end
 
--- -- UIRenameSurvivor: text-input dialog for renaming a survivor ------------
 class "UIRenameSurvivor" (CUIScriptWnd)
 
 function UIRenameSurvivor:__init(owner, survivor_id, current_name) super()
@@ -3092,48 +2897,41 @@ function SettlementManagerPDA:OnAutoSortClicked()
     end
 end
 
-function SettlementManagerPDA:PopulateSurvivorsForCamp()
-    self:OnSettlementSelected()
-end
-
-
--- =========================================================================
 -- ROSTER FILTER & MAP LOCATE HANDLERS
--- =========================================================================
 function SettlementManagerPDA:SetSurvivorFilter(filter)
     self.survivor_filter = filter or "all"
     play_pda_ui_sound([[interface\inv_slot]])
 
-    local c_dim   = GetARGB(255, 140, 140, 140)
-    local c_gold  = GetARGB(255, 238, 196, 112)
-    local c_blue  = GetARGB(255, 100, 200, 255)
-    local c_mint  = GetARGB(255, 144, 238, 144)
-    local c_slate = GetARGB(255, 220, 220, 220)
+    local c_dim   = hs_theme.argb("dim")
+    local c_gold  = hs_theme.argb("heading")
+    local c_blue  = hs_theme.argb("body")
+    local c_mint  = hs_theme.argb("body")
+    local c_slate = hs_theme.argb("body")
 
-    if self.btn_filter_all and self.btn_filter_all.TextControl and self.btn_filter_all:TextControl() then 
-        self.btn_filter_all:TextControl():SetTextColor(self.survivor_filter == "all" and c_gold or c_dim) 
+    if self.btn_filter_all and self.btn_filter_all.TextControl and self.btn_filter_all:TextControl() then
+        self.btn_filter_all:TextControl():SetTextColor(self.survivor_filter == "all" and c_gold or c_dim)
     end
-    if self.btn_filter_exp and self.btn_filter_exp.TextControl and self.btn_filter_exp:TextControl() then 
-        self.btn_filter_exp:TextControl():SetTextColor(self.survivor_filter == "exp" and c_blue or c_dim) 
+    if self.btn_filter_exp and self.btn_filter_exp.TextControl and self.btn_filter_exp:TextControl() then
+        self.btn_filter_exp:TextControl():SetTextColor(self.survivor_filter == "exp" and c_blue or c_dim)
     end
-    if self.btn_filter_work and self.btn_filter_work.TextControl and self.btn_filter_work:TextControl() then 
-        self.btn_filter_work:TextControl():SetTextColor(self.survivor_filter == "work" and c_mint or c_dim) 
+    if self.btn_filter_work and self.btn_filter_work.TextControl and self.btn_filter_work:TextControl() then
+        self.btn_filter_work:TextControl():SetTextColor(self.survivor_filter == "work" and c_mint or c_dim)
     end
-    if self.btn_filter_idle and self.btn_filter_idle.TextControl and self.btn_filter_idle:TextControl() then 
-        self.btn_filter_idle:TextControl():SetTextColor(self.survivor_filter == "idle" and c_slate or c_dim) 
+    if self.btn_filter_idle and self.btn_filter_idle.TextControl and self.btn_filter_idle:TextControl() then
+        self.btn_filter_idle:TextControl():SetTextColor(self.survivor_filter == "idle" and c_slate or c_dim)
     end
 
     if self.btn_filter_all and self.btn_filter_all.InitTexture then
-        self.btn_filter_all:InitTexture(self.survivor_filter == "all" and "ui_homestead_btn_primary" or "ui_homestead_btn_tactical")
+        hs_theme.set_active(self.btn_filter_all, self.survivor_filter == "all")
     end
     if self.btn_filter_exp and self.btn_filter_exp.InitTexture then
-        self.btn_filter_exp:InitTexture(self.survivor_filter == "exp" and "ui_homestead_btn_primary" or "ui_homestead_btn_tactical")
+        hs_theme.set_active(self.btn_filter_exp, self.survivor_filter == "exp")
     end
     if self.btn_filter_work and self.btn_filter_work.InitTexture then
-        self.btn_filter_work:InitTexture(self.survivor_filter == "work" and "ui_homestead_btn_primary" or "ui_homestead_btn_tactical")
+        hs_theme.set_active(self.btn_filter_work, self.survivor_filter == "work")
     end
     if self.btn_filter_idle and self.btn_filter_idle.InitTexture then
-        self.btn_filter_idle:InitTexture(self.survivor_filter == "idle" and "ui_homestead_btn_primary" or "ui_homestead_btn_tactical")
+        hs_theme.set_active(self.btn_filter_idle, self.survivor_filter == "idle")
     end
 
     self:OnSettlementSelected()
@@ -3193,19 +2991,15 @@ function SettlementManagerPDA:OnLocateRivalMapClicked()
     news_manager.send_tip(db.actor, string.format("%s: %s (%s)", game.translate_string("st_pda_located_map"), rcamp.name or smart, game.translate_string(rcamp.level or "unknown")), nil, "general_stalker", 4000)
 end
 
-
--- =========================================================================
--- =========================================================================
 -- RADIO FEED HANDLERS (v1.0.3 Rebuild)
--- =========================================================================
 function SettlementManagerPDA:SetRadioFilter(filter)
     self.radio_filter = filter or "all"
 
-    local c_dim  = GetARGB(255, 140, 140, 140)
-    local c_gold = GetARGB(255, 238, 196, 112)
-    local c_blue = GetARGB(255, 100, 200, 255)
-    local c_mint = GetARGB(255, 144, 238, 144)
-    local c_red  = GetARGB(255, 255, 100, 100)
+    local c_dim  = hs_theme.argb("dim")
+    local c_gold = hs_theme.argb("heading")
+    local c_blue = hs_theme.argb("body")
+    local c_mint = hs_theme.argb("body")
+    local c_red  = hs_theme.argb("danger")
 
     if self.btn_radio_filter_all and self.btn_radio_filter_all:TextControl() then self.btn_radio_filter_all:TextControl():SetTextColor(self.radio_filter == "all" and c_gold or c_dim) end
     if self.btn_radio_filter_exp and self.btn_radio_filter_exp:TextControl() then self.btn_radio_filter_exp:TextControl():SetTextColor(self.radio_filter == "exp" and c_blue or c_dim) end
@@ -3213,16 +3007,16 @@ function SettlementManagerPDA:SetRadioFilter(filter)
     if self.btn_radio_filter_combat and self.btn_radio_filter_combat:TextControl() then self.btn_radio_filter_combat:TextControl():SetTextColor(self.radio_filter == "combat" and c_red or c_dim) end
 
     if self.btn_radio_filter_all and self.btn_radio_filter_all.InitTexture then
-        self.btn_radio_filter_all:InitTexture(self.radio_filter == "all" and "ui_homestead_btn_primary" or "ui_homestead_btn_tactical")
+        hs_theme.set_active(self.btn_radio_filter_all, self.radio_filter == "all")
     end
     if self.btn_radio_filter_exp and self.btn_radio_filter_exp.InitTexture then
-        self.btn_radio_filter_exp:InitTexture(self.radio_filter == "exp" and "ui_homestead_btn_primary" or "ui_homestead_btn_tactical")
+        hs_theme.set_active(self.btn_radio_filter_exp, self.radio_filter == "exp")
     end
     if self.btn_radio_filter_work and self.btn_radio_filter_work.InitTexture then
-        self.btn_radio_filter_work:InitTexture(self.radio_filter == "work" and "ui_homestead_btn_primary" or "ui_homestead_btn_tactical")
+        hs_theme.set_active(self.btn_radio_filter_work, self.radio_filter == "work")
     end
     if self.btn_radio_filter_combat and self.btn_radio_filter_combat.InitTexture then
-        self.btn_radio_filter_combat:InitTexture(self.radio_filter == "combat" and "ui_homestead_btn_primary" or "ui_homestead_btn_tactical")
+        hs_theme.set_active(self.btn_radio_filter_combat, self.radio_filter == "combat")
     end
 
     self:PopulateRadioFeed()
@@ -3279,30 +3073,30 @@ function SettlementManagerPDA:PopulateRadioFeed()
             local include = (f == "all") or (f == "exp" and cat == "expedition") or (f == "work" and cat == "work") or (f == "combat" and cat == "combat")
             if include then
                 shown_count = shown_count + 1
-                
+
                 local card_cont = self.xml:InitStatic("radio_card_container", nil)
                 if card_cont then
                     local card_bg   = self.xml:InitStatic("radio_card_bg", card_cont)
                     local badge_wnd = self.xml:InitTextWnd("radio_row_badge", card_cont)
                     local time_wnd  = self.xml:InitTextWnd("radio_row_time", card_cont)
                     local text_wnd  = self.xml:InitTextWnd("radio_row_text", card_cont)
-                    
+
                     local time_str = log_entry.time_str or "--:--"
                     if time_wnd then time_wnd:SetText(time_str) end
-                    
+
                     local badge_txt = "[COMMUNICATION]"
                     if cat == "combat" then
                         badge_txt = "[COMBAT ALERT // DEFENSE]"
-                        if badge_wnd then badge_wnd:SetTextColor(GetARGB(255, 255, 100, 100)) end
+                        if badge_wnd then badge_wnd:SetTextColor(hs_theme.argb("danger")) end
                     elseif cat == "expedition" then
                         badge_txt = "[SCAVENGER // EXPEDITION]"
-                        if badge_wnd then badge_wnd:SetTextColor(GetARGB(255, 100, 200, 255)) end
+                        if badge_wnd then badge_wnd:SetTextColor(hs_theme.argb("body")) end
                     elseif cat == "work" then
                         badge_txt = "[SETTLEMENT // LOGISTICS]"
-                        if badge_wnd then badge_wnd:SetTextColor(GetARGB(255, 144, 238, 144)) end
+                        if badge_wnd then badge_wnd:SetTextColor(hs_theme.argb("body")) end
                     else
                         badge_txt = "[RADIO TRANSCEIVER // 148.500 MHz]"
-                        if badge_wnd then badge_wnd:SetTextColor(GetARGB(255, 238, 196, 112)) end
+                        if badge_wnd then badge_wnd:SetTextColor(hs_theme.argb("heading")) end
                     end
                     if badge_wnd then badge_wnd:SetText(badge_txt) end
 
@@ -3314,7 +3108,7 @@ function SettlementManagerPDA:PopulateRadioFeed()
                         if card_bg then card_bg:SetWndSize(vector2():set(544, card_h)) end
                         card_cont:SetWndSize(vector2():set(544, card_h + 4))
                     end
-                    
+
                     self.radio_scroll:AddWindow(card_cont, true)
                 end
             end
@@ -3327,7 +3121,7 @@ function SettlementManagerPDA:PopulateRadioFeed()
             local empty_lbl = self.xml:InitTextWnd("guide_text_template", empty_container)
             if empty_lbl then
                 empty_lbl:SetText(game.translate_string("st_pda_radio_no_logs"))
-                empty_lbl:SetTextColor(GetARGB(255, 170, 170, 170))
+                empty_lbl:SetTextColor(hs_theme.argb("dim"))
             end
             self.radio_scroll:AddWindow(empty_container, true)
         end

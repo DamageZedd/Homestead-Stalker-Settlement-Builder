@@ -24,6 +24,7 @@ local sformat = string.format
 -- on a later call, we simply create a fresh one.
 local settler_home_squads = {}
 stalker_camp_builder.settler_home_squads = settler_home_squads
+stalker_camp_builder.settler_home_squad_cache = settler_home_squads
 
 local settler_last_dest_lvid = {}
 
@@ -455,6 +456,9 @@ function stalker_camp_builder.get_settler_job_target(npc_id, hub_id)
         repair = {"repair_bench", "workbench"},
         medic = {"medstation", "bed", "fridge"},
         electrician = {"light", "workbench"},
+        woodcutter = {"workbench", "barricade", "stove", "box"},
+        brewer = {"stove", "workbench", "medstation", "box"},
+        scrapper = {"repair_bench", "workbench", "box", "stash"},
         scavenge = {"stash", "box", "fridge", "workbench"},
         scavenger = {"stash", "box", "fridge", "workbench"},
         hunter = {"fridge", "box", "stash", "workbench"},
@@ -607,6 +611,9 @@ function stalker_camp_builder.get_settler_display_name(survivor)
     elseif job == "guard" then job_suffix = " the Guard"
     elseif job == "medic" then job_suffix = " the Medic"
     elseif job == "electrician" then job_suffix = " the Electrician"
+    elseif job == "woodcutter" then job_suffix = " the Woodcutter"
+    elseif job == "brewer" then job_suffix = " the Brewer"
+    elseif job == "scrapper" then job_suffix = " the Scrapper"
     end
     return tier_prefix .. name .. job_suffix
 end
@@ -736,9 +743,16 @@ function stalker_camp_builder.setup_settler_beh_logic(npc, target_lvid, look_pos
         end
         if st and type(st.beh) == "table" then
             if xr_logic and xr_logic.parse_condlist then
-                st.beh.wait_cond = xr_logic.parse_condlist(npc, "beh", "wait_anim", safe_anim)
+                local cond = xr_logic.parse_condlist(npc, "beh", "wait_anim", safe_anim)
+                st.beh.wait_cond = cond
+                st.beh.delay_cond = cond
+                st.beh.wait_anim = cond
+                st.beh.delay_anim = cond
             end
             st.beh.wait_animation = safe_anim
+            st.beh.delay_animation = safe_anim
+            st.beh.wait_anim = safe_anim
+            st.beh.delay_anim = safe_anim
         end
         local cur_state = state_mgr.get_state(npc)
         if cur_state ~= safe_anim then
@@ -757,7 +771,11 @@ function stalker_camp_builder.restore_settler_logic(npc)
             st.beh.rally_lvid = nil
             st.beh.am_i_reached = nil
             st.beh.wait_cond = nil
+            st.beh.delay_cond = nil
+            st.beh.wait_anim = nil
+            st.beh.delay_anim = nil
             st.beh.wait_animation = nil
+            st.beh.delay_animation = nil
         end
     end
     pcall(function()

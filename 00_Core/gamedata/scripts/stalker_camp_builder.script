@@ -128,6 +128,12 @@ local JOB_DISPATCH = {
                     anims = {"help_wounded", "probe_stand", "scaner_stand", "wait_na"} },
     electrician = { try = {"light", "workbench"},
                     anims = {"scaner_stand", "probe_stand", "wait_na"} },
+    woodcutter  = { try = {"workbench", "barricade", "stove"},
+                    anims = {"press", "ward", "wait_na"} },
+    brewer      = { try = {"stove", "workbench", "medstation"},
+                    anims = {"roast_kolbasa_bred", "probe_stand", "wait_na"} },
+    scrapper    = { try = {"repair_bench", "workbench"},
+                    anims = {"press", "wait_trade", "wait_na"} },
 }
 
 function safe_squad_members(squad)
@@ -153,29 +159,9 @@ end
 function stalker_camp_builder.get_server_container_items(target_box_id)
     if not target_box_id then return {} end
     local tg = time_global()
-    if (tg - _server_container_cache_tg) > 3500 or not _server_container_cache[target_box_id] then
+    if (tg - _server_container_cache_tg) > 3500 then
         _server_container_cache = {}
         _server_container_cache_tg = tg
-
-        -- Check active camp stored items first
-        local sb = stalker_camp_builder
-        if sb and sb.active_camps then
-            for _, camp in pairs(sb.active_camps) do
-                if camp.stored_items then
-                    for iid, it in pairs(camp.stored_items) do
-                        local pid = it.box_id
-                        if pid and pid > 0 and pid < 65535 then
-                            local list = _server_container_cache[pid]
-                            if not list then
-                                list = {}
-                                _server_container_cache[pid] = list
-                            end
-                            list[#list + 1] = iid
-                        end
-                    end
-                end
-            end
-        end
 
         local registry = _G.server_objects_registry
         if registry then
@@ -190,7 +176,7 @@ function stalker_camp_builder.get_server_container_items(target_box_id)
                     list[#list + 1] = id
                 end
             end
-        elseif not _server_container_cache[target_box_id] then
+        else
             -- Fallback server object scan
             local sim = alife()
             if sim then
@@ -209,7 +195,10 @@ function stalker_camp_builder.get_server_container_items(target_box_id)
             end
         end
     end
-    return _server_container_cache[target_box_id] or {}
+    if not _server_container_cache[target_box_id] then
+        _server_container_cache[target_box_id] = {}
+    end
+    return _server_container_cache[target_box_id]
 end
 
 function stalker_camp_builder.iterate_server_container(box_id_or_se, callback)
@@ -439,9 +428,16 @@ local function pack_table_vectors(tbl)
     local type_ = type
     if type_(tbl) ~= "table" then return tbl end
     if tbl.__packed_vector then return tbl end  -- already packed
-    if tbl.x ~= nil and tbl.y ~= nil and tbl.z ~= nil and not next(tbl, 'z') then
-        local packed = pack_vector(tbl)
-        if packed then return packed end
+    if tbl.x ~= nil and tbl.y ~= nil and tbl.z ~= nil then
+        local count = 0
+        for _ in pairs(tbl) do
+            count = count + 1
+            if count > 3 then break end
+        end
+        if count == 3 then
+            local packed = pack_vector(tbl)
+            if packed then return packed end
+        end
     end
     local result = {}
     for k, v in pairs(tbl) do
@@ -835,6 +831,7 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
 
     if any_box_online then
         if camp then camp.stored_items = camp.stored_items or {} end
+        local scan_stopped = false
         for _, cid in ipairs(box_order) do
             local box_obj = level and level.object_by_id and level.object_by_id(cid)
             if box_obj and box_obj.iterate_inventory_box then
@@ -862,7 +859,7 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                     if ok_u and u then uses = u end
                     local item_w = (cl_item.weight and cl_item:weight()) or nil
                     local ini = ini_sys or sys_ini or system_ini()
-                    local max_u = (cl_item.get_max_uses and cl_item:get_max_uses()) or (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or uses
+                    local max_u = (cl_item.get_max_uses and cl_item:get_max_uses()) or (ini and ini:section_exist(sec) and (ini:r_float_ex(sec, "max_uses") or ini:r_u32_ex(sec, "max_uses"))) or uses
 
                     if camp and camp.stored_items then
                         camp.stored_items[iid] = {
@@ -894,7 +891,10 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                         end
                     end
                 end
-                if stopped then return true end
+                if stopped then
+                    scan_stopped = true
+                    return true
+                end
             else
                 local stopped = false
                 sb.iterate_server_container(cid, function(child_id, se_item)
@@ -902,22 +902,18 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                     local sec = se_item:section_name()
                     local cond = se_item.condition or 1.0
                     local ini = ini_sys or sys_ini or system_ini()
-                    local uses = 1
                     local seen = camp and camp.stored_items and camp.stored_items[child_id]
-                    if seen and seen.sec == sec and seen.uses then
-                        uses = seen.uses
-                    else
-                        uses = 1
-                    end
+                    local max_u = (ini and ini:section_exist(sec) and (ini:r_float_ex(sec, "max_uses") or ini:r_u32_ex(sec, "max_uses"))) or 1
+                    local uses = (seen and seen.sec == sec and seen.uses) or max_u
 
                     if camp and camp.stored_items then
                         local same_sec = seen and seen.sec == sec
-                        local max_u = (same_sec and seen.max_uses) or (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or uses
+                        local max_u_entry = (same_sec and seen.max_uses) or max_u
                         camp.stored_items[child_id] = {
                             sec = sec,
                             cond = cond,
                             uses = uses,
-                            max_uses = max_u,
+                            max_uses = max_u_entry,
                             box_id = cid,
                             weight = (same_sec and seen.weight) or nil,
                             verified = (same_sec and seen.verified) or false
@@ -930,35 +926,42 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                         return true
                     end
                 end)
-                if stopped then return true end
+                if stopped then
+                    scan_stopped = true
+                    return true
+                end
             end
+        end
+        if camp and not scan_stopped then
+            camp._stored_items_complete = true
         end
     else
         -- OFFLINE SETTLEMENT INVENTORY SIMULATION CONTRACT
         camp = camp or (hub_id and sb.active_camps and sb.active_camps[hub_id])
         if camp then
             camp.stored_items = camp.stored_items or {}
-            local has_any = false
-            for _ in pairs(camp.stored_items) do has_any = true; break end
-            if not has_any then
+            if not camp._stored_items_complete then
                 for _, cid in ipairs(box_order) do
                     sb.iterate_server_container(cid, function(child_id, se_item)
                         if child_id and se_item then
                             local sec = se_item:section_name()
                             local cond = se_item.condition or 1.0
                             local ini = ini_sys or sys_ini or system_ini()
-                            local uses = 1
-                            local max_u = (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or 1
+                            local max_u = (ini and ini:section_exist(sec) and (ini:r_float_ex(sec, "max_uses") or ini:r_u32_ex(sec, "max_uses"))) or 1
+                            local seen = camp.stored_items and camp.stored_items[child_id]
+                            local uses = (seen and seen.sec == sec and seen.uses) or max_u
                             camp.stored_items[child_id] = {
                                 sec = sec,
                                 cond = cond,
                                 uses = uses,
                                 max_uses = max_u,
-                                box_id = cid
+                                box_id = cid,
+                                verified = (seen and seen.verified) or false
                             }
                         end
                     end)
                 end
+                camp._stored_items_complete = true
             end
 
             for iid, it in pairs(camp.stored_items) do
@@ -978,7 +981,9 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                     if not (child_id and se_item) then return end
                     local sec = se_item:section_name()
                     local cond = se_item.condition or 1.0
-                    local uses = 1
+                    local ini = ini_sys or sys_ini or system_ini()
+                    local max_u = (ini and ini:section_exist(sec) and (ini:r_float_ex(sec, "max_uses") or ini:r_u32_ex(sec, "max_uses"))) or 1
+                    local uses = max_u
                     local stop = callback(child_id, sec, cond, uses, se_item, cid, nil)
                     if stop == true then
                         stopped = true
@@ -1006,6 +1011,7 @@ function stalker_camp_builder.invalidate_camp_inventory_cache(hub_id, camp)
         camp._cached_box_weights = nil
         camp._cached_chest_supplies_tg = nil
         camp._cached_storage_metrics_tg = nil
+        camp._stored_items_complete = nil
         if camp.survivors then
             for _, s in pairs(camp.survivors) do
                 s._cached_paused_tg = nil
@@ -1442,7 +1448,7 @@ function camp_send_tip(actor, text, snd_type, category, duration, hub_id, radio_
         pcall(news_manager.send_tip, actor, text, snd_type, category, duration)
     end
     add_camp_log_entry(text, "info")
-    if add_camp_radio_log then
+    if radio_category ~= false and add_camp_radio_log then
         add_camp_radio_log(hub_id, radio_category or "work", text)
     end
 end
@@ -1489,6 +1495,8 @@ local defaults = {
     realtime_job_brewer_interval     = 1200, -- Brewer: 20 real minutes
     realtime_job_scrapper_interval   = 1200, -- Scrapper: 20 real minutes
     hunter_ambush_chance           =   20,  -- Hunter ambush chance: 20%
+    scavenger_ambush_chance        =   15,  -- Scavenger ambush chance: 15%
+    scavenge_ambush_chance         =   15,  -- Scavenger ambush chance alias: 15%
     hunter_min_meat                =    1,  -- Hunter min meat items: 1
     hunter_max_meat                =    2,  -- Hunter max meat items: 2 (balanced)
     yield_wood_min = 4,  -- DANZY EDIT: woodcutter/scrapper output (MCM)
@@ -3918,7 +3926,24 @@ function npc_on_update(npc)
         if not acc_lvid then acc_lvid = target_lvid end
 
         local target_pos = level.vertex_position(acc_lvid)
-        if not look_pos then look_pos = target_pos end
+        if not look_pos then
+            if my_survivor and my_survivor.assigned_pos and my_survivor.assigned_pos.look_x then
+                local ap = my_survivor.assigned_pos
+                look_pos = vector():set(ap.look_x, ap.look_y, ap.look_z)
+            else
+                local hub_obj = alife_object(hub_id)
+                if hub_obj and hub_obj.position then
+                    local fwd = vector():sub(target_pos, hub_obj.position):normalize()
+                    if fwd:magnitude() > 0.01 then
+                        look_pos = vector():set(target_pos.x + fwd.x * 5, target_pos.y, target_pos.z + fwd.z * 5)
+                    else
+                        look_pos = vector():set(target_pos.x + 2, target_pos.y, target_pos.z)
+                    end
+                else
+                    look_pos = vector():set(target_pos.x + 2, target_pos.y, target_pos.z)
+                end
+            end
+        end
 
         local st = db.storage[npc_id]
         if st then
@@ -4319,13 +4344,26 @@ end
 
 function hf_on_before_furniture_release(obj_id)
     local pairs_ = pairs
-    if stalker_camp_builder.active_camps[obj_id] then
-        stalker_camp_builder.release_camp_trader(stalker_camp_builder.active_camps[obj_id])
-        stalker_camp_builder.end_camp_raid(stalker_camp_builder.active_camps[obj_id])
-        level.map_remove_object_spot(obj_id, "ui_pda2_actor_sleep_location")
+    local camp = stalker_camp_builder.active_camps[obj_id]
+    if camp then
+        if camp.zone_id then
+            safe_deferred_release(camp.zone_id)
+            camp.zone_id = nil
+        end
+        stalker_camp_builder.release_camp_trader(camp)
+        stalker_camp_builder.end_camp_raid(camp)
+        pcall(function()
+            if level and level.map_remove_object_spot then
+                level.map_remove_object_spot(obj_id, "ui_pda2_actor_sleep_location")
+            end
+        end)
         invalidate_scan_camp_structures_cache(obj_id)
         stalker_camp_builder.active_camps[obj_id] = nil
-        actor_menu.set_msg(1, game.translate_string("st_hub_removed"), 3)
+        pcall(function()
+            if actor_menu and actor_menu.set_msg and game and game.translate_string then
+                actor_menu.set_msg(1, game.translate_string("st_hub_removed"), 3)
+            end
+        end)
         return
     end
 
@@ -4492,6 +4530,21 @@ function load_state(m_data)
     local save_version = m_data.stalker_camp_builder_version or 0
 
     stalker_camp_builder.active_camps = keys_to_numbers(unpack_table_vectors(m_data.stalker_camp_builder_active_camps or {}))
+    _server_container_cache = {}
+    _server_container_cache_tg = 0
+    scan_camp_structures_cache = {}
+    stalker_camp_builder.camp_box_id_cache = {}
+    stalker_camp_builder.settler_lookup = {}
+    if stalker_camp_builder.camp_npc_furniture_cache then
+        stalker_camp_builder.camp_npc_furniture_cache = {}
+    end
+    if stalker_camp_builder.settler_home_squads then
+        stalker_camp_builder.settler_home_squads = {}
+    end
+    if stalker_camp_builder.settler_home_squad_cache then
+        stalker_camp_builder.settler_home_squad_cache = {}
+    end
+
     -- time_global() stamps count from game launch: after a restart they lie in the future
     for hub_id, camp in pairs_(stalker_camp_builder.active_camps) do
         camp._cached_storage_metrics_tg = nil
@@ -4499,11 +4552,17 @@ function load_state(m_data)
         camp._inv_snapshot = nil
         camp._inv_snapshot_tg = nil
         camp._cached_box_weights = nil
+        camp._cached_containers = nil
+        camp._cached_containers_tg = nil
+        camp._cached_categorized_boxes = nil
+        camp._cached_chest_supplies_tg = nil
+        camp._stored_items_complete = nil
         if camp.survivors then
             for nid, surv in pairs_(camp.survivors) do
                 surv.job_start_realtime = nil
                 surv.temp_target_lvid = nil
                 surv.temp_target_time = nil
+                surv._cached_paused_tg = nil
             end
         end
     end
@@ -4529,7 +4588,8 @@ function load_state(m_data)
         for _, entry in ipairs(stalker_camp_builder.radio_logs["all"]) do
             if type(entry) == "table" and entry.text then
                 local dup_idx = nil
-                for i = 1, math.min(5, #cleaned) do
+                local start_chk = math.max(1, #cleaned - 8)
+                for i = #cleaned, start_chk, -1 do
                     if cleaned[i].text == entry.text then
                         dup_idx = i
                         break
@@ -6084,6 +6144,21 @@ function trigger_random_camp_event(hub_id, camp, hub_obj)
             camp.trader_needs_stock = true
             camp.trader_community = comm
 
+            CreateTimeEvent("homestead_trader_init", "init_" .. tostring(se_trader.id), 0.1, function()
+                local trader_cl = level.object_by_id(se_trader.id)
+                if trader_cl and trader_cl.alive and trader_cl:alive() then
+                    pcall(function()
+                        if trader_cl.set_character_community then
+                            trader_cl:set_character_community(comm, 0, 0)
+                        end
+                        if trader_cl.set_relation and db.actor then
+                            trader_cl:set_relation(game_object.friend, db.actor)
+                        end
+                    end)
+                end
+                return true
+            end)
+
             camp_send_tip(db.actor, game.translate_string("st_event_caravan_arrived"), nil, "general_stalker", 12000)
         end
     elseif chosen_event == "harvester_degrade" then
@@ -6314,26 +6389,30 @@ function process_camp_raids()
         local is_new = camp.created_time and (current_sec - camp.created_time) < cfg.raid_cooldown
         -- one raid at a time: a second would leave the first squad its "actor" target
         if survivor_count > 0 and not is_new and not camp.active_raid and (not camp.level or camp.level == cur_lvl) then
-            local hub_obj = alife_object(hub_id)
-            if hub_obj and hub_obj.position then
-                local dist = hub_obj.position:distance_to(player_pos)
-                if dist <= cfg.event_player_dist then
-                    local stats = get_camp_stats(camp, hub_obj)
-                    local defense_needed = stats.population * 3
-                    local current_def = stats.defense
-                    if has_active_alarm(camp) then
-                        current_def = current_def + (cfg.alarm_defense_bonus or 15)
-                    end
-                    local defense_deficit = defense_needed - current_def
-                    local raid_chance = cfg.raid_base_chance
-                    if defense_deficit > 0 then
-                        raid_chance = raid_chance + math.floor(defense_deficit * cfg.raid_deficit_mult)
-                    end
+            local check_interval = cfg.raid_check_interval or defaults.raid_check_interval or 3600
+            if not camp.last_raid_check_time or (current_sec - camp.last_raid_check_time) >= check_interval then
+                camp.last_raid_check_time = current_sec
+                local hub_obj = alife_object(hub_id)
+                if hub_obj and hub_obj.position then
+                    local dist = hub_obj.position:distance_to(player_pos)
+                    if dist <= cfg.event_player_dist then
+                        local stats = get_camp_stats(camp, hub_obj)
+                        local defense_needed = stats.population * 3
+                        local current_def = stats.defense
+                        if has_active_alarm(camp) then
+                            current_def = current_def + (cfg.alarm_defense_bonus or 15)
+                        end
+                        local defense_deficit = defense_needed - current_def
+                        local raid_chance = cfg.raid_base_chance
+                        if defense_deficit > 0 then
+                            raid_chance = raid_chance + math.floor(defense_deficit * cfg.raid_deficit_mult)
+                        end
 
-                    if math.random(100) <= raid_chance then
-                        last_raid_game_sec = current_sec
-                        spawn_camp_raid(hub_id, camp, hub_obj)
-                        break -- Process only one camp per tick
+                        if math.random(100) <= raid_chance then
+                            last_raid_game_sec = current_sec
+                            spawn_camp_raid(hub_id, camp, hub_obj)
+                            break -- Process only one camp per tick
+                        end
                     end
                 end
             end
@@ -6468,15 +6547,16 @@ end
 
 -- Survivor XP / Skill System
 
-function award_survivor_xp(survivor, job)
+function award_survivor_xp(survivor, job, amount)
     if not survivor then return end
-    survivor.xp = (survivor.xp or 0) + 1
+    amount = amount or 10
+    survivor.xp = (survivor.xp or 0) + amount
     local xp = survivor.xp
     local old_tier = survivor.tier or 0
     local new_tier = 0
-    if xp >= 50 then new_tier = 3  -- Master
-    elseif xp >= 25 then new_tier = 2  -- Expert
-    elseif xp >= 10 then new_tier = 1  -- Skilled
+    if xp >= 500 then new_tier = 3  -- Master
+    elseif xp >= 250 then new_tier = 2  -- Expert
+    elseif xp >= 100 then new_tier = 1  -- Skilled
     end
     if new_tier > old_tier then
         survivor.tier = new_tier
@@ -6485,10 +6565,15 @@ function award_survivor_xp(survivor, job)
             local job_display = {
                 scavenge = "Scavenger", cook = "Cook", repair = "Repairer",
                 craft = "Crafter", medic = "Medic", guard = "Guard",
-                electrician = "Electrician", idle = "Settler"
+                electrician = "Electrician", woodcutter = "Woodcutter",
+                brewer = "Brewer", scrapper = "Scrapper", idle = "Settler"
             }
             local job_title = job_display[job] or job or ""
-            camp_send_tip(db.actor, string.format(game.translate_string("st_event_settler_promoted"), survivor.name or "Survivor", tier_names[new_tier+1], job_title), nil, "general_stalker", 10000)
+            local msg = string.format(game.translate_string("st_event_settler_promoted"), survivor.name or "Survivor", tier_names[new_tier+1], job_title)
+            camp_send_tip(db.actor, msg, nil, "general_stalker", 10000)
+            if add_radio_feed_entry then
+                add_radio_feed_entry("settlement", msg)
+            end
         end
     end
 end
@@ -8188,10 +8273,16 @@ function stalker_camp_builder.deposit_item_to_camp(hub_id, camp, sec, is_yellow,
 
     -- a new item has all its uses; a stash entry's partly used item owes the rest, as
     -- consume_one_use owes uses spent offline, until apply_pending_cond reaches it online
-    local max_uses = ini:r_float_ex(sec, "max_uses") or 1
+    local max_uses = (ini and ini:r_float_ex(sec, "max_uses")) or 1
     if uses and uses >= 1 and uses < max_uses then
         sb.pending_item_cond = sb.pending_item_cond or {}
-        sb.pending_item_cond[se_item.id] = { s = sec, u = max_uses - uses }
+        local pend = sb.pending_item_cond[se_item.id]
+        if pend and type(pend) == "table" then
+            pend.u = max_uses - uses
+            pend.s = pend.s or sec
+        else
+            sb.pending_item_cond[se_item.id] = { s = sec, u = max_uses - uses }
+        end
         sb.save_pending_cond()
         sb.start_pending_cond_timer()
     else
@@ -9983,11 +10074,11 @@ end
 
 local function roll_expedition_ambush(actor, exp)
     local sb = stalker_camp_builder
-    local chance = (sb.cfg and sb.cfg.scavenger_ambush_chance) or 20
+    local chance = (sb.cfg and (sb.cfg.scavenger_ambush_chance or sb.cfg.scavenge_ambush_chance)) or 15
     local name = exp.survivor_name or "Scavenger"
 
     if math.random(100) > chance then
-        return {}, 75, "Safe Expedition"
+        return {}, 25, "Safe Expedition"
     end
 
     if (exp.survivor_tier or 0) >= 2 or math.random(100) <= 60 then
@@ -9998,7 +10089,7 @@ local function roll_expedition_ambush(actor, exp)
         end
         return {"ammo_5.45x39_fmj", "mutant_part_dog_tail", "bandage",
                 "conserva", "prt_i_scrap"},
-               135, "Repelled Ambush (+Bonus Salvage)"
+               45, "Repelled Ambush (+Bonus Salvage)"
     end
 
     if actor then
@@ -10006,7 +10097,7 @@ local function roll_expedition_ambush(actor, exp)
             sformat(game.translate_string("st_scavenger_ambush_fled"), name),
             nil, "red_danger", 10000, exp.hub_id, "combat", true)
     end
-    return {}, 45, "Evaded Enemy Ambush"
+    return {}, 15, "Evaded Enemy Ambush"
 end
 
 local function deposit_expedition_haul(exp, camp, bonus_loot)
@@ -10068,13 +10159,24 @@ local function award_expedition_xp(surv, xp_earned)
     if not surv then
         return xp_earned, 0
     end
+    local old_tier = surv.tier or 0
     surv.xp = (surv.xp or 0) + xp_earned
-    if surv.xp >= 300 and (surv.tier or 0) < 1 then
-        surv.tier = 1
-    elseif surv.xp >= 700 and (surv.tier or 0) < 2 then
-        surv.tier = 2
-    elseif surv.xp >= 1500 and (surv.tier or 0) < 3 then
-        surv.tier = 3
+    local xp = surv.xp
+    local new_tier = 0
+    if xp >= 500 then new_tier = 3
+    elseif xp >= 250 then new_tier = 2
+    elseif xp >= 100 then new_tier = 1
+    end
+    if new_tier > old_tier then
+        surv.tier = new_tier
+        local tier_names = {"Novice", "Skilled", "Expert", "Master"}
+        if db.actor then
+            local msg = string.format(game.translate_string("st_event_settler_promoted"), surv.name or "Survivor", tier_names[new_tier+1], "Scavenger")
+            camp_send_tip(db.actor, msg, nil, "general_stalker", 10000)
+            if add_radio_feed_entry then
+                add_radio_feed_entry("settlement", msg)
+            end
+        end
     end
     return surv.xp, surv.tier or 0
 end
@@ -10708,6 +10810,7 @@ function stalker_camp_builder.seed_initial_settlement_telemetry(force_refresh)
         table.insert(g_logs, 1, {
             time_str = time_str,
             category = "general",
+            scan = true,
             text = "Homestead Transceiver Online. Synced to 148.500 MHz Zone-wide frequency network."
         })
     end
@@ -10733,6 +10836,7 @@ function stalker_camp_builder.seed_initial_settlement_telemetry(force_refresh)
         table.insert(g_logs, 1, {
             time_str = time_str,
             category = "work",
+            scan = true,
             text = sformat("TRANSCEIVER [%s | %s]: Garrison online. Pop: %d, Defense Rating: %d, Morale: %d%%.", c_name, c_lvl, pop, def, mor)
         })
 
@@ -10743,37 +10847,71 @@ function stalker_camp_builder.seed_initial_settlement_telemetry(force_refresh)
                 table.insert(g_logs, 1, {
                     time_str = time_str,
                     category = "expedition",
+                    scan = true,
                     text = sformat("EXPEDITION: %s is currently deployed on field scavenging sweep (Target: %s).", s_name, surv.scavenge_target or "Zone Ruins")
                 })
             elseif s_job == "craft" then
                 table.insert(g_logs, 1, {
                     time_str = time_str,
                     category = "work",
+                    scan = true,
                     text = sformat("WORKSHOP: %s is crafting ammunition and managing workbench tooling.", s_name)
                 })
             elseif s_job == "repair" then
                 table.insert(g_logs, 1, {
                     time_str = time_str,
                     category = "work",
+                    scan = true,
                     text = sformat("MAINTENANCE: %s is inspecting settlement armory and condition repairs.", s_name)
                 })
             elseif s_job == "medic" then
                 table.insert(g_logs, 1, {
                     time_str = time_str,
                     category = "work",
+                    scan = true,
                     text = sformat("INFIRMARY: %s is monitoring camp medical supplies and triage care.", s_name)
                 })
             elseif s_job == "cook" then
                 table.insert(g_logs, 1, {
                     time_str = time_str,
                     category = "work",
+                    scan = true,
                     text = sformat("KITCHEN: %s is preparing hot rations and campfire meals.", s_name)
                 })
             elseif s_job == "guard" then
                 table.insert(g_logs, 1, {
                     time_str = time_str,
                     category = "combat",
+                    scan = true,
                     text = sformat("SECURITY: %s is stationed on camp perimeter guard watch.", s_name)
+                })
+            elseif s_job == "woodcutter" then
+                table.insert(g_logs, 1, {
+                    time_str = time_str,
+                    category = "work",
+                    scan = true,
+                    text = sformat("TIMBER: %s is harvesting firewood and managing the charcoal kiln.", s_name)
+                })
+            elseif s_job == "brewer" then
+                table.insert(g_logs, 1, {
+                    time_str = time_str,
+                    category = "work",
+                    scan = true,
+                    text = sformat("BREWERY: %s is distilling spirits and fermenting medical alcohol.", s_name)
+                })
+            elseif s_job == "scrapper" then
+                table.insert(g_logs, 1, {
+                    time_str = time_str,
+                    category = "work",
+                    scan = true,
+                    text = sformat("SALVAGE: %s is breaking down field scrap into usable parts.", s_name)
+                })
+            elseif s_job == "electrician" then
+                table.insert(g_logs, 1, {
+                    time_str = time_str,
+                    category = "work",
+                    scan = true,
+                    text = sformat("POWER GRID: %s is maintaining settlement illumination and battery stores.", s_name)
                 })
             end
         end
@@ -10799,6 +10937,7 @@ function stalker_camp_builder.seed_initial_settlement_telemetry(force_refresh)
             table.insert(g_logs, 1, {
                 time_str = time_str,
                 category = "combat",
+                scan = true,
                 text = text
             })
         end
@@ -10808,6 +10947,7 @@ function stalker_camp_builder.seed_initial_settlement_telemetry(force_refresh)
         table.insert(g_logs, 1, {
             time_str = time_str,
             category = "general",
+            scan = true,
             text = "Zone Radio Scan Complete: No active settlement hubs detected. Place a workbench to initialize telemetry."
         })
     end

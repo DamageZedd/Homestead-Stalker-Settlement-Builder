@@ -571,6 +571,7 @@ local function turret_target_visible(self, target_obj, aim_pos)
     local mpos = self.object:position()
 
     local turret_pos = vector(); turret_pos:set(mpos)
+    turret_pos.y = turret_pos.y + 0.55
 
     return has_clear_shot(self, turret_pos, aim_pos, target_obj)
 end

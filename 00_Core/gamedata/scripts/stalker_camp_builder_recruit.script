@@ -381,7 +381,15 @@ function stalker_camp_builder.can_recruit(p1, p2)
             if get_object_story_id(npc_id) or (squad and get_object_story_id(squad.id)) then return false end
         end
 
-        -- Prevent recruiting story characters and static base vendors (unless already our companion)
+        -- Prevent recruiting story characters, static base vendors, or visiting caravan traders
+        if sb.active_camps then
+            for _, c in pairs(sb.active_camps) do
+                if c and c.active_trader_id == npc_id then
+                    return false
+                end
+            end
+        end
+
         if not is_comp then
             local is_story = false
             pcall(function()
@@ -620,6 +628,8 @@ function stalker_camp_builder.teleport_settler_to_camp_level(npc_id, hub_id, for
             local se = alife_object(npc_id)
             if se then
                 sim:teleport_object(npc_id, target_gvid, target_lvid, target_pos)
+                sim:set_switch_online(npc_id, true)
+                sim:set_switch_offline(npc_id, true)
                 if sb.anchor_settler_to_smart then
                     sb.anchor_settler_to_smart(npc_id, camp_level, target_pos)
                 end
@@ -1329,7 +1339,7 @@ end
 -- ============================================================================
 -- set_survivor_position / clear / set_to_actor
 -- ============================================================================
-function stalker_camp_builder.set_survivor_position(npc_id, lvid, pos)
+function stalker_camp_builder.set_survivor_position(npc_id, lvid, pos, dir)
     local sb = stalker_camp_builder
     local target_camp, target_hub_id = nil, nil
     for hub_id, camp in pairs(sb.active_camps) do
@@ -1354,9 +1364,19 @@ function stalker_camp_builder.set_survivor_position(npc_id, lvid, pos)
     if sb.recall_scavenger_expedition_by_npc then
         sb.recall_scavenger_expedition_by_npc(npc_id)
     end
+
+    local look_x, look_y, look_z = nil, nil, nil
+    local act_dir = dir or (db.actor and db.actor:direction())
+    if act_dir then
+        look_x = pos.x + act_dir.x * 5
+        look_y = pos.y + act_dir.y * 5
+        look_z = pos.z + act_dir.z * 5
+    end
+
     target_camp.survivors[npc_id].assigned_pos = {
         lvid = lvid,
-        x = pos.x, y = pos.y, z = pos.z
+        x = pos.x, y = pos.y, z = pos.z,
+        look_x = look_x, look_y = look_y, look_z = look_z
     }
 
     -- A companion keeps following: the settler beh scheme below would hold them here, and
@@ -1385,7 +1405,8 @@ function stalker_camp_builder.set_survivor_position(npc_id, lvid, pos)
             end
         end)
         if sb.setup_settler_beh_logic then
-            sb.setup_settler_beh_logic(online_obj, lvid, nil, "guard")
+            local look_vec = (look_x and vector():set(look_x, look_y, look_z)) or nil
+            sb.setup_settler_beh_logic(online_obj, lvid, look_vec, "guard")
         end
     else
         if se_npc then
@@ -1415,7 +1436,7 @@ end
 function stalker_camp_builder.set_survivor_position_to_actor(npc_id)
     if not (db.actor and db.actor:alive()) then return false end
     local sb = stalker_camp_builder
-    return sb.set_survivor_position(npc_id, db.actor:level_vertex_id(), db.actor:position())
+    return sb.set_survivor_position(npc_id, db.actor:level_vertex_id(), db.actor:position(), db.actor:direction())
 end
 
 function stalker_camp_builder.can_recruit_back(p1, p2)
@@ -1762,8 +1783,14 @@ function stalker_camp_builder.purge_settler_companion_and_squad_state(npc_id, on
 
     local m_data = alife_storage_manager and alife_storage_manager.get_state and alife_storage_manager.get_state()
     if m_data then
-        m_data.stalker_camp_builder_freed_settlers = m_data.stalker_camp_builder_freed_settlers or {}
-        m_data.stalker_camp_builder_freed_settlers[npc_id] = true
+        if is_banish ~= false then
+            m_data.stalker_camp_builder_freed_settlers = m_data.stalker_camp_builder_freed_settlers or {}
+            m_data.stalker_camp_builder_freed_settlers[npc_id] = true
+        else
+            if m_data.stalker_camp_builder_freed_settlers then
+                m_data.stalker_camp_builder_freed_settlers[npc_id] = nil
+            end
+        end
     end
 
     local se_npc = sim:object(npc_id)
@@ -2684,6 +2711,30 @@ function stalker_camp_builder.get_camp_trader_section(camp)
     if ini_sys and ini_sys.section_exist and ini_sys:section_exist(sec) then
         return sec, comm
     end
+
+    local fallback_map = {
+        stalker  = "sim_default_stalker_1",
+        loner    = "sim_default_stalker_1",
+        bandit   = "sim_default_bandit_1",
+        dolg     = "sim_default_dolg_1",
+        duty     = "sim_default_dolg_1",
+        freedom  = "sim_default_freedom_1",
+        killer   = "sim_default_killer_1",
+        merc     = "sim_default_killer_1",
+        military = "sim_default_military_1",
+        army     = "sim_default_military_1",
+        csky     = "sim_default_csky_1",
+        ecolog   = "sim_default_ecolog_1",
+        monolith = "sim_default_monolith_1",
+        renegade = "sim_default_renegade_1",
+        isg      = "sim_default_isg_1",
+        greh     = "sim_default_greh_1",
+    }
+    local fb = fallback_map[comm]
+    if fb and ini_sys and ini_sys.section_exist and ini_sys:section_exist(fb) then
+        return fb, comm
+    end
+
     return "stalker_regular", comm
 end
 
@@ -2718,7 +2769,22 @@ function stalker_camp_builder.summon_caravan(hub_id)
         camp.trader_needs_stock = true
         camp.trader_community = comm
         camp.last_caravan_summon_sec = current_sec
-        -- printf(string.format("[Homestead] Summoned caravan to camp %d (%s), trader_id=%d", hub_id, sec, se_trader.id))
+
+        CreateTimeEvent("homestead_trader_init", "init_" .. tostring(se_trader.id), 0.1, function()
+            local trader_cl = level.object_by_id(se_trader.id)
+            if trader_cl and trader_cl.alive and trader_cl:alive() then
+                pcall(function()
+                    if trader_cl.set_character_community then
+                        trader_cl:set_character_community(comm, 0, 0)
+                    end
+                    if trader_cl.set_relation and db.actor then
+                        trader_cl:set_relation(game_object.friend, db.actor)
+                    end
+                end)
+            end
+            return true
+        end)
+
         return true
     end
     return false, "spawn_failed"
@@ -3499,7 +3565,7 @@ end
 function stalker_camp_builder.get_tech_overhaul_ask_text(actor, npc)
     local mfloor = math.floor
     local mmax = math.max
-    local actor_obj = actor or db.actor
+    local actor_obj = db.actor
     if not actor_obj then return game.translate_string("st_camp_tech_overhaul_ask") or "Overhaul equipped weapon and parts..." end
 
     local wpn = actor_obj:active_item()
@@ -3541,7 +3607,7 @@ function stalker_camp_builder.repair_equipped_weapon_and_parts(actor, npc)
     local mfloor = math.floor
     local mmax = math.max
     local sformat = string.format
-    local actor_obj = actor or db.actor
+    local actor_obj = db.actor
     if not actor_obj then return end
 
     local wpn = actor_obj:active_item()
