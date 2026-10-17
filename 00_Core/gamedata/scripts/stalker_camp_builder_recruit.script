@@ -1772,7 +1772,7 @@ end
 -- Prevents "ghost companion" squads from endlessly following the player by foot
 -- with orphaned HUD health bars after banishment.
 -- ============================================================================
-function stalker_camp_builder.purge_settler_companion_and_squad_state(npc_id, on_npc, is_banish)
+function stalker_camp_builder.purge_settler_companion_and_squad_state(npc_id, on_npc, is_banish, stays_in_camp)
     local sb = stalker_camp_builder
     local sim = alife()
     if not (npc_id and sim) then return end
@@ -1783,7 +1783,9 @@ function stalker_camp_builder.purge_settler_companion_and_squad_state(npc_id, on
 
     local m_data = alife_storage_manager and alife_storage_manager.get_state and alife_storage_manager.get_state()
     if m_data then
-        if is_banish ~= false then
+        -- the mark drops the saved settler scheme at the next spawn: everyone leaving the camp gets it
+        -- (banish, dismantle, desertion pass is_comp as is_banish); a companion put back to work stays
+        if not stays_in_camp then
             m_data.stalker_camp_builder_freed_settlers = m_data.stalker_camp_builder_freed_settlers or {}
             m_data.stalker_camp_builder_freed_settlers[npc_id] = true
         else
