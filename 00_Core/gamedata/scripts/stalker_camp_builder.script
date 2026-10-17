@@ -3931,7 +3931,6 @@ function npc_on_update(npc)
                 local ap = my_survivor.assigned_pos
                 look_pos = vector():set(ap.look_x, ap.look_y, ap.look_z)
             else
-                local hub_obj = alife_object(hub_id)
                 if hub_obj and hub_obj.position then
                     local fwd = vector():sub(target_pos, hub_obj.position):normalize()
                     if fwd:magnitude() > 0.01 then
