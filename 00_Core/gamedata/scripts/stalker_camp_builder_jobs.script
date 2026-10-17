@@ -2287,11 +2287,19 @@ function stalker_camp_builder.process_scrapper_job(npc_id, hub_id, camp, survivo
 
     local salvaged_gear_name = nil
     if survivor and survivor.has_tools and sb.camp_iterate_inventory then
+        -- gear left at a workbench waits for the technician (process_gear_repair works there)
+        local m_data = alife_storage_manager and alife_storage_manager.get_state and alife_storage_manager.get_state()
+        local ws = m_data and m_data.workshop_stashes or {}
+        local at_bench = {}
+        for sid, stype in pairs(camp and camp.structures or {}) do
+            if stype == "workbench" or stype == "repair_bench" then at_bench[sid] = true; at_bench[ws[sid] or sid] = true end
+        end
+        if hub_id then at_bench[hub_id] = true; at_bench[ws[hub_id] or hub_id] = true end
         local junk_id = nil
         local junk_sec = nil
         sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
             if not sec or junk_id then return end
-            if (sec:find("wpn_") or sec:find("helm_") or sec:find("armor_") or sec:find("outfit")) and (cond or 1.0) < 0.35 then
+            if not at_bench[cid] and (sec:find("wpn_") or sec:find("helm_") or sec:find("armor_") or sec:find("outfit")) and (cond or 1.0) < 0.35 then
                 junk_id = item_id
                 junk_sec = sec
                 return true
