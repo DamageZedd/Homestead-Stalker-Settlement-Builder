@@ -152,4 +152,14 @@
 	<file name="ui\homestead_pda\ui_dialog_bg">
 		<texture id="ui_homestead_dialog_bg" x="0" y="0" width="320" height="140" />
 	</file>
+	<!-- the theme script's selected button and heading rule (ui_stalker_camp_builder_theme.script) -->
+	<file name="ui\ui_common">
+		<texture id="ui_homestead_btn_on_e" x="0" y="173" width="117" height="29" />
+		<texture id="ui_homestead_btn_on_h" x="0" y="173" width="117" height="29" />
+		<texture id="ui_homestead_btn_on_t" x="0" y="173" width="117" height="29" />
+		<texture id="ui_homestead_btn_on_d" x="0" y="86" width="117" height="29" />
+	</file>
+	<file name="ui\homestead_pda\ui_rule">
+		<texture id="ui_homestead_rule" x="0" y="0" width="4" height="4" />
+	</file>
 </w>

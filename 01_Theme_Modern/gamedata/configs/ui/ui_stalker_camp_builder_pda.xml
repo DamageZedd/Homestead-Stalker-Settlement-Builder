@@ -9,6 +9,11 @@
         <texture>ui_inGame2_pda_line_vertical</texture>
     </vertical_line>
 
+    <!-- Left rail frame (ui_stalker_camp_builder_pda.script inits it) -->
+    <left_frame x="34" y="112" width="166" height="268">
+        <texture>ui_inGame2_pda_buttons_background</texture>
+    </left_frame>
+
         <!-- Left Rail Tab Container -->
     <left_container x="40" y="106" width="162" height="603" stretch="1">
         <btn_tab_overview x="0" y="10" width="148" height="36" check_mode="0">
