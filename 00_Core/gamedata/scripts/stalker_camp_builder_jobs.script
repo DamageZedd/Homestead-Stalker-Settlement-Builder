@@ -2237,11 +2237,18 @@ function stalker_camp_builder.process_brewer_job(npc_id, hub_id, camp, survivor,
     local produced_alcohol = 0
     if (survivor and (survivor.has_drugkit or (survivor.tier and survivor.tier >= 2))) or (camp and camp.has_drugkit) then
         local alc_count = math.max(1, math.floor(1 * tier_mult * spec_mult))
-        local alc_sec = (ini_sys and ini_sys:section_exist("alcohol") and "alcohol") or "antiseptic"
-        for i = 1, alc_count do
-            sb.deposit_item_to_camp(hub_id, camp, alc_sec)
+        -- [alcohol] is the drunk postprocess effector (misc\postprocess.ltx), and there is no
+        -- antiseptic: spawning a section with no class is fatal, so take the first that is an item
+        local alc_sec = nil
+        for _, s in ipairs({"alcohol", "antiseptic", "vodka_quality"}) do
+            if ini_sys and ini_sys:section_exist(s) and ini_sys:line_exist(s, "class") then
+                alc_sec = s
+                break
+            end
         end
-        produced_alcohol = alc_count
+        for i = 1, (alc_sec and alc_count or 0) do
+            if sb.deposit_item_to_camp(hub_id, camp, alc_sec) then produced_alcohol = produced_alcohol + 1 end
+        end
     end
 
     if survivor then survivor.shortfall_reason = nil end
