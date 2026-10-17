@@ -1963,7 +1963,9 @@ function stalker_camp_builder.process_electrician_job(npc_id, hub_id, camp, surv
             sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
                 if not sec or dead_batt_id then return end
                 local s = sec:lower()
-                if s == "batteries_dead" or (s:find("battery") and cond and cond < 0.95) then
+                -- batteries_dead is the "Batteries" item the lamps burn (their fuel_section), its
+                -- condition the charge: a drained one is recharged in place, online, where it takes it
+                if cl_item and (s == "batteries_dead" or s:find("battery")) and cond and cond < 0.95 then
                     dead_batt_id = item_id
                     dead_batt_sec = sec
                     return true
@@ -1973,15 +1975,9 @@ function stalker_camp_builder.process_electrician_job(npc_id, hub_id, camp, surv
         if dead_batt_id then
             local se_b = alife_object(dead_batt_id)
             if se_b then
-                if dead_batt_sec == "batteries_dead" then
-                    alife_release(se_b)
-                    sb.deposit_item_to_camp(hub_id, camp, "batteries_commercial")
-                else
-                    local cl_b = level.object_by_id(dead_batt_id)
-                    if cl_b and cl_b.set_condition then
-                        pcall(function() cl_b:set_condition(1.0) end)
-                    end
-                    if se_b.condition then pcall(function() se_b.condition = 1.0 end) end
+                local cl_b = level.object_by_id(dead_batt_id)
+                if cl_b and cl_b.set_condition then
+                    pcall(function() cl_b:set_condition(1.0) end)
                 end
                 if survivor then survivor.shortfall_reason = nil end
                 local batt_tip = game.translate_string("st_job_electrician_recharged_batt")
