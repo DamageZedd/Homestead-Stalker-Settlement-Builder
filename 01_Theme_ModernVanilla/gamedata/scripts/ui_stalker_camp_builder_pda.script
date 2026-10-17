@@ -1584,12 +1584,11 @@ function SettlementManagerPDA:OnSurvivorSelected()
 
     local cur_tier = s_item.tier or 0
     local xp = s_item.xp or 0
-    -- the ranks award_survivor_xp promotes to: one XP per completed work cycle, tiers at 10, 25
-    -- and 50. Expedition XP goes into the same count and can run past the next threshold until
-    -- the next cycle promotes.
+    -- the ranks award_survivor_xp promotes to: 10 XP per completed work cycle, tiers at 100, 250
+    -- and 500. Expedition XP goes into the same count and promotes on the same scale.
     local tier_names = { [0] = "Novice", [1] = "Skilled", [2] = "Expert", [3] = "Master" }
-    local tier_caps = { [0] = 10, [1] = 25, [2] = 50, [3] = 50 }
-    local cur_cap = tier_caps[cur_tier] or 50
+    local tier_caps = { [0] = 100, [1] = 250, [2] = 500, [3] = 500 }
+    local cur_cap = tier_caps[cur_tier] or 500
     local prev_cap = (cur_tier > 0) and (tier_caps[cur_tier - 1] or 0) or 0
     local progress_pct = (cur_tier >= 3) and 100 or mmax(0, math.min(100, math.floor(((xp - prev_cap) / mmax(1, cur_cap - prev_cap)) * 100)))
 
