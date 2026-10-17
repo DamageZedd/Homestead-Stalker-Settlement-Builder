@@ -859,7 +859,7 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                     if ok_u and u then uses = u end
                     local item_w = (cl_item.weight and cl_item:weight()) or nil
                     local ini = ini_sys or sys_ini or system_ini()
-                    local max_u = (cl_item.get_max_uses and cl_item:get_max_uses()) or (ini and ini:section_exist(sec) and (ini:r_float_ex(sec, "max_uses") or ini:r_u32_ex(sec, "max_uses"))) or uses
+                    local max_u = (cl_item.get_max_uses and cl_item:get_max_uses()) or (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or uses
 
                     if camp and camp.stored_items then
                         camp.stored_items[iid] = {
@@ -903,7 +903,7 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                     local cond = se_item.condition or 1.0
                     local ini = ini_sys or sys_ini or system_ini()
                     local seen = camp and camp.stored_items and camp.stored_items[child_id]
-                    local max_u = (ini and ini:section_exist(sec) and (ini:r_float_ex(sec, "max_uses") or ini:r_u32_ex(sec, "max_uses"))) or 1
+                    local max_u = (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or 1
                     local uses = (seen and seen.sec == sec and seen.uses) or max_u
 
                     if camp and camp.stored_items then
@@ -947,7 +947,7 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                             local sec = se_item:section_name()
                             local cond = se_item.condition or 1.0
                             local ini = ini_sys or sys_ini or system_ini()
-                            local max_u = (ini and ini:section_exist(sec) and (ini:r_float_ex(sec, "max_uses") or ini:r_u32_ex(sec, "max_uses"))) or 1
+                            local max_u = (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or 1
                             local seen = camp.stored_items and camp.stored_items[child_id]
                             local uses = (seen and seen.sec == sec and seen.uses) or max_u
                             camp.stored_items[child_id] = {
@@ -982,7 +982,7 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                     local sec = se_item:section_name()
                     local cond = se_item.condition or 1.0
                     local ini = ini_sys or sys_ini or system_ini()
-                    local max_u = (ini and ini:section_exist(sec) and (ini:r_float_ex(sec, "max_uses") or ini:r_u32_ex(sec, "max_uses"))) or 1
+                    local max_u = (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or 1
                     local uses = max_u
                     local stop = callback(child_id, sec, cond, uses, se_item, cid, nil)
                     if stop == true then
