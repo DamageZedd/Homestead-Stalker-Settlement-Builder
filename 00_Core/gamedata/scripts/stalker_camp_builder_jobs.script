@@ -564,7 +564,11 @@ function stalker_camp_builder.process_ammo_crafting(npc_id, box_id, camp, surviv
     local hub_id = (camp and camp.hub_id) or fallback_box_id or box_id
     local craft_order = survivor and survivor.craft_order or "auto"
 
-    if sb.is_camp_supply_capped and sb.is_camp_supply_capped(hub_id, camp, "ammo", craft_order) then
+    local ammo_capped, ammo_room = false, nil
+    if sb.is_camp_supply_capped then
+        ammo_capped, ammo_room = sb.is_camp_supply_capped(hub_id, camp, "ammo", craft_order)
+    end
+    if ammo_capped then
         local npc = level.object_by_id(npc_id)
         local npc_name = npc and npc:character_name() or (survivor and survivor.name or "Survivor")
         sb.camp_send_tip(db.actor, string.format(game.translate_string("st_job_ammo_stocked"), npc_name), nil, "general_stalker", 10000)
@@ -683,6 +687,8 @@ function stalker_camp_builder.process_ammo_crafting(npc_id, box_id, camp, surviv
         local spec_mult = (sb.get_specialization_mult and camp and sb.get_specialization_mult(camp, "craft")) or 1.0
         local total_craft = base_mult * tier_mult * spec_mult
         local mult = math.max(1, math.floor(total_craft) + (math.random() < (total_craft - math.floor(total_craft)) and 1 or 0))
+        -- the batch tops the stock up to its cap and no further, as the medic's does
+        if type(ammo_room) == "number" then mult = math.max(1, math.min(mult, ammo_room)) end
         local h_id = (camp and camp.hub_id) or fallback_box_id or box_id
         if sb.deposit_item_to_camp and camp and h_id then
             for i = 1, mult do
