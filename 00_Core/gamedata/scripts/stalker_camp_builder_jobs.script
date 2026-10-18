@@ -1428,15 +1428,16 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
     elseif job == "woodcutter" then
         local mode = survivor.woodcutter_mode or "auto"
         if mode == "charcoal" then
+            -- process_woodcutter_job burns a batch of 5 and waits for them
             if snap then
-                if snap.wood_count <= 0 then
-                    return true, "No Wood", "Requires wood parts in camp storage to burn charcoal"
+                if snap.wood_count < 5 then
+                    return true, "Need 5 Wood Scraps", "Requires 5 wood parts in camp storage to burn charcoal"
                 end
                 return false, nil, nil
             end
-            local has_wood = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_wood_part)
-            if not has_wood then
-                return true, "No Wood", "Requires wood parts in camp storage to burn charcoal"
+            local wood = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_wood_part, 5)) or 0
+            if wood < 5 then
+                return true, "Need 5 Wood Scraps", "Requires 5 wood parts in camp storage to burn charcoal"
             end
         end
         return false, nil, nil
@@ -1968,7 +1969,9 @@ function stalker_camp_builder.process_electrician_job(npc_id, hub_id, camp, surv
             sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
                 if not sec or dead_batt_id then return end
                 local s = sec:lower()
-                if s == "batteries_dead" or (s:find("battery") and cond and cond < 0.95) then
+                -- batteries_dead is the "Batteries" item the lamps burn (their fuel_section), its
+                -- condition the charge: a drained one is recharged in place, online, where it takes it
+                if cl_item and (s == "batteries_dead" or s:find("battery")) and cond and cond < 0.95 then
                     dead_batt_id = item_id
                     dead_batt_sec = sec
                     return true
@@ -1978,15 +1981,9 @@ function stalker_camp_builder.process_electrician_job(npc_id, hub_id, camp, surv
         if dead_batt_id then
             local se_b = alife_object(dead_batt_id)
             if se_b then
-                if dead_batt_sec == "batteries_dead" then
-                    alife_release(se_b)
-                    sb.deposit_item_to_camp(hub_id, camp, "batteries_commercial")
-                else
-                    local cl_b = level.object_by_id(dead_batt_id)
-                    if cl_b and cl_b.set_condition then
-                        pcall(function() cl_b:set_condition(1.0) end)
-                    end
-                    if se_b.condition then pcall(function() se_b.condition = 1.0 end) end
+                local cl_b = level.object_by_id(dead_batt_id)
+                if cl_b and cl_b.set_condition then
+                    pcall(function() cl_b:set_condition(1.0) end)
                 end
                 if survivor then survivor.shortfall_reason = nil end
                 local batt_tip = game.translate_string("st_job_electrician_recharged_batt")
@@ -3102,7 +3099,11 @@ function stalker_camp_builder.update_camp_jobs()
                             end
 
                             if not last_did_work then
-                                survivor.paused_elapsed = math.max(0, effective_interval - 30)
+                                -- an ambush, or an electrician with nothing to service, spends the cycle;
+                                -- a job short of supplies looks again in 30 s
+                                local spent = survivor.shortfall_reason == "Ambushed"
+                                    or survivor.shortfall_reason == "Grid Fully Powered"
+                                survivor.paused_elapsed = spent and 0 or math.max(0, effective_interval - 30)
                                 survivor.job_start_realtime = tg - (survivor.paused_elapsed * 1000)
                                 survivor.job_start_time = current_sec - (survivor.paused_elapsed * tf)
                                 if not survivor.shortfall_reason then
