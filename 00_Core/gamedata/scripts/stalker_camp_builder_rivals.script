@@ -1766,6 +1766,7 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
     local purged_any = false
     local v_target_chest = vector()
     local v_new_decor = vector()
+    local v_probe = vector()
     local v_decor_angle = vector()
 
     for key, camp in pairs(sb.rival_camps) do
@@ -1801,14 +1802,39 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
                     local parent_smart = (camp.smart_name and SIMBOARD and SIMBOARD.smarts_by_names) and SIMBOARD.smarts_by_names[camp.smart_name]
                     local smart_y = parent_smart and parent_smart.position.y
 
-                    local clvid, cvpos, c_surface_y = find_ground_anchor(pos.x, pos.z, pos.y, smart_y)
+                    -- the spot was picked on another level, untested: in a wall, a building or rubble the
+                    -- chest has no AI node under it and may be out of the player's reach. Until the outpost
+                    -- is snapped, such a chest steps toward its smart terrain to the first spot with a node,
+                    -- or to the smart terrain's own, and the furniture moves with it
+                    local shift_x, shift_z = 0, 0
+                    local smart_lvid = parent_smart and parent_smart.m_level_vertex_id
+                    if smart_lvid and smart_lvid < 4294967295 and not (camp.snapped and camp.ground_snapped_v4) then
+                        local under = level.vertex_id(v_probe:set(pos.x, pos.y, pos.z))
+                        if not (under and under < 4294967295) then
+                            local sp = parent_smart.position
+                            local to_x, to_z = sp.x - pos.x, sp.z - pos.z
+                            local dist = msqrt(to_x * to_x + to_z * to_z)
+                            local node = smart_lvid
+                            for t = 0.5, dist, 0.5 do
+                                local id = level.vertex_id(v_probe:set(pos.x + to_x * t / dist, pos.y, pos.z + to_z * t / dist))
+                                if id and id < 4294967295 then
+                                    node = id
+                                    break
+                                end
+                            end
+                            local np = level.vertex_position(node)
+                            shift_x, shift_z = np.x - pos.x, np.z - pos.z
+                        end
+                    end
+
+                    local clvid, cvpos, c_surface_y = find_ground_anchor(pos.x + shift_x, pos.z + shift_z, pos.y, smart_y)
                     local target_lvid = clvid or se_chest.m_level_vertex_id
                     if (not target_lvid or target_lvid >= 4294967295 or target_lvid == -1) and parent_smart then
                         target_lvid = parent_smart.m_level_vertex_id
                     end
 
-                    local target_x = pos.x
-                    local target_z = pos.z
+                    local target_x = pos.x + shift_x
+                    local target_z = pos.z + shift_z
                     if cvpos and ((target_x - cvpos.x)^2 + (target_z - cvpos.z)^2 > 9.0) then
                         target_x = cvpos.x
                         target_z = cvpos.z
@@ -1846,9 +1872,10 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
                             local is_decor = se_decor and sb.is_camp_decor(camp, dec_id, se_decor)
                             if is_decor then
                                 local dpos = se_decor.position
-                                local dlvid, dvpos, d_surface_y, d_has_vis = find_ground_anchor(dpos.x, dpos.z, dpos.y, target_chest_y)
+                                local decor_x, decor_z = dpos.x + shift_x, dpos.z + shift_z
+                                local dlvid, dvpos, d_surface_y, d_has_vis = find_ground_anchor(decor_x, decor_z, dpos.y, target_chest_y)
                                 if not d_has_vis then
-                                    local dlvid2, dvpos2, d_surface_y2, d_has_vis2 = find_ground_anchor(dpos.x, dpos.z, target_chest_y, target_chest_y)
+                                    local dlvid2, dvpos2, d_surface_y2, d_has_vis2 = find_ground_anchor(decor_x, decor_z, target_chest_y, target_chest_y)
                                     if d_has_vis2 then
                                         dlvid = dlvid2 or dlvid
                                         dvpos = dvpos2 or dvpos
@@ -1877,7 +1904,7 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
                                 local should_reanchor = needs_snap or decor_is_underground or decor_is_floating
 
                                 if should_reanchor and sec ~= "" and ini_sys:section_exist(sec) then
-                                    local new_dpos = v_new_decor:set(dpos.x, final_decor_y, dpos.z)
+                                    local new_dpos = v_new_decor:set(decor_x, final_decor_y, decor_z)
                                     se_decor.position = new_dpos
                                     se_decor.m_level_vertex_id = final_dlvid
                                     se_decor.m_game_vertex_id = dgvid
