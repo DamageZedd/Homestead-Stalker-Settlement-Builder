@@ -74,6 +74,11 @@ local function is_lamp_battery(sec) return LAMP_BATTERIES[sec] == true end
 local function is_gunpowder(sec) return GUNPOWDER_TIER[sec] ~= nil end
 local function is_scrap(sec) return sec and CRAFT_SCRAP[sec:lower()] == true end
 local function is_cloth(sec) return sec and MEDIC_CLOTH[sec:lower()] == true end
+-- what the brewer distills when the camp has no clean water
+local function is_fermentable(sec)
+    if not sec then return false end
+    return sec == "bread" or sec == "breadold" or sec == "corn" or sec == "beans" or sec == "tomato" or sec:find("potato") ~= nil
+end
 
 -- get_camp_inventory_snapshot (main script) counts materials with the jobs' own tests
 stalker_camp_builder.is_wood_part = is_wood_part
@@ -82,6 +87,7 @@ stalker_camp_builder.is_lamp_battery = is_lamp_battery
 stalker_camp_builder.is_gunpowder = is_gunpowder
 stalker_camp_builder.is_scrap = is_scrap
 stalker_camp_builder.is_cloth = is_cloth
+stalker_camp_builder.is_fermentable = is_fermentable
 
 -- set_survivor_job -- assigns a job to a settler and re-syncs their
 function stalker_camp_builder.set_survivor_job(npc_id, job)
@@ -1454,17 +1460,13 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
             return true, "No Still", "Camp requires a placed Milk Can (Bidon) or Stove"
         end
         if snap then
-            if snap.clean_water_count <= 0 then
-                return true, "No Water", "Requires clean water in camp storage to distill vodka"
+            if snap.clean_water_count <= 0 and snap.fermentable_count <= 0 then
+                return true, "No Water/Grains", "Requires clean water or fermentable grains/vegetables in camp storage to distill alcohol"
             end
             if snap.wood_count < 10 then
                 return true, "Need Wood", "Requires 10 wood parts in camp storage to distill vodka"
             end
             return false, nil, nil
-        end
-        local function is_fermentable(sec)
-            if not sec then return false end
-            return sec == "bread" or sec == "breadold" or sec == "corn" or sec == "beans" or sec == "tomato" or sec:find("potato") ~= nil
         end
         local has_water = (sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_clean_water))
                        or (sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_fermentable))
@@ -2200,11 +2202,6 @@ function stalker_camp_builder.process_brewer_job(npc_id, hub_id, camp, survivor,
     if wood < 10 then
         if survivor then survivor.shortfall_reason = "Need Wood" end
         return false
-    end
-
-    local function is_fermentable(sec)
-        if not sec then return false end
-        return sec == "bread" or sec == "breadold" or sec == "corn" or sec == "beans" or sec == "tomato" or sec:find("potato") ~= nil
     end
 
     local consumed_water = sb.find_and_consume_item(hub_id, camp, is_clean_water, nil)
