@@ -2664,9 +2664,15 @@ function stalker_camp_builder.upgrade_rival_camp_tier(camp, new_tier)
         local sin_r = math.sin(camp_rot)
 
         -- Tier 3 Fortified Stronghold: heavy fortified rear wall, second shelter cot, heavy logistics
+        -- The two rear segments meet the ends of the tier 1 wall, turned 18 degrees. Even More Hideout
+        -- Furniture's walls are 2.35 m (wall02) or 4.7 m (wall, wall_metal) wide: at a fixed offset the
+        -- wide ones cross the tier 1 wall and each other
+        local wall_box = theme.wall_main and ini_sys:r_string_ex(theme.wall_main, "bounding_box_size")
+        local wall_w = tonumber(wall_box and wall_box:match("^%s*([%d%.]+)")) or 2.35
+        local wall_dx = wall_w * 0.5 * (1 + math.cos(math.pi * 0.1))
         local t3_elements = {
-            { section = theme.wall_main,     lx = -2.2, lz = -3.2, yaw = math.pi * 0.1 },
-            { section = theme.wall_main,     lx = 2.2,  lz = -3.2, yaw = -math.pi * 0.1 },
+            { section = theme.wall_main,     lx = -wall_dx, lz = -3.2, yaw = math.pi * 0.1 },
+            { section = theme.wall_main,     lx = wall_dx,  lz = -3.2, yaw = -math.pi * 0.1 },
             { section = theme.cover,         lx = -3.4, lz = 0.0,  yaw = 0.0 },
             { section = theme.cover,         lx = 3.4,  lz = 0.0,  yaw = 0.0 },
             { section = theme.bed,           lx = -2.2, lz = 0.8,  yaw = math.pi * 0.5 },
