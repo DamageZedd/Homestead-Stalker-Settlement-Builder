@@ -115,7 +115,7 @@ function stalker_camp_builder.set_survivor_job(npc_id, job)
                     surv.paused_job = nil
                     local online_npc = level.object_by_id(id_num or matched_id)
                     if sb.purge_settler_companion_and_squad_state then
-                        sb.purge_settler_companion_and_squad_state(id_num or matched_id, online_npc, false)
+                        sb.purge_settler_companion_and_squad_state(id_num or matched_id, online_npc, false, true)
                     elseif online_npc then
                         if axr_companions and axr_companions.remove_from_actor_squad then
                             axr_companions.remove_from_actor_squad(online_npc)
