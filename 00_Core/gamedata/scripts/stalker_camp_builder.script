@@ -8098,6 +8098,8 @@ function stalker_camp_builder.deposit_item_to_camp(hub_id, camp, sec, is_yellow,
 
     local ini = ini_sys or sys_ini or system_ini()
     if not sec or not ini or not ini:section_exist(sec) then return nil end
+    -- a section that is not an object (a postprocess or settings block) would be a fatal spawn
+    if not ini:line_exist(sec, "class") then return nil end
     local item_w = (ini and ini:r_float_ex(sec, "inv_weight")) or 0.1
     -- one frame's deposits share box weights: an online box lists a new item only once the client
     -- has processed its spawn, so weighing it again would miss the items created before this one
