@@ -2975,7 +2975,7 @@ function stalker_camp_builder.update_camp_jobs()
                                             did_work = false
                                             if survivor then survivor.shortfall_reason = "No Chest Available" end
                                             if not is_catchup then
-                                                sb.camp_send_tip(actor, string.format(game.translate_string("st_job_scavenger_no_chest"), survivor.name), nil, "general_stalker", 10000, nil, false)
+                                                sb.camp_send_tip(actor, string.format(game.translate_string("st_job_scavenger_no_chest"), survivor.name), nil, "general_stalker", 10000, nil, "expedition")
                                             end
                                         end
                                     end
@@ -3027,7 +3027,7 @@ function stalker_camp_builder.update_camp_jobs()
                                             did_work = false
                                             if survivor then survivor.shortfall_reason = "No Storage for Meat" end
                                             if not is_catchup then
-                                                sb.camp_send_tip(actor, string.format(game.translate_string("st_job_hunter_no_chest"), survivor.name), nil, "general_stalker", 10000, nil, false)
+                                                sb.camp_send_tip(actor, string.format(game.translate_string("st_job_hunter_no_chest"), survivor.name), nil, "general_stalker", 10000)
                                             end
                                         end
                                     end

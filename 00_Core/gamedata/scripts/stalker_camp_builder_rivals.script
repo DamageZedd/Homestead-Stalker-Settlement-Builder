@@ -1109,6 +1109,8 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                         camp.extra_squad_ids = nil
                         camp.cleared = true
                         camp.despawn_chest_when_empty = true
+                        camp.pending_skirmish = nil
+                        camp.pending_skirmish_resolve_time = nil
 
                         sb.sync_rival_camp_map_spot(camp)
 
@@ -1222,9 +1224,11 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
 
                     -- 1. Trigger SOS distress encounter with a 3-minute response window
                     if not is_on_cooldown and not camp.pending_skirmish and mrandom(1000) <= 5 then -- 0.5% roll every 10s tick
+                        local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
+                        if tf <= 0 then tf = 10 end
                         camp.skirmish_cooldown_until = current_sec + skirmish_cooldown_sec
                         camp.pending_skirmish = true
-                        camp.pending_skirmish_resolve_time = current_sec + 180 -- 3-minute (180s) response countdown
+                        camp.pending_skirmish_resolve_time = current_sec + (180 * tf) -- 3 real minutes (180s) response countdown
 
                         if sb.cfg.rival_camp_distress_calls ~= false and not camp.sos_broadcasted and camp.status ~= "mutant_nest" then
                             local actor_comm = (actor and actor.character_community) and actor:character_community() or "stalker"
@@ -1355,6 +1359,8 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                 camp.extra_squad_ids = nil
                 camp.cleared = true
                 camp.despawn_chest_when_empty = true
+                camp.pending_skirmish = nil
+                camp.pending_skirmish_resolve_time = nil
 
                 sb.sync_rival_camp_map_spot(camp)
 
@@ -1405,6 +1411,8 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                 enforce_rival_camp_survivor_cap(camp, true)
                 camp.cleared = false
                 camp.despawn_chest_when_empty = nil
+                camp.pending_skirmish = nil
+                camp.pending_skirmish_resolve_time = nil
                 camp.setup_sec = current_sec
                 camp.setup_duration = mrandom(21600, 64800) -- 6 to 18 game hours
                 camp.skirmish_cooldown_until = current_sec + 21600
@@ -3046,6 +3054,8 @@ function stalker_camp_builder.transform_to_mutant_nest(camp, mutant_type)
     camp.cleared = false
     camp.unoccupied_time = nil
     camp.despawn_chest_when_empty = nil
+    camp.pending_skirmish = nil
+    camp.pending_skirmish_resolve_time = nil
     -- the pack's stay starts now; the lost garrison's timer doesn't carry over
     camp.setup_sec = sb.game_sec()
     camp.setup_duration = mrandom(21600, 64800) -- 6 to 18 in-game hours

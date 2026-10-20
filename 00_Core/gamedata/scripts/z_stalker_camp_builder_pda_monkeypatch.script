@@ -354,8 +354,9 @@ function on_game_start()
             pcall(function() prof = se_obj:profile_name() end)
             if (not prof) or prof == "" or prof == "(null)" or prof == "nil" then
                 local fallback = get_safe_profile_for_se(se_obj)
-                pcall(function() se_obj:set_profile_name(fallback) end)
-                printf("[Homestead Shield] Fixed missing character_profile on stalker id=%s sec=%s -> assigned '%s'", tostring(se_obj.id), tostring(se_obj:section_name()), tostring(fallback))
+                if pcall(function() se_obj:set_profile_name(fallback) end) then
+                    printf("[Homestead Shield] Fixed missing character_profile on stalker id=%s sec=%s -> assigned '%s'", tostring(se_obj.id), tostring(se_obj:section_name()), tostring(fallback))
+                end
             end
         end
     end
@@ -375,7 +376,8 @@ function on_game_start()
     end
 
     if RegisterScriptCallback then
-        RegisterScriptCallback("load_state", sanitize_all_stalker_profiles)
+        -- not load_state: it comes before the save's objects are read (CALifeStorageManager_load),
+        -- so a sweep there walks 65534 empty ids; on_register and the first update cover a load
         RegisterScriptCallback("actor_on_first_update", sanitize_all_stalker_profiles)
         RegisterScriptCallback("server_entity_on_register", sanitize_se_profile)
     end
