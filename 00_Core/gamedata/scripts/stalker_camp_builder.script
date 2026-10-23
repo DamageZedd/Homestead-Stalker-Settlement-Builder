@@ -138,6 +138,13 @@ function patch_watchdog_lag_protection()
         if ui_debug_launcher and ui_debug_launcher.UIDebug_ItemSpawn then
             if not ui_debug_launcher.UIDebug_ItemSpawn._homestead_spawn_hooked then
                 ui_debug_launcher.UIDebug_ItemSpawn._homestead_spawn_hooked = true
+                local orig_spawn = ui_debug_launcher.UIDebug_ItemSpawn.Spawn
+                if orig_spawn then
+                    ui_debug_launcher.UIDebug_ItemSpawn.Spawn = function(self, section, ...)
+                        grant_watchdog_immunity()
+                        return orig_spawn(self, section, ...)
+                    end
+                end
                 local orig_action_spawn = ui_debug_launcher.UIDebug_ItemSpawn.Action_SpawnItem
                 if orig_action_spawn then
                     ui_debug_launcher.UIDebug_ItemSpawn.Action_SpawnItem = function(self, ...)
@@ -189,6 +196,71 @@ function patch_detec_bone_hide_guard()
 end
 patch_detec_bone_hide_guard()
 safe_register_callback("actor_on_first_update", patch_detec_bone_hide_guard)
+
+-- Task Manager Crash Guard: prevents fatal [C] __index crashes
+-- during task_manager:update() when tasks evaluate inventory items or hold dangling CGameTask handles
+function patch_task_manager_guard()
+    if task_manager and task_manager.CRandomTask and not task_manager.CRandomTask._homestead_guarded then
+        task_manager.CRandomTask._homestead_guarded = true
+        local orig_update = task_manager.CRandomTask.update
+        task_manager.CRandomTask.update = function(self, ...)
+            if self.task_info then
+                for k, v in pairs(self.task_info) do
+                    local tsk = self.task_info[k]
+                    if tsk and tsk.check_task then
+                        local ok, err = pcall(tsk.check_task, tsk)
+                        if not ok then
+                            printf("[Homestead Task Guard] Task [%s] error in check_task: %s", tostring(k), tostring(err))
+                            if tsk.t then
+                                tsk.t = nil
+                            end
+                        end
+                    end
+                    if tsk and tsk.timeout and tsk.repeat_timeout and game and game.get_game_time then
+                        local ok_time, diff = pcall(function() return game.get_game_time():diffSec(tsk.timeout) end)
+                        if ok_time and diff and diff > tsk.repeat_timeout then
+                            if ui_options and ui_options.get and ui_options.get("alife/dynamic_news/nearby_activity_news") then
+                                pcall(function()
+                                    if dynamic_news_manager and dynamic_news_manager.get_dynamic_news then
+                                        dynamic_news_manager.get_dynamic_news():GossipTaskRepeatTimeout(k)
+                                    end
+                                end)
+                            end
+                            local has_eng_task = false
+                            if db.actor and db.actor.get_task then
+                                pcall(function() has_eng_task = db.actor:get_task(k, true) ~= nil end)
+                            end
+                            if not has_eng_task then
+                                self.task_info[k] = nil
+                            end
+                        end
+                    end
+                end
+            else
+                pcall(orig_update, self, ...)
+            end
+        end
+    end
+end
+patch_task_manager_guard()
+safe_register_callback("actor_on_first_update", patch_task_manager_guard)
+
+-- Actor Binder Guard: wraps bind_stalker.actor_binder.update in pcall
+-- to prevent any unhandled engine update exceptions from deadlocking or crashing the process
+function patch_actor_binder_guard()
+    if bind_stalker and bind_stalker.actor_binder and not bind_stalker.actor_binder._homestead_guarded then
+        bind_stalker.actor_binder._homestead_guarded = true
+        local orig_update = bind_stalker.actor_binder.update
+        bind_stalker.actor_binder.update = function(self, delta)
+            local ok, err = pcall(orig_update, self, delta)
+            if not ok then
+                printf("[Homestead Guard] bind_stalker actor_binder update error: %s", tostring(err))
+            end
+        end
+    end
+end
+patch_actor_binder_guard()
+safe_register_callback("actor_on_first_update", patch_actor_binder_guard)
 
 stalker_camp_builder.settler_lookup = stalker_camp_builder.settler_lookup or {}
 
@@ -7135,6 +7207,8 @@ function on_game_start()
     patch_item_artefact_binder_save()
     patch_watchdog_lag_protection()
     patch_detec_bone_hide_guard()
+    patch_task_manager_guard()
+    patch_actor_binder_guard()
     -- v1.1.7: map_spot_menu_* callbacks are registered once at the end of
     pcall(function()
         local function get_weapon_repair_tier(sec)
