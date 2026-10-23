@@ -4,6 +4,7 @@
 
 	<requiredInstallFiles>
 		<folder source="00_Core/gamedata" destination="gamedata" priority="0" />
+		<folder source="HomesteadHF/gamedata" destination="gamedata" priority="0" />
 	</requiredInstallFiles>
 
 	<installSteps order="Explicit">

@@ -326,9 +326,23 @@ function stalker_camp_builder.spawn_hunted_meat(box_id, multiplier, hub_id, camp
         end
     end
 
+    local has_hunter_station = false
+    if camp and camp.structures then
+        for _, stype in pairs(camp.structures) do
+            if stype == "hunter_station" then
+                has_hunter_station = true
+                break
+            end
+        end
+    end
+
     local min_m = sb.cfg.hunter_min_meat or 1
     local max_m = sb.cfg.hunter_max_meat or 2
     if min_m > max_m then min_m, max_m = max_m, min_m end
+    if has_hunter_station then
+        max_m = max_m + 1
+        multiplier = multiplier * 1.5
+    end
     local num_items = math.max(1, math.floor(math.random(min_m, max_m) * multiplier + 0.5))
     local deposited_meats = {}
     for i = 1, num_items do
@@ -351,6 +365,36 @@ function stalker_camp_builder.spawn_hunted_meat(box_id, multiplier, hub_id, camp
                     local gvi = box_se.m_game_vertex_id or 0
                     alife():create(sec, pos, lvid, gvi, target_box)
                     deposited_meats[#deposited_meats+1] = sec
+                end
+            end
+        end
+    end
+
+    -- Hunter Station Bonus: Cured Mutant Pelts & Hunting Trophies
+    if has_hunter_station then
+        -- 75% chance to harvest/cure a mutant pelt
+        if math.random(100) <= 75 then
+            local pelt_table = {"hide_pseudodog", "hide_boar", "hide_flesh", "hide_dog", "hide_chimera", "hide_bloodsucker", "hide_burer"}
+            local psec = pelt_table[math.random(#pelt_table)]
+            if psec and ini_sys and ini_sys.section_exist and ini_sys:section_exist(psec) then
+                if camp and hub_id and sb.deposit_item_to_camp then
+                    local dep_b = sb.deposit_item_to_camp(hub_id, camp, psec)
+                    if dep_b then deposited_meats[#deposited_meats+1] = psec end
+                end
+            end
+        end
+        -- 60% chance to harvest a pristine hunting trophy
+        if math.random(100) <= 60 then
+            local trophy_table = {
+                "mutant_part_boar_leg", "mutant_part_flesh_eye", "mutant_part_dog_tail",
+                "mutant_part_psevdodog_tail", "mutant_part_krovosos_jaw", "mutant_part_snork_leg",
+                "mutant_part_chimera_claw", "mutant_part_cat_tail", "mutant_part_burer_hand"
+            }
+            local tsec = trophy_table[math.random(#trophy_table)]
+            if tsec and ini_sys and ini_sys.section_exist and ini_sys:section_exist(tsec) then
+                if camp and hub_id and sb.deposit_item_to_camp then
+                    local dep_b = sb.deposit_item_to_camp(hub_id, camp, tsec)
+                    if dep_b then deposited_meats[#deposited_meats+1] = tsec end
                 end
             end
         end
@@ -688,10 +732,21 @@ function stalker_camp_builder.process_ammo_crafting(npc_id, box_id, camp, surviv
             alife_release(se_scrap)
         end
 
+        local has_ammo_bench = false
+        if camp and camp.structures then
+            for s_id, s_type in pairs(camp.structures) do
+                if s_type == "ammo_bench" then
+                    has_ammo_bench = true
+                    break
+                end
+            end
+        end
+
         local base_mult = math.max(1, math.floor(sb.cfg.craft_output_multiplier or 1))
         local tier_mult = (sb.get_survivor_tier_mult and survivor and sb.get_survivor_tier_mult(survivor)) or 1.0
         local spec_mult = (sb.get_specialization_mult and camp and sb.get_specialization_mult(camp, "craft")) or 1.0
-        local total_craft = base_mult * tier_mult * spec_mult
+        local bench_bonus = has_ammo_bench and 1 or 0
+        local total_craft = (base_mult * tier_mult * spec_mult) + bench_bonus
         local mult = math.max(1, math.floor(total_craft) + (math.random() < (total_craft - math.floor(total_craft)) and 1 or 0))
         -- the batch tops the stock up to its cap and no further, as the medic's does
         if type(ammo_room) == "number" then mult = math.max(1, math.min(mult, ammo_room)) end
@@ -713,7 +768,8 @@ function stalker_camp_builder.process_ammo_crafting(npc_id, box_id, camp, surviv
 
         local npc = level.object_by_id(npc_id)
         local npc_name = npc and npc:character_name() or (survivor and survivor.name or "Survivor")
-        sb.camp_send_tip(db.actor, string.format(game.translate_string("st_job_ammo_crafted"), npc_name, ui_item.get_sec_name(spawned_ammo)), nil, "general_stalker", 10000)
+        local tip_str = has_ammo_bench and game.translate_string("st_job_crafter_bench_work") or game.translate_string("st_job_ammo_crafted")
+        sb.camp_send_tip(db.actor, string.format(tip_str, npc_name, ui_item.get_sec_name(spawned_ammo)), nil, "general_stalker", 10000)
         if survivor then survivor.shortfall_reason = nil end
         return true
     end
@@ -804,7 +860,9 @@ function stalker_camp_builder.process_gear_repair(npc_id, box_id, camp, survivor
     local ws = m_data and m_data.workshop_stashes or {}
     local wb_set = {}
     local has_wb = false
+    local has_repair_bench = false
     for sid, stype in pairs(camp and camp.structures or {}) do
+        if stype == "repair_bench" then has_repair_bench = true end
         if stype == "workbench" or stype == "repair_bench" then wb_set[ws[sid] or sid] = true; has_wb = true end
     end
     -- the settlement's own Workshop (the hub) counts as a workbench too
@@ -878,7 +936,8 @@ function stalker_camp_builder.process_gear_repair(npc_id, box_id, camp, survivor
                     cur_cond = se_rep.condition
                 end
 
-                local repair_inc = ((sb.cfg.repair_percent_per_cycle or 25) / 100.0) * spec_mult
+                local bench_mult = has_repair_bench and 1.5 or 1.0
+                local repair_inc = ((sb.cfg.repair_percent_per_cycle or 25) / 100.0) * spec_mult * bench_mult
                 local new_cond = mmin(1.0, cur_cond + repair_inc)
 
                 pcall(function() se_rep.condition = new_cond end)
@@ -937,11 +996,48 @@ function stalker_camp_builder.process_gear_repair(npc_id, box_id, camp, survivor
                     local npc = level.object_by_id(npc_id)
                     local npc_name = npc and npc:character_name() or (survivor and survivor.name or "Survivor")
                     local pct_str = tostring(mfloor(new_cond * 100))
-                    sb.camp_send_tip(db.actor, string.format(game.translate_string("st_job_gear_repaired"), npc_name, item_name, pct_str), nil, "general_stalker", 10000)
+                    local tip_fmt = has_repair_bench and game.translate_string("st_job_technician_station_work") or game.translate_string("st_job_gear_repaired")
+                    sb.camp_send_tip(db.actor, string.format(tip_fmt, npc_name, item_name, pct_str), nil, "general_stalker", 10000)
                 end
             end
         else
             break  -- no more items to repair
+        end
+    end
+
+    if has_repair_bench and not repaired_any then
+        -- Passive camp weapon maintenance: clean and tune weapons up to 80% condition for free
+        local passive_item_id, passive_item_name = nil, ""
+        sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
+            if not sec then return end
+            if not passive_item_id and wb_set[cid] then
+                local is_wpn = false
+                if cl_item then
+                    pcall(function() is_wpn = IsWeapon(cl_item) end)
+                end
+                if not is_wpn and sec:find("wpn_") then is_wpn = true end
+                if is_wpn and cond and cond < 0.80 then
+                    passive_item_id = item_id
+                    passive_item_name = ui_item.get_sec_name(sec)
+                    return true
+                end
+            end
+        end, box_id)
+        if passive_item_id then
+            local se_wpn = alife_object(passive_item_id)
+            if se_wpn then
+                local cl_wpn = level.object_by_id(passive_item_id)
+                local cur_c = (cl_wpn and cl_wpn:condition()) or se_wpn.condition or 0.5
+                local target_c = mmin(0.80, cur_c + 0.15)
+                pcall(function() se_wpn.condition = target_c end)
+                if cl_wpn and cl_wpn.set_condition then
+                    pcall(function() cl_wpn:set_condition(target_c) end)
+                end
+                repaired_any = true
+                local npc = level.object_by_id(npc_id)
+                local npc_name = npc and npc:character_name() or (survivor and survivor.name or "Survivor")
+                sb.camp_send_tip(db.actor, string.format(game.translate_string("st_job_technician_passive_maintenance"), npc_name), nil, "general_stalker", 10000)
+            end
         end
     end
 
@@ -1251,24 +1347,27 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
 
     elseif job == "repair" then
         local has_workbench = false
+        local has_repair_bench = false
         for struct_id, struct_type in pairs_(camp.structures or {}) do
-            if struct_type == "workbench" or check_container(struct_id) then
+            if struct_type == "repair_bench" then
+                has_repair_bench = true
                 has_workbench = true
-                break
+            elseif struct_type == "workbench" or check_container(struct_id) then
+                has_workbench = true
             end
         end
         if not has_workbench and (camp.hub_id or hub_id) then
             has_workbench = true
         end
         if not has_workbench then
-            return true, "No Workbench", "Settlement requires an assembled Workbench"
+            return true, "No Workbench", "Settlement requires a Repair Bench or Workbench"
         end
 
         if snap then
             if not snap.has_damaged_gear then
                 return true, "No Damaged Gear", "No damaged weapons or armor (<95%) to repair"
             end
-            if not snap.has_repair_fee then
+            if not snap.has_repair_fee and not has_repair_bench then
                 return true, "Needs Vodka/Food", "Technician requires vodka or canned food provisions"
             end
             return false, nil, nil
@@ -1410,11 +1509,17 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
 
     elseif job == "electrician" then
         local has_lights = false
+        local has_generator_station = false
         for struct_id, struct_type in pairs_(camp.structures or {}) do
             if struct_type == "light" then
                 has_lights = true
-                break
+            elseif struct_type == "generator_station" then
+                has_generator_station = true
             end
+        end
+        if has_generator_station then
+            -- Generator station powers the grid and charges small battery packs without external lamp dependencies
+            return false, nil, nil
         end
         if not has_lights then
             return true, "No Lamps", "Camp has no lamps or spotlights to power/maintain"
@@ -1925,31 +2030,33 @@ function stalker_camp_builder.process_medic_job(npc_id, box_id, camp, survivor)
     return true
 end
 
--- Electrician job: recharge lamp conditions using batteries/mechanical waste
+-- Electrician job: recharge lamp conditions using batteries/mechanical waste, or run generator station
 function stalker_camp_builder.process_electrician_job(npc_id, hub_id, camp, survivor)
     local actor = db.actor
     local sformat = string.format
     local sb = stalker_camp_builder
     if not camp or not camp.structures then return 0 end
 
+    local has_generator_station = false
     local lights = {}
     for struct_id, stype in pairs(camp.structures) do
-        if stype == "light" then
+        if stype == "generator_station" then
+            has_generator_station = true
+        elseif stype == "light" then
             lights[#lights+1] = struct_id
         end
     end
 
-    if #lights == 0 then
-        local npc = level.object_by_id(npc_id)
+    local npc = level.object_by_id(npc_id)
+    local name = npc and npc:character_name() or "Survivor"
+
+    if not has_generator_station and #lights == 0 then
         if npc then
-            sb.camp_send_tip(db.actor, string.format(game.translate_string("st_job_electrician_no_lamps"), npc and npc:character_name() or "Survivor"), nil, "general_stalker", 8000)
+            sb.camp_send_tip(db.actor, sformat(game.translate_string("st_job_electrician_no_lamps"), name), nil, "general_stalker", 8000)
         end
         if survivor then survivor.shortfall_reason = "No Lamps" end
         return 0
     end
-
-    local npc = level.object_by_id(npc_id)
-    local name = npc and npc:character_name() or "Survivor"
 
     -- a lamp burns fuel only while it is online and switched on (its binder's update), so a
     -- battery goes only to lamps under half their fuel
@@ -1962,20 +2069,115 @@ function stalker_camp_builder.process_electrician_job(npc_id, hub_id, camp, surv
             end
         end
     end
-    if #low == 0 then
-        -- Secondary duty: recharge drained or dead batteries in camp storage
-        local tier_mult = (sb.get_survivor_tier_mult and survivor and sb.get_survivor_tier_mult(survivor)) or 1.0
+
+    local serviced_lamps = 0
+    if #low > 0 then
+        local power_available = false
+        if has_generator_station then
+            -- Generator station powers the camp grid directly: zero battery drain from storage!
+            power_available = true
+        else
+            local consumed = sb.find_and_consume_item(hub_id, camp, is_lamp_battery, nil)
+            power_available = (consumed ~= nil)
+        end
+
+        if not power_available then
+            if survivor then survivor.shortfall_reason = "No Batteries" end
+            sb.camp_send_tip(actor, sformat(game.translate_string("st_job_electrician_no_battery"), name), nil, "general_stalker", 8000)
+            return 0
+        end
+
+        for _, light_id in ipairs(low) do
+            if hf_obj_manager and hf_obj_manager.get_data and hf_obj_manager.update_data then
+                local data = hf_obj_manager.get_data(light_id)
+                if data then
+                    data.condition = 1.0
+                    hf_obj_manager.update_data(light_id, data)
+                    local obj = level.object_by_id(light_id)
+                    local binder = obj and obj:binded_object()
+                    local wrapper = binder and binder.wrapper
+                    if wrapper and wrapper.fuel then
+                        wrapper.fuel = 1.0
+                    end
+                    serviced_lamps = serviced_lamps + 1
+                end
+            end
+        end
+    end
+
+    -- Station / Battery Maintenance logic:
+    local tier_mult = (sb.get_survivor_tier_mult and survivor and sb.get_survivor_tier_mult(survivor)) or 1.0
+    local spec_mult = (sb.get_specialization_mult and camp and sb.get_specialization_mult(camp, "electrician")) or 1.0
+    local charged_count = 0
+
+    if has_generator_station then
+        -- Multi-slot charging dock active: charge small dead battery packs ("batteries_dead" / "battery_dead")
+        local is_dead_batt = function(sec)
+            if not sec then return false end
+            local s = sec:lower()
+            return s == "batteries_dead" or s == "battery_dead" or s == "ammo_battery_d"
+        end
+
+        local max_slots = math.min(4, math.max(1, math.floor(3 * tier_mult * spec_mult + 0.5)))
+        for i = 1, max_slots do
+            local consumed_dead = sb.find_and_consume_item(hub_id, camp, is_dead_batt, nil)
+            if consumed_dead then
+                -- 25% chance for high-ranked electricians to charge into military-spec C-Cell battery pack
+                local target_batt = "batteries"
+                if tier_mult > 1.2 and math.random() < 0.25 then
+                    target_batt = "batteries_ccell"
+                end
+                sb.deposit_item_to_camp(hub_id, camp, target_batt)
+                charged_count = charged_count + 1
+            else
+                break
+            end
+        end
+
+        -- If no dead batteries were available in storage, check if electrician can fabricate fresh battery packs from spare materials (copper wire + scrap)
+        if charged_count == 0 then
+            local is_copper = function(sec) return sec and (sec:lower() == "prt_i_copper" or sec:lower() == "prt_i_resistors") end
+            local has_copper = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_copper)
+            local has_scrap_item = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_scrap)
+            if has_copper and has_scrap_item then
+                sb.find_and_consume_item(hub_id, camp, is_copper, nil)
+                sb.find_and_consume_item(hub_id, camp, is_scrap, nil)
+                sb.deposit_item_to_camp(hub_id, camp, "batteries")
+                charged_count = 1
+            end
+        end
+
+        -- Condition any degraded equipment or heavy battery cells
+        if sb.camp_iterate_inventory then
+            sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
+                if not sec then return end
+                local s = sec:lower()
+                if cl_item and (s:find("battery") or s:find("detector") or s:find("torch")) and cond and cond < 0.95 then
+                    pcall(function() cl_item:set_condition(1.0) end)
+                    charged_count = charged_count + 1
+                    return true
+                end
+            end)
+        end
+
+        if survivor then survivor.shortfall_reason = nil end
+        local tip_str = game.translate_string("st_job_electrician_station_work")
+        if tip_str == "st_job_electrician_station_work" then
+            tip_str = "%s operated the generator station, recharging small battery packs (%d charged) and tuning settlement power relays!"
+        end
+        sb.camp_send_tip(actor, sformat(tip_str, name, charged_count), nil, "general_stalker", 10000)
+        return math.max(1, serviced_lamps + charged_count)
+    end
+
+    -- If no generator station, fall back to default single degraded battery recharge if lamps didn't need work
+    if serviced_lamps == 0 then
         local dead_batt_id = nil
-        local dead_batt_sec = nil
         if sb.camp_iterate_inventory then
             sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
                 if not sec or dead_batt_id then return end
                 local s = sec:lower()
-                -- batteries_dead is the "Batteries" item the lamps burn (their fuel_section), its
-                -- condition the charge: a drained one is recharged in place, online, where it takes it
                 if cl_item and (s == "batteries_dead" or s:find("battery")) and cond and cond < 0.95 then
                     dead_batt_id = item_id
-                    dead_batt_sec = sec
                     return true
                 end
             end)
@@ -1992,53 +2194,19 @@ function stalker_camp_builder.process_electrician_job(npc_id, hub_id, camp, surv
                 if batt_tip == "st_job_electrician_recharged_batt" then
                     batt_tip = "%s recharged a depleted battery cell for settlement equipment."
                 end
-                sb.camp_send_tip(actor, string.format(batt_tip, name), nil, "general_stalker", 10000)
+                sb.camp_send_tip(actor, sformat(batt_tip, name), nil, "general_stalker", 10000)
                 return 1
             end
         end
 
         if survivor then survivor.shortfall_reason = "Grid Fully Powered" end
-        sb.camp_send_tip(actor, string.format(game.translate_string("st_job_electrician_all_powered"), name), nil, "general_stalker", 8000)
+        sb.camp_send_tip(actor, sformat(game.translate_string("st_job_electrician_all_powered"), name), nil, "general_stalker", 8000)
         return 0
     end
 
-    local consumed = sb.find_and_consume_item(hub_id, camp, is_lamp_battery, nil)
-
-    -- Fix: the recharge loop used to run UNCONDITIONALLY regardless of
-    if not consumed then
-        if survivor then survivor.shortfall_reason = "No Batteries" end
-        sb.camp_send_tip(actor, string.format(game.translate_string("st_job_electrician_no_battery"), name), nil, "general_stalker", 8000)
-        return 0
-    end
-
-    local recharged = 0
-    for _, light_id in ipairs(low) do
-        if hf_obj_manager and hf_obj_manager.get_data and hf_obj_manager.update_data then
-            local data = hf_obj_manager.get_data(light_id)
-            if data then
-                data.condition = 1.0
-                hf_obj_manager.update_data(light_id, data)
-                -- an online lamp's binder keeps its fuel and writes it back over the data on
-                -- every update, so refuel the binder too
-                local obj = level.object_by_id(light_id)
-                local binder = obj and obj:binded_object()
-                local wrapper = binder and binder.wrapper
-                if wrapper and wrapper.fuel then
-                    wrapper.fuel = 1.0
-                end
-                recharged = recharged + 1
-            end
-        end
-    end
-
-    if recharged > 0 then
-        if survivor then survivor.shortfall_reason = nil end
-        sb.camp_send_tip(actor, string.format(game.translate_string("st_job_electrician_recharged"), name, recharged), nil, "general_stalker", 10000)
-        return recharged
-    else
-        sb.camp_send_tip(actor, string.format(game.translate_string("st_job_electrician_all_powered"), name), nil, "general_stalker", 8000)
-        return 0
-    end
+    if survivor then survivor.shortfall_reason = nil end
+    sb.camp_send_tip(actor, sformat(game.translate_string("st_job_electrician_recharged"), name, serviced_lamps), nil, "general_stalker", 10000)
+    return serviced_lamps
 end
 
 -- Woodcutter job: harvest timber (prt_i_wood) or burn charcoal (charcoal)
@@ -2050,6 +2218,16 @@ function stalker_camp_builder.process_woodcutter_job(npc_id, hub_id, camp, survi
     local npc = level.object_by_id(npc_id)
     local name = (npc and npc:character_name()) or (survivor and survivor.name) or "Woodcutter"
     local mode = (survivor and survivor.woodcutter_mode) or "auto"
+
+    local has_wood_station = false
+    if camp and camp.structures then
+        for s_id, s_type in pairs(camp.structures) do
+            if s_type == "wood_station" then
+                has_wood_station = true
+                break
+            end
+        end
+    end
 
     local do_charcoal = false
     if mode == "charcoal" then
@@ -2122,7 +2300,8 @@ function stalker_camp_builder.process_woodcutter_job(npc_id, hub_id, camp, survi
 
         if consumed_count >= 5 then
             local count = 3
-            if survivor and survivor.has_axe then count = count + 2 end
+            if (survivor and survivor.has_axe) or has_wood_station then count = count + 2 end
+            if has_wood_station then count = count + 1 end
             local tier_mult = (sb.get_survivor_tier_mult and survivor and sb.get_survivor_tier_mult(survivor)) or 1.0
             local spec_mult = (sb.get_specialization_mult and camp and sb.get_specialization_mult(camp, "woodcutter")) or 1.0
             if spec_mult == 1.0 and camp and camp.specialization == "farm" then
@@ -2134,7 +2313,8 @@ function stalker_camp_builder.process_woodcutter_job(npc_id, hub_id, camp, survi
                 sb.deposit_item_to_camp(hub_id, camp, "charcoal")
             end
             if survivor then survivor.shortfall_reason = nil end
-            sb.camp_send_tip(actor, string.format(game.translate_string("st_job_woodcutter_charcoal"), name, consumed_count, total_charcoal), nil, "general_stalker", 10000)
+            local tip_str = has_wood_station and game.translate_string("st_job_woodcutter_station_work") or game.translate_string("st_job_woodcutter_charcoal")
+            sb.camp_send_tip(actor, string.format(tip_str, name, total_charcoal), nil, "general_stalker", 10000)
             return true
         else
             for i = 1, consumed_count do
@@ -2154,10 +2334,13 @@ function stalker_camp_builder.process_woodcutter_job(npc_id, hub_id, camp, survi
     min_w = math.max(1, min_w)
     max_w = math.max(min_w, max_w)
     local count = mrandom(min_w, max_w)
-    if survivor and survivor.has_axe then
+    if (survivor and survivor.has_axe) or has_wood_station then
         local axe_min = math.floor(min_w * 2)
         local axe_max = math.max(axe_min, math.floor(max_w * 1.5 + 0.5))
         count = mrandom(axe_min, axe_max)
+    end
+    if has_wood_station then
+        count = count + 2
     end
     local tier_mult = (sb.get_survivor_tier_mult and survivor and sb.get_survivor_tier_mult(survivor)) or 1.0
     local spec_mult = (sb.get_specialization_mult and camp and sb.get_specialization_mult(camp, "woodcutter")) or 1.0
@@ -2182,24 +2365,29 @@ function stalker_camp_builder.process_brewer_job(npc_id, hub_id, camp, survivor,
     local npc = level.object_by_id(npc_id)
     local name = (npc and npc:character_name()) or (survivor and survivor.name) or "Brewer"
 
+    local has_distiller = false
     local has_still = false
     for struct_id, struct_type in pairs_(camp.structures or {}) do
-        if struct_type == "stove" or struct_type == "bidon" or struct_type == "water_pump" or struct_type == "workbench" then
+        if struct_type == "distiller" then
+            has_distiller = true
             has_still = true
             break
+        elseif struct_type == "stove" or struct_type == "bidon" or struct_type == "water_pump" or struct_type == "workbench" then
+            has_still = true
         end
     end
     if not has_still then
         if survivor then survivor.shortfall_reason = "No Still" end
         local tmpl = game.translate_string("st_job_brewer_need_still")
-        if tmpl == "st_job_brewer_need_still" then tmpl = "%s needs a Milk Can (Bidon) or Stove to distill vodka!" end
+        if tmpl == "st_job_brewer_need_still" then tmpl = "%s needs a Moonshine Distiller (or Stove / Bidon) to distill vodka!" end
         sb.camp_send_tip(actor, sformat(tmpl, name), nil, "general_stalker", 8000)
         return false
     end
 
-    -- a batch burns 10 wood parts: count them before the water is taken
-    local wood = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_wood_part, 10)) or 0
-    if wood < 10 then
+    -- a batch burns 10 wood parts (or only 7 when equipped with an efficient Moonshine Distiller)
+    local wood_req = has_distiller and 7 or 10
+    local wood = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_wood_part, wood_req)) or 0
+    if wood < wood_req then
         if survivor then survivor.shortfall_reason = "Need Wood" end
         return false
     end
@@ -2213,13 +2401,13 @@ function stalker_camp_builder.process_brewer_job(npc_id, hub_id, camp, survivor,
         return false
     end
 
-    for i = 1, 10 do
+    for i = 1, wood_req do
         sb.find_and_consume_item(hub_id, camp, is_wood_part, nil)
     end
 
-    local count = 2
+    local count = has_distiller and 3 or 2
     if (survivor and survivor.has_drugkit) or (camp and camp.has_drugkit) then
-        count = 4
+        count = count + 2
     end
     local tier_mult = (sb.get_survivor_tier_mult and survivor and sb.get_survivor_tier_mult(survivor)) or 1.0
     local spec_mult = (sb.get_specialization_mult and camp and sb.get_specialization_mult(camp, "brewer")) or 1.0
@@ -2251,8 +2439,17 @@ function stalker_camp_builder.process_brewer_job(npc_id, hub_id, camp, survivor,
         end
     end
 
-    if survivor then survivor.shortfall_reason = nil end
-    local tip_txt = string.format(game.translate_string("st_job_brewer_distilled"), name, total_vodka)
+    local tip_txt
+    if has_distiller then
+        local dist_str = game.translate_string("st_job_brewer_distiller_work")
+        if dist_str and dist_str ~= "st_job_brewer_distiller_work" then
+            tip_txt = string.format(dist_str, name, total_vodka)
+        else
+            tip_txt = string.format("%s operated the moonshine distiller, yielding a rich batch of vodka (%d bottles)!", name, total_vodka)
+        end
+    else
+        tip_txt = string.format(game.translate_string("st_job_brewer_distilled"), name, total_vodka)
+    end
     if produced_alcohol > 0 then
         tip_txt = tip_txt .. string.format(" (+%dx Medical Alcohol)", produced_alcohol)
     end
@@ -3006,7 +3203,16 @@ function stalker_camp_builder.update_camp_jobs()
                                             local meat_desc = format_deposited_items_summary(deposited, "fresh mutant meat")
                                             local meat_count = (type(deposited) == "table" and #deposited) or 1
                                             if not is_catchup then
-                                                local tip_tmpl = game.translate_string("st_job_hunter_returned")
+                                                local has_hunter_station = false
+                                                if camp and camp.structures then
+                                                    for _, stype in pairs(camp.structures) do
+                                                        if stype == "hunter_station" then
+                                                            has_hunter_station = true
+                                                            break
+                                                        end
+                                                    end
+                                                end
+                                                local tip_tmpl = has_hunter_station and game.translate_string("st_job_hunter_station_work") or game.translate_string("st_job_hunter_returned")
                                                 local ok, tip_msg = pcall(string.format, tip_tmpl, hunter_name, meat_desc)
                                                 if not ok then
                                                     local ok2, tip_msg2 = pcall(string.format, tip_tmpl, hunter_name, meat_count)
@@ -3038,7 +3244,7 @@ function stalker_camp_builder.update_camp_jobs()
                                         pcall(sb.process_turret_maintenance, npc_id, craft_box, camp, camp_box_id)
                                     end
                                 elseif job == "repair" then
-                                    local repair_box = sb.find_best_container(hub_id, camp, {"workbench"}, camp_box_id) or camp_box_id or (is_valid_box(hub_id) and hub_id)
+                                    local repair_box = sb.find_best_container(hub_id, camp, {"repair_bench", "workbench"}, camp_box_id) or camp_box_id or (is_valid_box(hub_id) and hub_id)
                                     did_work = sb.process_gear_repair(npc_id, repair_box, camp, survivor, camp_box_id)
                                 elseif job == "cook" then
                                     did_work = sb.process_cook_job(npc_id, hub_id, camp, survivor, camp_box_id)

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="windows-1251" ?>
+<string_table>
+	<string id="st_homestead_distiller">
+		<text>Moonshine Distiller</text>
+	</string>
+	<string id="st_homestead_distiller_descr">
+		<text>A heavy-duty post-apocalyptic distillation apparatus assembled from a 40L Soviet aluminum milk can, an electric 2-burner hotplate, an aroma thumper jar with blue electrical tape, and a metal cooling drum with internal copper worm coils. Placed in a settlement, it serves as the dedicated primary workstation for camp Brewers, boosting distillation efficiency and producing high-proof vodka rations and medical alcohol.</text>
+	</string>
+	<string id="st_job_brewer_distiller_work">
+		<text>%s is operating the moonshine distiller, yielding a rich batch of vodka (%d bottles)!</text>
+	</string>
+	<string id="st_homestead_ammo_bench">
+		<text>Ammunition Crafting Bench</text>
+	</string>
+	<string id="st_homestead_ammo_bench_descr">
+		<text>An industrial heavy steel reloading workbench equipped with a single-stage cast iron reloading press, mechanical balance powder scale, powder dispenser hopper, and gunsmith vise. In a settlement, it serves as the dedicated primary workstation for camp Crafters, boosting round production yield and reducing scrap metal waste.</text>
+	</string>
+	<string id="st_job_crafter_bench_work">
+		<text>%s is working at the ammunition crafting bench, pressing and packaging a fresh batch of %s!</text>
+	</string>
+	<string id="st_homestead_wood_station">
+		<text>Woodcutter's Sawbuck &amp; Charcoal Kiln</text>
+	</string>
+	<string id="st_homestead_wood_station_descr">
+		<text>A comprehensive forestry workstation combining an X-frame timber sawbuck with a two-man crosscut saw, an oak splitting stump with an embedded felling axe, stacked split firewood, and a charred carbon-steel retort kiln with a brick hearth and flue chimney. In a settlement, it serves as the dedicated primary workstation for camp Woodcutters, significantly boosting timber output, yielding charcoal lumps for cooking and gunpowder manufacturing, and eliminating kindling bottlenecks.</text>
+	</string>
+	<string id="st_job_woodcutter_station_work">
+		<text>%s is hard at work at the woodcutter station, splitting fresh firewood logs and burning a fresh batch of charcoal (%d bags)!</text>
+	</string>
+	<string id="st_homestead_generator_station">
+		<text>Battery Charging &amp; Generator Relay Station</text>
+	</string>
+	<string id="st_homestead_generator_station_descr">
+		<text>An integrated electrical hub built on a welded angle-iron workstation. Features a portable Soviet 4-stroke gasoline generator with recoil starter, an overhead distribution and relay panel with analog voltmeters, ammeters, and a ceramic knife switch, a heavy lower battery bank for lead-acid accumulators, and a multi-slot desktop quick-charger for rechargeable battery packs. In a settlement, it serves as the dedicated primary workstation for Electricians, enabling full recharging of dead battery packs (batteries) and military cells, maintaining perimeter lighting, and power-cycling camp electronics.</text>
+	</string>
+	<string id="st_job_electrician_station_work">
+		<text>%s has completed an electrical maintenance cycle at the generator station, recharging dead battery packs (%d charged) and tuning settlement power relays!</text>
+	</string>
+	<string id="st_homestead_repair_bench">
+		<text>Gunsmith &amp; Armor Repair Bench</text>
+	</string>
+	<string id="st_homestead_repair_bench_descr">
+		<text>A heavy-duty industrial workstation crafted from thick scarred steel plate and reinforced tubular framing, dedicated to field maintenance of weapons and protective equipment. Equipped with a heavy bench vise with padded clamping jaws holding rifles for servicing, an organized parts tray, cleaning rods, lubricants, and solvents, alongside a dedicated armor repair section with ballistic strike plates, textile repair patches, and hand-riveting tools. A vertical backboard displays technical weapon schematics, technical notes, tool racks, and an illuminated task lamp. In a settlement, it serves as the master workstation for Technicians, boosting repair efficiency by 50%, reducing repair kit part costs, and passively maintaining weapons stored in camp.</text>
+	</string>
+	<string id="st_job_technician_station_work">
+		<text>%s has serviced camp gear at the repair bench, tuning internal mechanisms and restoring condition on %s (%s%%)!</text>
+	</string>
+	<string id="st_job_technician_passive_maintenance">
+		<text>%s completed a routine maintenance inspection at the repair bench, field-stripping and lubricating camp weapons!</text>
+	</string>
+	<string id="st_homestead_hunter_station">
+		<text>Hunter's Butchering &amp; Tanning Station</text>
+	</string>
+	<string id="st_homestead_hunter_station_descr">
+		<text>A rugged timber processing station constructed from scavenged heavy pine logs with overlapping bolted lap joints, forged iron reinforcing brackets, and a heavy hanging gambrel carcass rack with pulley and steel hooks. Features an ergonomic convex skinning and fleshing beam equipped with a two-handed draw scraper and dual-grit whetstones, two pegged rectangular hide-stretching frames with laced mutant pelts, coopered wooden salt barrels with iron hoops and coarse preservation salt, a tool rack with hunting blades, and a field pack with lantern. In a settlement, it serves as the master workstation for Hunters, significantly increasing mutant meat harvest yields, preserving pristine mutant pelts (flesh, boar, pseudodog), and maximizing trophy harvesting efficiency.</text>
+	</string>
+	<string id="st_job_hunter_station_work">
+		<text>%s processed harvested mutant game at the tanning and butchering station, yielding %s, cured pelts, and hunting trophies!</text>
+	</string>
+</string_table>
+
+

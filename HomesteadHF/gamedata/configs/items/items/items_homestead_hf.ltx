@@ -1,0 +1,219 @@
+;--------------------------------------------------------------------------------------------------
+; HomesteadHF: Custom Placeable Furniture for Homestead (Stalker Settlement Builder)
+;--------------------------------------------------------------------------------------------------
+
+;--------------------------
+;--- Moonshine Distiller (Самогонный Аппарат)
+;--------------------------
+
+[homestead_distiller]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\distiller.ogf
+description                             = st_homestead_distiller_descr
+inv_name                                = st_homestead_distiller
+inv_name_short                          = st_homestead_distiller
+inv_grid_x                              = 0
+inv_grid_y                              = 0
+inv_grid_height                         = 3
+inv_grid_width                          = 3
+icons_texture                           = ui\ui_icon_homestead_workstations
+cost                                    = 8500
+inv_weight                              = 24.5
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_distiller
+
+
+[placeable_distiller]:physic_object
+visual                                  = dynamics\HomesteadHF\distiller.ogf
+inv_weight                              = 55.0
+placeable_type                          = O_PHYSIC
+base_rotation                           = 0
+item_section                            = homestead_distiller
+
+bounding_box_size                       = 1.610000, 0.800000, 1.760000
+bounding_box_origin                     = 0.000000, 0.000000, 0.880000
+
+;--------------------------
+;--- Ammunition Crafting Bench (Верстак для снаряжения патронов)
+;--------------------------
+
+[homestead_ammo_bench]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\ammo_bench.ogf
+description                             = st_homestead_ammo_bench_descr
+inv_name                                = st_homestead_ammo_bench
+inv_name_short                          = st_homestead_ammo_bench
+inv_grid_x                              = 3
+inv_grid_y                              = 0
+inv_grid_height                         = 3
+inv_grid_width                          = 3
+icons_texture                           = ui\ui_icon_homestead_workstations
+cost                                    = 14500
+inv_weight                              = 38.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_ammo_bench
+
+
+[placeable_ammo_bench]:physic_object
+visual                                  = dynamics\HomesteadHF\ammo_bench.ogf
+inv_weight                              = 85.0
+placeable_type                          = O_PHYSIC
+base_rotation                           = 0
+item_section                            = homestead_ammo_bench
+
+bounding_box_size                       = 1.440000, 0.780000, 1.380000
+bounding_box_origin                     = 0.000000, 0.000000, 0.690000
+
+;--------------------------
+;--- Woodcutter & Charcoal Station (Лесопилка и углевыжигательная печь)
+;--------------------------
+
+[homestead_wood_station]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\wood_station.ogf
+description                             = st_homestead_wood_station_descr
+inv_name                                = st_homestead_wood_station
+inv_name_short                          = st_homestead_wood_station
+inv_grid_x                              = 6
+inv_grid_y                              = 0
+inv_grid_height                         = 3
+inv_grid_width                          = 3
+icons_texture                           = ui\ui_icon_homestead_workstations
+cost                                    = 11200
+inv_weight                              = 32.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_wood_station
+
+
+[placeable_wood_station]:physic_object
+visual                                  = dynamics\HomesteadHF\wood_station.ogf
+inv_weight                              = 75.0
+placeable_type                          = O_PHYSIC
+base_rotation                           = 0
+item_section                            = homestead_wood_station
+
+bounding_box_size                       = 1.900000, 1.200000, 1.500000
+bounding_box_origin                     = 0.000000, 0.000000, 0.750000
+
+;--------------------------
+;--- Battery Charging & Generator Relay Station (Зарядная станция и генератор)
+;--------------------------
+
+[homestead_generator_station]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\generator_station.ogf
+description                             = st_homestead_generator_station_descr
+inv_name                                = st_homestead_generator_station
+inv_name_short                          = st_homestead_generator_station
+inv_grid_x                              = 0
+inv_grid_y                              = 3
+inv_grid_height                         = 3
+inv_grid_width                          = 3
+icons_texture                           = ui\ui_icon_homestead_workstations
+cost                                    = 18500
+inv_weight                              = 45.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_generator_station
+
+
+[placeable_generator_station]:physic_object
+visual                                  = dynamics\HomesteadHF\generator_station.ogf
+inv_weight                              = 95.0
+placeable_type                          = O_PHYSIC
+base_rotation                           = 0
+item_section                            = homestead_generator_station
+
+bounding_box_size                       = 1.700000, 1.000000, 1.440000
+bounding_box_origin                     = 0.000000, 0.000000, 0.720000
+
+;--------------------------
+
+[homestead_repair_bench]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\repair_bench.ogf
+description                             = st_homestead_repair_bench_descr
+inv_name                                = st_homestead_repair_bench
+inv_name_short                          = st_homestead_repair_bench
+inv_grid_x                              = 3
+inv_grid_y                              = 3
+inv_grid_height                         = 3
+inv_grid_width                          = 4
+icons_texture                           = ui\ui_icon_homestead_workstations
+cost                                    = 24000
+inv_weight                              = 55.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_repair_bench
+
+
+[placeable_repair_bench]:physic_object
+visual                                  = dynamics\HomesteadHF\repair_bench.ogf
+inv_weight                              = 110.0
+placeable_type                          = O_PHYSIC
+base_rotation                           = 0
+item_section                            = homestead_repair_bench
+
+bounding_box_size                       = 1.800000, 0.900000, 1.840000
+bounding_box_origin                     = 0.000000, 0.000000, 0.920000
+
+;--------------------------
+;--- Hunter Butchering & Tanning Station (Охотничий разделочный стан)
+;--------------------------
+
+[homestead_hunter_station]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\hunter_station.ogf
+description                             = st_homestead_hunter_station_descr
+inv_name                                = st_homestead_hunter_station
+inv_name_short                          = st_homestead_hunter_station
+inv_grid_x                              = 0
+inv_grid_y                              = 6
+inv_grid_height                         = 3
+inv_grid_width                          = 4
+icons_texture                           = ui\ui_icon_homestead_workstations
+cost                                    = 18500
+inv_weight                              = 48.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_hunter_station
+
+
+[placeable_hunter_station]:physic_object
+visual                                  = dynamics\HomesteadHF\hunter_station.ogf
+inv_weight                              = 150.0
+placeable_type                          = O_PHYSIC
+base_rotation                           = 0
+item_section                            = homestead_hunter_station
+
+bounding_box_size                       = 2.300000, 1.600000, 2.300000
+bounding_box_origin                     = 0.000000, 0.000000, 1.150000
+
+

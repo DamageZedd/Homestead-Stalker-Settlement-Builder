@@ -120,20 +120,22 @@ local JOB_DISPATCH = {
                     anims = {"guard", "threat_na", "wait_na"} },
     cook        = { try = {"stove", "fridge", "workbench"},
                     anims = {"roast_kolbasa_bred", "roast_kolbasa", "wait_na", "sit_knee"} },
-    craft       = { try = {"workbench"},
+    craft       = { try = {"ammo_bench", "workbench"},
                     anims = {"press", "ward", "wait_trade", "wait_na"} },
     repair      = { try = {"repair_bench", "workbench"},
                     anims = {"wait_trade", "press", "ward", "wait_na"} },
     medic       = { try = {"medstation", "bed", "fridge"},
                     anims = {"help_wounded", "probe_stand", "scaner_stand", "wait_na"} },
-    electrician = { try = {"light", "workbench"},
+    electrician = { try = {"generator_station", "light", "workbench"},
                     anims = {"scaner_stand", "probe_stand", "wait_na"} },
-    woodcutter  = { try = {"workbench", "barricade", "stove"},
+    woodcutter  = { try = {"wood_station", "workbench", "barricade", "stove"},
                     anims = {"press", "ward", "wait_na"} },
-    brewer      = { try = {"stove", "workbench", "medstation"},
+    brewer      = { try = {"distiller", "stove", "bidon", "workbench", "medstation"},
                     anims = {"roast_kolbasa_bred", "probe_stand", "wait_na"} },
     scrapper    = { try = {"repair_bench", "workbench"},
                     anims = {"press", "wait_trade", "wait_na"} },
+    hunter      = { try = {"hunter_station", "workbench", "barricade"},
+                    anims = {"sit_knee", "ward", "wait_na"} },
 }
 
 function safe_squad_members(squad)
@@ -2065,9 +2067,20 @@ local structure_type_exact = {
     artifact_harvester          = "harvester",
     placeable_weapon_rack       = "weapon_rack",
     placeable_display_counter   = "display_counter",
+    placeable_distiller         = "distiller",
+    placeable_ammo_bench        = "ammo_bench",
+    placeable_wood_station      = "wood_station",
+    placeable_generator_station = "generator_station",
+    placeable_repair_bench      = "repair_bench",
+    placeable_hunter_station    = "hunter_station",
 }
 
 local structure_type_substrings = {
+    generator_station = {"generator_station", "power_station", "battery_station", "battery_charger"},
+    wood_station = {"wood_station", "sawbuck", "woodcutter", "chopping_block", "charcoal_kiln"},
+    ammo_bench   = {"ammo_bench", "reloading", "bullet_press", "ammo_craft"},
+    distiller    = {"distiller", "samogon", "still"},
+    hunter_station = {"hunter_station", "butchering", "tanning_station", "carcass_rack"},
     bed          = {"bed", "couch", "sleep", "tent", "cot"},
     stove        = {"stove", "campfire"},
     barricade    = {"barricade", "sandbag", "fence", "screen", "barrier", "board", "plank", "plate", "shield"},
@@ -2076,7 +2089,7 @@ local structure_type_substrings = {
     gadget       = {"turret", "tesla", "mine", "claymore", "gadget"},
     fridge       = {"fridge"},
     workbench    = {"workbench", "anvil", "forge", "workshop"},
-    repair_bench = {"repair_kit", "repair_bench", "exo_repair", "toolbox"},
+    repair_bench = {"repair_bench", "repair_kit", "exo_repair", "toolbox"},
     medstation   = {"med_", "medical", "medkit", "medstation", "firstaid", "first_aid", "medicine"},
     piano        = {"piano"},
     radio        = {"radio", "radiola", "reciever"},
@@ -2084,8 +2097,8 @@ local structure_type_substrings = {
 }
 
 local structure_type_check_order = {
-    "gadget", "fridge", "stove", "bed", "barricade", "water_pump",
-    "alarm", "workbench", "repair_bench", "medstation", "piano", "radio",
+    "generator_station", "repair_bench", "hunter_station", "wood_station", "ammo_bench", "distiller", "gadget", "fridge", "stove", "bed", "barricade", "water_pump",
+    "alarm", "workbench", "medstation", "piano", "radio",
     "stash",  -- broad catch-all always last
 }
 
@@ -2111,7 +2124,7 @@ end
 -- every item. Forget such a choice so a proper stash gets picked.
 local SPECIALIZED_CONTAINER_TYPES = {
     fridge = true, stove = true, medstation = true, workbench = true,
-    repair_bench = true, water_pump = true, harvester = true,
+    repair_bench = true, hunter_station = true, water_pump = true, harvester = true,
     weapon_rack = true, display_counter = true,
 }
 function stalker_camp_builder.sanitize_primary_chest(camp)
