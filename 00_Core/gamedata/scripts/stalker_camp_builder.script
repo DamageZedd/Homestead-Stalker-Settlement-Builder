@@ -121,30 +121,41 @@ function patch_watchdog_lag_protection()
         end
     end
 
-    -- Hook Debug Spawner when opened or when items are spawned to grant lag immunity
-    safe_register_callback("GUI_on_show", function(name, wnd)
-        if name == "UIDebugISpawner" or name == "UIDebugMain" then
-            grant_watchdog_immunity()
-            if ui_debug_launcher and ui_debug_launcher.UIDebug_ItemSpawn then
-                if not ui_debug_launcher.UIDebug_ItemSpawn._homestead_spawn_hooked then
-                    ui_debug_launcher.UIDebug_ItemSpawn._homestead_spawn_hooked = true
-                    local orig_action_spawn = ui_debug_launcher.UIDebug_ItemSpawn.Action_SpawnItem
-                    if orig_action_spawn then
-                        ui_debug_launcher.UIDebug_ItemSpawn.Action_SpawnItem = function(self, ...)
-                            grant_watchdog_immunity()
-                            return orig_action_spawn(self, ...)
-                        end
+    -- Hook alife_create_item globally to protect against spawn lag spikes
+    if _G.alife_create_item and not _G._homestead_alife_create_hooked then
+        _G._homestead_alife_create_hooked = true
+        local orig_alife_create = _G.alife_create_item
+        _G.alife_create_item = function(sec, ...)
+            if sec and type(sec) == "string" and (string.find(sec, "homestead", 1, true) or string.find(sec, "placeable", 1, true)) then
+                grant_watchdog_immunity()
+            end
+            return orig_alife_create(sec, ...)
+        end
+    end
+
+    -- Hook Debug Spawner directly
+    local function hook_debug_spawner()
+        if ui_debug_launcher and ui_debug_launcher.UIDebug_ItemSpawn then
+            if not ui_debug_launcher.UIDebug_ItemSpawn._homestead_spawn_hooked then
+                ui_debug_launcher.UIDebug_ItemSpawn._homestead_spawn_hooked = true
+                local orig_action_spawn = ui_debug_launcher.UIDebug_ItemSpawn.Action_SpawnItem
+                if orig_action_spawn then
+                    ui_debug_launcher.UIDebug_ItemSpawn.Action_SpawnItem = function(self, ...)
+                        grant_watchdog_immunity()
+                        return orig_action_spawn(self, ...)
                     end
                 end
             end
         end
-    end)
+    end
+    hook_debug_spawner()
+    safe_register_callback("actor_on_first_update", hook_debug_spawner)
 
-    -- Also grant immunity when actor receives any homestead or placeable item
+    -- Also grant immunity when actor receives or registers any homestead or placeable item
     safe_register_callback("actor_on_item_take", function(obj)
         if obj and a_rax_wd and a_rax_wd.save_state then
             local ok, sec = pcall(function() return obj:section() end)
-            if ok and sec and (string.sub(sec, 1, 10) == "homestead_" or string.sub(sec, 1, 10) == "placeable_") then
+            if ok and sec and (string.find(sec, "homestead", 1, true) or string.find(sec, "placeable", 1, true)) then
                 grant_watchdog_immunity()
             end
         end
@@ -152,12 +163,32 @@ function patch_watchdog_lag_protection()
     safe_register_callback("server_entity_on_register", function(se_obj)
         if se_obj and a_rax_wd and a_rax_wd.save_state then
             local ok, sec = pcall(function() return se_obj:section_name() end)
-            if ok and sec and (string.sub(sec, 1, 10) == "homestead_" or string.sub(sec, 1, 10) == "placeable_") then
+            if ok and sec and (string.find(sec, "homestead", 1, true) or string.find(sec, "placeable", 1, true)) then
                 grant_watchdog_immunity()
             end
         end
     end)
 end
+patch_watchdog_lag_protection()
+
+-- BarryBogs Detector Bone Hide Guard: prevents fatal crash in detec_bone_hide.script(20)
+-- when spawning heavy items or transitioning inventory device states
+function patch_detec_bone_hide_guard()
+    if detec_bone_hide and detec_bone_hide.actor_on_update and not detec_bone_hide._homestead_guarded then
+        detec_bone_hide._homestead_guarded = true
+        local orig_update = detec_bone_hide.actor_on_update
+        local safe_update = function(...)
+            pcall(orig_update, ...)
+        end
+        detec_bone_hide.actor_on_update = safe_update
+        if UnregisterScriptCallback and RegisterScriptCallback then
+            pcall(UnregisterScriptCallback, "actor_on_update", orig_update)
+            pcall(RegisterScriptCallback, "actor_on_update", safe_update)
+        end
+    end
+end
+patch_detec_bone_hide_guard()
+safe_register_callback("actor_on_first_update", patch_detec_bone_hide_guard)
 
 stalker_camp_builder.settler_lookup = stalker_camp_builder.settler_lookup or {}
 
@@ -7090,10 +7121,12 @@ end
 -- Crash helper: when the engine hits a fatal script error it calls this first.
 -- Writes the offender and a traceback to the log so crashes can be traced.
 function homestead_luabind_fatal_diag(offender)
-    printf("[Homestead] LUABIND FATAL offender: %s", tostring(offender))
-    if debug and debug.traceback then
-        printf("[Homestead] LUABIND FATAL trace: %s", debug.traceback("diag", 2))
-    end
+    pcall(function()
+        printf("[Homestead] LUABIND FATAL offender: %s", tostring(offender))
+        if debug and debug.traceback then
+            printf("[Homestead] LUABIND FATAL trace: %s", tostring(debug.traceback("diag", 2)))
+        end
+    end)
 end
 
 function on_game_start()
@@ -7101,6 +7134,7 @@ function on_game_start()
     patch_alife_storage_manager()
     patch_item_artefact_binder_save()
     patch_watchdog_lag_protection()
+    patch_detec_bone_hide_guard()
     -- v1.1.7: map_spot_menu_* callbacks are registered once at the end of
     pcall(function()
         local function get_weapon_repair_tier(sec)
