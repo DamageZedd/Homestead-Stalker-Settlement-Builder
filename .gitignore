@@ -1,7 +1,8 @@
 # Antigravity IDE configuration
 .agents/
 
-# Blender backup files
+# Blender files (backed up locally, excluded from git)
+*.blend
 *.blend1
 *.blend@
 
