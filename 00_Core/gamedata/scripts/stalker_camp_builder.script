@@ -69,6 +69,17 @@ function patch_alife_storage_manager()
 end
 patch_alife_storage_manager()
 
+local function safe_register_callback(name, func)
+    if not func then return end
+    if not RegisterScriptCallback then return end
+    if axr_main and axr_main.callbacks and axr_main.callbacks[name] == nil then
+        return
+    end
+    pcall(RegisterScriptCallback, name, func)
+end
+stalker_camp_builder.safe_register_callback = safe_register_callback
+_G.safe_register_callback = _G.safe_register_callback or safe_register_callback
+
 -- Monolith / Anomaly Engine Crash Guard: item_artefact binder save protection
 -- Prevents fatal crash in zz_item_artefact.script line 255: attempt to index field 'object' (a userdata value)
 function patch_item_artefact_binder_save()
@@ -7074,14 +7085,7 @@ function npc_on_hit_callback(npc, amount, local_direction, who, bone_index)
         pcall(function() npc:set_health_ex(1.0) end)
     end
 end
-
-local function safe_register_callback(name, func)
-    if not func then return end
-    if axr_main and axr_main.callbacks and axr_main.callbacks[name] == nil then
-        return
-    end
-    pcall(RegisterScriptCallback, name, func)
-end
+-- safe_register_callback is defined at top of file
 
 -- Crash helper: when the engine hits a fatal script error it calls this first.
 -- Writes the offender and a traceback to the log so crashes can be traced.
