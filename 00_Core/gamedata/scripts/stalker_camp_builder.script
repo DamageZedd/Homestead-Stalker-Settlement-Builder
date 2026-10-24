@@ -7201,8 +7201,46 @@ function homestead_luabind_fatal_diag(offender)
     end)
 end
 
+-- True when a camp holds the squad as its garrison, a reinforcement, or a heat-mutant.
+local function camp_holds_squad(camp, id)
+    if type(camp) ~= "table" then return false end
+    if camp.squad_id == id or camp.heat_mutant_squad_id == id then return true end
+    local extra = camp.extra_squad_ids
+    if not extra then return false end
+    for _, ex_id in ipairs(extra) do
+        if ex_id == id then return true end
+    end
+    return false
+end
+
+-- AlifePlus ownership predicate: owned while Homestead tracks the squad in its own registries.
+function stalker_camp_builder.is_held_squad(squad)
+    if not squad then return false end
+    local id = squad.id
+    if not id then return false end
+
+    local convoys = stalker_camp_builder.active_convoys
+    if convoys and convoys[id] then return true end
+
+    if squad.get_script_target == stalker_camp_builder.home_squad_target then return true end
+
+    local camps = stalker_camp_builder.active_camps
+    if not camps then return false end
+    for _, camp in pairs(camps) do
+        if camp_holds_squad(camp, id) then return true end
+    end
+    return false
+end
+
 function on_game_start()
     local type_ = type
+
+    -- AlifePlus integration: register Homestead so AlifePlus leaves its squads alone (no-op if absent).
+    if ap_api and ap_api.register_owner then
+        ap_api.register_owner("homestead", stalker_camp_builder.is_held_squad)
+        printf("[Homestead] registered with AlifePlus ownership API")
+    end
+
     patch_alife_storage_manager()
     patch_item_artefact_binder_save()
     patch_watchdog_lag_protection()
