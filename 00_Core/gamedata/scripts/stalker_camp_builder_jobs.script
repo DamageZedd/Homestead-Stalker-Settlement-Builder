@@ -2358,7 +2358,9 @@ function stalker_camp_builder.process_woodcutter_job(npc_id, hub_id, camp, survi
             end
             if survivor then survivor.shortfall_reason = nil end
             local tip_str = has_wood_station and game.translate_string("st_job_woodcutter_station_work") or game.translate_string("st_job_woodcutter_charcoal")
-            sb.camp_send_tip(actor, string.format(tip_str, name, total_charcoal), nil, "general_stalker", 10000)
+            local tip = has_wood_station and string.format(tip_str, name, total_charcoal)
+                or string.format(tip_str, name, consumed_count, total_charcoal)
+            sb.camp_send_tip(actor, tip, nil, "general_stalker", 10000)
             return true
         else
             for i = 1, consumed_count do
