@@ -3515,11 +3515,6 @@ function stalker_camp_builder.is_camp_farmer(p1, p2)
     return (surv and surv.job == "farmer") and true or false
 end
 
-function stalker_camp_builder.is_camp_trader(p1, p2)
-    local surv = get_speaker_survivor_and_camp(p1, p2)
-    return (surv and surv.job == "trader") and true or false
-end
-
 -- the Trader has takings from the market stall waiting for the player
 function stalker_camp_builder.has_trader_takings(p1, p2)
     local surv, camp = get_speaker_survivor_and_camp(p1, p2)
