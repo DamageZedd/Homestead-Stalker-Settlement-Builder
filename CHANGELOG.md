@@ -18,7 +18,8 @@
 
 ### 🖼️ Workstation textures:
 - **One texture atlas per workstation** (`textures\homestead_hf\atlas_<station>.dds`, DXT1 with full mipmaps): each of the eight HomesteadHF workstations now uses a single material and texture, baked from the original vanilla / G.A.M.M.A. textures at full density on every face. Geometry, rigging and collision are unchanged. Ammo bench and generator glass is opaque (DXT1 has no alpha); lamp glow is kept.
-- **Much smaller download**: the release no longer ships duplicate copies of vanilla / G.A.M.M.A. textures, uncompressed editor sources (`.object`) or byte-identical files that required mods already provide (Hideout Gadgets patch).
+- **Much smaller download**: the release no longer ships duplicate copies of vanilla / G.A.M.M.A. textures, uncompressed editor sources (`.object`) or byte-identical files that required mods already provide (Hideout Gadgets patch). The old per-material furniture textures (125 files, ~300 MB) were also removed from the repository, since no shipped model references them any more.
+- **New inventory icons for every furniture item**: the eight workstations, Potatoes and Wheat Grain were re-rendered from the current models to match the Hideout Furniture icon style (transparent background, elevated front-left 3/4 view, muted overcast light, no outline or shadow). Same inventory cells as before, so no configuration changes; the icon atlas (`ui_icon_homestead_workstations.dds`) is now 512×1024 to fit the Market Stall icon.
 
 ## v1.2.7 — HomesteadHF Modular Furniture Expansion, Settlement Distiller, Ammo Bench, Woodcutter Station, Generator Station, Gunsmith / Armor Repair Bench & Hunter Butchering / Tanning Station System
 
