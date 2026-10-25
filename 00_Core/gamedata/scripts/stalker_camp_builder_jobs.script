@@ -2682,9 +2682,24 @@ local function trader_text(id, default)
     return s
 end
 
+-- an item's condition and, for an ammo box, its rounds. Server items export neither
+-- (cse_alife_item and cse_alife_item_ammo in lua_help): the game object has them while the
+-- item is online, its server packet (read with utils_stpk) otherwise
+local function trader_item_state(id, se_item, is_ammo)
+    local obj = level.object_by_id(id)
+    if obj then
+        return obj:condition(), is_ammo and obj:ammo_get_count() or nil
+    end
+    local ok, data = pcall(function()
+        if is_ammo then return utils_stpk.get_ammo_data(se_item) end
+        return utils_stpk.get_item_data(se_item)
+    end)
+    if ok and data then return data.condition, data.ammo_left end
+end
+
 -- what the settler pays for one stall item: the item's base price (cost) scaled by condition for
 -- gear and by the rounds left in an ammo box. 0 means he will not buy it.
-local function trader_item_price(sec, cond, se_item)
+local function trader_item_price(sec, id, se_item)
     if not sec then return 0 end
     local ini = ini_sys or sys_ini or system_ini()
     if not (ini and ini:section_exist(sec)) then return 0 end
@@ -2693,12 +2708,14 @@ local function trader_item_price(sec, cond, se_item)
     if ini:r_bool_ex(sec, "quest_item", false) then return 0 end
     local price = cost
     local box = ini:r_float_ex(sec, "box_size")
-    if box and box > 0 and se_item then
-        local ok, left = pcall(function() return se_item.ammo_left end)
-        if ok and left then price = price * math.min(left, box) / box end
-    end
-    if sec:find("^wpn_") or sec:find("outfit") or sec:find("^helm_") or sec:find("^armor_") then
-        price = price * math.max(cond or 1.0, 0.1)
+    local is_ammo = box and box > 0
+    local is_gear = sec:find("^wpn_") or sec:find("outfit") or sec:find("^helm_") or sec:find("^armor_")
+    if is_ammo or is_gear then
+        local cond, left = trader_item_state(id, se_item, is_ammo)
+        -- what he can't inspect waits for a later cycle
+        if not cond or (is_ammo and not left) then return 0 end
+        if is_ammo then price = price * math.min(left, box) / box end
+        if is_gear then price = price * math.max(cond, 0.1) end
     end
     return price
 end
@@ -2741,8 +2758,7 @@ function stalker_camp_builder.process_trader_job(npc_id, hub_id, camp, survivor,
     sb.iterate_server_container(stash_id, function(child_id, se_item)
         if not (child_id and se_item) then return end
         local sec = se_item:section_name()
-        local cond = se_item.condition or 1.0
-        local price = trader_item_price(sec, cond, se_item)
+        local price = trader_item_price(sec, child_id, se_item)
         if price > 0 then
             goods[#goods + 1] = { id = child_id, se = se_item, price = price }
         end
