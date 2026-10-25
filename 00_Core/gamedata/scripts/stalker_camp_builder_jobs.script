@@ -77,6 +77,7 @@ local function is_cloth(sec) return sec and MEDIC_CLOTH[sec:lower()] == true end
 -- the farmer's crops: potatoes go to the still, grain is milled and baked into bread
 local function is_potato(sec) return sec ~= nil and sec:find("potato", 1, true) ~= nil end
 local function is_grain(sec) return sec ~= nil and sec:find("homestead_grain", 1, true) ~= nil end
+local function is_bread(sec) return sec == "bread" end
 -- what the brewer distills when the camp has no clean water. Fresh bread is the farmer's
 -- product (and the camp's food), so only stale bread goes in the still
 local function is_fermentable(sec)
@@ -94,6 +95,7 @@ stalker_camp_builder.is_cloth = is_cloth
 stalker_camp_builder.is_fermentable = is_fermentable
 stalker_camp_builder.is_potato = is_potato
 stalker_camp_builder.is_grain = is_grain
+stalker_camp_builder.is_bread = is_bread
 
 -- set_survivor_job -- assigns a job to a settler and re-syncs their
 function stalker_camp_builder.set_survivor_job(npc_id, job)
@@ -1607,13 +1609,16 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
                 if struct_type == "farmer_station" or struct_type == "stove" then can_bake = true break end
             end
             local potato_full = (snap.potato_count or 0) >= 40
-            local grain_full = (not can_bake) and (snap.grain_count or 0) >= 40
+            -- with an oven the grain cycle's stockpile is the bread it bakes
+            local grain_full = (can_bake and (snap.bread_count or 0) or (snap.grain_count or 0)) >= 40
             if fmode == "potato" and potato_full then
                 return true, "Potatoes Full", "Potato stockpile is full (40+ stored)"
+            elseif fmode == "grain" and grain_full and can_bake then
+                return true, "Bread Full", "Bread stockpile is full (40+ loaves stored)"
             elseif fmode == "grain" and grain_full then
                 return true, "Grain Full", "Grain stockpile is full (40+ stored) and nothing in camp can bake it"
             elseif fmode == "auto" and potato_full and grain_full then
-                return true, "Stockpile Full", "Potato and grain stockpiles are full (40+ each stored)"
+                return true, "Stockpile Full", (can_bake and "Potato and bread" or "Potato and grain") .. " stockpiles are full (40+ each stored)"
             end
         end
         return false, nil, nil
@@ -2509,7 +2514,7 @@ end
 -- Farmer job: alternate a potato cycle (potatoes feed the Brewer's still) and a grain cycle
 -- (harvest grain, then mill and bake it into bread). A plain plot works without any furniture;
 -- the Farmer Station doubles the harvest and bakes a better loaf, and a Stove can bake too.
-local FARMER_CAP = 40         -- stored potatoes / grain before the farmer swaps crops
+local FARMER_CAP = 40         -- stored potatoes / grain (bread with an oven) before the farmer swaps crops
 local FARMER_GRAIN_PER_BATCH = 3
 
 local function farmer_text(id, default)
@@ -2542,6 +2547,7 @@ function stalker_camp_builder.process_farmer_job(npc_id, hub_id, camp, survivor,
     local cap_on = not (sb.cfg and sb.cfg.enable_surplus_cap == false)
     local potatoes = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_potato, FARMER_CAP)) or 0
     local stored_grain = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_grain, FARMER_CAP)) or 0
+    local stored_bread = (can_bake and sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_bread, FARMER_CAP)) or 0
     local do_grain
     if mode == "potato" then
         do_grain = false
@@ -2552,8 +2558,8 @@ function stalker_camp_builder.process_farmer_job(npc_id, hub_id, camp, survivor,
     end
     if cap_on then
         local potato_full = potatoes >= FARMER_CAP
-        -- stored grain only piles up while nothing can bake it; with an oven it is always used
-        local grain_full = (not can_bake) and stored_grain >= FARMER_CAP
+        -- with an oven the grain cycle's stockpile is the bread it bakes
+        local grain_full = (can_bake and stored_bread or stored_grain) >= FARMER_CAP
         if mode == "potato" then
             if potato_full then
                 if survivor then survivor.shortfall_reason = "Potatoes Full" end
@@ -2561,7 +2567,7 @@ function stalker_camp_builder.process_farmer_job(npc_id, hub_id, camp, survivor,
             end
         elseif mode == "grain" then
             if grain_full then
-                if survivor then survivor.shortfall_reason = "Grain Full" end
+                if survivor then survivor.shortfall_reason = can_bake and "Bread Full" or "Grain Full" end
                 return false
             end
         elseif potato_full and grain_full then
@@ -2644,8 +2650,10 @@ function stalker_camp_builder.process_farmer_job(npc_id, hub_id, camp, survivor,
         end
     end
 
-    -- whatever grain is left over goes into storage
+    -- whatever grain is left over goes into storage while the grain stockpile is under the cap:
+    -- the harvest always covers the batches, so an oven never bakes the stored grain down
     local stocked = 0
+    if cap_on and stored_grain >= FARMER_CAP then pool = 0 end
     for i = 1, pool do
         if sb.deposit_item_to_camp(hub_id, camp, "homestead_grain") then stocked = stocked + 1 end
     end
