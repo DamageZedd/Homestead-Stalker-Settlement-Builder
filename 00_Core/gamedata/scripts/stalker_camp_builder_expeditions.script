@@ -10,6 +10,11 @@ local ipairs_ = ipairs
 local tostr = tostring
 local mfloor = math.floor
 
+-- these stay in stalker_camp_builder.script; its module-level functions aren't globals here
+local function game_sec() return stalker_camp_builder.game_sec() end
+local function camp_send_tip(...) return stalker_camp_builder.camp_send_tip(...) end
+local function add_radio_feed_entry(...) return stalker_camp_builder.add_radio_feed_entry(...) end
+
 local function is_level_vertex(lvid)
     return lvid and lvid < 4294967295 and lvid ~= -1 and lvid >= 0
 end
