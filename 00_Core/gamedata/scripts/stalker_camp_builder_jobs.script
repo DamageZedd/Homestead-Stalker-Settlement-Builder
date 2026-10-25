@@ -1565,22 +1565,26 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         return false, nil, nil
 
     elseif job == "brewer" then
-        local has_still = false
+        -- the stills process_brewer_job brews at; a batch at a Moonshine Distiller burns 7 wood parts
+        local has_still, has_distiller = false, false
         for struct_id, struct_type in pairs_(camp.structures or {}) do
-            if struct_type == "stove" or struct_type == "bidon" or struct_type == "water_pump" or struct_type == "workbench" then
-                has_still = true
+            if struct_type == "distiller" then
+                has_still, has_distiller = true, true
                 break
+            elseif struct_type == "stove" or struct_type == "bidon" or struct_type == "water_pump" or struct_type == "workbench" then
+                has_still = true
             end
         end
         if not has_still then
-            return true, "No Still", "Camp requires a placed Milk Can (Bidon) or Stove"
+            return true, "No Still", "Camp requires a placed Moonshine Distiller, Milk Can (Bidon) or Stove"
         end
+        local wood_req = has_distiller and 7 or 10
         if snap then
             if snap.clean_water_count <= 0 and snap.fermentable_count <= 0 then
                 return true, "No Water/Grains", "Requires clean water or fermentable grains/vegetables in camp storage to distill alcohol"
             end
-            if snap.wood_count < 10 then
-                return true, "Need Wood", "Requires 10 wood parts in camp storage to distill vodka"
+            if snap.wood_count < wood_req then
+                return true, "Need Wood", "Requires " .. wood_req .. " wood parts in camp storage to distill vodka"
             end
             return false, nil, nil
         end
@@ -1589,10 +1593,10 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         if not has_water then
             return true, "No Water/Grains", "Requires clean water or fermentable grains/vegetables in camp storage to distill alcohol"
         end
-        -- process_brewer_job burns 10 wood parts a batch
-        local wood = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_wood_part, 10)) or 0
-        if wood < 10 then
-            return true, "Need Wood", "Requires 10 wood parts in camp storage to distill alcohol"
+        -- process_brewer_job burns 10 wood parts a batch, 7 at a Moonshine Distiller
+        local wood = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_wood_part, wood_req)) or 0
+        if wood < wood_req then
+            return true, "Need Wood", "Requires " .. wood_req .. " wood parts in camp storage to distill alcohol"
         end
         return false, nil, nil
 
