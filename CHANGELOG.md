@@ -1,6 +1,6 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
-## Unreleased: Hand-Cranked Water Pump
+## v1.2.9 — Hand-Cranked Water Pump
 
 ### 💧 Hand-Cranked Water Pump (HomesteadHF):
 - **New placeable: Hand-Cranked Water Pump** (`placeable_water_pump`, item `homestead_water_pump`, recipe `x_homestead_water_pump`): a cast-iron hand pump on a concrete pad with a galvanized bucket of water under the spout. It weighs **10 kg** in the inventory (3x3 slot) and is crafted at a workbench from scrap, fasteners, copper and rope.
