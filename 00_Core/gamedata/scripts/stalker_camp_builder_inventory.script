@@ -1,0 +1,788 @@
+-- stalker_camp_builder_inventory.script
+-- Homestead camp-level inventory helpers (split out of stalker_camp_builder.script).
+-- Exposed on the main table: get_camp_containers, consume_one_use, camp_iterate_inventory,
+-- invalidate_camp_inventory_cache, on_actor_box_change, get_camp_inventory_snapshot,
+-- camp_find_item, camp_consume_item, camp_count_item.
+-- Everything else it needs is reached through stalker_camp_builder (sb.*).
+
+-- get_camp_containers -- gathers all valid container IDs belonging to a camp
+function stalker_camp_builder.get_camp_containers(hub_id, camp)
+    local sb = stalker_camp_builder
+    local sim = alife()
+    if not sim then return {} end
+
+    if type(hub_id) == "table" and type(camp) ~= "table" then
+        local tmp = hub_id; hub_id = camp; camp = tmp
+    end
+    if not camp and hub_id and sb.active_camps then
+        camp = sb.active_camps[hub_id]
+    end
+    if not hub_id and camp and camp.hub_id then
+        hub_id = camp.hub_id
+    end
+    if not hub_id and camp and sb.active_camps then
+        for hid, c in pairs(sb.active_camps) do
+            if c == camp then hub_id = hid; camp.hub_id = hid; break end
+        end
+    end
+
+    local tg = time_global()
+    if camp and camp._cached_containers and camp._cached_containers_tg and (tg - camp._cached_containers_tg) < 60000 then
+        return camp._cached_containers
+    end
+
+    local containers = {}
+    local seen = {}
+
+    local function add_box(bid)
+        if not bid or type(bid) ~= "number" or seen[bid] then return end
+
+        local m_data = alife_storage_manager and alife_storage_manager.get_state()
+        if m_data and m_data.workshop_stashes and m_data.workshop_stashes[bid] then
+            local ws_id = m_data.workshop_stashes[bid]
+            if ws_id and not seen[ws_id] and sb.is_valid_camp_box(ws_id, hub_id, camp) then
+                seen[ws_id] = true
+                containers[#containers + 1] = ws_id
+            end
+            seen[bid] = true
+            return
+        end
+
+        if sb.is_valid_camp_box(bid, hub_id, camp) then
+            seen[bid] = true
+            containers[#containers + 1] = bid
+        end
+    end
+
+    if camp and camp.primary_chest_id then
+        add_box(camp.primary_chest_id)
+    end
+
+    if camp and camp.structures then
+        for struct_id, struct_type in pairs(camp.structures) do
+            add_box(struct_id)
+        end
+    end
+
+    if hub_id and sb.camp_box_id_cache and sb.camp_box_id_cache[hub_id] then
+        add_box(sb.camp_box_id_cache[hub_id].box_id)
+    end
+
+    if hub_id then
+        add_box(hub_id)
+    end
+
+    if camp then
+        camp._cached_containers = containers
+        camp._cached_containers_tg = tg
+    end
+
+    return containers
+end
+
+function stalker_camp_builder.consume_one_use(item_id)
+    if not item_id then return false end
+    local sb = stalker_camp_builder
+    local known_uses = nil
+    if sb and sb.active_camps then
+        for _, c in pairs(sb.active_camps) do
+            if c.stored_items and c.stored_items[item_id] then
+                local it = c.stored_items[item_id]
+                known_uses = it.uses
+                if it.uses and it.uses > 1 then
+                    local old_uses = it.uses
+                    it.uses = it.uses - 1
+                    local sec = it.sec
+                    local ini = ini_sys or sys_ini or system_ini()
+                    if sec and ini and ini:section_exist(sec) and ini:r_bool_ex(sec, "use_condition", false) then
+                        local max_u = it.max_uses or ini:r_float_ex(sec, "max_uses") or old_uses
+                        local full_w = ini:r_float_ex(sec, "inv_weight") or (it.weight or 0.1)
+                        local empty_w = ini:r_float_ex(sec, "empty_weight") or 0.0
+                        if max_u and max_u > 0 and full_w > empty_w then
+                            it.weight = empty_w + (full_w - empty_w) * (it.uses / max_u)
+                        end
+                    end
+                else
+                    c.stored_items[item_id] = nil
+                end
+                break
+            end
+        end
+    end
+    if sb and sb.invalidate_server_container_cache then
+        sb.invalidate_server_container_cache()
+    end
+
+    local cl_item = level and level.object_by_id and level.object_by_id(item_id)
+    if cl_item then
+        local ok_uses, uses = pcall(function() return cl_item:get_remaining_uses() end)
+        if ok_uses and uses and uses > 1 then
+            pcall(function() cl_item:set_remaining_uses(uses - 1) end)
+            return true
+        end
+    end
+
+    local se_item = alife_object(item_id)
+    if se_item then
+        -- Server objects have no uses API, so for an offline item the camp's record holds the
+        -- uses left. While it says more than one, keep the item and owe the use:
+        -- apply_pending_cond takes it off when the item is next online.
+        if not cl_item and known_uses and known_uses > 1 then
+            local pend = sb.pending_item_cond or {}
+            sb.pending_item_cond = pend
+            local e = pend[item_id]
+            if type(e) ~= "table" then
+                e = { c = e }
+                pend[item_id] = e
+            end
+            e.s = e.s or se_item:section_name()
+            e.u = (e.u or 0) + 1
+            sb.save_pending_cond()
+            sb.start_pending_cond_timer()
+            return true
+        end
+        if sb.pending_item_cond then sb.pending_item_cond[item_id] = nil end
+        alife_release(se_item)
+    end
+    return true
+end
+
+-- UNIFIED SETTLEMENT INVENTORY SIMULATION CONTRACT
+function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, priority_box_id)
+    if not callback then return false end
+    local sb = stalker_camp_builder
+    local sim = alife()
+    if not sim then return false end
+
+    if not camp and hub_id and sb.active_camps then
+        camp = sb.active_camps[hub_id]
+    end
+    if not hub_id and camp and camp.hub_id then
+        hub_id = camp.hub_id
+    end
+
+    local containers = sb.get_camp_containers(hub_id, camp) or {}
+    if #containers == 0 then return false end
+
+    local box_order = {}
+    local seen_boxes = {}
+    if priority_box_id and sb.is_valid_camp_box(priority_box_id, hub_id, camp) then
+        box_order[1] = priority_box_id
+        seen_boxes[priority_box_id] = true
+    end
+    for _, bid in ipairs(containers) do
+        if not seen_boxes[bid] then
+            seen_boxes[bid] = true
+            box_order[#box_order + 1] = bid
+        end
+    end
+
+    local any_box_online = false
+    for _, cid in ipairs(box_order) do
+        local box_obj = level and level.object_by_id and level.object_by_id(cid)
+        if box_obj and box_obj.iterate_inventory_box then
+            any_box_online = true
+            break
+        end
+    end
+
+    if any_box_online then
+        if camp then camp.stored_items = camp.stored_items or {} end
+        local scan_stopped = false
+        for _, cid in ipairs(box_order) do
+            local box_obj = level and level.object_by_id and level.object_by_id(cid)
+            if box_obj and box_obj.iterate_inventory_box then
+                local stopped = false
+                local seen_in_box = {}
+                sb.safe_iterate_inventory_box(box_obj, function(temp, cl_item)
+                    if not cl_item then return end
+                    local iid = cl_item:id()
+                    seen_in_box[iid] = true
+                    -- An item released earlier in this update has no server object any more, but the
+                    -- box lists it until the client handles the destroy event next frame: skip it, or
+                    -- every later count and consume in this update finds it again
+                    local se_obj = sim:object(iid)
+                    if not se_obj then return end
+                    -- uses owed from offline consumption come off before the uses are read
+                    if type(cl_item) == "userdata" and sb.pending_item_cond and sb.pending_item_cond[iid] then
+                        sb.apply_pending_cond(cl_item)
+                    end
+                    local sec = cl_item:section()
+                    local cond = 1.0
+                    local ok_c, c = pcall(function() return cl_item:condition() end)
+                    if ok_c and c then cond = c end
+                    local uses = 1
+                    local ok_u, u = pcall(function() return cl_item:get_remaining_uses() end)
+                    if ok_u and u then uses = u end
+                    local item_w = (cl_item.weight and cl_item:weight()) or nil
+                    local ini = ini_sys or sys_ini or system_ini()
+                    local max_u = (cl_item.get_max_uses and cl_item:get_max_uses()) or (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or uses
+
+                    if camp and camp.stored_items then
+                        camp.stored_items[iid] = {
+                            sec = sec,
+                            cond = cond,
+                            uses = uses,
+                            max_uses = max_u,
+                            box_id = cid,
+                            weight = item_w,
+                            verified = true
+                        }
+                    end
+
+                    local stop = callback(iid, sec, cond, uses, se_obj, cid, cl_item)
+                    if stop == true then
+                        stopped = true
+                        return true
+                    end
+                end)
+                if camp and camp.stored_items then
+                    for stored_iid, stored_it in pairs(camp.stored_items) do
+                        if stored_it.box_id == cid and not seen_in_box[stored_iid] then
+                            -- the listing misses what a stopped scan never reached, and what was spawned
+                            -- into the box this update (the client lists it from the next frame)
+                            local se_stored = sim:object(stored_iid)
+                            if not (se_stored and se_stored.parent_id == cid) then
+                                camp.stored_items[stored_iid] = nil
+                            end
+                        end
+                    end
+                end
+                if stopped then
+                    scan_stopped = true
+                    return true
+                end
+            else
+                local stopped = false
+                sb.iterate_server_container(cid, function(child_id, se_item)
+                    if not (child_id and se_item) then return end
+                    local sec = se_item:section_name()
+                    local seen = camp and camp.stored_items and camp.stored_items[child_id]
+                    -- server items export no condition: keep the one recorded for this item
+                    local cond = (seen and seen.sec == sec and seen.cond) or se_item.condition or 1.0
+                    local ini = ini_sys or sys_ini or system_ini()
+                    local max_u = (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or 1
+                    local uses = (seen and seen.sec == sec and seen.uses) or max_u
+
+                    if camp and camp.stored_items then
+                        local same_sec = seen and seen.sec == sec
+                        local max_u_entry = (same_sec and seen.max_uses) or max_u
+                        camp.stored_items[child_id] = {
+                            sec = sec,
+                            cond = cond,
+                            uses = uses,
+                            max_uses = max_u_entry,
+                            box_id = cid,
+                            weight = (same_sec and seen.weight) or nil,
+                            verified = (same_sec and seen.verified) or false
+                        }
+                    end
+
+                    local stop = callback(child_id, sec, cond, uses, se_item, cid, nil)
+                    if stop == true then
+                        stopped = true
+                        return true
+                    end
+                end)
+                if stopped then
+                    scan_stopped = true
+                    return true
+                end
+            end
+        end
+        if camp and not scan_stopped then
+            camp._stored_items_complete = true
+        end
+    else
+        -- OFFLINE SETTLEMENT INVENTORY SIMULATION CONTRACT
+        camp = camp or (hub_id and sb.active_camps and sb.active_camps[hub_id])
+        if camp then
+            camp.stored_items = camp.stored_items or {}
+            if not camp._stored_items_complete then
+                for _, cid in ipairs(box_order) do
+                    sb.iterate_server_container(cid, function(child_id, se_item)
+                        if child_id and se_item then
+                            local sec = se_item:section_name()
+                            local seen = camp.stored_items and camp.stored_items[child_id]
+                            -- server items export no condition: keep the one recorded for this item
+                            local cond = (seen and seen.sec == sec and seen.cond) or se_item.condition or 1.0
+                            local ini = ini_sys or sys_ini or system_ini()
+                            local max_u = (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or 1
+                            local uses = (seen and seen.sec == sec and seen.uses) or max_u
+                            camp.stored_items[child_id] = {
+                                sec = sec,
+                                cond = cond,
+                                uses = uses,
+                                max_uses = max_u,
+                                box_id = cid,
+                                weight = (seen and seen.sec == sec and seen.weight) or nil,
+                                verified = (seen and seen.verified) or false
+                            }
+                        end
+                    end)
+                end
+                camp._stored_items_complete = true
+            end
+
+            for iid, it in pairs(camp.stored_items) do
+                local se_obj = sim:object(iid)
+                -- only what is still in one of this camp's boxes, and still the same item
+                if not se_obj or not seen_boxes[se_obj.parent_id] or se_obj:section_name() ~= it.sec then
+                    camp.stored_items[iid] = nil
+                else
+                    local stop = callback(iid, it.sec, it.cond or 1.0, it.uses or 1, se_obj, it.box_id, nil)
+                    if stop == true then return true end
+                end
+            end
+        else
+            for _, cid in ipairs(box_order) do
+                local stopped = false
+                sb.iterate_server_container(cid, function(child_id, se_item)
+                    if not (child_id and se_item) then return end
+                    local sec = se_item:section_name()
+                    local cond = se_item.condition or 1.0
+                    local ini = ini_sys or sys_ini or system_ini()
+                    local max_u = (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or 1
+                    local uses = max_u
+                    local stop = callback(child_id, sec, cond, uses, se_item, cid, nil)
+                    if stop == true then
+                        stopped = true
+                        return true
+                    end
+                end)
+                if stopped then return true end
+            end
+        end
+    end
+
+    return false
+end
+
+function stalker_camp_builder.invalidate_camp_inventory_cache(hub_id, camp)
+    local sb = stalker_camp_builder
+    if not camp and hub_id and sb.active_camps then
+        camp = sb.active_camps[hub_id]
+    end
+    if camp then
+        camp._inv_snapshot = nil
+        camp._inv_snapshot_tg = nil
+        camp._inv_snapshot_dirty = nil
+        camp._cached_box_weights = nil
+        camp._cached_chest_supplies_tg = nil
+        camp._cached_storage_metrics_tg = nil
+        camp._stored_items_complete = nil
+        if camp.survivors then
+            for _, s in pairs(camp.survivors) do
+                s._cached_paused_tg = nil
+            end
+        end
+    end
+end
+
+function stalker_camp_builder.on_actor_box_change(box_id, obj, is_put)
+    if not box_id then return end
+    local sb = stalker_camp_builder
+    if not sb.active_camps then return end
+    for hub_id, camp in pairs(sb.active_camps) do
+        local is_camp_box = false
+        if camp.primary_chest_id == box_id then
+            is_camp_box = true
+        elseif camp.structures and camp.structures[box_id] then
+            is_camp_box = true
+        elseif camp._cached_containers then
+            for _, cid in ipairs(camp._cached_containers) do
+                if cid == box_id then
+                    is_camp_box = true
+                    break
+                end
+            end
+        end
+        if is_camp_box then
+            if obj and camp.stored_items then
+                local iid = obj:id()
+                if is_put == false then
+                    camp.stored_items[iid] = nil
+                elseif is_put == true then
+                    local sec = obj:section()
+                    local cond = 1.0
+                    local ok_c, c = pcall(function() return obj:condition() end)
+                    if ok_c and c then cond = c end
+                    local uses = 1
+                    local ok_u, u = pcall(function() return obj:get_remaining_uses() end)
+                    if ok_u and u then uses = u end
+                    local item_w = (obj.weight and obj:weight()) or nil
+                    local ini = ini_sys or sys_ini or system_ini()
+                    local max_u = (obj.get_max_uses and obj:get_max_uses()) or (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or uses
+                    camp.stored_items[iid] = {
+                        sec = sec,
+                        cond = cond,
+                        uses = uses,
+                        max_uses = max_u,
+                        box_id = box_id,
+                        weight = item_w,
+                        verified = true
+                    }
+                end
+            end
+            sb.invalidate_camp_inventory_cache(hub_id, camp)
+            break
+        end
+    end
+end
+
+function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
+    local sb = stalker_camp_builder
+    if not camp and hub_id and sb.active_camps then
+        camp = sb.active_camps[hub_id]
+    end
+    if not hub_id and camp and camp.hub_id then
+        hub_id = camp.hub_id
+    end
+    if not camp then return nil end
+
+    local now_tg = time_global()
+    if not force and not camp._inv_snapshot_dirty and camp._inv_snapshot and camp._inv_snapshot_tg and (now_tg - camp._inv_snapshot_tg) < 10000 then
+        return camp._inv_snapshot
+    end
+
+    local ini = ini_sys or sys_ini or system_ini()
+    local boxes = (sb.get_camp_containers and sb.get_camp_containers(hub_id, camp)) or {}
+
+    local fridge_id = nil
+    for struct_id, struct_type in pairs(camp.structures or {}) do
+        if struct_type == "fridge" and (sb.is_actual_container and sb.is_actual_container(struct_id)) then
+            fridge_id = struct_id
+            break
+        end
+    end
+
+    local m_data = alife_storage_manager and alife_storage_manager.get_state and alife_storage_manager.get_state()
+    local ws = m_data and m_data.workshop_stashes or {}
+    local wb_only = {}
+    if hub_id and ws[hub_id] then wb_only[ws[hub_id]] = true end
+    for sid, stype in pairs(camp.structures or {}) do
+        if stype == "workbench" or stype == "repair_bench" then
+            wb_only[ws[sid] or sid] = true
+        end
+    end
+    if hub_id then wb_only[hub_id] = true end
+
+    local max_weight = 0
+    for _, bid in ipairs(boxes) do
+        max_weight = max_weight + (sb.get_box_capacity(bid) or 60)
+    end
+    if max_weight <= 0 then max_weight = 60 end
+
+    local snapshot = {
+        total_items = 0,
+        total_weight = 0,
+        max_weight = max_weight,
+        food_count = 0,
+        has_food = false,
+        raw_meat_count = 0,
+        fridge_raw_meat_count = 0,
+        fridge_id = fridge_id,
+        clean_water_count = 0,
+        fermentable_count = 0,
+        potato_count = 0,
+        grain_count = 0,
+        has_water = false,
+        water_filter_count = 0,
+        has_powder = false,
+        has_scrap = false,
+        ammo_counts = {
+            pistol = 0,
+            shotgun = 0,
+            rifle_soviet = 0,
+            rifle_nato = 0,
+            rifle_heavy = 0,
+            sniper = 0,
+            turret = 0,
+            auto = 0,
+        },
+        turret_9mm_rounds = 0,
+        has_damaged_gear = false,
+        has_repair_fee = false,
+        med_counts = {
+            akvatab = 0,
+            kalium = 0,
+            medkit = 0,
+            bandage = 0,
+            auto = 0,
+        },
+        total_ethanol = 0,
+        has_cloth = false,
+        has_bandage = false,
+        has_battery = false,
+        wood_count = 0,
+        charcoal_count = 0,
+        box_weights = {},
+    }
+
+    local raw_meats = {
+        ["mutant_part_tushkano_meat"]  = true,
+        ["mutant_part_dog_meat"]       = true,
+        ["mutant_part_psevdodog_meat"] = true,
+        ["mutant_part_flesh_meat"]     = true,
+        ["mutant_part_boar_chop"]      = true,
+        ["mutant_part_snork_hand"]     = true,
+        ["mutant_part_krovosos_meat"]  = true,
+        ["mutant_part_psysucker_meat"] = true,
+        ["mutant_part_lurker_meat"]    = true,
+        ["mutant_part_chimera_meat"]   = true,
+    }
+
+    if sb.camp_iterate_inventory then
+        sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
+            if not sec then return end
+            snapshot.total_items = snapshot.total_items + 1
+
+            local s = sec:lower()
+            local u = uses or 1
+            if u < 1 then u = 1 end
+
+            local w = 0.1
+            if cl_item and cl_item.weight then
+                local ok_w, iw = pcall(function() return cl_item:weight() end)
+                if ok_w and iw then w = iw end
+            elseif ini and ini:section_exist(sec) then
+                w = ini:r_float_ex(sec, "inv_weight") or 0.1
+            end
+            snapshot.total_weight = snapshot.total_weight + w
+
+            if s:find("_cooked") or (s:sub(1, 5) == "meat_" and (s:sub(-2) == "_b" or s:sub(-2) == "_a"))
+               or s == "meat_tushkano" or s == "meat_dog" or s == "meat_pseudodog"
+               or s == "meat_flesh" or s == "meat_boar" or s == "meat_bloodsucker"
+               or s == "meat_snork" or s == "meat_chimera" or s == "meat_lurker"
+               or s == "meat_psysucker" or s == "kolbasa" then
+                snapshot.food_count = snapshot.food_count + 1
+            end
+
+            if not snapshot.has_food then
+                if s:find("conserva", 1, true) or s:find("tushonka", 1, true) or s:find("kolbasa", 1, true)
+                   or s:find("bread", 1, true) or s:find("meat", 1, true) or s:find("sausage", 1, true)
+                   or s:find("stew", 1, true) or s:find("ration", 1, true) or s == "vodka" or s == "beer"
+                   or s == "chocolate" or s:find("mre", 1, true) or s:find("nuts", 1, true) then
+                    snapshot.has_food = true
+                end
+            end
+
+            if raw_meats[sec] or raw_meats[s] then
+                snapshot.raw_meat_count = snapshot.raw_meat_count + 1
+                if cid and fridge_id and cid == fridge_id then
+                    snapshot.fridge_raw_meat_count = snapshot.fridge_raw_meat_count + 1
+                end
+            end
+
+            if sb.is_clean_water and sb.is_clean_water(sec) then
+                snapshot.clean_water_count = snapshot.clean_water_count + 1
+            end
+            if sb.is_fermentable and sb.is_fermentable(sec) then
+                snapshot.fermentable_count = snapshot.fermentable_count + 1
+            end
+            if sb.is_potato and sb.is_potato(sec) then
+                snapshot.potato_count = snapshot.potato_count + 1
+            elseif sb.is_grain and sb.is_grain(sec) then
+                snapshot.grain_count = snapshot.grain_count + 1
+            end
+
+            if not snapshot.has_water then
+                if s:find("water", 1, true) or s:find("bottle", 1, true) or s:find("flask", 1, true)
+                   or s == "energy_drink" or s == "beer" or s:find("drink", 1, true) or s:find("canteen", 1, true)
+                   or s == "mineral_water" then
+                    snapshot.has_water = true
+                end
+            end
+
+            if sb.cfg and sb.cfg.water_filters and (sb.cfg.water_filters[sec] or sb.cfg.water_filters[s]) then
+                snapshot.water_filter_count = snapshot.water_filter_count + 1
+            end
+
+            if not snapshot.has_powder then
+                if sb.is_gunpowder and sb.is_gunpowder(s) then
+                    snapshot.has_powder = true
+                end
+            end
+
+            if not snapshot.has_scrap then
+                if sb.is_scrap and sb.is_scrap(sec) then
+                    snapshot.has_scrap = true
+                end
+            end
+
+            if s:find("^ammo_") then
+                snapshot.ammo_counts.auto = snapshot.ammo_counts.auto + 1
+                if s:find("ammo_9x18") or s:find("ammo_9x19") or s:find("ammo_11.43x23") or s:find("ammo_7.62x25") or s:find("ammo_357") then
+                    snapshot.ammo_counts.pistol = snapshot.ammo_counts.pistol + 1
+                end
+                if s:find("ammo_12x70") or s:find("ammo_12x76") or s:find("ammo_20x70") or s:find("ammo_23x75") then
+                    snapshot.ammo_counts.shotgun = snapshot.ammo_counts.shotgun + 1
+                end
+                if s:find("ammo_5.45x39") then
+                    snapshot.ammo_counts.rifle_soviet = snapshot.ammo_counts.rifle_soviet + 1
+                end
+                if s:find("ammo_5.56x45") then
+                    snapshot.ammo_counts.rifle_nato = snapshot.ammo_counts.rifle_nato + 1
+                end
+                if s:find("ammo_7.62x39") then
+                    snapshot.ammo_counts.rifle_heavy = snapshot.ammo_counts.rifle_heavy + 1
+                end
+                if s:find("ammo_7.62x54") or s:find("ammo_7.62x51") or s:find("ammo_9x39") or s:find("ammo_magnum_338") or s:find("ammo_12.7x55") then
+                    snapshot.ammo_counts.sniper = snapshot.ammo_counts.sniper + 1
+                end
+                if s:find("ammo_9x19") or s:find("ammo_9x18") then
+                    snapshot.ammo_counts.turret = snapshot.ammo_counts.turret + 1
+                    if cl_item then
+                        local b_count = 20
+                        pcall(function() b_count = cl_item:ammo_get_count() or 20 end)
+                        snapshot.turret_9mm_rounds = snapshot.turret_9mm_rounds + b_count
+                    end
+                end
+            end
+
+            if not snapshot.has_repair_fee then
+                if sb.is_repair_fee and sb.is_repair_fee(sec) then
+                    snapshot.has_repair_fee = true
+                end
+            end
+            if not snapshot.has_damaged_gear then
+                local in_bench = wb_only[cid] and cl_item
+                if in_bench and (s:find("wpn_") or s:find("helm_") or s:find("armor_") or s:find("outfit")) then
+                    local c_val = cond or 1.0
+                    local worn_parts = false
+                    if item_id and sb.gun_parts_worn then
+                        pcall(function() worn_parts = sb.gun_parts_worn(item_id, sec) end)
+                    end
+                    if c_val < 0.95 or worn_parts then
+                        snapshot.has_damaged_gear = true
+                    end
+                end
+            end
+
+            if s:find("medkit") or s:find("bandage") or s:find("antirad") or s:find("stimpack") or s:find("salve") or s == "akvatab" or s == "antirad_kalium" or s == "drug_booster" or s:find("ibuprofen") ~= nil then
+                snapshot.med_counts.auto = snapshot.med_counts.auto + 1
+            end
+            if s == "akvatab" or s == "drug_booster" or s:find("ibuprofen") ~= nil then
+                snapshot.med_counts.akvatab = snapshot.med_counts.akvatab + 1
+            end
+            if s == "antirad_kalium" or s == "antirad" or s:find("kalium") ~= nil then
+                snapshot.med_counts.kalium = snapshot.med_counts.kalium + 1
+            end
+            if s:find("medkit") ~= nil then
+                snapshot.med_counts.medkit = snapshot.med_counts.medkit + 1
+            end
+            if s:find("bandage") ~= nil then
+                snapshot.med_counts.bandage = snapshot.med_counts.bandage + 1
+                snapshot.has_bandage = true
+            end
+
+            if s:find("vodka") or s:find("antiseptic") or s == "alcohol" then
+                snapshot.total_ethanol = snapshot.total_ethanol + u
+            end
+
+            if not snapshot.has_cloth then
+                if sb.is_cloth and sb.is_cloth(sec) then
+                    snapshot.has_cloth = true
+                end
+            end
+
+            if not snapshot.has_battery then
+                if sb.is_lamp_battery and sb.is_lamp_battery(sec) then
+                    snapshot.has_battery = true
+                end
+            end
+
+            if cid then
+                snapshot.box_weights[cid] = (snapshot.box_weights[cid] or 0) + w
+            end
+
+            if sec == "charcoal" or sec:find("charcoal") then
+                snapshot.charcoal_count = snapshot.charcoal_count + u
+            end
+
+            if sb.is_wood_part and sb.is_wood_part(sec) then
+                snapshot.wood_count = snapshot.wood_count + u
+            end
+        end)
+    end
+
+    snapshot.has_storage_room = (snapshot.total_weight + 0.5) <= snapshot.max_weight
+
+    camp._inv_snapshot = snapshot
+    camp._inv_snapshot_tg = now_tg
+    camp._inv_snapshot_dirty = nil
+    camp._cached_box_weights = snapshot.box_weights
+    camp._cached_chest_supplies_tg = now_tg
+    camp._cached_has_food = snapshot.has_food
+    camp._cached_has_water = snapshot.has_water
+    camp._cached_storage_metrics_tg = now_tg
+    camp._cached_storage_metrics = {
+        weight = math.floor(snapshot.total_weight),
+        max_weight = snapshot.max_weight,
+        total_items = snapshot.total_items,
+        pct = math.min(100, math.floor((snapshot.total_weight / snapshot.max_weight) * 100))
+    }
+
+    return snapshot
+end
+
+function stalker_camp_builder.camp_find_item(hub_id, camp, filter_fn, priority_box_id)
+    if not filter_fn then return nil end
+    local sb = stalker_camp_builder
+    local res = nil
+    sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
+        if filter_fn(sec, cond, uses, se_obj, cl_item) then
+            res = {
+                sec = sec,
+                id = item_id,
+                box_id = cid,
+                cond = cond,
+                uses = uses,
+                se = se_obj,
+                cl = cl_item
+            }
+            return true
+        end
+    end, priority_box_id)
+
+    if res then
+        return res.sec, res.id, res.box_id, res.cond, res.uses, res.se
+    end
+    return nil
+end
+
+function stalker_camp_builder.camp_consume_item(hub_id, camp, filter_fn, priority_box_id)
+    local sb = stalker_camp_builder
+    local sec, id, box_id = sb.camp_find_item(hub_id, camp, filter_fn, priority_box_id)
+    if sec and id then
+        sb.consume_one_use(id)
+        if sb.invalidate_server_container_cache and box_id then
+            sb.invalidate_server_container_cache(box_id)
+        end
+        if not camp and hub_id and sb.active_camps then
+            camp = sb.active_camps[hub_id]
+        end
+        if camp then
+            camp._inv_snapshot_dirty = true
+            camp._cached_box_weights = nil
+            camp._cached_chest_supplies_tg = nil
+            camp._cached_storage_metrics_tg = nil
+        end
+        return sec, id, box_id
+    end
+    return nil
+end
+
+function stalker_camp_builder.camp_count_item(hub_id, camp, filter_fn, stop_at_cap)
+    local sb = stalker_camp_builder
+    local count = 0
+    sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
+        if filter_fn(sec, cond, uses, se_obj) then
+            count = count + 1
+            if stop_at_cap and count >= stop_at_cap then
+                return true
+            end
+        end
+    end)
+    return count
+end

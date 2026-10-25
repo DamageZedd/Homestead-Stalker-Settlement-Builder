@@ -1,0 +1,259 @@
+-- stalker_camp_builder_containers.script
+-- Homestead server-container / inventory-box iteration helpers (split out of stalker_camp_builder.script).
+-- Exposed on the main table: invalidate_server_container_cache, get_server_container_items,
+-- iterate_server_container, safe_iterate_inventory_box, is_actual_container.
+
+local known_bad_inventory_boxes = {}
+
+-- iterate_server_container -- robustly iterate items in an ALife container
+local _server_container_cache = {}
+local _server_container_cache_tg = 0
+
+function stalker_camp_builder.invalidate_server_container_cache(box_id)
+    -- Always force a full rebuild. Clearing only one box's list made that
+    -- box read as empty until the next rebuild (false "no supplies").
+    _server_container_cache = {}
+    _server_container_cache_tg = 0
+end
+
+function stalker_camp_builder.get_server_container_items(target_box_id)
+    if not target_box_id then return {} end
+    local tg = time_global()
+    if (tg - _server_container_cache_tg) > 3500 then
+        _server_container_cache = {}
+        _server_container_cache_tg = tg
+
+        local registry = _G.server_objects_registry
+        if registry then
+            for id, se in pairs(registry) do
+                if se and se.parent_id and se.parent_id > 0 and se.parent_id < 65535 then
+                    local pid = se.parent_id
+                    local list = _server_container_cache[pid]
+                    if not list then
+                        list = {}
+                        _server_container_cache[pid] = list
+                    end
+                    list[#list + 1] = id
+                end
+            end
+        else
+            -- Fallback server object scan
+            local sim = alife()
+            if sim then
+                for id = 1, 65534 do
+                    local se = sim:object(id)
+                    if se and se.parent_id and se.parent_id > 0 and se.parent_id < 65535 then
+                        local pid = se.parent_id
+                        local list = _server_container_cache[pid]
+                        if not list then
+                            list = {}
+                            _server_container_cache[pid] = list
+                        end
+                        list[#list + 1] = id
+                    end
+                end
+            end
+        end
+    end
+    if not _server_container_cache[target_box_id] then
+        _server_container_cache[target_box_id] = {}
+    end
+    return _server_container_cache[target_box_id]
+end
+
+function stalker_camp_builder.iterate_server_container(box_id_or_se, callback)
+    local type_ = type
+    if not (box_id_or_se and callback) then return end
+    local sim = alife()
+    if not sim then return end
+
+    local se_box = nil
+    local box_id = nil
+    if type_(box_id_or_se) == "number" then
+        box_id = box_id_or_se
+        se_box = sim:object(box_id)
+    elseif type_(box_id_or_se) == "userdata" and box_id_or_se.id then
+        se_box = box_id_or_se
+        box_id = se_box.id
+    end
+    if not se_box or not box_id then return end
+
+    local m_data = alife_storage_manager and alife_storage_manager.get_state()
+    if m_data and m_data.workshop_stashes and m_data.workshop_stashes[box_id] then
+        local ws_id = m_data.workshop_stashes[box_id]
+        local ws_se = sim:object(ws_id)
+        if ws_se then
+            se_box = ws_se
+            box_id = ws_id
+        end
+    end
+
+    local items_found = 0
+    local stopped = false
+
+    if sim.get_children then
+        local listed = pcall(function()
+            for child_id in sim:get_children(se_box) do
+                if child_id and child_id < 65535 then
+                    local se_item = sim:object(child_id)
+                    -- a reused id in the list names an object that isn't in the box
+                    if se_item and se_item.parent_id == se_box.id then
+                        items_found = items_found + 1
+                        local stop = callback(child_id, se_item)
+                        if stop == true then
+                            stopped = true
+                            return
+                        end
+                    end
+                end
+            end
+        end)
+        -- a completed pass lists the whole box, even an empty one (falling through would
+        -- sweep every id up to 65534 in get_server_container_items)
+        if listed or stopped or items_found > 0 then return end
+    end
+
+    if type_(se_box.children) == "table" then
+        pcall(function()
+            for _, child_id in ipairs(se_box.children) do
+                if child_id and child_id < 65535 then
+                    local se_item = sim:object(child_id)
+                    if se_item and se_item.parent_id == se_box.id then
+                        items_found = items_found + 1
+                        local stop = callback(child_id, se_item)
+                        if stop == true then
+                            stopped = true
+                            return
+                        end
+                    end
+                end
+            end
+        end)
+        if stopped or items_found > 0 then return end
+    end
+
+    local item_ids = stalker_camp_builder.get_server_container_items(box_id)
+    for _, item_id in ipairs(item_ids) do
+        local se_item = sim:object(item_id)
+        if se_item and se_item.parent_id == box_id then
+            local stop = callback(item_id, se_item)
+            if stop == true then return end
+        end
+    end
+end
+
+function stalker_camp_builder.safe_iterate_inventory_box(box_obj, callback)
+    local type_ = type
+    if not (box_obj and callback) then return end
+    local obj_id = nil
+    if type_(box_obj) == "number" then
+        obj_id = box_obj
+        box_obj = level and level.object_by_id and level.object_by_id(obj_id)
+    else
+        pcall(function() obj_id = box_obj:id() end)
+        if not obj_id and type_(box_obj) == "userdata" and box_obj.id then
+            pcall(function() obj_id = box_obj.id end)
+        end
+    end
+
+    if obj_id and known_bad_inventory_boxes[obj_id] then
+        local se = alife_object(obj_id)
+        if se then
+            local sec = se:section_name() or ""
+            local c = se:clsid()
+            if c == clsid.inventory_box or c == clsid.inventory_box_s or sec:find("workshop_stash") then
+                known_bad_inventory_boxes[obj_id] = nil
+            else
+                return
+            end
+        else
+            return
+        end
+    end
+
+    if box_obj and type_(box_obj) == "userdata" and box_obj.clsid then
+        local is_native_box = false
+        pcall(function()
+            local c = box_obj:clsid()
+            if c == clsid.inventory_box or c == clsid.inventory_box_s then
+                is_native_box = true
+            end
+        end)
+
+        if is_native_box and box_obj.iterate_inventory_box then
+            local iter_ok = pcall(function() box_obj:iterate_inventory_box(callback) end)
+            if iter_ok then
+                return
+            end
+        end
+    end
+
+    if obj_id then
+        local se_box = alife_object(obj_id)
+        if se_box then
+            stalker_camp_builder.iterate_server_container(se_box, function(cid, se_item)
+                local item_obj = level and level.object_by_id and level.object_by_id(cid)
+                if item_obj then
+                    callback(nil, item_obj)
+                else
+                    local dummy_item = {
+                        section = function() return se_item:section_name() end,
+                        id = function() return cid end,
+                        condition = function() return se_item.condition or 1.0 end,
+                        get_remaining_uses = function()
+                            local ok_u, u = pcall(function() return se_item:get_remaining_uses() end)
+                            return (ok_u and u) or 1
+                        end
+                    }
+                    callback(nil, dummy_item)
+                end
+            end)
+        end
+    end
+end
+
+function stalker_camp_builder.is_actual_container(box_id)
+    if not box_id then return false end
+    local se_obj = alife_object(box_id)
+    if not se_obj then return false end
+
+    local sec = se_obj:section_name()
+    if not sec then return false end
+    local s = sec:lower()
+
+    if s == "workshop_stash" or s:find("workshop_stash") then
+        known_bad_inventory_boxes[box_id] = nil
+        return true
+    end
+
+    if known_bad_inventory_boxes[box_id] then
+        local c = se_obj:clsid()
+        if c == clsid.inventory_box or c == clsid.inventory_box_s then
+            known_bad_inventory_boxes[box_id] = nil
+        else
+            return false
+        end
+    end
+
+    if s:find("table") or s:find("chair") or s:find("bed") or s:find("lamp") or s:find("radio")
+       or s:find("piano") or s:find("turret") or s:find("barricade") or s:find("harvester")
+       or s:find("display") or s:find("weapon_rack") or s:find("counter") then
+        known_bad_inventory_boxes[box_id] = true
+        return false
+    end
+
+    if s == "placeable_stove1" or s == "placeable_stove2" or s == "decor_stove" then
+        known_bad_inventory_boxes[box_id] = true
+        return false
+    end
+
+    local c = se_obj:clsid()
+    if c == clsid.inventory_box or c == clsid.inventory_box_s then
+        return true
+    end
+
+    -- only an inventory box holds items: a prop with a box's name ignores an item handed to it,
+    -- and an item (a sleeping bag, a lead box, a decor kit) holds none
+    known_bad_inventory_boxes[box_id] = true
+    return false
+end

@@ -1,0 +1,1937 @@
+-- stalker_camp_builder_expeditions.script
+-- Homestead remote scavenger stash expeditions, PDA map-spot dispatch menu and the travel-time
+-- engine (split out of stalker_camp_builder.script).
+-- Exposed on the main table: process_stash_expeditions, dispatch_scavenger_to_stash,
+-- dispatch_scavenger_regional_sweep, recall_scavenger_expedition(_by_npc), get_expedition_for_stash,
+-- map_spot_menu_add_property, map_spot_menu_property_clicked and the stash helpers below.
+local sformat = string.format
+local pairs_ = pairs
+local ipairs_ = ipairs
+local tostr = tostring
+local mfloor = math.floor
+
+local function is_level_vertex(lvid)
+    return lvid and lvid < 4294967295 and lvid ~= -1 and lvid >= 0
+end
+-- REMOTE SCAVENGER STASH EXPEDITION SYSTEM (v1.2.0)
+stalker_camp_builder.active_stash_expeditions = stalker_camp_builder.active_stash_expeditions or {}
+
+function stalker_camp_builder.get_expedition_for_stash(target_stash_id)
+    local sb = stalker_camp_builder
+    if not (sb and sb.active_stash_expeditions and target_stash_id) then return nil end
+    local tid_num = tonumber(target_stash_id)
+    local direct = sb.active_stash_expeditions[target_stash_id] or (tid_num and sb.active_stash_expeditions[tid_num])
+    if direct then
+        return direct, (sb.active_stash_expeditions[target_stash_id] and target_stash_id) or tid_num
+    end
+
+    for primary_id, exp in pairs(sb.active_stash_expeditions) do
+        if exp and exp.all_stashes then
+            for _, sid in ipairs(exp.all_stashes) do
+                if sid == target_stash_id or (tid_num and tonumber(sid) == tid_num) then
+                    return exp, primary_id
+                end
+            end
+        end
+    end
+    return nil
+end
+
+-- PDA MAP SPOT CONTEXT MENU: SPECIFIC SCAVENGER DISPATCH & REGIONAL SWEEP
+local current_spot_scavengers = {}
+
+function stalker_camp_builder.restore_missing_settler(hub_id, npc_id, survivor)
+    local sim = alife()
+    if not sim then return nil end
+    local hub_obj = sim:object(hub_id)
+    if not hub_obj then return nil end
+
+    local camp = stalker_camp_builder.active_camps[hub_id]
+    if not camp then return nil end
+
+    local sec = survivor.section or "sim_default_stalker_0"
+    if not ini_sys:section_exist(sec) then
+        sec = "sim_default_stalker_0"
+    end
+    local pos = hub_obj.position
+    local lvid = hub_obj.m_level_vertex_id
+    local gvid = hub_obj.m_game_vertex_id
+    if level and camp.level and level.name() == camp.level then
+        local f_lvid, f_pos = stalker_camp_builder.get_furniture_front_vertex_and_pos(pos, 1.5)
+        if f_lvid and f_pos then
+            lvid = f_lvid
+            pos = f_pos
+        end
+    end
+
+    local ok, new_se = pcall(function() return sim:create(sec, pos, lvid, gvid) end)
+    if ok and new_se then
+        local new_id = new_se.id
+        camp.survivors[npc_id] = nil
+        stalker_camp_builder.settler_lookup[npc_id] = nil
+
+        camp.survivors[new_id] = survivor
+        stalker_camp_builder.settler_lookup[new_id] = {
+            hub_id = hub_id,
+            camp = camp,
+            survivor = survivor,
+        }
+
+        -- set_character_name belongs to the server object, which keeps the name in the save and
+        -- passes it to the NPC online. The community needs the NPC online, whenever that is:
+        -- game_object_on_net_spawn applies it
+        if survivor.name then
+            pcall(function() new_se:set_character_name(survivor.name) end)
+        end
+        survivor.pending_community = survivor.comm or survivor.community
+        return new_id
+    end
+    return nil
+end
+
+function stalker_camp_builder.recall_scavenger_expedition_by_npc(npc_id)
+    local sb = stalker_camp_builder
+    local id_num = tonumber(npc_id)
+    for stash_id, exp in pairs(sb.active_stash_expeditions or {}) do
+        if exp.npc_id == npc_id or (id_num and tonumber(exp.npc_id) == id_num) then
+            return sb.recall_scavenger_expedition(stash_id)
+        end
+    end
+    for hub_id, camp in pairs(sb.active_camps or {}) do
+        if camp.survivors and camp.survivors[npc_id] then
+            local surv = camp.survivors[npc_id]
+            if surv.job == "hunter" and surv.on_expedition then
+                surv.on_expedition = nil
+                return true
+            end
+        end
+    end
+    return false
+end
+
+function stalker_camp_builder.get_scavenger_expedition_for_survivor(survivor, npc_id)
+    local tonum = tonumber
+    local sb = stalker_camp_builder
+    local n_id = tonum(npc_id) or (survivor and (tonum(survivor.npc_id) or tonum(survivor.id)))
+    local s_name = survivor and survivor.name
+    for stash_id, exp in pairs(sb.active_stash_expeditions or {}) do
+        local e_id = tonum(exp.npc_id)
+        if (n_id and e_id and n_id == e_id)
+           or (s_name and exp.survivor_name and exp.survivor_name == s_name) then
+            return exp
+        end
+    end
+    return nil
+end
+
+function stalker_camp_builder.recall_scavenger_expedition(stash_id)
+    local sb = stalker_camp_builder
+    local exp = sb.active_stash_expeditions[stash_id]
+    local primary_id = stash_id
+    if not exp and sb.get_expedition_for_stash then
+        exp, primary_id = sb.get_expedition_for_stash(stash_id)
+    end
+    if not exp then return false end
+
+    sb.active_stash_expeditions[primary_id or stash_id] = nil
+    local camp = sb.active_camps[exp.hub_id]
+    -- the stashes looted so far are already emptied and unmarked: bring their items home, with
+    -- the extra copies a finished expedition rolls (deposit_expedition_haul)
+    if camp then
+        local spec_mult = (sb.get_specialization_mult and sb.get_specialization_mult(camp, "scavenge")) or 1.0
+        for _, itm in ipairs(exp.haul or {}) do
+            local count = (spec_mult > 1.0 and math.random() < (spec_mult - 1.0)) and 2 or 1
+            for c = 1, count do
+                pcall(sb.deposit_item_to_camp, exp.hub_id, camp, itm.sec, itm.is_yellow, itm.map_tier, itm.cond, itm.parts, itm.uses)
+            end
+        end
+    end
+    if camp and camp.survivors and camp.survivors[exp.npc_id] then
+        camp.survivors[exp.npc_id].on_expedition = nil
+        local hub_obj = alife_object(exp.hub_id)
+        local se_npc = alife_object(exp.npc_id)
+        if hub_obj and se_npc then
+            se_npc.position = hub_obj.position
+            se_npc.m_level_vertex_id = hub_obj.m_level_vertex_id
+            se_npc.m_game_vertex_id = hub_obj.m_game_vertex_id
+        end
+        -- set_switch_online on an id with no server object is an engine crash
+        if se_npc then
+            utils_obj.switch_online(exp.npc_id)
+            if sb.allow_home_squad_online then
+                sb.allow_home_squad_online(exp.npc_id, true)
+            end
+            if sb.teleport_settler_to_camp_level then
+                sb.teleport_settler_to_camp_level(exp.npc_id, exp.hub_id, true)
+            end
+            if sb.pin_settler_home_squad then
+                sb.pin_settler_home_squad(exp.npc_id)
+            end
+        end
+    end
+
+    local actor = db.actor
+    if actor then
+        local msg = string.format(game.translate_string("st_camp_recall_expedition"), exp.survivor_name or "Scavenger", camp and camp.name or "base")
+        news_manager.send_tip(actor, msg, nil, "general_stalker", 8000)
+    end
+    return true
+end
+
+function stalker_camp_builder.get_available_scavengers()
+    local sb = stalker_camp_builder
+    local scavengers = {}
+    local idle_settlers = {}
+
+    for hub_id, camp in pairs(sb.active_camps or {}) do
+        if camp and camp.survivors then
+            for npc_id, surv in pairs(camp.survivors) do
+                local n_id = tonumber(npc_id) or npc_id
+                local j = surv.job and string.lower(string.gsub(tostring(surv.job), "%s+", "")) or "idle"
+                local is_scav = (j:find("scav") ~= nil)
+
+                local active_exp = sb.get_scavenger_expedition_for_survivor and sb.get_scavenger_expedition_for_survivor(surv, n_id)
+                if surv.on_expedition and not active_exp then
+                    surv.on_expedition = nil
+                    local se_npc = alife_object(n_id)
+                    local hub_obj = alife_object(hub_id)
+                    if se_npc and hub_obj and not se_npc:can_switch_online() then
+                        utils_obj.switch_online(n_id)
+                        if sb.allow_home_squad_online then
+                            sb.allow_home_squad_online(n_id, true)
+                        end
+                        se_npc.position = hub_obj.position
+                        se_npc.m_level_vertex_id = hub_obj.m_level_vertex_id
+                        se_npc.m_game_vertex_id = hub_obj.m_game_vertex_id
+                        if sb.teleport_settler_to_camp_level then
+                            sb.teleport_settler_to_camp_level(n_id, hub_id, true)
+                        end
+                        pcall(utils_obj.switch_online, n_id)
+                    end
+                end
+
+                if not surv.on_expedition and sb.survivor_se(n_id, surv) then
+                    local entry = {
+                        npc_id = n_id,
+                        hub_id = hub_id,
+                        camp = camp,
+                        survivor = surv,
+                        name = surv.name or "Settler",
+                        camp_name = camp.name or "Settlement",
+                        tier = surv.tier or 0
+                    }
+                    if is_scav then
+                        scavengers[#scavengers+1] = entry
+                    elseif j == "idle" or j == "" then
+                        idle_settlers[#idle_settlers+1] = entry
+                    end
+                end
+            end
+        end
+    end
+
+    if #scavengers == 0 and #idle_settlers > 0 then
+        for _, idl in ipairs(idle_settlers) do
+            idl.is_idle_promoted = true
+            scavengers[#scavengers+1] = idl
+        end
+    end
+
+    return scavengers
+end
+
+local quest_spot_types = {
+    "primary_task_location", "secondary_task_location", "storyline_task_location",
+    "ui_pda2_quest_location", "ui_pda2_quest_task", "ui_pda2_quest_story",
+    "treasure_quest", "task_location", "treasure_task"
+}
+
+function stalker_camp_builder.is_quest_or_task_stash(id)
+    if not id or id <= 0 then return false end
+
+    if level and level.map_has_object_spot then
+        for _, qspot in ipairs(quest_spot_types) do
+            if level.map_has_object_spot(id, qspot) > 0 then
+                return true
+            end
+        end
+    end
+
+    if task_manager and task_manager.get_task_manager then
+        local tm = task_manager.get_task_manager()
+        if tm and tm.task_info then
+            for task_id, tsk in pairs(tm.task_info) do
+                if tsk and (tsk.current_target == id or tsk.target == id) then
+                    return true
+                end
+                -- or an item in the stash: New Tasks' stash quests target the documents or PDA they put there
+                local target_id = tsk and tsk.current_target
+                local se_target = type(target_id) == "number" and target_id < 65535 and alife_object(target_id)
+                if se_target and se_target.parent_id == id then
+                    return true
+                end
+            end
+        end
+    end
+
+    local is_quest = false
+    stalker_camp_builder.iterate_server_container(id, function(child_id, child_se)
+        local sec = child_se:section_name()
+        if sec and (ini_sys:line_exist(sec, "quest_item") and ini_sys:r_bool(sec, "quest_item")) then
+            is_quest = true
+            return true
+        end
+        -- most quest items have kind = i_quest and no quest_item key; IsItem("quest") lists both
+        if sec and IsItem and IsItem("quest", sec) then
+            is_quest = true
+            return true
+        end
+    end)
+    if is_quest then return true end
+
+    -- and the items not spawned yet, which treasure_manager lists as "section" or "section__uses"
+    local unspawned = treasure_manager and treasure_manager.caches and treasure_manager.caches[id]
+    if type(unspawned) == "string" and str_explode then
+        for _, entry in ipairs(str_explode(unspawned, ",")) do
+            local sec = stalker_camp_builder.split_stash_entry(entry)
+            if sec and IsItem and IsItem("quest", sec) then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+-- not treasure_player or ui_pda2_actor_box*: those mark the player's own stashes; not
+-- ui_pda2_special_location: stalker_generic puts it on story NPCs (level_spot = special)
+local stash_spot_types = {
+    "treasure", "treasure_unique", "treasure_epic", "treasure_searched",
+    "treasure_unsearched", "ui_pda2_stash_location",
+    "ui_pda2_secret_location", "alife_presentation_stash"
+}
+
+-- a backpack stash the player dropped (item_backpack records each one)
+local function is_player_stash(id)
+    local m_data = alife_storage_manager and alife_storage_manager.get_state and alife_storage_manager.get_state()
+    return (m_data and m_data.player_created_stashes and m_data.player_created_stashes[id] ~= nil) or false
+end
+
+-- a stash is an inventory box; a marker on anything else (an NPC) doesn't make one
+local function is_stash_box(id)
+    local se_obj = alife_object(id)
+    local c = se_obj and se_obj:clsid()
+    return c == clsid.inventory_box or c == clsid.inventory_box_s
+end
+
+local function has_marked_stash_spot(id)
+    if not id or id <= 0 then return false end
+    if is_player_stash(id) then return false end
+    if not is_stash_box(id) then return false end
+    for _, spot in ipairs(stash_spot_types) do
+        if level.map_has_object_spot(id, spot) > 0 then
+            return true
+        end
+    end
+    if treasure_manager and treasure_manager.caches and treasure_manager.caches[id] then
+        return true
+    end
+    return false
+end
+
+function stalker_camp_builder.is_settlement_structure_or_hub(id)
+    if not id or id <= 0 then return false end
+    local sb = stalker_camp_builder
+
+    if sb.active_camps and sb.active_camps[id] then
+        return true
+    end
+
+    if sb.active_camps then
+        for hub_id, camp in pairs(sb.active_camps) do
+            if camp.structures and camp.structures[id] then
+                return true
+            end
+        end
+    end
+
+    local se = alife_object(id)
+    if se then
+        local sec = se:section_name() or ""
+        local sec_l = string.lower(sec)
+        if sec_l:find("hideout_furniture_") or sec_l:find("homestead_") or sec_l:find("camp_hub")
+           or sec_l:find("turret") or sec_l:find("alarm") or sec_l:find("water_pump") then
+            return true
+        end
+        if se_load_var and (se_load_var(id, nil, "is_camp_furniture") or se_load_var(id, nil, "camp_hub_id") or se_load_var(id, nil, "is_settlement_chest")) then
+            return true
+        end
+    end
+
+    return false
+end
+
+function stalker_camp_builder.is_stash_spot(id)
+    if not id or id <= 0 then return false end
+    local sb = stalker_camp_builder
+
+    if sb.is_settlement_structure_or_hub and sb.is_settlement_structure_or_hub(id) then
+        return false
+    end
+
+    if sb.is_quest_or_task_stash and sb.is_quest_or_task_stash(id) then
+        return false
+    end
+
+    if has_marked_stash_spot(id) then
+        return true
+    end
+
+    return false
+end
+
+function stalker_camp_builder.is_stash_yellow(s_id, target_level)
+    if not s_id or s_id <= 0 then return false end
+
+    if level and level.map_has_object_spot then
+        if level.map_has_object_spot(s_id, "treasure_searched") > 0
+        or level.map_has_object_spot(s_id, "treasure_unique") > 0
+        or level.map_has_object_spot(s_id, "treasure_epic") > 0
+        or level.map_has_object_spot(s_id, "ui_pda2_special_location") > 0
+        or level.map_has_object_spot(s_id, "ui_pda2_secret_location") > 0
+        or level.map_has_object_spot(s_id, "ui_pda2_actor_box_yellow") > 0 then
+            return true
+        end
+    end
+
+    if treasure_manager then
+        if treasure_manager.is_rare_cache and treasure_manager.is_rare_cache(s_id) then
+            return true
+        end
+        if treasure_manager.caches_rare then
+            local se_stash = alife_object(s_id)
+            if se_stash then
+                local sname = nil
+                pcall(function() sname = se_stash:name() end)
+                sname = sname or (se_stash.section_name and se_stash:section_name()) or tostring(s_id)
+                local sim = alife()
+                local lvl = target_level
+                if not lvl and sim and game_graph and se_stash.m_game_vertex_id then
+                    local gv = game_graph():vertex(se_stash.m_game_vertex_id)
+                    if gv then lvl = sim:level_name(gv:level_id()) end
+                end
+                lvl = lvl or (level and level.name()) or ""
+                local pfx = string.find(sname, "level_prefix_inventory_box", 1, true) and (lvl .. "_") or ""
+                if treasure_manager.caches_rare[pfx .. sname] or treasure_manager.caches_rare[sname] then
+                    return true
+                end
+            end
+        end
+        if treasure_manager.caches and type(treasure_manager.caches[s_id]) == "string" then
+            local c = treasure_manager.caches[s_id]
+            if c:find("itm_basickit") or c:find("itm_advancedkit") or c:find("itm_expertkit") or c:find("itm_ammokit") or c:find("itm_drugkit") then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+function stalker_camp_builder.get_level_marked_stashes(target_level)
+    local stashes = {}
+    local sim = alife()
+    if not sim then return stashes end
+    target_level = target_level or level.name()
+    local gg = game_graph()
+    local sb = stalker_camp_builder
+
+    local function evaluate_stash_candidate(id, se)
+        if has_marked_stash_spot(id) then
+            if not sb.is_settlement_structure_or_hub(id) and not sb.is_quest_or_task_stash(id) then
+                if not (sb.get_expedition_for_stash and sb.get_expedition_for_stash(id)) then
+                    if se and gg and se.m_game_vertex_id then
+                        local gv = gg:vertex(se.m_game_vertex_id)
+                        if gv then
+                            local se_lvl = sim:level_name(gv:level_id())
+                            if se_lvl == target_level then
+                                stashes[#stashes+1] = id
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    local registry = _G.server_objects_registry
+    if registry then
+        for id, se in pairs(registry) do
+            evaluate_stash_candidate(id, se)
+        end
+    else
+        local sim_ = alife()
+        for id = 1, 65534 do
+            local se = sim_ and sim_:object(id)
+            if se then
+                evaluate_stash_candidate(id, se)
+            end
+        end
+    end
+    return stashes
+end
+
+-- THE LONG ROAD AHEAD (TLRA) & FAIR FAST TRAVEL (FFT) CALCULATION ENGINE
+local tlra_level_offsets = {
+    [1] =  { 950.0,   1000.0, -206.0 },   -- k00_marsh
+    [2] =  { 2050.0,  1000.0, 0.0 },      -- l01_escape
+    [3] =  { 2050.0,  1000.0, 1550.0 },   -- l02_garbage
+    [4] =  { 1300.0,  1000.0, 1400.0 },   -- l03_agroprom
+    [5] =  { 3050.0,  1000.0, 197.0 },    -- k01_darkscape
+    [6] =  { 3050.0,  1000.0, 1900.0 },   -- l04_darkvalley
+    [7] =  { 2000.0,  1000.0, 2850.0 },   -- l05_bar
+    [8] =  { 2000.0,  1000.0, 2850.0 },   -- l06_rostok
+    [9] =  { 2730.0,  1000.0, 3350.0 },   -- l07_military
+    [10] = { 1067.0,  1000.0, 2700.0 },   -- l08_yantar
+    [11] = { 940.0,   1000.0, 3350.0 },   -- l09_deadcity
+    [12] = { 910.0,   1000.0, 4650.0 },   -- l10_limansk
+    [13] = { 2750.0,  1000.0, 4350.0 },   -- l10_radar
+    [14] = { 1750.0,  1000.0, 4350.0 },   -- l10_red_forest
+    [15] = { 1250.0,  1000.0, 5190.0 },   -- l11_hospital
+    [16] = { 3113.0,  1000.0, 5350.0 },   -- l11_pripyat
+    [17] = { 2000.0,  1000.0, 8000.0 },   -- l12_stancia
+    [18] = { 2000.0,  1000.0, 8000.0 },   -- l12_stancia_2
+    [19] = { 1500.0,  1000.0, 9300.0 },   -- l13_generators
+    [27] = { 1750.0,  1000.0, 6450.0 },   -- zaton
+    [28] = { 1750.0,  1000.0, 5303.0 },   -- jupiter
+    [30] = { 3713.0,  1000.0, 5487.0 },   -- pripyat
+    [32] = { 3333.0,  1000.0, 2820.0 },   -- k02_trucks_cemetery
+    [34] = { 2490.0,  1000.0, 710.0 },    -- y04_pole / meadow
+}
+
+local tlra_name_to_lid = {
+    ["k00_marsh"] = 1, ["marsh"] = 1, ["swamp"] = 1,
+    ["l01_escape"] = 2, ["escape"] = 2, ["cordon"] = 2,
+    ["l02_garbage"] = 3, ["garbage"] = 3,
+    ["l03_agroprom"] = 4, ["agroprom"] = 4,
+    ["k01_darkscape"] = 5, ["darkscape"] = 5,
+    ["l04_darkvalley"] = 6, ["darkvalley"] = 6, ["dark_valley"] = 6,
+    ["l05_bar"] = 7, ["bar"] = 7, ["rostok_bar"] = 7,
+    ["l06_rostok"] = 8, ["rostok"] = 8, ["wild_territory"] = 8,
+    ["l07_military"] = 9, ["military"] = 9, ["army_warehouses"] = 9,
+    ["l08_yantar"] = 10, ["yantar"] = 10,
+    ["l09_deadcity"] = 11, ["deadcity"] = 11, ["dead_city"] = 11,
+    ["l10_limansk"] = 12, ["limansk"] = 12,
+    ["l10_radar"] = 13, ["radar"] = 13,
+    ["l10_red_forest"] = 14, ["red_forest"] = 14, ["redforest"] = 14,
+    ["l11_hospital"] = 15, ["hospital"] = 15,
+    ["l11_pripyat"] = 16, ["outskirts"] = 16,
+    ["l12_stancia"] = 17, ["stancia"] = 17,
+    ["l12_stancia_2"] = 18, ["stancia_2"] = 18,
+    ["l13_generators"] = 19, ["generators"] = 19,
+    ["zaton"] = 27,
+    ["jupiter"] = 28,
+    ["pripyat"] = 30,
+    ["k02_trucks_cemetery"] = 32, ["trucks_cemetery"] = 32, ["truck_cemetery"] = 32,
+    ["y04_pole"] = 34, ["pole"] = 34, ["meadow"] = 34
+}
+
+local function get_self_contained_obj_info(se_obj, fallback_level)
+          local sim = alife()
+    if not se_obj then return vector():set(0,0,0), 2, "l01_escape" end
+    local pos = se_obj.position or vector():set(0,0,0)
+    local lid = nil
+    local lvl_name = nil
+
+    if se_obj.m_game_vertex_id and game_graph then
+        local gg = game_graph()
+        if gg and gg:valid_vertex_id(se_obj.m_game_vertex_id) then
+            local gv = gg:vertex(se_obj.m_game_vertex_id)
+            if gv then
+                lid = gv:level_id()
+                if alife then
+                    lvl_name = sim:level_name(lid)
+                end
+            end
+        end
+    end
+
+    if not lid and fallback_level then
+        local clean = string.lower(tostring(fallback_level))
+        lid = tlra_name_to_lid[clean]
+        lvl_name = clean
+    end
+
+    if not lid and level then
+        lid = sim and sim:level_id()
+        lvl_name = level.name()
+    end
+
+    lid = lid or 2
+    lvl_name = lvl_name or "l01_escape"
+    return pos, lid, lvl_name
+end
+
+local function get_self_contained_global_pos(pos, lid, lvl_name)
+    local clean_name = lvl_name and string.lower(tostring(lvl_name))
+    local id = lid or (clean_name and tlra_name_to_lid[clean_name]) or 2
+    local off = tlra_level_offsets[id] or { 0.0, 0.0, 0.0 }
+    local p = pos or vector():set(0,0,0)
+    return vector():set(p.x + off[1], p.y + off[2], p.z + off[3])
+end
+
+local function get_self_contained_distance(pos1, lid1, lvl1, pos2, lid2, lvl2)
+    if not pos1 or not pos2 then return 200 end
+
+    if (lid1 and lid2 and lid1 == lid2) or (lvl1 and lvl2 and lvl1 == lvl2) then
+        local dx = pos1.x - pos2.x
+        local dy = pos1.y - pos2.y
+        local dz = pos1.z - pos2.z
+        return math.max(30, math.sqrt(dx*dx + dy*dy + dz*dz))
+    end
+
+    local g1 = get_self_contained_global_pos(pos1, lid1, lvl1)
+    local g2 = get_self_contained_global_pos(pos2, lid2, lvl2)
+    local dx = g1.x - g2.x
+    local dz = g1.z - g2.z
+    return math.max(100, math.sqrt(dx*dx + dz*dz))
+end
+
+local function get_self_contained_duration_sec(dist, is_same_level, survivor, search_time_sec)
+    local mfloor = math.floor
+    local d = dist or 100
+    local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
+    if tf <= 0 then tf = 10 end
+
+    local kmh = (stalker_camp_builder.cfg and stalker_camp_builder.cfg.scavenger_walk_speed_kmh) or 1.2
+    if not kmh or kmh <= 0 then kmh = 1.2 end
+    local speed_mps = (kmh * 1000) / 3600
+
+    local walk_time_sec = mfloor(d / speed_mps)
+
+    local tier = (survivor and survivor.tier) or 0
+    local tier_reduc = tier * 0.10
+    local final_walk_sec = math.max(1, mfloor(walk_time_sec * (1.0 - tier_reduc)))
+
+    local total_game_sec = final_walk_sec + (search_time_sec or (60 * tf))
+
+    local speed_mult = (stalker_camp_builder.cfg and stalker_camp_builder.cfg.scavenger_expedition_speed_mult) or 1.0
+    if speed_mult <= 0 then speed_mult = 1.0 end
+
+    local scaled_game_sec = mfloor(total_game_sec / speed_mult)
+    local min_game_sec = is_same_level and (180 * tf) or (360 * tf)
+
+    return math.max(min_game_sec, scaled_game_sec)
+end
+
+-- Standalone Single Stash Duration
+local gamma_map_tiers = {
+    ["k00_marsh"] = 1, ["l01_escape"] = 1, ["k01_darkscape"] = 1, ["y04_pole"] = 1,
+    ["l02_garbage"] = 2, ["l03_agroprom"] = 2, ["l04_darkvalley"] = 2,
+    ["l05_bar"] = 3, ["l06_rostok"] = 3, ["l08_yantar"] = 3, ["k02_trucks_cemetery"] = 3,
+    ["l03u_agr_underground"] = 3, ["l09_deadcity"] = 3,
+    ["l07_military"] = 4, ["l10_limansk"] = 4, ["l10_radar"] = 4, ["l10_red_forest"] = 4,
+    ["l08u_brainlab"] = 4, ["labx8"] = 4, ["l04u_labx18"] = 4, ["l10u_bunker"] = 4,
+    ["jupiter"] = 5, ["zaton"] = 5, ["pripyat"] = 5, ["l11_pripyat"] = 5, ["l11_hospital"] = 5,
+    ["l12_stancia"] = 5, ["l12_stancia_2"] = 5, ["l13_generators"] = 5, ["jupiter_underground"] = 5,
+    ["l12u_sarcofag"] = 5, ["l12u_control_monolith"] = 5, ["l13u_warlab"] = 5
+}
+
+local gamma_tools_map_tiers = {
+    ["y04_pole"] = {1, 2},
+    ["k00_marsh"] = {1, 2, 2, 2, 2},
+    ["l01_escape"] = {1, 2, 2, 2, 2},
+    ["l05_bar"] = {1, 2, 2, 2, 2, 2},
+    ["l02_garbage"] = {1, 2, 2, 2, 2, 2, 3, 3},
+    ["k01_darkscape"] = {2, 2, 3},
+    ["l04_darkvalley"] = {2, 2, 2, 3},
+    ["k02_trucks_cemetery"] = {2, 3, 3, 3, 4, 4, 4},
+    ["l09_deadcity"] = {2, 3},
+    ["l03_agroprom"] = {2, 3},
+    ["l06_rostok"] = {2, 2, 3, 3, 3, 3, 4},
+    ["l07_military"] = {3, 3, 3, 4, 4},
+    ["l08_yantar"] = {2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4},
+    ["l10_limansk"] = {3, 3, 3, 4, 4, 4, 4, 5},
+    ["l10_red_forest"] = {3, 4, 4, 4, 4, 4, 4, 4, 4, 5},
+    ["l10_radar"] = {3, 4, 4, 4, 4, 4, 4, 4, 4},
+    ["zaton"] = {3, 3, 4, 4, 4, 4, 4, 5, 5, 5},
+    ["jupiter"] = {3, 3, 4, 4, 4, 4, 4, 5, 5, 5},
+    ["pripyat"] = {3, 4, 4, 5, 5, 5, 5},
+    ["l11_hospital"] = {4, 5},
+    ["l11_pripyat"] = {3, 4, 4, 5, 5, 5, 5},
+    ["l12_stancia"] = {4, 4, 5, 5, 5, 5, 5},
+    ["l12_stancia_2"] = {4, 4, 5, 5, 5, 5},
+    ["l13_generators"] = {4, 4, 5, 5, 5, 5, 5, 5, 5},
+    ["l03u_agr_underground"] = {3, 4, 5},
+    ["l08u_brainlab"] = {3, 4, 5},
+    ["labx8"] = {3, 4, 5},
+    ["jupiter_underground"] = {4, 4, 4, 4, 5},
+    ["l10u_bunker"] = {4, 5},
+    ["l04u_labx18"] = {4, 5},
+    ["l12u_sarcofag"] = {4, 5, 5, 5, 5},
+    ["l12u_control_monolith"] = {4, 5, 5, 5, 5},
+    ["l13u_warlab"] = {4, 5, 5, 5, 5}
+}
+
+local function roll_gamma_toolkit(target_level)
+    local mrand = math.random
+    local tier_vec = gamma_tools_map_tiers[target_level] or {1, 2}
+    local tier = tier_vec[mrand(#tier_vec)]
+    local tool_type = nil
+
+    local has_basic = has_alife_info and has_alife_info("actor_find_basic_kit")
+    local has_adv = has_alife_info and has_alife_info("actor_find_advanced_kit")
+
+    if tier == 1 then
+        local t1 = { "itm_ammokit", "itm_drugkit" }
+        tool_type = t1[mrand(#t1)]
+    elseif tier == 2 then
+        local t2 = { "itm_ammokit", "itm_drugkit", "itm_drugkit", "itm_basickit", "itm_basickit", "itm_basickit" }
+        tool_type = t2[mrand(#t2)]
+    elseif tier == 3 then
+        local t3 = { "itm_ammokit", "itm_ammokit", "itm_ammokit", "itm_drugkit", "itm_basickit", "itm_basickit", "itm_basickit", "itm_basickit", "itm_basickit", "itm_advancedkit", "itm_advancedkit" }
+        tool_type = t3[mrand(#t3)]
+        if tool_type == "itm_advancedkit" and not has_basic then
+            tool_type = "itm_basickit"
+        end
+    elseif tier == 4 then
+        tool_type = "itm_advancedkit"
+        if not has_basic then
+            tool_type = "itm_basickit"
+        end
+    elseif tier >= 5 then
+        tool_type = "itm_expertkit"
+        if not has_basic then
+            tool_type = "itm_basickit"
+        elseif not has_adv then
+            tool_type = "itm_advancedkit"
+        end
+    end
+
+    return tool_type
+end
+
+local gamma_white_loot = {
+    [1] = { "ammo_9x18_fmj", "ammo_9x19_fmj", "ammo_12x70_buck", "ammo_7.62x25_p", "bandage", "medkit", "antirad", "conserva", "tushonka", "prt_i_scrap", "prt_i_paper", "e_syringe", "glue_b", "cleaning_kit_p", "solvent", "mineral_water" },
+    [2] = { "ammo_9x19_fmj", "ammo_5.45x39_fmj", "ammo_12x70_buck", "ammo_7.62x25_ps", "bandage", "medkit", "antirad", "conserva", "kolbasa", "prt_i_scrap", "prt_i_copper", "prt_i_fasteners", "cleaning_kit_p", "cleaning_kit_s", "solvent", "grease", "glue_a", "sewing_kit_b" },
+    [3] = { "ammo_5.45x39_fmj", "ammo_5.56x45_fmj", "ammo_7.62x39_fmj", "ammo_12x76_zhekan", "medkit_army", "stimpack", "antiemetic", "analgetic", "prt_i_resistors", "prt_i_copper", "prt_i_fasteners", "cleaning_kit_s", "cleaning_kit_r5", "kerosene", "grease", "glue_e", "sewing_kit_b" },
+    [4] = { "ammo_5.45x39_ap", "ammo_5.56x45_ap", "ammo_7.62x54_7h1", "ammo_7.62x51_fmj", "ammo_9x39_pab9", "medkit_scientic", "stimpack_army", "glucose", "prt_i_transistors", "prt_i_capacitors", "cleaning_kit_r5", "cleaning_kit_r7", "cleaning_kit_u", "kerosene" },
+    [5] = { "ammo_7.62x54_7h14", "ammo_7.62x51_ap", "ammo_9x39_ap", "ammo_12.7x55_fmj", "medkit_scientic", "stimpack_scientic", "prt_i_capacitors", "cleaning_kit_r7", "cleaning_kit_u" }
+}
+
+local gamma_yellow_loot = {
+    [1] = { "wpn_pm", "wpn_tt33", "wpn_toz34", "wpn_bm16", "novice_outfit", "bandit_novice_outfit", "lead_box", "af_medusa", "af_cristall_flower" },
+    [2] = { "wpn_mp5", "wpn_ak74u", "wpn_fort", "wpn_beretta", "stalker_outfit", "cs_light_outfit", "lead_box", "af_night_star", "af_vyvert", "af_gravi", "toolkit_p" },
+    [3] = { "wpn_ak74", "wpn_l85", "wpn_lr300", "wpn_wincheaster1300", "wpn_spas12", "cs_light_outfit", "specops_outfit", "dolg_outfit", "af_gold_fish", "af_soul", "af_electra_sparkler", "toolkit_s", "sewing_kit_a", "armor_repair_fa" },
+    [4] = { "wpn_abakan", "wpn_g36", "wpn_sig550", "wpn_val", "wpn_vintorez", "wpn_svd", "military_outfit", "scientific_outfit", "dolg_heavy_outfit", "af_fireball", "af_cristall", "af_electra_moonlight", "toolkit_r5", "toolkit_r7", "sewing_kit_h" },
+    [5] = { "wpn_groza", "wpn_fn2000", "wpn_p90", "wpn_scar", "wpn_saiga12s", "wpn_svu", "wpn_gauss", "exo_outfit", "monolith_scientific_outfit", "af_dummy_battery", "af_eye", "af_fire_loop" }
+}
+
+local function generate_gamma_stash_loot(tier, is_yellow, target_level)
+    tier = math.min(5, math.max(1, tier or 2))
+    local loot_list = {}
+    local mrand = math.random
+
+    if is_yellow then
+        local tk = roll_gamma_toolkit(target_level)
+        if tk and ini_sys:section_exist(tk) then
+            loot_list[#loot_list+1] = tk
+        end
+
+        local ypool = gamma_yellow_loot[tier] or gamma_yellow_loot[2]
+        loot_list[#loot_list+1] = ypool[mrand(#ypool)]
+        if mrand(100) <= 65 then
+            loot_list[#loot_list+1] = ypool[mrand(#ypool)]
+        end
+
+        local wpool = gamma_white_loot[tier] or gamma_white_loot[2]
+        for i = 1, mrand(3, 5) do
+            loot_list[#loot_list+1] = wpool[mrand(#wpool)]
+        end
+
+        if mrand(100) <= 60 then
+            local powders = { "powder_1", "powder_2", "powder_3" }
+            loot_list[#loot_list+1] = powders[mrand(#powders)]
+        end
+        if mrand(100) <= 60 then
+            local casings = { "casing_p", "casing_s", "casing_r5", "casing_r7" }
+            loot_list[#loot_list+1] = casings[mrand(#casings)]
+        end
+    else
+        local wpool = gamma_white_loot[tier] or gamma_white_loot[2]
+        for i = 1, mrand(3, 6) do
+            loot_list[#loot_list+1] = wpool[mrand(#wpool)]
+        end
+
+        if mrand(100) <= 50 then
+            local powders = { "powder_1", "powder_2", "powder_3" }
+            loot_list[#loot_list+1] = powders[mrand(#powders)]
+        end
+        if mrand(100) <= 46 then
+            local casings = { "casing_p", "casing_s", "casing_r5", "casing_r7" }
+            loot_list[#loot_list+1] = casings[mrand(#casings)]
+        end
+        if mrand(100) <= 35 then
+            local bullets = { "bullet_pistol", "bullet_shotgun", "bullet_r5", "bullet_r7" }
+            loot_list[#loot_list+1] = bullets[mrand(#bullets)]
+        end
+    end
+
+    return loot_list
+end
+
+stalker_camp_builder.gamma_map_tiers = gamma_map_tiers
+stalker_camp_builder.gamma_tools_map_tiers = gamma_tools_map_tiers
+stalker_camp_builder.roll_gamma_toolkit = roll_gamma_toolkit
+stalker_camp_builder.generate_gamma_stash_loot = generate_gamma_stash_loot
+
+-- a stash list names a partly used item "section__uses" (mineral_water__2): itms_manager's
+-- Extract_Uses splits it the same way when the player opens the stash
+local function split_stash_entry(entry)
+    local sec, uses = string.match(entry, "(.*)__(%d)")
+    if sec and ini_sys:section_exist(sec) then
+        return sec, tonumber(uses)
+    end
+    return entry, nil
+end
+stalker_camp_builder.split_stash_entry = split_stash_entry
+
+local function loot_and_clear_stash(s_id, exp)
+    local ipairs_ = ipairs
+    if not exp or not s_id then return end
+    exp.looted_stashes = exp.looted_stashes or {}
+    if exp.looted_stashes[s_id] then return end
+    exp.looted_stashes[s_id] = true
+    if is_player_stash(s_id) then return end
+    -- the list was made at dispatch, and a save can hold one that names an NPC: loot only a box
+    if alife_object(s_id) and not is_stash_box(s_id) then return end
+
+    local sb = stalker_camp_builder
+    -- a quest can have picked the stash since dispatch (New Tasks rolls any stash on the level), and
+    -- looting it would release its quest item or drop it with the unspawned list: leave it whole
+    if sb and sb.is_quest_or_task_stash and sb.is_quest_or_task_stash(s_id) then return end
+    if sb and sb.active_stash_expeditions then
+        for other_id, other_exp in pairs(sb.active_stash_expeditions) do
+            if other_exp ~= exp and other_exp.looted_stashes and other_exp.looted_stashes[s_id] then
+                return
+            end
+        end
+    end
+
+    exp.haul = exp.haul or {}
+
+    local is_yellow = false
+    if exp.stash_types and exp.stash_types[s_id] ~= nil then
+        is_yellow = exp.stash_types[s_id]
+    elseif exp.target_is_yellow ~= nil then
+        is_yellow = exp.target_is_yellow
+    else
+        is_yellow = stalker_camp_builder.is_stash_yellow(s_id, exp.target_level)
+    end
+
+    local sim = alife()
+    local se_stash = sim and sim:object(s_id)
+    local target_level = exp.target_level
+    if not target_level and se_stash and game_graph then
+        local gv = game_graph():vertex(se_stash.m_game_vertex_id)
+        if gv and sim then
+            target_level = sim:level_name(gv:level_id())
+        end
+    end
+    target_level = target_level or (level and level.name()) or "l01_escape"
+
+    local map_tier = gamma_map_tiers[target_level] or 2
+    if is_yellow then map_tier = math.min(5, map_tier + 1) end
+
+    local stash_items = {}
+
+    if treasure_manager and treasure_manager.caches and type(treasure_manager.caches[s_id]) == "string" then
+        local raw_str = treasure_manager.caches[s_id]
+        local parts = str_explode and str_explode(raw_str, ",")
+        if parts then
+            for _, entry in ipairs_(parts) do
+                local sec, uses = split_stash_entry(entry)
+                if sec and sec ~= "" and ini_sys:section_exist(sec) then
+                    if sec:find("itm_basickit") or sec:find("itm_advancedkit") or sec:find("itm_expertkit") or sec:find("itm_ammokit") or sec:find("itm_drugkit") then
+                        is_yellow = true
+                    end
+                    stash_items[#stash_items+1] = { sec = sec, uses = uses, is_yellow = is_yellow, map_tier = map_tier }
+                end
+            end
+        end
+        treasure_manager.caches[s_id] = nil
+    end
+
+    if se_stash and sim and sim.get_children then
+        local to_release = {}
+        pcall(function()
+            for child_id in sim:get_children(se_stash) do
+                local child_se = sim:object(child_id)
+                -- only what is in the stash: a reused id would release an unrelated object
+                if child_se and child_se.parent_id == se_stash.id then
+                    local sec = child_se:section_name()
+                    if sec and ini_sys:section_exist(sec) then
+                        local child_cond = nil
+                        local child_parts = nil
+                        local is_wpn_child = ini_sys:r_string_ex(sec, "ammo_class") ~= nil and not sec:find("knife")
+                        if is_wpn_child and utils_stpk and utils_stpk.get_weapon_data then
+                            local ok, d = pcall(utils_stpk.get_weapon_data, child_se)
+                            if ok and d and d.condition and d.condition < 0.99 then child_cond = d.condition end
+                        elseif utils_stpk and utils_stpk.get_item_data then
+                            local ok, d = pcall(utils_stpk.get_item_data, child_se)
+                            if ok and d and d.condition and d.condition < 0.99 then child_cond = d.condition end
+                        end
+                        -- DANZY EDIT: only carry parts over if the stash item was actually
+                        -- damaged. For untouched items this returned brand-new default parts,
+                        -- which made scavenged guns/armour come home at 100%.
+                        if child_cond and item_parts and item_parts.get_parts_con then
+                            local ok, p = pcall(item_parts.get_parts_con, nil, child_id)
+                            if ok and p then child_parts = p end
+                        end
+                        if sec:find("itm_basickit") or sec:find("itm_advancedkit") or sec:find("itm_expertkit") or sec:find("itm_ammokit") or sec:find("itm_drugkit") then
+                            is_yellow = true
+                        end
+                        stash_items[#stash_items+1] = { sec = sec, cond = child_cond, parts = child_parts, is_yellow = is_yellow, map_tier = map_tier }
+                    end
+                    to_release[#to_release + 1] = child_se
+                end
+            end
+        end)
+        for _, rel_se in ipairs(to_release) do
+            pcall(function()
+                alife_release(rel_se, true)
+            end)
+        end
+    end
+
+    if #stash_items == 0 then
+        if treasure_manager and treasure_manager.set_random_stash and se_stash then
+            pcall(treasure_manager.set_random_stash, true, nil, nil, s_id)
+            if treasure_manager.caches and type(treasure_manager.caches[s_id]) == "string" then
+                local raw_str = treasure_manager.caches[s_id]
+                local parts = str_explode and str_explode(raw_str, ",")
+                if parts then
+                    for _, entry in ipairs_(parts) do
+                        local sec, uses = split_stash_entry(entry)
+                        if sec and sec ~= "" and ini_sys:section_exist(sec) then
+                            if sec:find("itm_basickit") or sec:find("itm_advancedkit") or sec:find("itm_expertkit") or sec:find("itm_ammokit") or sec:find("itm_drugkit") then
+                                is_yellow = true
+                            end
+                            stash_items[#stash_items+1] = { sec = sec, uses = uses, is_yellow = is_yellow, map_tier = map_tier }
+                        end
+                    end
+                end
+                treasure_manager.caches[s_id] = nil
+            end
+        end
+        if #stash_items == 0 then
+            local generated = generate_gamma_stash_loot(map_tier, is_yellow, target_level)
+            for _, sec in ipairs_(generated) do
+                stash_items[#stash_items+1] = { sec = sec, is_yellow = is_yellow, map_tier = map_tier }
+            end
+        end
+    end
+
+    if is_yellow then
+        exp.stash_types = exp.stash_types or {}
+        exp.stash_types[s_id] = true
+        if not exp.is_sweep then
+            exp.target_is_yellow = true
+        end
+    end
+
+    for _, itm in ipairs_(stash_items) do
+        exp.haul[#exp.haul+1] = itm
+    end
+
+    pcall(function()
+        if treasure_manager and treasure_manager.caches then
+            treasure_manager.caches[s_id] = nil
+        end
+        if level and level.map_remove_object_spot then
+            level.map_remove_object_spot(s_id, "treasure")
+            level.map_remove_object_spot(s_id, "treasure_player")
+            level.map_remove_object_spot(s_id, "treasure_unique")
+            level.map_remove_object_spot(s_id, "treasure_epic")
+            level.map_remove_object_spot(s_id, "treasure_searched")
+            level.map_remove_object_spot(s_id, "treasure_unsearched")
+            level.map_remove_object_spot(s_id, "ui_pda2_stash_location")
+            level.map_remove_object_spot(s_id, "ui_pda2_special_location")
+            level.map_remove_object_spot(s_id, "ui_pda2_secret_location")
+            level.map_remove_object_spot(s_id, "ui_pda2_actor_box_yellow")
+            level.map_remove_object_spot(s_id, "alife_presentation_stash")
+        end
+        if game_statistics and game_statistics.increment_statistic then
+            game_statistics.increment_statistic("stashes_found")
+        end
+        if item_radio and item_radio.clear_stash and target_level then
+            pcall(item_radio.clear_stash, target_level, s_id)
+        end
+    end)
+end
+
+function stalker_camp_builder.calculate_single_stash_duration(hub_id, stash_id, target_lvl, survivor)
+    local hub_obj = alife_object(hub_id)
+    local stash_obj = alife_object(stash_id)
+    local p1, lid1, lvl1 = get_self_contained_obj_info(hub_obj)
+    local p2, lid2, lvl2 = get_self_contained_obj_info(stash_obj, target_lvl)
+
+    local is_same_level = (lid1 == lid2) or (lvl1 == lvl2)
+    local one_way_dist = get_self_contained_distance(p1, lid1, lvl1, p2, lid2, lvl2)
+    local round_trip_dist = one_way_dist * 2
+
+    local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
+    if tf <= 0 then tf = 10 end
+    return get_self_contained_duration_sec(round_trip_dist, is_same_level, survivor, 60 * tf)
+end
+
+function stalker_camp_builder.calculate_regional_sweep_duration(hub_id, all_stashes, target_lvl, survivor)
+    local ipairs_ = ipairs
+    local hub_obj = alife_object(hub_id)
+    local hub_pos, hub_lid, hub_lvl = get_self_contained_obj_info(hub_obj)
+
+    local count = all_stashes and #all_stashes or 1
+    if count == 0 then count = 1 end
+
+    local stash_items = {}
+    for _, sid in ipairs_(all_stashes) do
+        local obj = alife_object(sid)
+        if obj then
+            local pos, lid, lvl = get_self_contained_obj_info(obj, target_lvl)
+            stash_items[#stash_items+1] = { obj = obj, pos = pos, lid = lid, lvl = lvl }
+        end
+    end
+
+    local total_sweep_dist = 0
+    local is_same_level = true
+
+    if #stash_items > 0 and hub_pos then
+        local first_stash = stash_items[1]
+        is_same_level = (hub_lid == first_stash.lid) or (hub_lvl == first_stash.lvl)
+
+        local remaining = {}
+        for _, s in ipairs_(stash_items) do remaining[#remaining+1] = s end
+
+        local curr_pos = hub_pos
+        local curr_lid = hub_lid
+        local curr_lvl = hub_lvl
+
+        while #remaining > 0 do
+            local best_idx, min_d = 1, math.huge
+            for i, item in ipairs_(remaining) do
+                local d = get_self_contained_distance(curr_pos, curr_lid, curr_lvl, item.pos, item.lid, item.lvl)
+                if d < min_d then
+                    min_d = d
+                    best_idx = i
+                end
+            end
+            total_sweep_dist = total_sweep_dist + min_d
+            curr_pos = remaining[best_idx].pos
+            curr_lid = remaining[best_idx].lid
+            curr_lvl = remaining[best_idx].lvl
+            table.remove(remaining, best_idx)
+        end
+        total_sweep_dist = total_sweep_dist + get_self_contained_distance(curr_pos, curr_lid, curr_lvl, hub_pos, hub_lid, hub_lvl)
+    else
+        total_sweep_dist = count * 350
+    end
+
+    local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
+    if tf <= 0 then tf = 10 end
+    local total_search_sec = count * (45 * tf) -- 45 real sec search per stash
+    return get_self_contained_duration_sec(total_sweep_dist, is_same_level, survivor, total_search_sec)
+end
+
+function stalker_camp_builder.format_expedition_time(game_sec)
+    local mfloor = math.floor
+    if not game_sec or game_sec <= 0 then return "0m" end
+    local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
+    if tf <= 0 then tf = 10 end
+
+    local real_sec = mfloor(game_sec / tf)
+    local real_mins = mfloor(real_sec / 60)
+    local real_rem_s = real_sec % 60
+
+    if real_mins >= 60 then
+        local real_hrs = mfloor(real_mins / 60)
+        local rm = real_mins % 60
+        return string.format("%dh %02dm", real_hrs, rm)
+    elseif real_mins > 0 then
+        return string.format("%dm %02ds", real_mins, real_rem_s)
+    else
+        return string.format("%ds", real_rem_s)
+    end
+end
+
+function stalker_camp_builder.format_expedition_real_mins(game_sec)
+    if not game_sec or game_sec <= 0 then return "1 min" end
+    local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
+    if tf <= 0 then tf = 10 end
+    local real_mins = math.ceil(game_sec / (tf * 60))
+    return string.format("%d min%s", real_mins, real_mins == 1 and "" or "s")
+end
+
+stalker_camp_builder.current_spot_scavengers = {}
+
+local last_menu_id = nil
+local last_menu_tg = 0
+
+function stalker_camp_builder.map_spot_menu_add_property(property_ui, id, level_name)
+    local ipairs_ = ipairs
+    local sformat = string.format
+    if not property_ui or not id then return end
+    local tg = time_global()
+    if last_menu_id == id and (tg - last_menu_tg) < 350 then
+        return
+    end
+    last_menu_id = id
+    last_menu_tg = tg
+
+    local sb = stalker_camp_builder
+    if sb.is_stash_spot(id) then
+        sb.current_spot_scavengers = {}
+        local exp, primary_id = sb.get_expedition_for_stash and sb.get_expedition_for_stash(id)
+        if not exp then
+            exp = sb.active_stash_expeditions[id]
+            primary_id = id
+        end
+        if exp then
+            local current_sec = game_sec()
+            local elapsed = current_sec - exp.start_sec
+            local pct = math.floor(math.min(100, (elapsed / exp.duration) * 100))
+            local rem_sec = math.max(0, exp.duration - elapsed)
+            local time_str = sb.format_expedition_time(rem_sec)
+
+            local status_str = sformat("Scavenger in Transit: %s (%d%% - %s left)", exp.survivor_name, pct, time_str)
+            property_ui:AddItem(status_str)
+
+            local recall_str = sformat("Recall Scavenger (%s)", exp.survivor_name)
+            property_ui:AddItem(recall_str)
+            sb.current_spot_scavengers[recall_str] = { action = "recall", stash_id = primary_id or id, npc_id = exp.npc_id, hub_id = exp.hub_id }
+            return
+        end
+
+        local available = sb.get_available_scavengers()
+        if #available == 0 then
+            property_ui:AddItem("Dispatch Scavenger (No scavengers available)")
+            return
+        end
+
+        local target_lvl = level_name or level.name()
+        local lvl_disp = game.translate_string(target_lvl)
+        local all_stashes = (sb.get_level_marked_stashes and sb.get_level_marked_stashes(target_lvl)) or {}
+        local is_yellow = sb.is_stash_yellow(id, target_lvl)
+        local type_badge = is_yellow and " [Yellow Stash]" or " [White Stash]"
+
+        local send_prefix = game.translate_string("st_pda_send_scavenger_prefix") or "Dispatch Scavenger: "
+        for _, sc in ipairs_(available) do
+            local est_sec = sb.calculate_single_stash_duration(sc.hub_id, id, target_lvl, sc.survivor)
+            local est_str = sb.format_expedition_real_mins(est_sec)
+
+            local tier_str = (sc.tier and sc.tier > 0) and (" [T" .. sc.tier .. "]") or ""
+            local menu_str = sformat("%s%s (%s%s - Est. %s)%s", send_prefix, sc.name, sc.camp_name, tier_str, est_str, type_badge)
+            property_ui:AddItem(menu_str)
+            sb.current_spot_scavengers[menu_str] = { action = "dispatch", stash_id = id, npc_id = sc.npc_id, hub_id = sc.hub_id, target_level = target_lvl, duration = est_sec, is_yellow = is_yellow }
+        end
+
+        if #all_stashes > 1 then
+            local count = #all_stashes
+            local sweep_types = {}
+            local y_count = 0
+            for _, sid in ipairs_(all_stashes) do
+                local y = sb.is_stash_yellow(sid, target_lvl)
+                sweep_types[sid] = y
+                if y then y_count = y_count + 1 end
+            end
+            local w_count = count - y_count
+            local sweep_badge = ""
+            if y_count > 0 and w_count > 0 then
+                sweep_badge = sformat(" [%d Yellow / %d White]", y_count, w_count)
+            elseif y_count > 0 then
+                sweep_badge = sformat(" [%d Yellow]", y_count)
+            else
+                sweep_badge = sformat(" [%d White]", w_count)
+            end
+
+            for _, sc in ipairs_(available) do
+                local est_sec = sb.calculate_regional_sweep_duration(sc.hub_id, all_stashes, target_lvl, sc.survivor)
+                local est_str = sb.format_expedition_real_mins(est_sec)
+
+                local sweep_str = sformat("Sweep All %s Stashes (%d Stashes%s): %s (Est. %s)", lvl_disp, count, sweep_badge, sc.name, est_str)
+                property_ui:AddItem(sweep_str)
+                sb.current_spot_scavengers[sweep_str] = { action = "sweep", stash_id = id, all_stashes = all_stashes, npc_id = sc.npc_id, hub_id = sc.hub_id, target_level = target_lvl, duration = est_sec, stash_types = sweep_types }
+            end
+        end
+    end
+end
+
+function stalker_camp_builder.map_spot_menu_property_clicked(property_ui, id, level_name, prop)
+    if not id or not prop then return end
+    local sb = stalker_camp_builder
+    local item_data = sb.current_spot_scavengers[prop]
+    if item_data then
+        if item_data.action == "recall" then
+            sb.recall_scavenger_expedition(item_data.stash_id)
+        elseif item_data.action == "dispatch" then
+            sb.dispatch_scavenger_to_stash(id, item_data.target_level or level_name, item_data.npc_id, item_data.hub_id, item_data.is_yellow)
+        elseif item_data.action == "sweep" then
+            sb.dispatch_scavenger_regional_sweep(item_data.all_stashes, item_data.target_level or level_name, item_data.npc_id, item_data.hub_id, item_data.stash_types)
+        end
+    elseif prop == game.translate_string("st_pda_send_scavenger_stash") then
+        sb.dispatch_scavenger_to_stash(id, level_name)
+    end
+end
+
+-- A settler's home squad brings him online and takes him offline, whatever his own switch flags say,
+-- and the save keeps its flags. An expedition holds it offline; every way back must allow it online
+-- again (the engine's default: online and offline both allowed), or it never comes online, nor he
+-- with it. Only his own squad, as pin_settler_home_squad takes it: a shared squad's other members
+-- would go with him. Returns it.
+function stalker_camp_builder.allow_home_squad_online(npc_id, allow)
+    local sim = alife()
+    local se_npc = sim and alife_object(npc_id)
+    local squad = se_npc and get_object_squad(se_npc)
+    if not (squad and squad:section_name() == "online_offline_group" and squad:npc_count() == 1) then return end
+    if axr_companions and axr_companions.companion_squads and axr_companions.companion_squads[squad.id] ~= nil then
+        return
+    end
+    sim:set_switch_online(squad.id, allow)
+    sim:set_switch_offline(squad.id, true)
+    return squad
+end
+
+local function teleport_scavenger_on_departure(npc_id, stash_id, target_level)
+    local sim = alife()
+    if not (sim and npc_id) then return end
+    local se_npc = alife_object(npc_id)
+    if not se_npc then return end
+
+    local dest_gvid, dest_lvid, dest_pos = nil, nil, nil
+    if stash_id then
+        local se_stash = alife_object(stash_id)
+        if se_stash and se_stash.m_game_vertex_id then
+            dest_gvid = se_stash.m_game_vertex_id
+            dest_lvid = se_stash.m_level_vertex_id
+            dest_pos = se_stash.position
+        end
+    end
+
+    if not dest_gvid and target_level then
+        local smarts = stalker_camp_builder.get_smart_terrains_on_level and stalker_camp_builder.get_smart_terrains_on_level(target_level)
+        if smarts and #smarts > 0 and smarts[1].obj then
+            local sm = smarts[1].obj
+            dest_gvid = sm.m_game_vertex_id
+            dest_lvid = sm.m_level_vertex_id
+            dest_pos = sm.position
+        end
+    end
+
+    -- Switch the NPC and home squad offline
+    sim:set_switch_online(npc_id, false)
+    sim:set_switch_offline(npc_id, true)
+
+    local squad = stalker_camp_builder.allow_home_squad_online and stalker_camp_builder.allow_home_squad_online(npc_id, false)
+
+    if dest_gvid and dest_lvid and dest_pos then
+        pcall(sim.teleport_object, sim, npc_id, dest_gvid, dest_lvid, dest_pos)
+        if squad then
+            pcall(sim.teleport_object, sim, squad.id, dest_gvid, dest_lvid, dest_pos)
+        end
+    end
+end
+
+function stalker_camp_builder.dispatch_scavenger_to_stash(stash_id, target_level, specific_npc_id, specific_hub_id, is_yellow)
+    local pairs_ = pairs
+    local sb = stalker_camp_builder
+    local actor = db.actor
+    if not actor then return false end
+
+    if (sb.get_expedition_for_stash and sb.get_expedition_for_stash(stash_id)) or sb.active_stash_expeditions[stash_id] then
+        news_manager.send_tip(actor, game.translate_string("st_scavenger_already_dispatched"), nil, "general_stalker", 6000)
+        return false
+    end
+
+    local best_surv, best_hub_id, best_camp = nil, nil, nil
+    local current_lvl = level.name()
+    target_level = target_level or current_lvl
+
+    if specific_npc_id and specific_hub_id then
+        local camp = sb.active_camps[specific_hub_id]
+        if camp and camp.survivors and camp.survivors[specific_npc_id] then
+            local surv = camp.survivors[specific_npc_id]
+            local j = surv.job and string.lower(tostring(surv.job)) or "idle"
+            if not surv.on_expedition and sb.survivor_se(specific_npc_id, surv) then
+                if j:find("scav") == nil and j == "idle" then
+                    surv.job = "scavenge"
+                end
+                best_surv = surv
+                best_hub_id = specific_hub_id
+                best_camp = camp
+                best_surv.npc_id = specific_npc_id
+            end
+        end
+    end
+
+    if not best_surv then
+        for hub_id, camp in pairs_(sb.active_camps) do
+            if camp.level == target_level and camp.survivors then
+                for npc_id, surv in pairs_(camp.survivors) do
+                    if (surv.job == "scavenge" or surv.job == "scavenger") and not surv.on_expedition
+                        and sb.survivor_se(npc_id, surv) then
+                        best_surv = surv
+                        best_hub_id = hub_id
+                        best_camp = camp
+                        best_surv.npc_id = npc_id
+                        break
+                    end
+                end
+            end
+            if best_surv then break end
+        end
+    end
+
+    if not best_surv then
+        for hub_id, camp in pairs_(sb.active_camps) do
+            if camp.survivors then
+                for npc_id, surv in pairs_(camp.survivors) do
+                    if (surv.job == "scavenge" or surv.job == "scavenger") and not surv.on_expedition
+                        and sb.survivor_se(npc_id, surv) then
+                        best_surv = surv
+                        best_hub_id = hub_id
+                        best_camp = camp
+                        best_surv.npc_id = npc_id
+                        break
+                    end
+                end
+            end
+            if best_surv then break end
+        end
+    end
+
+    if not best_surv then
+        news_manager.send_tip(actor, game.translate_string("st_no_available_scavengers"), nil, "general_stalker", 8000)
+        return false
+    end
+
+    if is_yellow == nil then
+        is_yellow = sb.is_stash_yellow(stash_id, target_level)
+    end
+
+    local final_duration_sec = sb.calculate_single_stash_duration(best_hub_id, stash_id, target_level, best_surv)
+    local current_sec = game_sec()
+
+    best_surv.on_expedition = true
+    sb.active_stash_expeditions[stash_id] = {
+        stash_id = stash_id,
+        all_stashes = { stash_id },
+        is_sweep = false,
+        target_level = target_level,
+        target_is_yellow = is_yellow,
+        stash_types = { [stash_id] = is_yellow },
+        hub_id = best_hub_id,
+        npc_id = best_surv.npc_id,
+        survivor_name = best_surv.name or "Scavenger",
+        survivor_tier = best_surv.tier or 0,
+        start_sec = current_sec,
+        duration = final_duration_sec,
+        chatter = {}
+    }
+
+    local real_est = sb.format_expedition_real_mins(final_duration_sec)
+
+    local disp_lvl = game.translate_string(target_level)
+    local type_str = is_yellow and " [Yellow Rare]" or " [White Common]"
+    local msg = string.format(game.translate_string("st_scavenger_expedition_departed"), best_surv.name or "Scavenger", best_camp.name or "Camp", disp_lvl, type_str, real_est)
+    camp_send_tip(actor, msg, nil, "general_stalker", 10000, best_hub_id, "expedition", true)
+
+    teleport_scavenger_on_departure(best_surv.npc_id, stash_id, target_level)
+    return true
+end
+
+function stalker_camp_builder.dispatch_scavenger_regional_sweep(all_stashes, target_level, specific_npc_id, specific_hub_id, stash_types)
+    local sb = stalker_camp_builder
+    local actor = db.actor
+    if not actor or not all_stashes or #all_stashes == 0 then return false end
+
+    local available_stashes = {}
+    for _, sid in ipairs(all_stashes) do
+        if not (sb.get_expedition_for_stash and sb.get_expedition_for_stash(sid)) then
+            available_stashes[#available_stashes + 1] = sid
+        end
+    end
+
+    if #available_stashes == 0 then
+        news_manager.send_tip(actor, game.translate_string("st_scavenger_already_dispatched"), nil, "general_stalker", 6000)
+        return false
+    end
+    all_stashes = available_stashes
+
+    local primary_stash_id = all_stashes[1]
+    if sb.active_stash_expeditions[primary_stash_id] then
+        news_manager.send_tip(actor, game.translate_string("st_scavenger_already_dispatched"), nil, "general_stalker", 6000)
+        return false
+    end
+
+    local best_surv, best_hub_id, best_camp = nil, nil, nil
+    local current_lvl = level.name()
+    target_level = target_level or current_lvl
+
+    if specific_npc_id and specific_hub_id then
+        local camp = sb.active_camps[specific_hub_id]
+        if camp and camp.survivors and camp.survivors[specific_npc_id] then
+            local surv = camp.survivors[specific_npc_id]
+            local j = surv.job and string.lower(tostring(surv.job)) or "idle"
+            if not surv.on_expedition and sb.survivor_se(specific_npc_id, surv) then
+                if j:find("scav") == nil and j == "idle" then
+                    surv.job = "scavenge"
+                end
+                best_surv = surv
+                best_hub_id = specific_hub_id
+                best_camp = camp
+                best_surv.npc_id = specific_npc_id
+            end
+        end
+    end
+
+    if not best_surv then
+        news_manager.send_tip(actor, game.translate_string("st_no_available_scavengers"), nil, "general_stalker", 8000)
+        return false
+    end
+
+    stash_types = stash_types or {}
+    for _, sid in ipairs(all_stashes) do
+        if stash_types[sid] == nil then
+            stash_types[sid] = sb.is_stash_yellow(sid, target_level)
+        end
+    end
+    local primary_is_yellow = stash_types[primary_stash_id] or false
+
+    local count = #all_stashes
+    local final_duration_sec = sb.calculate_regional_sweep_duration(best_hub_id, all_stashes, target_level, best_surv)
+    local current_sec = game_sec()
+
+    best_surv.on_expedition = true
+    sb.active_stash_expeditions[primary_stash_id] = {
+        stash_id = primary_stash_id,
+        all_stashes = all_stashes,
+        is_sweep = true,
+        target_level = target_level,
+        target_is_yellow = primary_is_yellow,
+        stash_types = stash_types,
+        hub_id = best_hub_id,
+        npc_id = best_surv.npc_id,
+        survivor_name = best_surv.name or "Scavenger",
+        survivor_tier = best_surv.tier or 0,
+        start_sec = current_sec,
+        duration = final_duration_sec,
+        chatter = {}
+    }
+
+    local real_est = sb.format_expedition_real_mins(final_duration_sec)
+
+    local disp_lvl = game.translate_string(target_level)
+    local msg = string.format(game.translate_string("st_scavenger_sweep_departed"), best_surv.name or "Scavenger", best_camp.name or "Camp", count, disp_lvl, real_est)
+    camp_send_tip(actor, msg, nil, "general_stalker", 11000, best_hub_id, "expedition", true)
+
+    teleport_scavenger_on_departure(best_surv.npc_id, primary_stash_id, target_level)
+    return true
+end
+
+local function get_item_display_name(sec)
+    local ini = ini_sys or sys_ini or system_ini()
+    if ini and ini:section_exist(sec) then
+        local name_id = ini:r_string_ex(sec, "inv_name")
+        if name_id then
+            local tr = game.translate_string(name_id)
+            if tr and tr ~= "" and tr ~= name_id then
+                return tr
+            end
+        end
+    end
+    return sec
+end
+
+-- Expedition helpers (extracted from process_stash_expeditions)
+local tonum = tonumber  -- file-local alias used by the lookup helpers below
+
+-- game time alone: it counts sleep, and runs at the faster pace of emissions and psi storms
+local function get_expedition_progress(exp, current_sec)
+    local elapsed = current_sec - (exp.start_sec or current_sec)
+    local dur = math.max(1, exp.duration or 1)
+    return elapsed, dur, elapsed / dur
+end
+
+local function emit_expedition_chatter(actor, exp, progress, target_lvl_name, camp_name)
+    local name = exp.survivor_name or "Scavenger"
+    if progress >= 0.25 and not exp.chatter[25] then
+        exp.chatter[25] = true
+        camp_send_tip(actor,
+            sformat(game.translate_string("st_scavenger_radio_25"), name, target_lvl_name),
+            nil, "general_stalker", 8000, exp.hub_id, "expedition")
+    end
+    if progress >= 0.50 and not exp.chatter[50] then
+        exp.chatter[50] = true
+        camp_send_tip(actor,
+            sformat(game.translate_string("st_scavenger_radio_50"), name, target_lvl_name, camp_name),
+            nil, "general_stalker", 8000, exp.hub_id, "expedition")
+    end
+    if progress >= 0.75 and not exp.chatter[75] then
+        exp.chatter[75] = true
+        camp_send_tip(actor,
+            sformat(game.translate_string("st_scavenger_radio_75"), name, camp_name),
+            nil, "general_stalker", 8000, exp.hub_id, "expedition")
+    end
+end
+
+local function loot_due_stashes(exp, stash_id, progress)
+    local stashes = exp.all_stashes or { stash_id }
+    if exp.is_sweep and #stashes > 1 then
+        for i, s_id in ipairs_(stashes) do
+            local threshold = 0.25 + (0.50 * (i / #stashes))
+            if progress >= threshold and not exp.looted_stashes[s_id] then
+                pcall(loot_and_clear_stash, s_id, exp)
+            end
+        end
+    elseif progress >= 0.50 and not exp.looted_stashes[stash_id] then
+        pcall(loot_and_clear_stash, stash_id, exp)
+    end
+end
+
+local function find_expedition_camp(exp)
+    local camps = stalker_camp_builder.active_camps
+    if not camps then return nil end
+    local camp = camps[exp.hub_id]
+        or (tonum(exp.hub_id) and camps[tonum(exp.hub_id)])
+        or camps[tostr(exp.hub_id)]
+    if camp then return camp end
+
+    for hid, c in pairs_(camps) do
+        if c.survivors then
+            local hit = c.survivors[exp.npc_id]
+                or c.survivors[tonum(exp.npc_id)]
+                or c.survivors[tostr(exp.npc_id)]
+            if hit then
+                exp.hub_id = hid
+                return c
+            end
+        end
+    end
+    return nil
+end
+
+local function find_expedition_survivor(camp, exp)
+    if not (camp and camp.survivors) then return nil end
+    local surv = camp.survivors[exp.npc_id]
+        or camp.survivors[tonum(exp.npc_id)]
+        or camp.survivors[tostr(exp.npc_id)]
+    if surv then return surv end
+
+    if exp.survivor_name then
+        for _, s in pairs_(camp.survivors) do
+            if s.name == exp.survivor_name then return s end
+        end
+    end
+    return nil
+end
+
+-- `level` has no valid_vertex_id (that is a game graph method); u32(-1) means no vertex
+local function is_level_vertex(lvid)
+    return lvid and lvid < 4294967295 and lvid ~= -1
+end
+
+local function reposition_survivor_at_camp(exp, camp, hub_obj, box_se, surv)
+    local sim_alao = alife()
+    if surv then surv.on_expedition = nil end
+
+    local se_npc = alife_object(exp.npc_id)
+    local hub_pos  = hub_obj and hub_obj.position
+    local hub_lvid = hub_obj and hub_obj.m_level_vertex_id
+    local hub_gvid = hub_obj and hub_obj.m_game_vertex_id
+
+    local spawn_pos, spawn_lvid, spawn_gvid = hub_pos, hub_lvid, hub_gvid
+
+    if box_se and hub_pos then
+        local bsec = box_se:section_name():lower()
+        local y_diff = math.abs(box_se.position.y - hub_pos.y)
+        if not (bsec:find("workshop_stash") or y_diff > 12.0) then
+            spawn_pos  = box_se.position
+            spawn_lvid = box_se.m_level_vertex_id
+            spawn_gvid = box_se.m_game_vertex_id
+        end
+    end
+
+    local camp_lvl = camp and camp.level
+    if (not camp_lvl or camp_lvl == "" or camp_lvl == "unknown")
+        and hub_obj and game_graph and sim_alao then
+        local gv = game_graph():vertex(hub_obj.m_game_vertex_id)
+        if gv then camp_lvl = sim_alao:level_name(gv:level_id()) end
+    end
+    local current_lvl = level and level.name and level.name()
+    local is_same_level = (camp_lvl and current_lvl and camp_lvl == current_lvl)
+
+    local stand_lvid, stand_pos
+    if is_same_level and stalker_camp_builder.get_furniture_front_vertex_and_pos and spawn_pos then
+        stand_lvid, stand_pos =
+            stalker_camp_builder.get_furniture_front_vertex_and_pos(spawn_pos, 1.4)
+    end
+    local final_pos  = stand_pos  or spawn_pos
+    local final_lvid = stand_lvid or spawn_lvid
+
+    if is_same_level and level then
+        if final_lvid and not is_level_vertex(final_lvid) then
+            final_lvid = (is_level_vertex(hub_lvid) and hub_lvid)
+                or (is_level_vertex(spawn_lvid) and spawn_lvid)
+                or (final_pos and level.vertex_id(final_pos))
+        end
+        if is_level_vertex(final_lvid) then
+            final_pos = level.vertex_position(final_lvid)
+        end
+    end
+
+    if se_npc and final_pos then
+        sim_alao:set_switch_online(se_npc.id, true)
+        sim_alao:set_switch_offline(se_npc.id, true)
+        if stalker_camp_builder.allow_home_squad_online then
+            stalker_camp_builder.allow_home_squad_online(se_npc.id, true)
+        end
+        se_npc.position           = final_pos
+        if final_lvid then se_npc.m_level_vertex_id = final_lvid end
+        if spawn_gvid then se_npc.m_game_vertex_id  = spawn_gvid end
+    end
+
+    if stalker_camp_builder.teleport_settler_to_camp_level then
+        stalker_camp_builder.teleport_settler_to_camp_level(exp.npc_id, exp.hub_id, true)
+    end
+    if stalker_camp_builder.pin_settler_home_squad then
+        stalker_camp_builder.pin_settler_home_squad(exp.npc_id)
+    end
+
+    if is_same_level then
+        local wait_lvid = final_lvid or spawn_lvid or (hub_obj and hub_obj.m_level_vertex_id)
+        if wait_lvid and not is_level_vertex(wait_lvid) then
+            wait_lvid = (is_level_vertex(hub_lvid) and hub_lvid) or nil
+        end
+        local look_pos  = spawn_pos  or (hub_obj and hub_obj.position)
+        local npc_id    = exp.npc_id
+
+        local online_npc = level.object_by_id(npc_id)
+        if online_npc then
+            pcall(function()
+                if IsStalker(online_npc) and online_npc.set_npc_position and final_pos then
+                    online_npc:set_npc_position(final_pos)
+                end
+                if stalker_camp_builder.setup_settler_beh_logic and wait_lvid then
+                    stalker_camp_builder.setup_settler_beh_logic(online_npc, wait_lvid, look_pos, "guard")
+                end
+            end)
+        elseif se_npc then  -- set_switch_online on an id with no server object is an engine crash
+            if utils_obj and utils_obj.switch_online then
+                pcall(utils_obj.switch_online, npc_id)
+            else
+                local sim = sim_alao
+                if sim and npc_id and npc_id < 65535 then
+                    pcall(sim.set_switch_online, sim, npc_id, true)
+                    pcall(sim.set_switch_offline, sim, npc_id, false)
+                end
+            end
+
+            CreateTimeEvent("homestead_exp_return", "ret_" .. tostring(npc_id), 1.0, function()
+                pcall(function()
+                    local obj = level.object_by_id(npc_id)
+                    if obj then
+                        if IsStalker(obj) and obj.set_npc_position and final_pos then
+                            obj:set_npc_position(final_pos)
+                        end
+                        if stalker_camp_builder.setup_settler_beh_logic and is_level_vertex(wait_lvid) then
+                            stalker_camp_builder.setup_settler_beh_logic(obj, wait_lvid, look_pos, "guard")
+                        end
+                    end
+                end)
+                return true
+            end)
+        end
+    end
+end
+
+local function roll_expedition_ambush(actor, exp)
+    local sb = stalker_camp_builder
+    local chance = (sb.cfg and (sb.cfg.scavenger_ambush_chance or sb.cfg.scavenge_ambush_chance)) or 15
+    local name = exp.survivor_name or "Scavenger"
+
+    if math.random(100) > chance then
+        return {}, 25, "Safe Expedition"
+    end
+
+    if (exp.survivor_tier or 0) >= 2 or math.random(100) <= 60 then
+        if actor then
+            camp_send_tip(actor,
+                sformat(game.translate_string("st_scavenger_ambush_win"), name),
+                nil, "general_stalker", 10000, exp.hub_id, "expedition")
+        end
+        return {"ammo_5.45x39_fmj", "mutant_part_dog_tail", "bandage",
+                "conserva", "prt_i_scrap"},
+               45, "Repelled Ambush (+Bonus Salvage)"
+    end
+
+    if actor then
+        camp_send_tip(actor,
+            sformat(game.translate_string("st_scavenger_ambush_fled"), name),
+            nil, "red_danger", 10000, exp.hub_id, "combat", true)
+    end
+    return {}, 15, "Evaded Enemy Ambush"
+end
+
+local function deposit_expedition_haul(exp, camp, bonus_loot)
+    local sb = stalker_camp_builder
+    local items_recovered = 0
+    local deposited_names = {}
+    local item_counts     = {}
+
+    local function record(sec)
+        local dname = get_item_display_name(sec)
+        if not item_counts[dname] then
+            item_counts[dname] = 0
+            deposited_names[#deposited_names + 1] = dname
+        end
+        item_counts[dname] = item_counts[dname] + 1
+    end
+
+    local spec_mult = (sb.get_specialization_mult and camp and sb.get_specialization_mult(camp, "scavenge")) or 1.0
+    for _, itm in ipairs_(exp.haul or {}) do
+        local count = 1
+        if spec_mult > 1.0 then
+            count = count + (math.random() < (spec_mult - 1.0) and 1 or 0)
+        end
+        for c = 1, count do
+            local dep_box = nil
+            pcall(function()
+                dep_box = sb.deposit_item_to_camp(exp.hub_id, camp, itm.sec,
+                    itm.is_yellow, itm.map_tier, itm.cond, itm.parts, itm.uses)
+            end)
+            if dep_box then
+                items_recovered = items_recovered + 1
+                record(itm.sec)
+            end
+        end
+    end
+
+    for _, bsec in ipairs_(bonus_loot) do
+        local count = 1
+        if spec_mult > 1.0 then
+            count = count + (math.random() < (spec_mult - 1.0) and 1 or 0)
+        end
+        for c = 1, count do
+            local dep_box = nil
+            pcall(function()
+                dep_box = sb.deposit_item_to_camp(exp.hub_id, camp, bsec,
+                    false, exp.survivor_tier or 0)
+            end)
+            if dep_box then
+                items_recovered = items_recovered + 1
+                record(bsec)
+            end
+        end
+    end
+
+    return items_recovered, deposited_names, item_counts
+end
+
+local function award_expedition_xp(surv, xp_earned)
+    if not surv then
+        return xp_earned, 0
+    end
+    local old_tier = surv.tier or 0
+    surv.xp = (surv.xp or 0) + xp_earned
+    local xp = surv.xp
+    local new_tier = 0
+    if xp >= 500 then new_tier = 3
+    elseif xp >= 250 then new_tier = 2
+    elseif xp >= 100 then new_tier = 1
+    end
+    if new_tier > old_tier then
+        surv.tier = new_tier
+        local tier_names = {"Novice", "Skilled", "Expert", "Master"}
+        if db.actor then
+            local msg = string.format(game.translate_string("st_event_settler_promoted"), surv.name or "Survivor", tier_names[new_tier+1], "Scavenger")
+            camp_send_tip(db.actor, msg, nil, "general_stalker", 10000)
+            if add_radio_feed_entry then
+                add_radio_feed_entry("settlement", msg)
+            end
+        end
+    end
+    return surv.xp, surv.tier or 0
+end
+
+local function format_expedition_receipt(exp, camp, stash_id, ambush_note,
+                                          items_recovered, deposited_names, item_counts,
+                                          xp_earned, total_xp, cur_tier)
+    local stashes = exp.all_stashes or { stash_id }
+
+    local item_lines = {}
+    for _, dname in ipairs_(deposited_names) do
+        local cnt = item_counts[dname] or 1
+        if cnt > 1 then
+            item_lines[#item_lines + 1] = sformat(" - %s (x%d)", dname, cnt)
+        else
+            item_lines[#item_lines + 1] = sformat(" - %s", dname)
+        end
+    end
+    local items_list_str = (#item_lines > 0)
+        and table.concat(item_lines, "\n")
+        or " - (No items / storage full)"
+
+    local disp_lvl = game.translate_string(exp.target_level or "unknown")
+    local stash_desc
+    if exp.is_sweep then
+        local yellow_cnt, white_cnt = 0, 0
+        for _, s_id in ipairs_(stashes) do
+            if exp.stash_types and exp.stash_types[s_id] then
+                yellow_cnt = yellow_cnt + 1
+            else
+                white_cnt = white_cnt + 1
+            end
+        end
+        if yellow_cnt > 0 and white_cnt > 0 then
+            stash_desc = sformat("%d Stashes in %s (%d Yellow Rare / %d White Common)",
+                #stashes, disp_lvl, yellow_cnt, white_cnt)
+        elseif yellow_cnt > 0 then
+            stash_desc = sformat("%d Yellow (Rare) Stashes in %s", #stashes, disp_lvl)
+        else
+            stash_desc = sformat("%d White (Common) Stashes in %s", #stashes, disp_lvl)
+        end
+    else
+        local is_yellow = exp.target_is_yellow
+            or (exp.stash_types and exp.stash_types[stashes[1]])
+        if is_yellow then
+            stash_desc = sformat("Yellow (Rare) Stash in %s", disp_lvl)
+        else
+            stash_desc = sformat("White (Common) Stash in %s", disp_lvl)
+        end
+    end
+
+    local camp_label = camp and camp.name or "Settlement Storage"
+    local r_items = tonumber(items_recovered) or 0
+    local r_xp_earned = tonumber(xp_earned) or 0
+    local r_total_xp = tonumber(total_xp) or 0
+    local r_cur_tier = tonumber(cur_tier) or 0
+
+    local ok, res = pcall(sformat,
+        game.translate_string("st_scavenger_receipt_body_full"),
+        exp.survivor_name or "Scavenger",
+        camp_label,
+        stash_desc or "Stash",
+        ambush_note or "",
+        r_items,
+        items_list_str or "(No items)",
+        r_xp_earned,
+        r_total_xp,
+        r_cur_tier)
+    if ok and res then return res end
+
+    return string.format("EXPEDITION REPORT: %s returned to %s! Deposited %d items.",
+        exp.survivor_name or "Scavenger", camp_label, r_items)
+end
+
+-- Per-expedition completion (was the ~180-line pcall'd body)
+local function cleanup_expedition(stash_id)
+    local sb = stalker_camp_builder
+    local exp = sb.active_stash_expeditions and sb.active_stash_expeditions[stash_id]
+    local npc_id = exp and exp.npc_id
+    local surv_name = exp and exp.survivor_name
+
+    if sb.active_camps then
+        for _, c in pairs_(sb.active_camps) do
+            if c.survivors then
+                if npc_id then
+                    local s = c.survivors[npc_id]
+                        or c.survivors[tonum(npc_id)]
+                        or c.survivors[tostr(npc_id)]
+                    if s then s.on_expedition = nil end
+                end
+                if surv_name then
+                    for _, s in pairs_(c.survivors) do
+                        if s.name == surv_name then
+                            s.on_expedition = nil
+                        end
+                    end
+                end
+            end
+        end
+    end
+    if sb.active_stash_expeditions then
+        sb.active_stash_expeditions[stash_id] = nil
+    end
+end
+
+local function complete_expedition(stash_id)
+    local sb = stalker_camp_builder
+    local actor = db.actor
+    local exp = sb.active_stash_expeditions and sb.active_stash_expeditions[stash_id]
+    if not exp then return end
+
+    for _, s_id in ipairs_(exp.all_stashes or { stash_id }) do
+        if not exp.looted_stashes or not exp.looted_stashes[s_id] then
+            pcall(loot_and_clear_stash, s_id, exp)
+        end
+    end
+
+    local camp    = find_expedition_camp(exp)
+    local hub_obj = alife_object(exp.hub_id)
+    local target_box = sb.get_auto_sort_target_box(camp, exp.hub_id, "conserva")
+        or exp.hub_id
+    local box_se  = alife_object(target_box) or hub_obj
+    local surv    = find_expedition_survivor(camp, exp)
+
+    reposition_survivor_at_camp(exp, camp, hub_obj, box_se, surv)
+
+    local bonus_loot, xp_earned, ambush_note = roll_expedition_ambush(actor, exp)
+    local items_recovered, deposited_names, item_counts =
+        deposit_expedition_haul(exp, camp, bonus_loot)
+    local total_xp, cur_tier = award_expedition_xp(surv, xp_earned)
+
+    if actor then
+        local ok, receipt = pcall(format_expedition_receipt, exp, camp, stash_id, ambush_note,
+            items_recovered, deposited_names, item_counts,
+            xp_earned, total_xp, cur_tier)
+        if ok and receipt then
+            camp_send_tip(actor, receipt, nil, "general_stalker", 16000, exp.hub_id, "expedition")
+        end
+    end
+
+    cleanup_expedition(stash_id)
+end
+
+-- process_stash_expeditions -- orchestrator
+function stalker_camp_builder.process_stash_expeditions()
+    local sb = stalker_camp_builder
+    local actor = db.actor
+    if not actor then return end
+
+    local current_sec = game_sec()
+
+    local completed = {}
+
+    for stash_id, exp in pairs_(sb.active_stash_expeditions or {}) do
+        local elapsed, dur, progress = get_expedition_progress(exp, current_sec)
+
+        exp.chatter        = exp.chatter or {}
+        exp.looted_stashes = exp.looted_stashes or {}
+        exp.haul           = exp.haul or {}
+
+        local target_lvl_name = game.translate_string(exp.target_level or "unknown")
+        local home_camp = sb.active_camps and sb.active_camps[exp.hub_id]
+        local camp_name = (home_camp and home_camp.name) or "Camp"
+
+        emit_expedition_chatter(actor, exp, progress, target_lvl_name, camp_name)
+        loot_due_stashes(exp, stash_id, progress)
+
+        if elapsed >= dur then
+            completed[#completed + 1] = stash_id
+        end
+    end
+
+    for _, stash_id in ipairs_(completed) do
+        pcall(complete_expedition, stash_id)
+        cleanup_expedition(stash_id)
+    end
+end
