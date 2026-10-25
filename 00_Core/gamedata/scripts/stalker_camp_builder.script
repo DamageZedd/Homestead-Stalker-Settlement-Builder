@@ -197,6 +197,16 @@ end
 patch_detec_bone_hide_guard()
 safe_register_callback("actor_on_first_update", patch_detec_bone_hide_guard)
 
+-- Logs a guarded error with its full traceback, once per key per 30 s so a per-frame error
+-- cannot flood the log.
+local guard_log_last = {}
+function homestead_guard_log(tag, key, err)
+    local now = time_global and time_global() or 0
+    local last = guard_log_last[key]
+    if last and now >= last and (now - last) < 30000 then return end
+    guard_log_last[key] = now
+    printf("[Homestead %s] %s: %s", tag, key, tostring(err))
+end
 -- Task Manager Crash Guard: prevents fatal [C] __index crashes
 -- during task_manager:update() when tasks evaluate inventory items or hold dangling CGameTask handles
 function patch_task_manager_guard()
@@ -208,12 +218,11 @@ function patch_task_manager_guard()
                 for k, v in pairs(self.task_info) do
                     local tsk = self.task_info[k]
                     if tsk and tsk.check_task then
-                        local ok, err = pcall(tsk.check_task, tsk)
+                        local ok, err = xpcall(function() return tsk.check_task(tsk) end, debug.traceback)
                         if not ok then
-                            printf("[Homestead Task Guard] Task [%s] error in check_task: %s", tostring(k), tostring(err))
-                            if tsk.t then
-                                tsk.t = nil
-                            end
+                            -- Keep tsk.t: CGeneralTask:save_state writes nothing for a task without it, so
+                            -- clearing it dropped the task from the next save while the PDA still listed it.
+                            homestead_guard_log("Task Guard", "task:" .. tostring(k), err)
                         end
                     end
                     if tsk and tsk.timeout and tsk.repeat_timeout and game and game.get_game_time then
@@ -252,9 +261,16 @@ function patch_actor_binder_guard()
         bind_stalker.actor_binder._homestead_guarded = true
         local orig_update = bind_stalker.actor_binder.update
         bind_stalker.actor_binder.update = function(self, delta)
-            local ok, err = pcall(orig_update, self, delta)
+            local ok, err = xpcall(function() return orig_update(self, delta) end, debug.traceback)
             if not ok then
-                printf("[Homestead Guard] bind_stalker actor_binder update error: %s", tostring(err))
+                homestead_guard_log("Guard", "actor_binder", err)
+                -- Only swallow what the guard exists for: the luabind [C] __index crash and errors
+                -- that pass through Homestead. Any other mod's error stays fatal, with its file and
+                -- line, instead of recurring every frame behind a one-line log.
+                local msg = tostring(err)
+                if not (msg:find("__index", 1, true) or msg:find("stalker_camp_builder", 1, true)) then
+                    error(msg, 0)
+                end
             end
         end
     end
