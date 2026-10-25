@@ -2518,6 +2518,11 @@ function stalker_camp_builder.dismantle_camp(hub_id)
     if db.actor then
         actor_menu.set_msg(1, game.translate_string("st_dismantle_camp_done"), 5)
     end
+    -- the Market Stall's takings are the player's: pay out the till as the Trader's dialog does,
+    -- after the message above (set_msg shows one message at a time)
+    if sb.collect_trader_takings then
+        sb.collect_trader_takings(camp)
+    end
     return true
 end
 
