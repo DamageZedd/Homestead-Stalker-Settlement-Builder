@@ -23,6 +23,15 @@
 ### 🌐 Localisation:
 - **Russian furniture strings fixed**: `st_homestead_hf.xml` (rus) declared windows-1251 but part of it was saved as UTF-8, so the older furniture names and descriptions were garbled in game. The whole file is now windows-1251, like the rest of the Russian localisation.
 
+### 🔧 Fixes and refactoring added to v1.2.8 after the first build:
+- **Core script split into modules**: `stalker_camp_builder.script` shed about 3,200 lines into four new files: `stalker_camp_builder_scan.script` (camp structure scanning and its cache), `stalker_camp_builder_containers.script` (server-container and inventory-box iteration), `stalker_camp_builder_inventory.script` (camp-level inventory helpers: containers, iterate, snapshot, find / consume / count) and `stalker_camp_builder_expeditions.script` (scavenger stash expeditions, the PDA map-spot dispatch menu and the travel-time engine). Behaviour is unchanged; every function is still reached through `stalker_camp_builder`.
+- **Tick profiling**: with *Debug Logging* on, any actor-update slot that takes more than 4 ms logs `Slow tick slot N: X ms`, so the heavy slots (jobs, structure rescans, rival camps) can be profiled in large saves.
+- **Task manager and actor binder guards no longer hide errors** (#321): both log a full traceback (once per key per 30 s). The task guard no longer clears `tsk.t` on an error, which dropped the task from saves while the PDA still listed it. The actor binder guard only swallows the luabind `[C] __index` crash and errors that pass through Homestead; any other mod's error is re-raised with its file and line.
+- **Trader**: stall goods are priced by their real condition and rounds (#316). **Dismantle**: the player is paid the Market Stall's takings (#315).
+- **Farmer**: with an oven, the grain and the bread stop at the 40 cap (#317). **Brewer**: the paused check counts the Moonshine Distiller and its 7 wood a batch (#318). **Woodcutter**: the wood count reaches the charcoal tip again (#311).
+- **Generator Station**: the craft recipe has four components so the workshop lists it (#313), and drained batteries are recharged in place instead of deleted (#314).
+- **Recruit**: the duplicate `is_camp_trader` that hid the caravan trader's dialog is removed (#312).
+- **Icons and text**: potatoes and grain keep their inventory icons at full size (#319); the first workstation Russian strings are stored in windows-1251 (#320).
 ## v1.2.7 — HomesteadHF Modular Furniture Expansion, Settlement Distiller, Ammo Bench, Woodcutter Station, Generator Station, Gunsmith / Armor Repair Bench & Hunter Butchering / Tanning Station System
 
 ### 🛠️ HomesteadHF Workstation Fixes (spawn crash, collision, pickup, placement):
