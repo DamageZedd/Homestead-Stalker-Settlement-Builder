@@ -60,6 +60,8 @@ function on_mcm_load()
             { id = "realtime_job_brewer_interval_min",     type = "track", val = 2, min = 2,   max = 120, step = 1, def = 20 },
             { id = "realtime_job_scrapper_interval_min",   type = "track", val = 2, min = 2,   max = 120, step = 1, def = 20 },
             { id = "realtime_job_farmer_interval_min",     type = "track", val = 2, min = 2,   max = 120, step = 1, def = 20 },
+            { id = "realtime_job_trader_interval_min",     type = "track", val = 2, min = 2,   max = 120, step = 1, def = 15 },
+            { id = "trader_price_percent",                 type = "track", val = 2, min = 10,  max = 100, step = 5, def = 60 },
             { id = "line_rates", type = "line" },
             { id = "hunter_min_meat", type = "track", val = 2, min = 1, max = 10, step = 1, def = 1 },
             { id = "hunter_max_meat", type = "track", val = 2, min = 1, max = 20, step = 1, def = 2 },

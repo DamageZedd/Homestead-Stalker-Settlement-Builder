@@ -1618,6 +1618,17 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         end
         return false, nil, nil
 
+    elseif job == "trader" then
+        -- the trader needs a placed Market Stall to sell from and to leave the cash in
+        local has_stall = false
+        for _, struct_type in pairs_(camp.structures or {}) do
+            if struct_type == "market_stall" then has_stall = true break end
+        end
+        if not has_stall then
+            return true, "No Market Stall", "Place a Market Stall near the settlement and stock it with goods to sell"
+        end
+        return false, nil, nil
+
     elseif job == "scrapper" then
         local has_bench = false
         for struct_id, struct_type in pairs_(camp.structures or {}) do
@@ -2661,6 +2672,128 @@ function stalker_camp_builder.process_farmer_job(npc_id, hub_id, camp, survivor,
     return true
 end
 
+-- Trader job: the settler sells what the player left in the Market Stall. The RU is added to the
+-- camp's till (camp.trader_till); the player collects it by talking to the Trader, and it goes
+-- straight into the normal GAMMA money.
+-- The stall is a Hideout Furniture stash that is_valid_camp_box keeps out of camp storage, so no
+-- other job eats the goods. Players can only sell: nothing in the stall is ever offered for sale.
+local TRADER_BATCH = 12          -- most items sold per visit
+
+local function trader_text(id, default)
+    local s = game.translate_string(id)
+    if not s or s == id then return default end
+    return s
+end
+
+-- what the settler pays for one stall item: the item's base price (cost) scaled by condition for
+-- gear and by the rounds left in an ammo box. 0 means he will not buy it.
+local function trader_item_price(sec, cond, se_item)
+    if not sec then return 0 end
+    local ini = ini_sys or sys_ini or system_ini()
+    if not (ini and ini:section_exist(sec)) then return 0 end
+    local cost = ini:r_float_ex(sec, "cost") or 0
+    if cost <= 0 then return 0 end
+    if ini:r_bool_ex(sec, "quest_item", false) then return 0 end
+    local price = cost
+    local box = ini:r_float_ex(sec, "box_size")
+    if box and box > 0 and se_item then
+        local ok, left = pcall(function() return se_item.ammo_left end)
+        if ok and left then price = price * math.min(left, box) / box end
+    end
+    if sec:find("^wpn_") or sec:find("outfit") or sec:find("^helm_") or sec:find("^armor_") then
+        price = price * math.max(cond or 1.0, 0.1)
+    end
+    return price
+end
+
+function stalker_camp_builder.process_trader_job(npc_id, hub_id, camp, survivor, camp_box_id)
+    local sb = stalker_camp_builder
+    local sim = alife()
+    local actor = db.actor
+    local sformat = string.format
+    local npc = level.object_by_id(npc_id)
+    local name = (npc and npc:character_name()) or (survivor and survivor.name) or "Trader"
+    if not sim then return false end
+
+    local stall_id, stall_se = nil, nil
+    for sid, stype in pairs_(camp.structures or {}) do
+        if stype == "market_stall" then
+            local se = sim:object(sid)
+            if se then stall_id, stall_se = sid, se break end
+        end
+    end
+    if not stall_id then
+        if survivor then survivor.shortfall_reason = "No Market Stall" end
+        return false
+    end
+
+    local pct = sb.cfg.trader_price_percent or (sb.defaults and sb.defaults.trader_price_percent) or 60
+    local tier_mult = (sb.get_survivor_tier_mult and survivor and sb.get_survivor_tier_mult(survivor)) or 1.0
+    local rate = (pct / 100.0) * math.min(math.max(tier_mult, 1.0), 1.5)
+
+    -- everything the stall holds that has a price, dearest first
+    -- the goods sit in the stall's hidden stash, which exists once the player has opened the stall
+    local stash_id = homestead_market_stall and homestead_market_stall.find_stash(stall_id)
+    if not stash_id then
+        if survivor then survivor.shortfall_reason = "Nothing to Sell" end
+        return false
+    end
+
+    local goods = {}
+    if sb.invalidate_server_container_cache then sb.invalidate_server_container_cache() end
+    sb.iterate_server_container(stash_id, function(child_id, se_item)
+        if not (child_id and se_item) then return end
+        local sec = se_item:section_name()
+        local cond = se_item.condition or 1.0
+        local price = trader_item_price(sec, cond, se_item)
+        if price > 0 then
+            goods[#goods + 1] = { id = child_id, se = se_item, price = price }
+        end
+    end)
+    if #goods == 0 then
+        if survivor then survivor.shortfall_reason = "Nothing to Sell" end
+        return false
+    end
+    table.sort(goods, function(a, b) return a.price > b.price end)
+
+    local sold, earned = 0, 0
+    for i = 1, math.min(#goods, TRADER_BATCH) do
+        local g = goods[i]
+        local se = sim:object(g.id)
+        if se then
+            earned = earned + g.price * rate
+            alife_release(se)
+            sold = sold + 1
+        end
+    end
+    if sold <= 0 then return false end
+    if sb.invalidate_server_container_cache then sb.invalidate_server_container_cache() end
+
+    -- the takings wait in the stall's till until the player collects them from the Trader
+    camp.trader_owed = (camp.trader_owed or 0) + earned
+    local whole = math.floor(camp.trader_owed)
+    camp.trader_owed = camp.trader_owed - whole
+    camp.trader_till = (camp.trader_till or 0) + whole
+    if survivor then survivor.shortfall_reason = nil end
+
+    local tmpl = trader_text("st_job_trader_sold", "%s sold %d items at the market stall for %d RU (%d RU waiting to be collected).")
+    sb.camp_send_tip(actor, sformat(tmpl, name, sold, whole, camp.trader_till), nil, "general_stalker", 10000)
+    return true
+end
+
+-- hand the player the stall's takings through GAMMA's normal money
+function stalker_camp_builder.collect_trader_takings(camp)
+    local actor = db.actor
+    local till = camp and camp.trader_till or 0
+    if not actor or till <= 0 then return 0 end
+    camp.trader_till = 0
+    actor:give_money(till)
+    if actor_menu and actor_menu.set_msg then
+        actor_menu.set_msg(1, string.format(trader_text("st_trader_collected", "Collected %d RU from the market stall."), till), 3)
+    end
+    return till
+end
+
 -- Scrapper job: salvage metal scrap and hardware from Zone ruins
 function stalker_camp_builder.process_scrapper_job(npc_id, hub_id, camp, survivor, camp_box_id)
     local mrandom = math.random
@@ -3279,6 +3412,7 @@ function stalker_camp_builder.update_camp_jobs()
                 elseif job == "woodcutter" then rt_interval = sb.cfg.realtime_job_woodcutter_interval or (sb.defaults and sb.defaults.realtime_job_woodcutter_interval) or 1200
                 elseif job == "brewer"   then rt_interval = sb.cfg.realtime_job_brewer_interval or (sb.defaults and sb.defaults.realtime_job_brewer_interval) or 1200
                 elseif job == "farmer"   then rt_interval = sb.cfg.realtime_job_farmer_interval or (sb.defaults and sb.defaults.realtime_job_farmer_interval) or 1200
+                elseif job == "trader"   then rt_interval = sb.cfg.realtime_job_trader_interval or (sb.defaults and sb.defaults.realtime_job_trader_interval) or 900
                 elseif job == "scrapper" then rt_interval = sb.cfg.realtime_job_scrapper_interval or (sb.defaults and sb.defaults.realtime_job_scrapper_interval) or 1200
                 end
                 if not rt_interval or rt_interval <= 0 then
@@ -3475,6 +3609,8 @@ function stalker_camp_builder.update_camp_jobs()
                                     did_work = sb.process_scrapper_job(npc_id, hub_id, camp, survivor, camp_box_id)
                                 elseif job == "farmer" then
                                     did_work = sb.process_farmer_job(npc_id, hub_id, camp, survivor, camp_box_id)
+                                elseif job == "trader" then
+                                    did_work = sb.process_trader_job(npc_id, hub_id, camp, survivor, camp_box_id)
                                 end
 
                                 last_did_work = did_work
@@ -3583,6 +3719,7 @@ function stalker_camp_builder.get_job_progress(survivor, camp, hub_id)
     elseif job == "woodcutter" then rt_interval = sb.cfg.realtime_job_woodcutter_interval or (sb.defaults and sb.defaults.realtime_job_woodcutter_interval) or 1200
     elseif job == "brewer"   then rt_interval = sb.cfg.realtime_job_brewer_interval or (sb.defaults and sb.defaults.realtime_job_brewer_interval) or 1200
     elseif job == "farmer"   then rt_interval = sb.cfg.realtime_job_farmer_interval or (sb.defaults and sb.defaults.realtime_job_farmer_interval) or 1200
+    elseif job == "trader"   then rt_interval = sb.cfg.realtime_job_trader_interval or (sb.defaults and sb.defaults.realtime_job_trader_interval) or 900
     elseif job == "scrapper" then rt_interval = sb.cfg.realtime_job_scrapper_interval or (sb.defaults and sb.defaults.realtime_job_scrapper_interval) or 1200
     elseif job == "scavenge" then rt_interval = sb.cfg.realtime_job_scavenge_interval or (sb.defaults and sb.defaults.realtime_job_scavenge_interval) or 900
     else return nil  -- idle / guard have no cycle to display
@@ -3666,6 +3803,7 @@ function stalker_camp_builder.get_job_time_remaining(survivor, camp, hub_id)
     elseif job == "woodcutter" then rt_interval = sb.cfg.realtime_job_woodcutter_interval or (sb.defaults and sb.defaults.realtime_job_woodcutter_interval) or 1200
     elseif job == "brewer"   then rt_interval = sb.cfg.realtime_job_brewer_interval or (sb.defaults and sb.defaults.realtime_job_brewer_interval) or 1200
     elseif job == "farmer"   then rt_interval = sb.cfg.realtime_job_farmer_interval or (sb.defaults and sb.defaults.realtime_job_farmer_interval) or 1200
+    elseif job == "trader"   then rt_interval = sb.cfg.realtime_job_trader_interval or (sb.defaults and sb.defaults.realtime_job_trader_interval) or 900
     elseif job == "scrapper" then rt_interval = sb.cfg.realtime_job_scrapper_interval or (sb.defaults and sb.defaults.realtime_job_scrapper_interval) or 1200
     elseif job == "scavenge" then rt_interval = sb.cfg.realtime_job_scavenge_interval or (sb.defaults and sb.defaults.realtime_job_scavenge_interval) or 900
     else return nil

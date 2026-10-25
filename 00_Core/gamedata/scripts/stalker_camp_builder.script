@@ -331,6 +331,8 @@ local JOB_DISPATCH = {
                     anims = {"sit_knee", "ward", "wait_na"} },
     farmer      = { try = {"farmer_station", "workbench", "stove", "barricade"},
                     anims = {"press", "ward", "wait_na"} },
+    trader      = { try = {"market_stall", "display_counter", "stash", "barricade"},
+                    anims = {"wait_trade", "press", "wait_na"} },
 }
 
 function safe_squad_members(squad)
@@ -777,6 +779,9 @@ function is_valid_camp_box(box_id, hub_id, camp)
     -- a backpack the player drops as a stash is an inv_backpack box; stash furniture has a
     -- placeable_* section (sometimes with inv_backpack as its parent) and stays camp storage
     if se_box:section_name() == "inv_backpack" then return false end
+    -- the Market Stall's stash holds the player's goods for the Trader: no other job, sorter or
+    -- supply count may touch it
+    if se_box:section_name() == "market_stash" then return false end
 
     local sb = stalker_camp_builder
     if type_(hub_id) == "table" and type_(camp) ~= "table" then
@@ -1706,6 +1711,8 @@ local defaults = {
     realtime_job_brewer_interval     = 1200, -- Brewer: 20 real minutes
     realtime_job_scrapper_interval   = 1200, -- Scrapper: 20 real minutes
     realtime_job_farmer_interval     = 1200, -- Farmer: 20 real minutes
+    realtime_job_trader_interval     = 900,  -- Trader: 15 real minutes
+    trader_price_percent             = 60,   -- Trader: share of an item's base price paid out
     hunter_ambush_chance          =   20,  -- Hunter ambush chance: 20%
     scavenger_ambush_chance        =   15,  -- Scavenger ambush chance: 15%
     scavenge_ambush_chance         =   15,  -- Scavenger ambush chance alias: 15%
@@ -1985,6 +1992,12 @@ setmetatable(cfg, {
             elseif key == "job_farmer_interval" or key == "realtime_job_farmer_interval" then
                 local min = get_mcm_setting("realtime_job_farmer_interval_min")
                 return min and (min * 60) or defaults.realtime_job_farmer_interval
+            elseif key == "job_trader_interval" or key == "realtime_job_trader_interval" then
+                local min = get_mcm_setting("realtime_job_trader_interval_min")
+                return min and (min * 60) or defaults.realtime_job_trader_interval
+            elseif key == "trader_price_percent" then
+                local pct = get_mcm_setting("trader_price_percent")
+                return pct or defaults.trader_price_percent
             elseif key == "job_update_interval" then
                 local hr = get_mcm_setting("job_update_interval_hr")
                 return hr and (hr * 3600) or defaults.job_update_interval
@@ -2280,6 +2293,7 @@ local structure_type_exact = {
     placeable_repair_bench      = "repair_bench",
     placeable_hunter_station    = "hunter_station",
     placeable_farmer_station    = "farmer_station",
+    placeable_market_stall      = "market_stall",
 }
 
 local structure_type_substrings = {
@@ -2333,7 +2347,7 @@ end
 local SPECIALIZED_CONTAINER_TYPES = {
     fridge = true, stove = true, medstation = true, workbench = true,
     repair_bench = true, hunter_station = true, farmer_station = true, water_pump = true, harvester = true,
-    weapon_rack = true, display_counter = true,
+    weapon_rack = true, display_counter = true, market_stall = true,
 }
 function stalker_camp_builder.sanitize_primary_chest(camp)
     if not (camp and camp.primary_chest_id) then return end
@@ -4881,6 +4895,7 @@ function load_state(m_data)
                 elseif job == "brewer"   then rt_interval = cfg.realtime_job_brewer_interval or defaults.realtime_job_brewer_interval
                 elseif job == "scrapper" then rt_interval = cfg.realtime_job_scrapper_interval or defaults.realtime_job_scrapper_interval
                 elseif job == "farmer"   then rt_interval = cfg.realtime_job_farmer_interval or defaults.realtime_job_farmer_interval
+                elseif job == "trader"   then rt_interval = cfg.realtime_job_trader_interval or defaults.realtime_job_trader_interval
                 end
                 if rt_interval and rt_interval > 0 then
                     local current_sec = game_sec()
@@ -5406,6 +5421,7 @@ local function get_job_realtime_interval(job)
     elseif job == "brewer"      then return cfg.realtime_job_brewer_interval or defaults.realtime_job_brewer_interval
     elseif job == "scrapper"    then return cfg.realtime_job_scrapper_interval or defaults.realtime_job_scrapper_interval
     elseif job == "farmer"      then return cfg.realtime_job_farmer_interval or defaults.realtime_job_farmer_interval
+    elseif job == "trader"      then return cfg.realtime_job_trader_interval or defaults.realtime_job_trader_interval
     end
     return nil
 end
@@ -5940,6 +5956,10 @@ function set_farmer_job(actor, npc)
     set_survivor_job(npc:id(), "farmer")
 end
 
+function set_trader_job(actor, npc)
+    set_survivor_job(npc:id(), "trader")
+end
+
 function check_camp_chest_supplies(camp, hub_obj)
     if time_global() < homestead_teardown_grace_until then
         return false, false
@@ -6015,6 +6035,7 @@ function get_camp_stats(camp, hub_obj)
         brewers = 0,
         scrappers = 0,
         farmers = 0,
+        traders = 0,
         idlers = 0,
         defense = 0,
         happiness = 50,
@@ -6051,6 +6072,8 @@ function get_camp_stats(camp, hub_obj)
             stats.scrappers = stats.scrappers + 1
         elseif j == "farmer" then
             stats.farmers = stats.farmers + 1
+        elseif j == "trader" then
+            stats.traders = stats.traders + 1
         else
             stats.idlers = stats.idlers + 1
         end
@@ -6803,7 +6826,7 @@ function award_survivor_xp(survivor, job, amount)
                 scavenge = "Scavenger", cook = "Cook", repair = "Repairer",
                 craft = "Crafter", medic = "Medic", guard = "Guard",
                 electrician = "Electrician", woodcutter = "Woodcutter",
-                brewer = "Brewer", scrapper = "Scrapper", farmer = "Farmer", idle = "Settler"
+                brewer = "Brewer", scrapper = "Scrapper", farmer = "Farmer", trader = "Trader", idle = "Settler"
             }
             local job_title = job_display[job] or job or ""
             local msg = string.format(game.translate_string("st_event_settler_promoted"), survivor.name or "Survivor", tier_names[new_tier+1], job_title)
@@ -10838,6 +10861,10 @@ function is_camp_farmer(actor, npc)
     return stalker_camp_builder.is_camp_farmer and stalker_camp_builder.is_camp_farmer(actor, npc)
 end
 
+function is_camp_trader(actor, npc)
+    return stalker_camp_builder.is_camp_trader and stalker_camp_builder.is_camp_trader(actor, npc)
+end
+
 function actor_has_woodcutter_axe(actor, npc)
     return stalker_camp_builder.actor_has_woodcutter_axe and stalker_camp_builder.actor_has_woodcutter_axe(actor, npc)
 end
@@ -10890,6 +10917,7 @@ stalker_camp_builder.set_woodcutter_job = set_woodcutter_job
 stalker_camp_builder.set_brewer_job = set_brewer_job
 stalker_camp_builder.set_scrapper_job = set_scrapper_job
 stalker_camp_builder.set_farmer_job = set_farmer_job
+stalker_camp_builder.set_trader_job = set_trader_job
 
 
 stalker_camp_builder.is_actor_healthy = is_actor_healthy
@@ -11187,6 +11215,13 @@ function stalker_camp_builder.seed_initial_settlement_telemetry(force_refresh)
                     category = "work",
                     scan = true,
                     text = sformat("FARM: %s is tending the potato beds and the grain plot.", s_name)
+                })
+            elseif s_job == "trader" then
+                table.insert(g_logs, 1, {
+                    time_str = time_str,
+                    category = "work",
+                    scan = true,
+                    text = sformat("MARKET: %s is selling stall goods to passing stalkers.", s_name)
                 })
             elseif s_job == "scrapper" then
                 table.insert(g_logs, 1, {

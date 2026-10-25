@@ -1,0 +1,82 @@
+-- homestead_market_stall.script
+-- The Trader's Market Stall: a normal physic_object (so it has collision) with a hidden stash
+-- that holds the goods to sell. The stash sits under the map like the Hideout Furniture
+-- workshop stash and is opened by using the stall. stash ids live in
+-- alife_storage_manager state: market_stashes[stall_id] = stash_id.
+
+local function state()
+    local m = alife_storage_manager.get_state()
+    m.market_stashes = m.market_stashes or {}
+    return m.market_stashes
+end
+
+-- id of the stall's stash, creating it when there is none yet
+function get_stash(stall_id)
+    local stashes = state()
+    local se_box = stashes[stall_id] and alife_object(stashes[stall_id])
+    if not se_box then
+        local obj = get_object_by_id(stall_id)
+        if not obj then return nil end
+        local pos = vec_set(obj:position())
+        pos.y = pos.y - 50
+        se_box = alife_create("market_stash", pos, obj:level_vertex_id(), obj:game_vertex_id())
+        if not se_box then return nil end
+    end
+    stashes[stall_id] = se_box.id
+    -- the box must be online to be opened
+    alife():set_switch_online(se_box.id, true)
+    alife():set_switch_offline(se_box.id, false)
+    return se_box.id
+end
+
+-- the stash id if it already exists (no creation): what the Trader sells from
+function find_stash(stall_id)
+    local id = state()[stall_id]
+    if id and alife_object(id) then return id end
+    return nil
+end
+
+local function open_stash(box_id)
+    local box = box_id and level.object_by_id(box_id)
+    if not box then return false end -- not online yet: the time event repeats
+    hide_hud_inventory()
+    box:use(db.actor)
+    return true
+end
+
+-- ui_on_simple_interaction: a quick use opens the stall's goods; hold-use keeps the standard
+-- Hideout Furniture menu (with Pick Up)
+function use_stall(stall_id)
+    local box_id = get_stash(stall_id)
+    if not box_id then return end
+    CreateTimeEvent("homestead_market", "open_" .. stall_id, 0, open_stash, box_id)
+end
+
+function init(obj)
+    obj:bind_object(market_stall_wrapper(obj).binder)
+end
+
+class "market_stall_wrapper" (bind_hf_base.hf_binder_wrapper)
+
+function market_stall_wrapper:__init(obj)
+    super(obj)
+end
+
+-- picking the stall up hands the goods back first
+function market_stall_wrapper:pickup()
+    local id = self.object and self.object:id()
+    local stashes = state()
+    local box_id = id and stashes[id]
+    if box_id then
+        local box = level.object_by_id(box_id)
+        if box then
+            box:iterate_inventory_box(function(temp, item)
+                box:transfer_item(item, db.actor)
+            end, box)
+        end
+        stashes[id] = nil
+        local se_box = alife_object(box_id)
+        if se_box then alife_release(se_box) end
+    end
+    return bind_hf_base.hf_binder_wrapper.pickup(self)
+end

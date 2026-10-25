@@ -2297,6 +2297,48 @@
     <string id="st_job_farmer_baked">
         <text>%s смолол зерно и испёк хлеб на печи (%d шт.).</text>
     </string>
+    <string id="st_job_trader_btn">
+        <text>Торговец</text>
+    </string>
+    <string id="st_pda_settlement_job_trader">
+        <text>Торговец</text>
+    </string>
+    <string id="st_job_trader_ask">
+        <text>Займись торговой лавкой и продавай то, что я в ней оставлю.</text>
+    </string>
+    <string id="st_job_trader_done">
+        <text>Понял. Выкладывай товар, я всё продам. За выручкой подходи ко мне.</text>
+    </string>
+    <string id="st_job_trader_sold">
+        <text>%s продал в лавке товаров: %d, выручка: %d RU (в кассе ждёт: %d RU).</text>
+    </string>
+    <string id="st_guide_s3m_header">
+        <text>РАБОТА: ТОРГОВЕЦ (ЛАВКА)</text>
+    </string>
+    <string id="st_guide_s3m_body">
+        <text>%c[255,238,196,112]>> ТОРГОВАЯ ЛАВКА%c[default]\n \n  - %c[255,144,238,144] Станция:%c[default] Поставь лавку у лагеря. Это тайник: клади в него всё, что нужно продать.\n  - %c[255,238,196,112] Продажа:%c[default] За цикл торговец продаёт до 12 вещей, самые дорогие первыми. Цена - доля от базовой (настраивается в MCM), для изношенной экипировки и неполных пачек патронов ниже.\n  - %c[255,100,200,255] Выручка:%c[default] Деньги копятся в кассе лавки. Поговори с торговцем и выбери "Отдай выручку", чтобы получить их.\n  - %c[255,144,238,144] Только продажа:%c[default] Через лавку можно только продавать. Припасы лагеря не трогаются: продаётся только то, что лежит в лавке.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_realtime_job_trader_interval_min">
+        <text>Цикл торговца (минуты)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_realtime_job_trader_interval_min_desc">
+        <text>Реальное время между продажами торговца в лавке.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_trader_price_percent">
+        <text>Цена торговца (% от базовой)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_trader_price_percent_desc">
+        <text>Какую долю базовой цены предмета платит торговец. Опытные торговцы платят чуть больше.</text>
+    </string>
+    <string id="st_trader_collect_ask">
+        <text>Отдай выручку из торговой лавки.</text>
+    </string>
+    <string id="st_trader_collect_done">
+        <text>Держи. Каждый рубль из лавки, пересчитано дважды.</text>
+    </string>
+    <string id="st_trader_collected">
+        <text>Забрано из лавки: %d RU.</text>
+    </string>
     <string id="st_guide_s3l_header">
         <text>РАБОТА: ФЕРМЕР (КАРТОФЕЛЬ, ЗЕРНО И ХЛЕБ)</text>
     </string>

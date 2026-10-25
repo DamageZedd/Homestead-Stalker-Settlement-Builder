@@ -93,6 +93,8 @@ local dialogues = [[
             <next>19</next>
             <next>23</next>
             <next>26</next>
+            <next>27</next>
+            <next>28</next>
             <next>70</next>
             <next>71</next>
             <next>72</next>
@@ -280,6 +282,25 @@ local dialogues = [[
         </phrase>
         <phrase id="261">
             <text>st_job_farmer_done</text>
+            <action>dialogs.break_dialog</action>
+        </phrase>
+        <phrase id="27">
+            <text>st_job_trader_ask</text>
+            <action>stalker_camp_builder.set_trader_job</action>
+            <next>271</next>
+        </phrase>
+        <phrase id="271">
+            <text>st_job_trader_done</text>
+            <action>dialogs.break_dialog</action>
+        </phrase>
+        <phrase id="28">
+            <precondition>stalker_camp_builder.has_trader_takings</precondition>
+            <text>st_trader_collect_ask</text>
+            <action>stalker_camp_builder.collect_trader_takings_dialog</action>
+            <next>281</next>
+        </phrase>
+        <phrase id="281">
+            <text>st_trader_collect_done</text>
             <action>dialogs.break_dialog</action>
         </phrase>
         <phrase id="70">

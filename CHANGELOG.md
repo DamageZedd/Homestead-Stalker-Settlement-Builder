@@ -1,5 +1,25 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## v1.2.8 — Farmer Job & Farmer Station, Trader Job & Market Stall, One Texture Atlas per Workstation
+
+### 🥔 Farmer job (potatoes, grain & bread):
+- **New Farmer job** for settlers: grows potatoes for the Brewer's still and grain that is milled and baked into bread. Works a plain plot anywhere; assign it from the PDA (new Farmer button in all three themes), from the settler dialogue, or by talking to the settler.
+- **Pick the crop like Crafters and Medics**: a Farmer directive cycles *Auto-Rotate* (alternates), *Potato Focus* and *Grain Focus* — from the PDA directive button or in dialogue. A chosen crop pauses the job when its stockpile (40) is full; Auto-Rotate swaps crops first.
+- **Farmer Station** (`placeable_farmer_station`, recipe `x_homestead_farmer_station`): raised potato and wheat beds, work crate with bucket and tools, sacks, a wooden fence and a brick field oven with a chimney, built from vanilla G.A.M.M.A. props and textures. Doubles the harvest and bakes bread right in the field (a Stove can bake as well). Multi-box collision, hold-Use pickup and a fitted placement outline like the other workstations.
+- **New items**: Potatoes (`homestead_potato`) and Wheat Grain (`homestead_grain`), each with its own 3D model and inventory icon. The Brewer now uses potatoes first when distilling (a richer mash, +1 vodka per batch); fresh bread is no longer treated as a fermentable.
+- **Settings**: MCM slider *Farmer Field Cycle (minutes)*; Farmer entry in the in-game guide, radio feed, stats and job labels. English and Russian strings.
+
+### 🛒 Trader job & Market Stall:
+- **New Trader job**: the Trader sells the goods you leave in the settlement's Market Stall and keeps the takings until you collect them. **Players can only sell**: the stall never sells anything back, and camp supplies are never touched.
+- **Market Stall** (`placeable_market_stall`, recipe `x_homestead_market_stall`): a rustic roadside stall (plank counter on crates, patched tarp awning, sacks, a barrel, tins and bottles) built from vanilla G.A.M.M.A. props. A solid object with collision; use it to open its stash and drop goods in, hold-Use for the standard menu and Pick Up (goods are returned to you).
+- **Prices follow the item's base price**: the Trader pays a share of each item's `cost` (default 60%, MCM *Trader Price*), reduced for worn gear and part-empty ammo boxes, and a little more for skilled traders. Up to 12 items are sold per cycle (MCM *Trader Sales Cycle*, default 15 min), most valuable first.
+- **Takings go through G.A.M.M.A.'s normal money**: talk to the Trader and choose *Hand over the takings* to add the RU to your wallet. No new cash items.
+- **Isolated storage**: the stall's stash is excluded from camp storage, the auto-sorter and every other job, so nothing eats the goods. Trader entry in the PDA (all themes), guide, radio feed and stats; English and Russian strings.
+
+### 🖼️ Workstation textures:
+- **One texture atlas per workstation** (`textures\homestead_hf\atlas_<station>.dds`, DXT1 with full mipmaps): each of the eight HomesteadHF workstations now uses a single material and texture, baked from the original vanilla / G.A.M.M.A. textures at full density on every face. Geometry, rigging and collision are unchanged. Ammo bench and generator glass is opaque (DXT1 has no alpha); lamp glow is kept.
+- **Much smaller download**: the release no longer ships duplicate copies of vanilla / G.A.M.M.A. textures, uncompressed editor sources (`.object`) or byte-identical files that required mods already provide (Hideout Gadgets patch).
+
 ## v1.2.7 — HomesteadHF Modular Furniture Expansion, Settlement Distiller, Ammo Bench, Woodcutter Station, Generator Station, Gunsmith / Armor Repair Bench & Hunter Butchering / Tanning Station System
 
 ### 🛠️ HomesteadHF Workstation Fixes (spawn crash, collision, pickup, placement):

@@ -356,6 +356,10 @@
             <texture>ui_button_ordinary</texture>
             <text font="letterica16" align="c" vert_align="c">st_job_farmer_btn</text>
         </btn_job_farmer>
+        <btn_job_trader x="84" y="362" width="80" height="28" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_job_trader_btn</text>
+        </btn_job_trader>
 
         <!-- Module 4: Field Station & Orders -->
         <pos_header_bg x="0" y="366" width="164" height="20" stretch="1">

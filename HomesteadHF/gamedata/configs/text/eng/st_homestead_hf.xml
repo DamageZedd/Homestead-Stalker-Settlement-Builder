@@ -61,7 +61,7 @@
 		<text>Farmer's Raised Beds &amp; Field Oven</text>
 	</string>
 	<string id="st_homestead_farmer_station_descr">
-		<text>A small frontier farm plot built from weathered timber planks: one raised bed of potato plants, one of ripening wheat, a work table with a stone hand quern and fresh loaves, a clay field oven with a flue, burlap sacks of potatoes and grain, and the hoe, spade, rake and watering can that tend it all. In a settlement, it serves as the dedicated workstation for camp Farmers, doubling the harvest of potatoes for the still and grain for the oven, and baking bread right in the field.</text>
+		<text>A frontier farm plot built from salvaged planks and crates: a raised bed of potato plants, a bed of ripening wheat, a work crate with a bucket and tools, sacks of produce, a wooden fence and a brick field oven with a chimney. In a settlement, it serves as the dedicated workstation for camp Farmers, doubling the harvest of potatoes for the still and grain for the oven, and baking bread right in the field.</text>
 	</string>
 	<string id="st_homestead_potato">
 		<text>Potatoes</text>
@@ -80,6 +80,12 @@
 	</string>
 	<string id="st_job_farmer_station_baked">
 		<text>%s milled the grain and baked fresh loaves in the field oven (%d bread)!</text>
+	</string>
+	<string id="st_homestead_market_stall">
+		<text>Roadside Market Stall</text>
+	</string>
+	<string id="st_homestead_market_stall_descr">
+		<text>A rickety Zone market stall: a plank counter under a patched tarp awning, crates and sacks of wares, tins, bottles and a barrel. Stalkers drop goods into it and the settlement Trader sells them. Talk to the Trader to collect the takings. Players can only sell through it. It will not sell anything back.</text>
 	</string>
 </string_table>
 

@@ -2294,6 +2294,48 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_job_farmer_baked">
         <text>%s ground the grain and baked bread on the stove (%d bread).</text>
     </string>
+    <string id="st_job_trader_btn">
+        <text>Trader</text>
+    </string>
+    <string id="st_pda_settlement_job_trader">
+        <text>Trader</text>
+    </string>
+    <string id="st_job_trader_ask">
+        <text>I want you to run the market stall and sell the goods I leave in it.</text>
+    </string>
+    <string id="st_job_trader_done">
+        <text>Understood. Stock the stall and I will sell it all. Come and see me for the takings.</text>
+    </string>
+    <string id="st_job_trader_sold">
+        <text>%s sold %d items at the market stall for %d RU (%d RU waiting to be collected).</text>
+    </string>
+    <string id="st_guide_s3m_header">
+        <text>JOB: TRADER (MARKET STALL)</text>
+    </string>
+    <string id="st_guide_s3m_body">
+        <text>%c[255,238,196,112]>> MARKET STALL%c[default]\n \n  - %c[255,144,238,144] Workstation:%c[default] Place a Market Stall near the hub. It is a storage stash: put any goods you want sold into it.\n  - %c[255,238,196,112] Selling:%c[default] Each cycle the Trader sells up to 12 items from the stall, most valuable first. Prices follow each item's base price (a share of it, set in MCM), reduced for worn gear and part-empty ammo boxes.\n  - %c[255,100,200,255] Takings:%c[default] The RU builds up in the stall's till. Talk to the Trader and pick "Hand over the takings" to add it to your money.\n  - %c[255,144,238,144] Sell only:%c[default] Players can only sell through the stall; it never sells goods back. Camp supplies are not touched: only the stall's own contents are sold.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_realtime_job_trader_interval_min">
+        <text>Trader Sales Cycle (minutes)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_realtime_job_trader_interval_min_desc">
+        <text>Real-time minutes between the Trader's sales runs at the Market Stall.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_trader_price_percent">
+        <text>Trader Price (% of base price)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_trader_price_percent_desc">
+        <text>Share of an item's base price the Trader pays out. Skilled traders earn a little more.</text>
+    </string>
+    <string id="st_trader_collect_ask">
+        <text>Hand over the takings from the market stall.</text>
+    </string>
+    <string id="st_trader_collect_done">
+        <text>Here you go. Every ruble from the stall, counted twice.</text>
+    </string>
+    <string id="st_trader_collected">
+        <text>Collected %d RU from the market stall.</text>
+    </string>
     <string id="st_guide_s3l_header">
         <text>JOB: FARMER (POTATOES, GRAIN &amp; BREAD)</text>
     </string>
