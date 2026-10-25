@@ -1,5 +1,12 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## Unreleased: Hand-Cranked Water Pump
+
+### 💧 Hand-Cranked Water Pump (HomesteadHF):
+- **New placeable: Hand-Cranked Water Pump** (`placeable_water_pump`, item `homestead_water_pump`, recipe `x_homestead_water_pump`): a cast-iron hand pump on a concrete pad with a galvanized bucket of water under the spout. It weighs **10 kg** in the inventory (3x3 slot) and is crafted at a workbench from scrap, fasteners, copper and rope.
+- **Built from vanilla G.A.M.M.A. assets**: the red valve hand-wheel (`workshop_room\ventil_01`, texture `mtl_ventil_pod_01`), the bucket (`workshop_room\vedro_01`, texture `prop_spade`) and the vanilla water texture `water_pool1`. The body uses one atlas (`homestead_hf\atlas_water_pump`, DXT1 with mipmaps) made only from vanilla textures (`mtl_sarcofag_t`, `mtl_rja_01`, `mtl_girder_reil`, `ston_beton_pod_03`, `wood_board_01`, `mtl_truba_ch_01`, `wood_collect`). Single `link` root bone, box collision.
+- **Wired into the settlement**: `placeable_water_pump` is mapped to the `water_pump` structure type, so it counts as a settlement water pump (the 6-hour flask production with charcoal or paper filters, camp stats, the PDA pump count and the Brewer's still check all see it). English and Russian names and descriptions, inventory icon on the workstation icon atlas, and a README entry.
+
 ## v1.2.8 — Farmer Job & Farmer Station, Trader Job & Market Stall, One Texture Atlas per Workstation
 
 ### 🥔 Farmer job (potatoes, grain & bread):

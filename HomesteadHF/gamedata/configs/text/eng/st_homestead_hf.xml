@@ -87,6 +87,12 @@
 	<string id="st_homestead_market_stall_descr">
 		<text>A rickety Zone market stall: a plank counter under a patched tarp awning, crates and sacks of wares, tins, bottles and a barrel. Stalkers drop goods into it and the settlement Trader sells them. Talk to the Trader to collect the takings. Players can only sell through it. It will not sell anything back.</text>
 	</string>
+	<string id="st_homestead_water_pump">
+		<text>Hand-Cranked Water Pump</text>
+	</string>
+	<string id="st_homestead_water_pump_descr">
+		<text>A cast-iron hand-cranked pump on a concrete pad, with a galvanized bucket under the spout. It counts as a settlement water pump: with charcoal or paper filters in camp storage, your settlers draw clean flasks of water every few hours. Weighs 10 kg to carry.</text>
+	</string>
 </string_table>
 
 

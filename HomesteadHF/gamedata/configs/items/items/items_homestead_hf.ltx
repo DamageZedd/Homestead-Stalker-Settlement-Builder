@@ -346,3 +346,42 @@ bounding_box_origin                     = 0.000000, 1.167000, -0.257500
 ; the goods the Trader sells: a hidden box kept under the map, opened by using the stall
 [market_stash]:hidden_box
 capacity                                = 150
+
+;--------------------------
+;--- Hand-Cranked Water Pump (Ручная водяная помпа)
+;--------------------------
+
+[homestead_water_pump]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\water_pump.ogf
+description                             = st_homestead_water_pump_descr
+inv_name                                = st_homestead_water_pump
+inv_name_short                          = st_homestead_water_pump
+inv_grid_x                              = 0
+inv_grid_y                              = 12
+inv_grid_height                         = 3
+inv_grid_width                          = 3
+icons_texture                           = ui\ui_icon_homestead_workstations
+cost                                    = 6500
+inv_weight                              = 10.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_water_pump
+
+
+[placeable_water_pump]:physic_object
+visual                                  = dynamics\HomesteadHF\water_pump.ogf
+inv_weight                              = 40.0
+placeable_type                          = prop
+base_rotation                           = 0
+fixed_bones                             = link
+script_binding                          = bind_hf_base.init
+item_section                            = homestead_water_pump
+
+; width, depth, height / origin x, y (up), z: measured from the mesh bounds, 3 cm inset per side, 10 cm lifted
+bounding_box_size                       = 0.688000, 0.865000, 0.740000
+bounding_box_origin                     = 0.064000, 0.470000, 0.042500
