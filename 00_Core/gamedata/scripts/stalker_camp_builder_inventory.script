@@ -486,6 +486,7 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
         fermentable_count = 0,
         potato_count = 0,
         grain_count = 0,
+        bread_count = 0,
         has_water = false,
         water_filter_count = 0,
         has_powder = false,
@@ -584,6 +585,8 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
                 snapshot.potato_count = snapshot.potato_count + 1
             elseif sb.is_grain and sb.is_grain(sec) then
                 snapshot.grain_count = snapshot.grain_count + 1
+            elseif sb.is_bread and sb.is_bread(sec) then
+                snapshot.bread_count = snapshot.bread_count + 1
             end
 
             if not snapshot.has_water then
