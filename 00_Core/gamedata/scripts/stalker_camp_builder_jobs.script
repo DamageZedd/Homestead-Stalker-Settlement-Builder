@@ -115,6 +115,8 @@ function stalker_camp_builder.set_survivor_job(npc_id, job)
                 if surv.job == job and not was_companion and not surv.on_expedition then return end
 
                 surv.job = job
+                surv.shortfall_reason = nil
+                surv.shortfall_job = job
                 surv.job_start_time = sb.game_sec()
                 surv.job_start_realtime = time_global()
                 surv.paused_elapsed = nil
@@ -3420,6 +3422,11 @@ function stalker_camp_builder.update_camp_jobs()
 
             for npc_id, survivor in pairs_(camp.survivors) do
                 local job = survivor.job or "idle"
+                -- a waiting reason belongs to the job that raised it: drop one left over from an earlier job
+                if survivor.shortfall_job ~= job then
+                    survivor.shortfall_reason = nil
+                    survivor.shortfall_job = job
+                end
 
                 local rt_interval
                 if     job == "scavenge" then

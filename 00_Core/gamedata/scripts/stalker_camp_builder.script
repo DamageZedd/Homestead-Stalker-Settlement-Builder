@@ -2162,7 +2162,7 @@ function actor_on_update()
     if prof_t0 then
         local ms = (os.clock() - prof_t0) * 1000
         if ms > 4 then
-            printf("[Homestead] Slow tick slot %d: %.1f ms", slot, ms)
+            printf("%s", sformat("[Homestead] Slow tick slot %d: %.1f ms", slot, ms))
         end
     end
 end
