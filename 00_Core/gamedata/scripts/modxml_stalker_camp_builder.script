@@ -92,10 +92,12 @@ local dialogues = [[
             <next>18</next>
             <next>19</next>
             <next>23</next>
+            <next>26</next>
             <next>70</next>
             <next>71</next>
             <next>72</next>
             <next>73</next>
+            <next>74</next>
             <next>50</next>
             <next>60</next>
             <next>62</next>
@@ -271,6 +273,15 @@ local dialogues = [[
             <text>st_job_scrapper_done</text>
             <action>dialogs.break_dialog</action>
         </phrase>
+        <phrase id="26">
+            <text>st_job_farmer_ask</text>
+            <action>stalker_camp_builder.set_farmer_job</action>
+            <next>261</next>
+        </phrase>
+        <phrase id="261">
+            <text>st_job_farmer_done</text>
+            <action>dialogs.break_dialog</action>
+        </phrase>
         <phrase id="70">
             <precondition>stalker_camp_builder.actor_has_woodcutter_axe</precondition>
             <text>st_camp_woodcutter_axe_ask</text>
@@ -332,6 +343,39 @@ local dialogues = [[
         </phrase>
         <phrase id="739">
             <text>st_camp_woodcutter_mode_done</text>
+            <action>dialogs.break_dialog</action>
+        </phrase>
+        <phrase id="74">
+            <precondition>stalker_camp_builder.is_camp_farmer</precondition>
+            <text>st_camp_farmer_mode_ask</text>
+            <next>740</next>
+        </phrase>
+        <phrase id="740">
+            <text>st_camp_farmer_mode_reply</text>
+            <next>741</next>
+            <next>742</next>
+            <next>743</next>
+        </phrase>
+        <phrase id="741">
+            <precondition>stalker_camp_builder.is_not_farmer_mode_auto</precondition>
+            <text>st_farmer_mode_auto_dialog</text>
+            <action>stalker_camp_builder.set_farmer_mode_auto</action>
+            <next>749</next>
+        </phrase>
+        <phrase id="742">
+            <precondition>stalker_camp_builder.is_not_farmer_mode_potato</precondition>
+            <text>st_farmer_mode_potato_dialog</text>
+            <action>stalker_camp_builder.set_farmer_mode_potato</action>
+            <next>749</next>
+        </phrase>
+        <phrase id="743">
+            <precondition>stalker_camp_builder.is_not_farmer_mode_grain</precondition>
+            <text>st_farmer_mode_grain_dialog</text>
+            <action>stalker_camp_builder.set_farmer_mode_grain</action>
+            <next>749</next>
+        </phrase>
+        <phrase id="749">
+            <text>st_camp_farmer_mode_done</text>
             <action>dialogs.break_dialog</action>
         </phrase>
         <phrase id="999">

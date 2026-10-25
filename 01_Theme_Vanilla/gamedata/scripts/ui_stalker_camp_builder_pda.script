@@ -597,6 +597,7 @@ function SettlementManagerPDA:InitControls()
     self.btn_job_woodcutter = init_safe_job_btn("btn_job_woodcutter", "woodcutter", self.btn_job_guard)
     self.btn_job_brewer = init_safe_job_btn("btn_job_brewer", "brewer", self.btn_job_idle)
     self.btn_job_scrapper = init_safe_job_btn("btn_job_scrapper", "scrapper", self.btn_job_guard)
+    self.btn_job_farmer = init_safe_job_btn("btn_job_farmer", "farmer", self.btn_job_idle)
 
     self.btn_banish = xml:Init3tButton("job_content:btn_banish", self.job_content)
     self:Register(self.btn_banish, "btn_banish")
@@ -688,6 +689,7 @@ function SettlementManagerPDA:InitControls()
         { header = "st_guide_s3i_header",       body = "st_guide_s3i_body",       is_job = true },  -- Job: Woodcutter & Timber / Charcoal
         { header = "st_guide_s3j_header",       body = "st_guide_s3j_body",       is_job = true },  -- Job: Brewer & Distillery
         { header = "st_guide_s3k_header",       body = "st_guide_s3k_body",       is_job = true },  -- Job: Scrapper & Metal Salvage
+        { header = "st_guide_s3l_header",       body = "st_guide_s3l_body",       is_job = true },  -- Job: Farmer & Bakery
         { header = "st_guide_s4_header",        body = "st_guide_s4_body"        },  -- 4. Smart Storage Routing, Auto-Sort & Water/Fridges
         { header = "st_guide_s5_header",        body = "st_guide_s5_body"        },  -- 5. Base Defense & Raids
         { header = "st_guide_s6_header",        body = "st_guide_s6_body"        },  -- 6. Rival Wilderness Camps
@@ -1785,6 +1787,20 @@ function SettlementManagerPDA:OnSurvivorSelected()
             if not s_item.shortfall_reason then
                 self.survivor_pos_txt:SetText("Status: Crafting Ammunition & Loading Shells")
             end
+        elseif job == "farmer" then
+            if s_item.shortfall_reason then
+                job_str = sformat("%s: Tending Fields (Waiting: %s)", job_lbl, s_item.shortfall_reason)
+                self.survivor_pos_txt:SetText(sformat("Status: Waiting (%s)", s_item.shortfall_reason))
+            elseif time_str ~= "" then
+                job_str = sformat("%s: Tending Fields (%d%% - %s remaining)", job_lbl, pct, time_str)
+            elseif pct >= 100 then
+                job_str = sformat("%s: Tending Fields (%d%% - Harvest Ready)", job_lbl, pct)
+            else
+                job_str = sformat("%s: Tending Fields (%d%%)", job_lbl, pct)
+            end
+            if not s_item.shortfall_reason then
+                self.survivor_pos_txt:SetText("Status: Growing Potatoes & Grain, Baking Bread")
+            end
         elseif job == "scrapper" then
             if time_str ~= "" then
                 job_str = sformat("%s: Salvaging Scrap%s (%d%% - %s remaining)", job_lbl, boost_str, pct, time_str)
@@ -1859,6 +1875,7 @@ function SettlementManagerPDA:OnSurvivorSelected()
         woodcutter = self.btn_job_woodcutter,
         brewer = self.btn_job_brewer,
         scrapper = self.btn_job_scrapper,
+        farmer = self.btn_job_farmer,
     }
 
     for jname, btn in pairs(job_btns) do
@@ -1887,10 +1904,11 @@ function SettlementManagerPDA:OnSurvivorSelected()
         if self.btn_job_woodcutter then self.btn_job_woodcutter:SetWndPos(vector2():set(84, btn_start_y + 128)) end
         if self.btn_job_brewer then self.btn_job_brewer:SetWndPos(vector2():set(0, btn_start_y + 160)) end
         if self.btn_job_scrapper then self.btn_job_scrapper:SetWndPos(vector2():set(84, btn_start_y + 160)) end
+        if self.btn_job_farmer then self.btn_job_farmer:SetWndPos(vector2():set(0, btn_start_y + 192)) end
     end
 
-    local pos_y = btn_start_y + 196
-    local has_dir = (job == "medic" or job == "woodcutter" or job == "craft")
+    local pos_y = btn_start_y + 228
+    local has_dir = (job == "medic" or job == "woodcutter" or job == "craft" or job == "farmer")
     -- the status above the buttons can run to several lines (a paused job says why in a
     -- sentence): the buttons and everything under them go below its last line
     local st_extra = 0
@@ -1929,6 +1947,13 @@ function SettlementManagerPDA:OnSurvivorSelected()
             elseif job == "woodcutter" then
                 local w_mode = s_item.woodcutter_mode or "auto"
                 local mode_label = hs_theme.short(game.translate_string("st_directive_woodcutter_" .. w_mode))
+                if self.btn_job_directive.TextControl and self.btn_job_directive:TextControl() then
+                    self.btn_job_directive:TextControl():SetText("[ " .. mode_label .. " ]")
+                    self.btn_job_directive:TextControl():SetTextColor(hs_theme.argb("heading"))
+                end
+            elseif job == "farmer" then
+                local f_mode = s_item.farmer_mode or "auto"
+                local mode_label = hs_theme.short(game.translate_string("st_directive_farmer_" .. f_mode))
                 if self.btn_job_directive.TextControl and self.btn_job_directive:TextControl() then
                     self.btn_job_directive:TextControl():SetText("[ " .. mode_label .. " ]")
                     self.btn_job_directive:TextControl():SetTextColor(hs_theme.argb("heading"))
@@ -2092,6 +2117,13 @@ function SettlementManagerPDA:OnJobDirectiveClicked()
         s_item.woodcutter_mode = next_mode
         local mode_label = game.translate_string("st_directive_woodcutter_" .. next_mode)
         actor_menu.set_msg(1, string.format(game.translate_string("st_pda_woodcutter_mode"), mode_label), 3)
+    elseif job == "farmer" then
+        local cur = s_item.farmer_mode or "auto"
+        local cycle = { auto = "potato", potato = "grain", grain = "auto" }
+        local next_mode = cycle[cur] or "auto"
+        s_item.farmer_mode = next_mode
+        local mode_label = game.translate_string("st_directive_farmer_" .. next_mode)
+        actor_menu.set_msg(1, string.format(game.translate_string("st_pda_farmer_mode"), mode_label), 3)
     elseif job == "craft" then
         local cur = s_item.craft_order or "auto"
         local cycle = {
@@ -2322,6 +2354,14 @@ function SettlementManagerPDA:FormatSurvivorStatus(survivor, camp, hub_id)
             charcoal = "Charcoal",
         }
         directive_tag = sformat(" [%s]", short_labels[w_mode] or "Auto")
+    elseif job == "farmer" then
+        local f_mode = survivor.farmer_mode or "auto"
+        local short_labels = {
+            auto = "Auto",
+            potato = "Potatoes",
+            grain = "Grain",
+        }
+        directive_tag = sformat(" [%s]", short_labels[f_mode] or "Auto")
     end
     job_lbl = job_lbl .. directive_tag
 
@@ -2521,7 +2561,7 @@ function SettlementManagerPDA:RefitSurvivorDetail()
         self.job_header_bg, self.job_header_lbl,
         self.btn_job_idle, self.btn_job_guard, self.btn_job_scavenge, self.btn_job_hunter,
         self.btn_job_craft, self.btn_job_repair, self.btn_job_cook, self.btn_job_medic,
-        self.btn_job_electrician, self.btn_job_woodcutter, self.btn_job_brewer, self.btn_job_scrapper,
+        self.btn_job_electrician, self.btn_job_woodcutter, self.btn_job_brewer, self.btn_job_scrapper, self.btn_job_farmer,
         self.pos_header_bg, self.pos_header_lbl, self.pos_bg, self.survivor_pos_txt,
         self.btn_position_here, self.btn_position_recall, self.btn_job_directive, self.btn_rename_survivor,
         self.transfer_header_bg, self.transfer_lbl, self.transfer_bg, self.transfer_list,
@@ -2715,6 +2755,8 @@ function SettlementManagerPDA:RefreshJobProgress(force, hub_id_override)
                             display = sformat("%s: [%s]%s (%d%%%s)", job_label, wm, boost_str, pct, time_str)
                         elseif job == "brewer" then
                             display = sformat("%s: Distilling Vodka%s (%d%%%s)", job_label, boost_str, pct, time_str)
+                        elseif job == "farmer" then
+                            display = sformat("%s: Tending Fields (%d%%%s)", job_label, pct, time_str)
                         elseif job == "scrapper" then
                             display = sformat("%s: Salvaging Scrap%s (%d%%%s)", job_label, boost_str, pct, time_str)
                         elseif job == "electrician" then

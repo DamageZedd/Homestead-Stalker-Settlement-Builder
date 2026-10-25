@@ -2273,4 +2273,67 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_directive_btn_ammo_focus">
         <text>Ammo Focus</text>
     </string>
+    <string id="st_job_farmer_btn">
+        <text>Farmer</text>
+    </string>
+    <string id="st_pda_settlement_job_farmer">
+        <text>Farmer</text>
+    </string>
+    <string id="st_job_farmer_ask">
+        <text>I want you to work the fields: grow potatoes for the still and grain for bread.</text>
+    </string>
+    <string id="st_job_farmer_done">
+        <text>Good. I'll keep the beds planted: potatoes for the brewer, grain for the oven.</text>
+    </string>
+    <string id="st_job_farmer_potatoes">
+        <text>%s dug up the potato plot (%d potatoes) for the camp's still.</text>
+    </string>
+    <string id="st_job_farmer_grain">
+        <text>%s brought in the grain harvest (%d grain). A Farmer Station or a Stove would bake it into bread.</text>
+    </string>
+    <string id="st_job_farmer_baked">
+        <text>%s ground the grain and baked bread on the stove (%d bread).</text>
+    </string>
+    <string id="st_guide_s3l_header">
+        <text>JOB: FARMER (POTATOES, GRAIN &amp; BREAD)</text>
+    </string>
+    <string id="st_guide_s3l_body">
+        <text>%c[255,238,196,112]>> FIELDS &amp; BAKERY%c[default]\n \n  - %c[255,144,238,144] Workstation:%c[default] Works a plain plot anywhere. The Farmer Station (raised beds and field oven) doubles the harvest and bakes better loaves; a Stove can bake as well.\n  - %c[255,238,196,112] Two cycles:%c[default] Pick the crop with the directive button (or by talking to the farmer): Auto-Rotate alternates the two, Potato Focus grows only potatoes, Grain Focus grows only grain for bread.\n  - %c[255,100,200,255] Potatoes:%c[default] Stored in camp; Brewers use them first when distilling and get an extra bottle per batch.\n  - %c[255,100,200,255] Grain &amp; bread:%c[default] The grain cycle mills the harvest and bakes it into bread at the station or a stove. Without an oven the grain is simply stored.\n  - %c[255,144,238,144] Stockpile cap:%c[default] At 40 stored potatoes or grain, Auto-Rotate swaps crops; a chosen crop pauses the job when its stockpile is full.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_realtime_job_farmer_interval_min">
+        <text>Farmer Field Cycle (minutes)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_realtime_job_farmer_interval_min_desc">
+        <text>Real-time minutes for a Farmer to finish one potato or grain cycle. Progress advances live while playing.</text>
+    </string>
+    <string id="st_camp_farmer_mode_ask">
+        <text>Let's change your field directives.</text>
+    </string>
+    <string id="st_camp_farmer_mode_reply">
+        <text>Sure. What should I be growing?</text>
+    </string>
+    <string id="st_farmer_mode_auto_dialog">
+        <text>Balance your work: alternate between potatoes and grain.</text>
+    </string>
+    <string id="st_farmer_mode_potato_dialog">
+        <text>Grow only potatoes, for the still.</text>
+    </string>
+    <string id="st_farmer_mode_grain_dialog">
+        <text>Grow only grain, and bake it into bread.</text>
+    </string>
+    <string id="st_camp_farmer_mode_done">
+        <text>Understood, orders updated. Back to the fields.</text>
+    </string>
+    <string id="st_pda_farmer_mode">
+        <text>Farmer mode: %s</text>
+    </string>
+    <string id="st_directive_farmer_auto">
+        <text>Auto-Rotate (Potatoes &amp; Grain)</text>
+    </string>
+    <string id="st_directive_farmer_potato">
+        <text>Potato Focus (For the Still)</text>
+    </string>
+    <string id="st_directive_farmer_grain">
+        <text>Grain Focus (Bread)</text>
+    </string>
 </string_table>

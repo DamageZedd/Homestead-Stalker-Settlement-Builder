@@ -228,4 +228,73 @@ item_section                            = homestead_hunter_station
 bounding_box_size                       = 4.465149, 2.502267, 2.264005
 bounding_box_origin                     = 0.206453, 1.219552, -0.063507
 
+;--------------------------
+;--- Farmer's Raised Beds & Field Oven (Огородные грядки и полевая печь)
+;--------------------------
 
+[homestead_farmer_station]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\farmer_station.ogf
+description                             = st_homestead_farmer_station_descr
+inv_name                                = st_homestead_farmer_station
+inv_name_short                          = st_homestead_farmer_station
+inv_grid_x                              = 4
+inv_grid_y                              = 6
+inv_grid_height                         = 3
+inv_grid_width                          = 4
+icons_texture                           = ui\ui_icon_homestead_workstations
+cost                                    = 16500
+inv_weight                              = 42.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_farmer_station
+
+
+[placeable_farmer_station]:physic_object
+visual                                  = dynamics\HomesteadHF\farmer_station.ogf
+inv_weight                              = 90.0
+placeable_type                          = prop
+base_rotation                           = 0
+fixed_bones                             = link
+script_binding                          = bind_hf_base.init
+item_section                            = homestead_farmer_station
+
+; width, depth, height / origin x, y (up), z: measured from the mesh bounds, 3 cm inset per side, 10 cm lifted
+bounding_box_size                       = 2.344000, 1.835000, 1.401000
+bounding_box_origin                     = 0.000000, 0.800000, 0.061500
+
+;--------------------------
+;--- Farm produce (Картофель, Зерно пшеницы)
+;--- Built on the vanilla `corn` food item so they stack, store, sell and cook like any other food.
+;--- The potato name must keep the word "potato": the Brewer's mash test matches it.
+;--------------------------
+
+[homestead_potato]:corn
+visual                                  = dynamics\HomesteadHF\farm_potato.ogf
+description                             = st_homestead_potato_descr
+inv_name                                = st_homestead_potato
+inv_name_short                          = st_homestead_potato
+inv_grid_x                              = 8
+inv_grid_y                              = 6
+inv_grid_width                          = 1
+inv_grid_height                         = 1
+icons_texture                           = ui\ui_icon_homestead_workstations
+cost                                    = 60
+inv_weight                              = 0.2
+
+[homestead_grain]:corn
+visual                                  = dynamics\HomesteadHF\farm_grain.ogf
+description                             = st_homestead_grain_descr
+inv_name                                = st_homestead_grain
+inv_name_short                          = st_homestead_grain
+inv_grid_x                              = 9
+inv_grid_y                              = 6
+inv_grid_width                          = 1
+inv_grid_height                         = 2
+icons_texture                           = ui\ui_icon_homestead_workstations
+cost                                    = 45
+inv_weight                              = 0.3

@@ -57,6 +57,30 @@
 	<string id="st_job_hunter_station_work">
 		<text>%s processed harvested mutant game at the tanning and butchering station, yielding %s, cured pelts, and hunting trophies!</text>
 	</string>
+	<string id="st_homestead_farmer_station">
+		<text>Farmer's Raised Beds &amp; Field Oven</text>
+	</string>
+	<string id="st_homestead_farmer_station_descr">
+		<text>A small frontier farm plot built from weathered timber planks: one raised bed of potato plants, one of ripening wheat, a work table with a stone hand quern and fresh loaves, a clay field oven with a flue, burlap sacks of potatoes and grain, and the hoe, spade, rake and watering can that tend it all. In a settlement, it serves as the dedicated workstation for camp Farmers, doubling the harvest of potatoes for the still and grain for the oven, and baking bread right in the field.</text>
+	</string>
+	<string id="st_homestead_potato">
+		<text>Potatoes</text>
+	</string>
+	<string id="st_homestead_potato_descr">
+		<text>Fresh potatoes dug from a settlement farm. Filling when eaten, and the Brewer's favourite mash for distilling vodka.</text>
+	</string>
+	<string id="st_homestead_grain">
+		<text>Wheat Grain</text>
+	</string>
+	<string id="st_homestead_grain_descr">
+		<text>A sack of threshed wheat from a settlement farm. A Farmer mills it and bakes it into bread at a Farmer Station or a stove.</text>
+	</string>
+	<string id="st_job_farmer_station_potatoes">
+		<text>%s dug a rich potato harvest from the raised beds (%d potatoes)!</text>
+	</string>
+	<string id="st_job_farmer_station_baked">
+		<text>%s milled the grain and baked fresh loaves in the field oven (%d bread)!</text>
+	</string>
 </string_table>
 
 

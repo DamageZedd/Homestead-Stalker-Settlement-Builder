@@ -2276,5 +2276,68 @@
     <string id="ui_mcm_stalker_camp_builder_rival_camp_furniture_desc">
         <text>ВКЛ — вражеские лагеря обставляются декором вокруг ящика (лампы, радио, баррикады, улучшения уровней). ВЫКЛ — в лагере остаются только ящик и отряд, уже размещённая мебель убирается при следующем обновлении.</text>
     </string>
+    <string id="st_job_farmer_btn">
+        <text>Фермер</text>
+    </string>
+    <string id="st_pda_settlement_job_farmer">
+        <text>Фермер</text>
+    </string>
+    <string id="st_job_farmer_ask">
+        <text>Я хочу, чтобы ты работал в поле: выращивал картофель для самогона и зерно для хлеба.</text>
+    </string>
+    <string id="st_job_farmer_done">
+        <text>Хорошо. Грядки будут засеяны: картофель для самогонщика, зерно для печи.</text>
+    </string>
+    <string id="st_job_farmer_potatoes">
+        <text>%s выкопал картофель на грядках (%d шт.) для самогонного аппарата.</text>
+    </string>
+    <string id="st_job_farmer_grain">
+        <text>%s собрал урожай зерна (%d). Фермерская станция или печь испекут из него хлеб.</text>
+    </string>
+    <string id="st_job_farmer_baked">
+        <text>%s смолол зерно и испёк хлеб на печи (%d шт.).</text>
+    </string>
+    <string id="st_guide_s3l_header">
+        <text>РАБОТА: ФЕРМЕР (КАРТОФЕЛЬ, ЗЕРНО И ХЛЕБ)</text>
+    </string>
+    <string id="st_guide_s3l_body">
+        <text>%c[255,238,196,112]>> ПОЛЯ И ПЕКАРНЯ%c[default]\n \n  - %c[255,144,238,144] Станция:%c[default] Работает на обычной грядке где угодно. Фермерская станция (грядки и полевая печь) удваивает урожай и печёт лучший хлеб; печь тоже подойдёт.\n  - %c[255,238,196,112] Два цикла:%c[default] Культура выбирается кнопкой указаний (или разговором с фермером): чередование, только картофель или только зерно для хлеба.\n  - %c[255,100,200,255] Картофель:%c[default] Хранится в лагере; самогонщик берёт его первым и получает лишнюю бутылку за партию.\n  - %c[255,100,200,255] Зерно и хлеб:%c[default] Зерновой цикл мелет урожай и печёт хлеб на станции или печи. Без печи зерно просто откладывается.\n  - %c[255,144,238,144] Лимит запаса:%c[default] При 40 единицах картофеля или зерна режим чередования меняет культуру; выбранная культура приостанавливает работу, когда её запас заполнен.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_realtime_job_farmer_interval_min">
+        <text>Цикл работы фермера (минуты)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_realtime_job_farmer_interval_min_desc">
+        <text>Минуты реального времени на один картофельный или зерновой цикл фермера. Прогресс идёт, пока вы играете.</text>
+    </string>
+    <string id="st_camp_farmer_mode_ask">
+        <text>Давай изменим твои указания по полям.</text>
+    </string>
+    <string id="st_camp_farmer_mode_reply">
+        <text>Хорошо. Что мне выращивать?</text>
+    </string>
+    <string id="st_farmer_mode_auto_dialog">
+        <text>Чередуй работу: картофель и зерно по очереди.</text>
+    </string>
+    <string id="st_farmer_mode_potato_dialog">
+        <text>Выращивай только картофель, для самогона.</text>
+    </string>
+    <string id="st_farmer_mode_grain_dialog">
+        <text>Выращивай только зерно и пеки из него хлеб.</text>
+    </string>
+    <string id="st_camp_farmer_mode_done">
+        <text>Понял, приказ обновлён. Возвращаюсь в поле.</text>
+    </string>
+    <string id="st_pda_farmer_mode">
+        <text>Режим фермера: %s</text>
+    </string>
+    <string id="st_directive_farmer_auto">
+        <text>Чередование (картофель и зерно)</text>
+    </string>
+    <string id="st_directive_farmer_potato">
+        <text>Картофель (для самогона)</text>
+    </string>
+    <string id="st_directive_farmer_grain">
+        <text>Зерно (хлеб)</text>
+    </string>
 </string_table>
 

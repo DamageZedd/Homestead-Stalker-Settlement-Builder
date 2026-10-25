@@ -1030,6 +1030,7 @@ function stalker_camp_builder.recruit_npc_to_camp(actor, npc, hub_id)
         s.medic_order = prev_record.medic_order
         s.craft_order = prev_record.craft_order
         s.woodcutter_mode = prev_record.woodcutter_mode
+        s.farmer_mode = prev_record.farmer_mode
         s.has_axe = prev_record.has_axe
         s.has_drugkit = prev_record.has_drugkit
         s.has_tools = prev_record.has_tools
@@ -3509,6 +3510,49 @@ function stalker_camp_builder.set_woodcutter_mode_charcoal(p1, p2)
     end
 end
 
+function stalker_camp_builder.is_camp_farmer(p1, p2)
+    local surv = get_speaker_survivor_and_camp(p1, p2)
+    return (surv and surv.job == "farmer") and true or false
+end
+
+function stalker_camp_builder.is_not_farmer_mode_auto(p1, p2)
+    local surv = get_speaker_survivor_and_camp(p1, p2)
+    if not (surv and surv.job == "farmer") then return false end
+    return (surv.farmer_mode or "auto") ~= "auto"
+end
+
+function stalker_camp_builder.is_not_farmer_mode_potato(p1, p2)
+    local surv = get_speaker_survivor_and_camp(p1, p2)
+    if not (surv and surv.job == "farmer") then return false end
+    return (surv.farmer_mode or "auto") ~= "potato"
+end
+
+function stalker_camp_builder.is_not_farmer_mode_grain(p1, p2)
+    local surv = get_speaker_survivor_and_camp(p1, p2)
+    if not (surv and surv.job == "farmer") then return false end
+    return (surv.farmer_mode or "auto") ~= "grain"
+end
+
+function stalker_camp_builder.set_farmer_mode_auto(p1, p2)
+    local surv = get_speaker_survivor_and_camp(p1, p2)
+    if surv then
+        surv.farmer_mode = "auto"
+    end
+end
+
+function stalker_camp_builder.set_farmer_mode_potato(p1, p2)
+    local surv = get_speaker_survivor_and_camp(p1, p2)
+    if surv then
+        surv.farmer_mode = "potato"
+    end
+end
+
+function stalker_camp_builder.set_farmer_mode_grain(p1, p2)
+    local surv = get_speaker_survivor_and_camp(p1, p2)
+    if surv then
+        surv.farmer_mode = "grain"
+    end
+end
 
 
 -- ============================================================================

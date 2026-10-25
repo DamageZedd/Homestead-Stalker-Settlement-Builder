@@ -329,6 +329,8 @@ local JOB_DISPATCH = {
                     anims = {"press", "wait_trade", "wait_na"} },
     hunter      = { try = {"hunter_station", "workbench", "barricade"},
                     anims = {"sit_knee", "ward", "wait_na"} },
+    farmer      = { try = {"farmer_station", "workbench", "stove", "barricade"},
+                    anims = {"press", "ward", "wait_na"} },
 }
 
 function safe_squad_members(squad)
@@ -1324,6 +1326,8 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
         fridge_id = fridge_id,
         clean_water_count = 0,
         fermentable_count = 0,
+        potato_count = 0,
+        grain_count = 0,
         has_water = false,
         water_filter_count = 0,
         has_powder = false,
@@ -1417,6 +1421,11 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
             end
             if sb.is_fermentable and sb.is_fermentable(sec) then
                 snapshot.fermentable_count = snapshot.fermentable_count + 1
+            end
+            if sb.is_potato and sb.is_potato(sec) then
+                snapshot.potato_count = snapshot.potato_count + 1
+            elseif sb.is_grain and sb.is_grain(sec) then
+                snapshot.grain_count = snapshot.grain_count + 1
             end
 
             if not snapshot.has_water then
@@ -1696,7 +1705,8 @@ local defaults = {
     realtime_job_woodcutter_interval = 1200, -- Woodcutter: 20 real minutes
     realtime_job_brewer_interval     = 1200, -- Brewer: 20 real minutes
     realtime_job_scrapper_interval   = 1200, -- Scrapper: 20 real minutes
-    hunter_ambush_chance           =   20,  -- Hunter ambush chance: 20%
+    realtime_job_farmer_interval     = 1200, -- Farmer: 20 real minutes
+    hunter_ambush_chance          =   20,  -- Hunter ambush chance: 20%
     scavenger_ambush_chance        =   15,  -- Scavenger ambush chance: 15%
     scavenge_ambush_chance         =   15,  -- Scavenger ambush chance alias: 15%
     hunter_min_meat                =    1,  -- Hunter min meat items: 1
@@ -1972,6 +1982,9 @@ setmetatable(cfg, {
             elseif key == "job_scrapper_interval" or key == "realtime_job_scrapper_interval" then
                 local min = get_mcm_setting("realtime_job_scrapper_interval_min")
                 return min and (min * 60) or defaults.realtime_job_scrapper_interval
+            elseif key == "job_farmer_interval" or key == "realtime_job_farmer_interval" then
+                local min = get_mcm_setting("realtime_job_farmer_interval_min")
+                return min and (min * 60) or defaults.realtime_job_farmer_interval
             elseif key == "job_update_interval" then
                 local hr = get_mcm_setting("job_update_interval_hr")
                 return hr and (hr * 3600) or defaults.job_update_interval
@@ -2266,6 +2279,7 @@ local structure_type_exact = {
     placeable_generator_station = "generator_station",
     placeable_repair_bench      = "repair_bench",
     placeable_hunter_station    = "hunter_station",
+    placeable_farmer_station    = "farmer_station",
 }
 
 local structure_type_substrings = {
@@ -2274,7 +2288,8 @@ local structure_type_substrings = {
     ammo_bench   = {"ammo_bench", "reloading", "bullet_press", "ammo_craft"},
     distiller    = {"distiller", "samogon", "still"},
     hunter_station = {"hunter_station", "butchering", "tanning_station", "carcass_rack"},
-    bed          = {"bed", "couch", "sleep", "tent", "cot"},
+    farmer_station = {"farmer_station", "farm_plot", "garden_bed", "potato_bed"},
+    bed         = {"bed", "couch", "sleep", "tent", "cot"},
     stove        = {"stove", "campfire"},
     barricade    = {"barricade", "sandbag", "fence", "screen", "barrier", "board", "plank", "plate", "shield"},
     water_pump   = {"pump", "well", "water", "sink", "bidon"},
@@ -2290,7 +2305,7 @@ local structure_type_substrings = {
 }
 
 local structure_type_check_order = {
-    "generator_station", "repair_bench", "hunter_station", "wood_station", "ammo_bench", "distiller", "gadget", "fridge", "stove", "bed", "barricade", "water_pump",
+    "generator_station", "repair_bench", "hunter_station", "farmer_station", "wood_station", "ammo_bench", "distiller", "gadget", "fridge", "stove", "bed", "barricade", "water_pump",
     "alarm", "workbench", "medstation", "piano", "radio",
     "stash",  -- broad catch-all always last
 }
@@ -2317,7 +2332,7 @@ end
 -- every item. Forget such a choice so a proper stash gets picked.
 local SPECIALIZED_CONTAINER_TYPES = {
     fridge = true, stove = true, medstation = true, workbench = true,
-    repair_bench = true, hunter_station = true, water_pump = true, harvester = true,
+    repair_bench = true, hunter_station = true, farmer_station = true, water_pump = true, harvester = true,
     weapon_rack = true, display_counter = true,
 }
 function stalker_camp_builder.sanitize_primary_chest(camp)
@@ -4865,6 +4880,7 @@ function load_state(m_data)
                 elseif job == "woodcutter" then rt_interval = cfg.realtime_job_woodcutter_interval or defaults.realtime_job_woodcutter_interval
                 elseif job == "brewer"   then rt_interval = cfg.realtime_job_brewer_interval or defaults.realtime_job_brewer_interval
                 elseif job == "scrapper" then rt_interval = cfg.realtime_job_scrapper_interval or defaults.realtime_job_scrapper_interval
+                elseif job == "farmer"   then rt_interval = cfg.realtime_job_farmer_interval or defaults.realtime_job_farmer_interval
                 end
                 if rt_interval and rt_interval > 0 then
                     local current_sec = game_sec()
@@ -5389,6 +5405,7 @@ local function get_job_realtime_interval(job)
     elseif job == "woodcutter"  then return cfg.realtime_job_woodcutter_interval or defaults.realtime_job_woodcutter_interval
     elseif job == "brewer"      then return cfg.realtime_job_brewer_interval or defaults.realtime_job_brewer_interval
     elseif job == "scrapper"    then return cfg.realtime_job_scrapper_interval or defaults.realtime_job_scrapper_interval
+    elseif job == "farmer"      then return cfg.realtime_job_farmer_interval or defaults.realtime_job_farmer_interval
     end
     return nil
 end
@@ -5919,6 +5936,10 @@ function set_scrapper_job(actor, npc)
     set_survivor_job(npc:id(), "scrapper")
 end
 
+function set_farmer_job(actor, npc)
+    set_survivor_job(npc:id(), "farmer")
+end
+
 function check_camp_chest_supplies(camp, hub_obj)
     if time_global() < homestead_teardown_grace_until then
         return false, false
@@ -5993,6 +6014,7 @@ function get_camp_stats(camp, hub_obj)
         woodcutters = 0,
         brewers = 0,
         scrappers = 0,
+        farmers = 0,
         idlers = 0,
         defense = 0,
         happiness = 50,
@@ -6027,6 +6049,8 @@ function get_camp_stats(camp, hub_obj)
             stats.brewers = stats.brewers + 1
         elseif j == "scrapper" then
             stats.scrappers = stats.scrappers + 1
+        elseif j == "farmer" then
+            stats.farmers = stats.farmers + 1
         else
             stats.idlers = stats.idlers + 1
         end
@@ -6779,7 +6803,7 @@ function award_survivor_xp(survivor, job, amount)
                 scavenge = "Scavenger", cook = "Cook", repair = "Repairer",
                 craft = "Crafter", medic = "Medic", guard = "Guard",
                 electrician = "Electrician", woodcutter = "Woodcutter",
-                brewer = "Brewer", scrapper = "Scrapper", idle = "Settler"
+                brewer = "Brewer", scrapper = "Scrapper", farmer = "Farmer", idle = "Settler"
             }
             local job_title = job_display[job] or job or ""
             local msg = string.format(game.translate_string("st_event_settler_promoted"), survivor.name or "Survivor", tier_names[new_tier+1], job_title)
@@ -10810,6 +10834,10 @@ function is_camp_scrapper(actor, npc)
     return stalker_camp_builder.is_camp_scrapper and stalker_camp_builder.is_camp_scrapper(actor, npc)
 end
 
+function is_camp_farmer(actor, npc)
+    return stalker_camp_builder.is_camp_farmer and stalker_camp_builder.is_camp_farmer(actor, npc)
+end
+
 function actor_has_woodcutter_axe(actor, npc)
     return stalker_camp_builder.actor_has_woodcutter_axe and stalker_camp_builder.actor_has_woodcutter_axe(actor, npc)
 end
@@ -10861,6 +10889,7 @@ end
 stalker_camp_builder.set_woodcutter_job = set_woodcutter_job
 stalker_camp_builder.set_brewer_job = set_brewer_job
 stalker_camp_builder.set_scrapper_job = set_scrapper_job
+stalker_camp_builder.set_farmer_job = set_farmer_job
 
 
 stalker_camp_builder.is_actor_healthy = is_actor_healthy
@@ -11151,6 +11180,13 @@ function stalker_camp_builder.seed_initial_settlement_telemetry(force_refresh)
                     category = "work",
                     scan = true,
                     text = sformat("BREWERY: %s is distilling spirits and fermenting medical alcohol.", s_name)
+                })
+            elseif s_job == "farmer" then
+                table.insert(g_logs, 1, {
+                    time_str = time_str,
+                    category = "work",
+                    scan = true,
+                    text = sformat("FARM: %s is tending the potato beds and the grain plot.", s_name)
                 })
             elseif s_job == "scrapper" then
                 table.insert(g_logs, 1, {

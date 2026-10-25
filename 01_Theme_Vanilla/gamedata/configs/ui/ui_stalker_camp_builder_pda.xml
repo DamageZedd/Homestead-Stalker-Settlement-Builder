@@ -344,6 +344,10 @@
             <texture>ui_button_ordinary</texture>
             <text font="letterica16" align="c" vert_align="c">st_job_scrapper_btn</text>
         </btn_job_scrapper>
+        <btn_job_farmer x="0" y="362" width="80" height="28" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_job_farmer_btn</text>
+        </btn_job_farmer>
 
         <!-- Module 4: Field Station & Orders -->
         <pos_header_bg x="0" y="385" width="164" height="1" stretch="1">

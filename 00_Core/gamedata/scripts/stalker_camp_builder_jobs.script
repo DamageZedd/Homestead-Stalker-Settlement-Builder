@@ -74,10 +74,14 @@ local function is_lamp_battery(sec) return LAMP_BATTERIES[sec] == true end
 local function is_gunpowder(sec) return GUNPOWDER_TIER[sec] ~= nil end
 local function is_scrap(sec) return sec and CRAFT_SCRAP[sec:lower()] == true end
 local function is_cloth(sec) return sec and MEDIC_CLOTH[sec:lower()] == true end
--- what the brewer distills when the camp has no clean water
+-- the farmer's crops: potatoes go to the still, grain is milled and baked into bread
+local function is_potato(sec) return sec ~= nil and sec:find("potato", 1, true) ~= nil end
+local function is_grain(sec) return sec ~= nil and sec:find("homestead_grain", 1, true) ~= nil end
+-- what the brewer distills when the camp has no clean water. Fresh bread is the farmer's
+-- product (and the camp's food), so only stale bread goes in the still
 local function is_fermentable(sec)
     if not sec then return false end
-    return sec == "bread" or sec == "breadold" or sec == "corn" or sec == "beans" or sec == "tomato" or sec:find("potato") ~= nil
+    return sec == "breadold" or sec == "corn" or sec == "beans" or sec == "tomato" or is_potato(sec)
 end
 
 -- get_camp_inventory_snapshot (main script) counts materials with the jobs' own tests
@@ -88,6 +92,8 @@ stalker_camp_builder.is_gunpowder = is_gunpowder
 stalker_camp_builder.is_scrap = is_scrap
 stalker_camp_builder.is_cloth = is_cloth
 stalker_camp_builder.is_fermentable = is_fermentable
+stalker_camp_builder.is_potato = is_potato
+stalker_camp_builder.is_grain = is_grain
 
 -- set_survivor_job -- assigns a job to a settler and re-syncs their
 function stalker_camp_builder.set_survivor_job(npc_id, job)
@@ -1217,7 +1223,7 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         return true
     end
 
-    local is_producing_job = (job == "cook" or job == "craft" or job == "medic" or job == "hunter" or job == "scrapper" or job == "woodcutter" or job == "brewer")
+    local is_producing_job = (job == "cook" or job == "craft" or job == "medic" or job == "hunter" or job == "scrapper" or job == "woodcutter" or job == "brewer" or job == "farmer")
     if is_producing_job then
         local test_sec = "prt_i_scrap"
         local test_w = 0.5
@@ -1239,6 +1245,11 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
             test_w = 0.5
         elseif job == "brewer" then
             test_sec = "vodka"
+            test_w = 0.5
+        elseif job == "farmer" then
+            local fm = survivor.farmer_mode or "auto"
+            local grain_next = (fm == "grain") or (fm == "auto" and survivor._farmer_alt == true)
+            test_sec = grain_next and "bread" or "homestead_potato"
             test_w = 0.5
         end
 
@@ -1582,6 +1593,28 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         local wood = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_wood_part, 10)) or 0
         if wood < 10 then
             return true, "Need Wood", "Requires 10 wood parts in camp storage to distill alcohol"
+        end
+        return false, nil, nil
+
+    elseif job == "farmer" then
+        -- a farmer works a plain plot without a station; the stockpile caps pause the job.
+        -- On "auto" process_farmer_job swaps crops first, so only both caps full pause it;
+        -- a chosen crop pauses as soon as its own stockpile is full
+        if snap and sb.cfg and sb.cfg.enable_surplus_cap ~= false then
+            local fmode = survivor.farmer_mode or "auto"
+            local can_bake = false
+            for _, struct_type in pairs_(camp.structures or {}) do
+                if struct_type == "farmer_station" or struct_type == "stove" then can_bake = true break end
+            end
+            local potato_full = (snap.potato_count or 0) >= 40
+            local grain_full = (not can_bake) and (snap.grain_count or 0) >= 40
+            if fmode == "potato" and potato_full then
+                return true, "Potatoes Full", "Potato stockpile is full (40+ stored)"
+            elseif fmode == "grain" and grain_full then
+                return true, "Grain Full", "Grain stockpile is full (40+ stored) and nothing in camp can bake it"
+            elseif fmode == "auto" and potato_full and grain_full then
+                return true, "Stockpile Full", "Potato and grain stockpiles are full (40+ each stored)"
+            end
         end
         return false, nil, nil
 
@@ -2392,10 +2425,12 @@ function stalker_camp_builder.process_brewer_job(npc_id, hub_id, camp, survivor,
         return false
     end
 
-    local consumed_water = sb.find_and_consume_item(hub_id, camp, is_clean_water, nil)
-    local consumed_ferment = not consumed_water and sb.find_and_consume_item(hub_id, camp, is_fermentable, nil)
+    -- the farmer's potatoes first (a richer mash), then clean water, then other fermentables
+    local consumed_potato = sb.find_and_consume_item(hub_id, camp, is_potato, nil)
+    local consumed_water = not consumed_potato and sb.find_and_consume_item(hub_id, camp, is_clean_water, nil)
+    local consumed_ferment = not consumed_potato and not consumed_water and sb.find_and_consume_item(hub_id, camp, is_fermentable, nil)
 
-    if not consumed_water and not consumed_ferment then
+    if not consumed_potato and not consumed_water and not consumed_ferment then
         if survivor then survivor.shortfall_reason = "No Water/Grains" end
         sb.camp_send_tip(actor, sformat(game.translate_string("st_job_brewer_need_water"), name), nil, "general_stalker", 8000)
         return false
@@ -2406,6 +2441,9 @@ function stalker_camp_builder.process_brewer_job(npc_id, hub_id, camp, survivor,
     end
 
     local count = has_distiller and 3 or 2
+    if consumed_potato then
+        count = count + 1 -- potato mash gives a fuller batch
+    end
     if (survivor and survivor.has_drugkit) or (camp and camp.has_drugkit) then
         count = count + 2
     end
@@ -2454,6 +2492,172 @@ function stalker_camp_builder.process_brewer_job(npc_id, hub_id, camp, survivor,
         tip_txt = tip_txt .. string.format(" (+%dx Medical Alcohol)", produced_alcohol)
     end
     sb.camp_send_tip(actor, tip_txt, nil, "general_stalker", 10000)
+    return true
+end
+
+-- Farmer job: alternate a potato cycle (potatoes feed the Brewer's still) and a grain cycle
+-- (harvest grain, then mill and bake it into bread). A plain plot works without any furniture;
+-- the Farmer Station doubles the harvest and bakes a better loaf, and a Stove can bake too.
+local FARMER_CAP = 40         -- stored potatoes / grain before the farmer swaps crops
+local FARMER_GRAIN_PER_BATCH = 3
+
+local function farmer_text(id, default)
+    local s = game.translate_string(id)
+    if not s or s == id then return default end
+    return s
+end
+
+function stalker_camp_builder.process_farmer_job(npc_id, hub_id, camp, survivor, camp_box_id)
+    local mrandom = math.random
+    local sb = stalker_camp_builder
+    local actor = db.actor
+    local sformat = string.format
+    local npc = level.object_by_id(npc_id)
+    local name = (npc and npc:character_name()) or (survivor and survivor.name) or "Farmer"
+
+    local has_station, has_stove = false, false
+    for _, struct_type in pairs_(camp.structures or {}) do
+        if struct_type == "farmer_station" then
+            has_station = true
+        elseif struct_type == "stove" then
+            has_stove = true
+        end
+    end
+    local can_bake = has_station or has_stove
+
+    -- which crop is up: the directive picks it ("potato" or "grain"); on "auto" the farmer
+    -- alternates, and swaps when a stockpile is already full
+    local mode = (survivor and survivor.farmer_mode) or "auto"
+    local cap_on = not (sb.cfg and sb.cfg.enable_surplus_cap == false)
+    local potatoes = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_potato, FARMER_CAP)) or 0
+    local stored_grain = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_grain, FARMER_CAP)) or 0
+    local do_grain
+    if mode == "potato" then
+        do_grain = false
+    elseif mode == "grain" then
+        do_grain = true
+    else
+        do_grain = survivor and survivor._farmer_alt == true
+    end
+    if cap_on then
+        local potato_full = potatoes >= FARMER_CAP
+        -- stored grain only piles up while nothing can bake it; with an oven it is always used
+        local grain_full = (not can_bake) and stored_grain >= FARMER_CAP
+        if mode == "potato" then
+            if potato_full then
+                if survivor then survivor.shortfall_reason = "Potatoes Full" end
+                return false
+            end
+        elseif mode == "grain" then
+            if grain_full then
+                if survivor then survivor.shortfall_reason = "Grain Full" end
+                return false
+            end
+        elseif potato_full and grain_full then
+            if survivor then survivor.shortfall_reason = "Stockpile Full" end
+            return false
+        elseif potato_full then
+            do_grain = true
+        elseif grain_full then
+            do_grain = false
+        end
+    end
+
+    local tier_mult = (sb.get_survivor_tier_mult and survivor and sb.get_survivor_tier_mult(survivor)) or 1.0
+    local spec_mult = (sb.get_specialization_mult and camp and sb.get_specialization_mult(camp, "food")) or 1.0
+    local mult = math.max(1, math.floor(sb.cfg.craft_output_multiplier or 1))
+    local total_mult = tier_mult * spec_mult * mult
+
+    -- harvest size: a hand-tilled plot, doubled-ish by the station's raised beds
+    local base = mrandom(3, 6)
+    if has_station then base = base + 3 end
+    local harvest = math.min(math.floor(base * total_mult + 0.5), 30)
+    harvest = math.max(harvest, 1)
+
+    if not do_grain then
+        local planted = 0
+        for i = 1, harvest do
+            if sb.deposit_item_to_camp(hub_id, camp, "homestead_potato") then planted = planted + 1 end
+        end
+        if survivor then
+            survivor._farmer_alt = true
+            survivor.shortfall_reason = nil
+        end
+        if planted <= 0 then
+            if survivor then survivor.shortfall_reason = "Storage Full" end
+            return false
+        end
+        local tmpl = has_station
+            and farmer_text("st_job_farmer_station_potatoes", "%s dug a rich potato harvest from the raised beds (%d potatoes)!")
+            or farmer_text("st_job_farmer_potatoes", "%s dug up the potato plot (%d potatoes).")
+        sb.camp_send_tip(actor, sformat(tmpl, name, planted), nil, "general_stalker", 10000)
+        return true
+    end
+
+    -- grain cycle: bake what was just cut first, then dip into the stored grain
+    local pool = harvest
+    local baked_bread = 0
+    local used_grain = 0
+    if can_bake then
+        local max_batches = has_station and 2 or 1
+        local per_batch = has_station and 3 or 2
+        if survivor and survivor.tier and survivor.tier >= 2 then per_batch = per_batch + 1 end
+        for b = 1, max_batches do
+            local from_pool = math.min(pool, FARMER_GRAIN_PER_BATCH)
+            local need_stored = FARMER_GRAIN_PER_BATCH - from_pool
+            local ok = true
+            if need_stored > 0 then
+                local have = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_grain, need_stored)) or 0
+                if have < need_stored then ok = false end
+            end
+            if not ok then break end
+            local took = 0
+            for i = 1, need_stored do
+                if sb.find_and_consume_item(hub_id, camp, is_grain, nil) then
+                    took = took + 1
+                else
+                    break
+                end
+            end
+            if took < need_stored then
+                -- could not find all of it: put back what was taken and stop
+                for i = 1, took do sb.deposit_item_to_camp(hub_id, camp, "homestead_grain") end
+                break
+            end
+            pool = pool - from_pool
+            used_grain = used_grain + FARMER_GRAIN_PER_BATCH
+            local bread_out = math.min(math.floor(per_batch * spec_mult * mult + 0.5), 8)
+            for i = 1, math.max(bread_out, 1) do
+                if sb.deposit_item_to_camp(hub_id, camp, "bread") then baked_bread = baked_bread + 1 end
+            end
+        end
+    end
+
+    -- whatever grain is left over goes into storage
+    local stocked = 0
+    for i = 1, pool do
+        if sb.deposit_item_to_camp(hub_id, camp, "homestead_grain") then stocked = stocked + 1 end
+    end
+
+    if survivor then
+        survivor._farmer_alt = false
+        survivor.shortfall_reason = nil
+    end
+    if baked_bread <= 0 and stocked <= 0 then
+        if survivor then survivor.shortfall_reason = "Storage Full" end
+        return false
+    end
+
+    local tip
+    if baked_bread > 0 then
+        local tmpl = has_station
+            and farmer_text("st_job_farmer_station_baked", "%s milled the grain and baked fresh loaves in the field oven (%d bread)!")
+            or farmer_text("st_job_farmer_baked", "%s baked bread from the grain harvest (%d bread).")
+        tip = sformat(tmpl, name, baked_bread)
+    else
+        tip = sformat(farmer_text("st_job_farmer_grain", "%s brought in the grain harvest (%d grain). A Farmer Station or Stove would bake it into bread."), name, stocked)
+    end
+    sb.camp_send_tip(actor, tip, nil, "general_stalker", 10000)
     return true
 end
 
@@ -3074,6 +3278,7 @@ function stalker_camp_builder.update_camp_jobs()
                 elseif job == "electrician" then rt_interval = sb.cfg.electrician_job_interval or (sb.defaults and sb.defaults.electrician_job_interval) or 900
                 elseif job == "woodcutter" then rt_interval = sb.cfg.realtime_job_woodcutter_interval or (sb.defaults and sb.defaults.realtime_job_woodcutter_interval) or 1200
                 elseif job == "brewer"   then rt_interval = sb.cfg.realtime_job_brewer_interval or (sb.defaults and sb.defaults.realtime_job_brewer_interval) or 1200
+                elseif job == "farmer"   then rt_interval = sb.cfg.realtime_job_farmer_interval or (sb.defaults and sb.defaults.realtime_job_farmer_interval) or 1200
                 elseif job == "scrapper" then rt_interval = sb.cfg.realtime_job_scrapper_interval or (sb.defaults and sb.defaults.realtime_job_scrapper_interval) or 1200
                 end
                 if not rt_interval or rt_interval <= 0 then
@@ -3268,6 +3473,8 @@ function stalker_camp_builder.update_camp_jobs()
                                     did_work = sb.process_brewer_job(npc_id, hub_id, camp, survivor, camp_box_id)
                                 elseif job == "scrapper" then
                                     did_work = sb.process_scrapper_job(npc_id, hub_id, camp, survivor, camp_box_id)
+                                elseif job == "farmer" then
+                                    did_work = sb.process_farmer_job(npc_id, hub_id, camp, survivor, camp_box_id)
                                 end
 
                                 last_did_work = did_work
@@ -3375,6 +3582,7 @@ function stalker_camp_builder.get_job_progress(survivor, camp, hub_id)
     elseif job == "electrician" then rt_interval = sb.cfg.electrician_job_interval or (sb.defaults and sb.defaults.electrician_job_interval) or 900
     elseif job == "woodcutter" then rt_interval = sb.cfg.realtime_job_woodcutter_interval or (sb.defaults and sb.defaults.realtime_job_woodcutter_interval) or 1200
     elseif job == "brewer"   then rt_interval = sb.cfg.realtime_job_brewer_interval or (sb.defaults and sb.defaults.realtime_job_brewer_interval) or 1200
+    elseif job == "farmer"   then rt_interval = sb.cfg.realtime_job_farmer_interval or (sb.defaults and sb.defaults.realtime_job_farmer_interval) or 1200
     elseif job == "scrapper" then rt_interval = sb.cfg.realtime_job_scrapper_interval or (sb.defaults and sb.defaults.realtime_job_scrapper_interval) or 1200
     elseif job == "scavenge" then rt_interval = sb.cfg.realtime_job_scavenge_interval or (sb.defaults and sb.defaults.realtime_job_scavenge_interval) or 900
     else return nil  -- idle / guard have no cycle to display
@@ -3457,6 +3665,7 @@ function stalker_camp_builder.get_job_time_remaining(survivor, camp, hub_id)
     elseif job == "electrician" then rt_interval = sb.cfg.electrician_job_interval or (sb.defaults and sb.defaults.electrician_job_interval) or 900
     elseif job == "woodcutter" then rt_interval = sb.cfg.realtime_job_woodcutter_interval or (sb.defaults and sb.defaults.realtime_job_woodcutter_interval) or 1200
     elseif job == "brewer"   then rt_interval = sb.cfg.realtime_job_brewer_interval or (sb.defaults and sb.defaults.realtime_job_brewer_interval) or 1200
+    elseif job == "farmer"   then rt_interval = sb.cfg.realtime_job_farmer_interval or (sb.defaults and sb.defaults.realtime_job_farmer_interval) or 1200
     elseif job == "scrapper" then rt_interval = sb.cfg.realtime_job_scrapper_interval or (sb.defaults and sb.defaults.realtime_job_scrapper_interval) or 1200
     elseif job == "scavenge" then rt_interval = sb.cfg.realtime_job_scavenge_interval or (sb.defaults and sb.defaults.realtime_job_scavenge_interval) or 900
     else return nil
