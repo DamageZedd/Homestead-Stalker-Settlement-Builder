@@ -8,7 +8,6 @@
 - **Farmer Station** (`placeable_farmer_station`, recipe `x_homestead_farmer_station`): raised potato and wheat beds, work crate with bucket and tools, sacks, a wooden fence and a brick field oven with a chimney, built from vanilla G.A.M.M.A. props and textures. Doubles the harvest and bakes bread right in the field (a Stove can bake as well). Multi-box collision, hold-Use pickup and a fitted placement outline like the other workstations.
 - **New items**: Potatoes (`homestead_potato`) and Wheat Grain (`homestead_grain`), each with its own 3D model and inventory icon. The Brewer now uses potatoes first when distilling (a richer mash, +1 vodka per batch); fresh bread is no longer treated as a fermentable.
 - **Settings**: MCM slider *Farmer Field Cycle (minutes)*; Farmer entry in the in-game guide, radio feed, stats and job labels. English and Russian strings.
-
 ### 🛒 Trader job & Market Stall:
 - **New Trader job**: the Trader sells the goods you leave in the settlement's Market Stall and keeps the takings until you collect them. **Players can only sell**: the stall never sells anything back, and camp supplies are never touched.
 - **Market Stall** (`placeable_market_stall`, recipe `x_homestead_market_stall`): a rustic roadside stall (plank counter on crates, patched tarp awning, sacks, a barrel, tins and bottles) built from vanilla G.A.M.M.A. props. A solid object with collision; use it to open its stash and drop goods in, hold-Use for the standard menu and Pick Up (goods are returned to you).
@@ -20,6 +19,9 @@
 - **One texture atlas per workstation** (`textures\homestead_hf\atlas_<station>.dds`, DXT1 with full mipmaps): each of the eight HomesteadHF workstations now uses a single material and texture, baked from the original vanilla / G.A.M.M.A. textures at full density on every face. Geometry, rigging and collision are unchanged. Ammo bench and generator glass is opaque (DXT1 has no alpha); lamp glow is kept.
 - **Much smaller download**: the release no longer ships duplicate copies of vanilla / G.A.M.M.A. textures, uncompressed editor sources (`.object`) or byte-identical files that required mods already provide (Hideout Gadgets patch). The old per-material furniture textures (125 files, ~300 MB) were also removed from the repository, since no shipped model references them any more.
 - **New inventory icons for every furniture item**: the eight workstations, Potatoes and Wheat Grain were re-rendered from the current models to match the Hideout Furniture icon style (transparent background, elevated front-left 3/4 view, muted overcast light, no outline or shadow). Same inventory cells as before, so no configuration changes; the icon atlas (`ui_icon_homestead_workstations.dds`) is now 512×1024 to fit the Market Stall icon.
+
+### 🌐 Localisation:
+- **Russian furniture strings fixed**: `st_homestead_hf.xml` (rus) declared windows-1251 but part of it was saved as UTF-8, so the older furniture names and descriptions were garbled in game. The whole file is now windows-1251, like the rest of the Russian localisation.
 
 ## v1.2.7 — HomesteadHF Modular Furniture Expansion, Settlement Distiller, Ammo Bench, Woodcutter Station, Generator Station, Gunsmith / Armor Repair Bench & Hunter Butchering / Tanning Station System
 
