@@ -2155,48 +2155,39 @@ function stalker_camp_builder.process_electrician_job(npc_id, hub_id, camp, surv
     local charged_count = 0
 
     if has_generator_station then
-        -- Multi-slot charging dock active: charge small dead battery packs ("batteries_dead" / "battery_dead")
-        local is_dead_batt = function(sec)
-            if not sec then return false end
-            local s = sec:lower()
-            return s == "batteries_dead" or s == "battery_dead" or s == "ammo_battery_d"
-        end
-
+        -- Multi-slot charging dock: a battery's condition is its charge (batteries_dead, the Battery Pack),
+        -- so a drained one is recharged in place, online, where it takes it
         local max_slots = math.min(4, math.max(1, math.floor(3 * tier_mult * spec_mult + 0.5)))
-        for i = 1, max_slots do
-            local consumed_dead = sb.find_and_consume_item(hub_id, camp, is_dead_batt, nil)
-            if consumed_dead then
-                -- 25% chance for high-ranked electricians to charge into military-spec C-Cell battery pack
-                local target_batt = "batteries"
-                if tier_mult > 1.2 and math.random() < 0.25 then
-                    target_batt = "batteries_ccell"
+        if sb.camp_iterate_inventory then
+            sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
+                if cl_item and is_lamp_battery(sec) and cond and cond < 0.95 then
+                    pcall(function() cl_item:set_condition(1.0) end)
+                    charged_count = charged_count + 1
+                    return charged_count >= max_slots
                 end
-                sb.deposit_item_to_camp(hub_id, camp, target_batt)
-                charged_count = charged_count + 1
-            else
-                break
-            end
+            end)
         end
 
-        -- If no dead batteries were available in storage, check if electrician can fabricate fresh battery packs from spare materials (copper wire + scrap)
-        if charged_count == 0 then
+        -- If no batteries were available in storage, check if electrician can fabricate a fresh battery pack from spare materials (copper wire + scrap)
+        if charged_count == 0 and not (sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_lamp_battery)) then
             local is_copper = function(sec) return sec and (sec:lower() == "prt_i_copper" or sec:lower() == "prt_i_resistors") end
             local has_copper = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_copper)
             local has_scrap_item = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_scrap)
             if has_copper and has_scrap_item then
                 sb.find_and_consume_item(hub_id, camp, is_copper, nil)
                 sb.find_and_consume_item(hub_id, camp, is_scrap, nil)
-                sb.deposit_item_to_camp(hub_id, camp, "batteries")
+                -- deposit_item_to_camp gives it a worn charge, which the dock tops up
+                sb.deposit_item_to_camp(hub_id, camp, "batteries_dead")
                 charged_count = 1
             end
         end
 
-        -- Condition any degraded equipment or heavy battery cells
+        -- Condition a degraded detector or torch (the dock has the batteries; "battery" also matched the af_dummy_battery artefact)
         if sb.camp_iterate_inventory then
             sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
                 if not sec then return end
                 local s = sec:lower()
-                if cl_item and (s:find("battery") or s:find("detector") or s:find("torch")) and cond and cond < 0.95 then
+                if cl_item and (s:find("detector") or s:find("torch")) and cond and cond < 0.95 then
                     pcall(function() cl_item:set_condition(1.0) end)
                     charged_count = charged_count + 1
                     return true
@@ -2204,6 +2195,10 @@ function stalker_camp_builder.process_electrician_job(npc_id, hub_id, camp, surv
             end)
         end
 
+        if serviced_lamps + charged_count == 0 then
+            if survivor then survivor.shortfall_reason = "Grid Fully Powered" end
+            return 0
+        end
         if survivor then survivor.shortfall_reason = nil end
         local tip_str = game.translate_string("st_job_electrician_station_work")
         if tip_str == "st_job_electrician_station_work" then
@@ -2220,7 +2215,7 @@ function stalker_camp_builder.process_electrician_job(npc_id, hub_id, camp, surv
             sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
                 if not sec or dead_batt_id then return end
                 local s = sec:lower()
-                if cl_item and (s == "batteries_dead" or s:find("battery")) and cond and cond < 0.95 then
+                if cl_item and is_lamp_battery(s) and cond and cond < 0.95 then
                     dead_batt_id = item_id
                     return true
                 end
