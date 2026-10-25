@@ -12,6 +12,7 @@ local scan_camp_structures_cache = {}
 function stalker_camp_builder.reset_scan_camp_structures_cache()
     scan_camp_structures_cache = {}
 end
+
 local scan_camp_structures_last_run = {}
 
 function stalker_camp_builder.scan_camp_structures(hub_id, force)

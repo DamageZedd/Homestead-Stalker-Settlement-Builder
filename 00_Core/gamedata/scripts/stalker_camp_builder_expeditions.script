@@ -13,6 +13,7 @@ local mfloor = math.floor
 local function is_level_vertex(lvid)
     return lvid and lvid < 4294967295 and lvid ~= -1 and lvid >= 0
 end
+
 -- REMOTE SCAVENGER STASH EXPEDITION SYSTEM (v1.2.0)
 stalker_camp_builder.active_stash_expeditions = stalker_camp_builder.active_stash_expeditions or {}
 

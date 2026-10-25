@@ -15,13 +15,6 @@ local msqrt = math.sqrt
 local sfind = string.find
 local tsort = table.sort
 
-local function safe_register_callback(name, func)
-    if not (name and func) then return end
-    if _G.RegisterScriptCallback then
-        pcall(_G.RegisterScriptCallback, name, func)
-    end
-end
-
 -- Monolith / Anomaly Engine Crash Guard: alife_storage_manager
 function patch_alife_storage_manager()
     if alife_storage_manager then
@@ -76,6 +69,17 @@ function patch_alife_storage_manager()
 end
 patch_alife_storage_manager()
 
+local function safe_register_callback(name, func)
+    if not func then return end
+    if not RegisterScriptCallback then return end
+    if axr_main and axr_main.callbacks and axr_main.callbacks[name] == nil then
+        return
+    end
+    pcall(RegisterScriptCallback, name, func)
+end
+stalker_camp_builder.safe_register_callback = safe_register_callback
+_G.safe_register_callback = _G.safe_register_callback or safe_register_callback
+
 -- Monolith / Anomaly Engine Crash Guard: item_artefact binder save protection
 -- Prevents fatal crash in zz_item_artefact.script line 255: attempt to index field 'object' (a userdata value)
 function patch_item_artefact_binder_save()
@@ -108,358 +112,155 @@ function patch_item_artefact_binder_save()
 end
 patch_item_artefact_binder_save()
 
--- Monolith / Anomaly Engine Crash Guard: Callback System Interceptor
--- Intercepts axr_main.make_callback and _G.SendScriptCallback with pcall wrapping.
--- If any callback in the entire game (e.g. on_before_key_press, actor_on_item_take) throws
--- "attempt to call a nil value" or any Lua runtime error, it safely intercepts the error,
--- logs the exact callback, script source, and line number to disk and console, and prevents
--- fatal engine termination.
-function patch_safe_callback_system()
-    if _G._homestead_cb_guard_installed then return end
-    _G._homestead_cb_guard_installed = true
+-- Watchdog Lag Protection: prevents false-positive Busy Hands detection (a_rax_wd)
+-- during heavy asset loading / synchronous decompression (e.g. 3.8MB OGFs, textures)
+function patch_watchdog_lag_protection()
+    local function grant_watchdog_immunity()
+        if a_rax_wd and a_rax_wd.save_state then
+            pcall(a_rax_wd.save_state)
+        end
+    end
 
-    local function get_axr_intercepts()
-        local funcs = {
-            axr_main and axr_main.callback_unset,
-            axr_main and axr_main.callback_add,
-            axr_main and axr_main.callback_set,
-            _G.base_calback_set,
-            _G.base_make_callback
-        }
-        for _, fn in ipairs(funcs) do
-            if type(fn) == "function" then
-                local i = 1
-                while true do
-                    local n, v = debug.getupvalue(fn, i)
-                    if not n then break end
-                    if n == "intercepts" and type(v) == "table" then
-                        return v
+    -- Hook alife_create_item globally to protect against spawn lag spikes
+    if _G.alife_create_item and not _G._homestead_alife_create_hooked then
+        _G._homestead_alife_create_hooked = true
+        local orig_alife_create = _G.alife_create_item
+        _G.alife_create_item = function(sec, ...)
+            if sec and type(sec) == "string" and (string.find(sec, "homestead", 1, true) or string.find(sec, "placeable", 1, true)) then
+                grant_watchdog_immunity()
+            end
+            return orig_alife_create(sec, ...)
+        end
+    end
+
+    -- Hook Debug Spawner directly
+    local function hook_debug_spawner()
+        if ui_debug_launcher and ui_debug_launcher.UIDebug_ItemSpawn then
+            if not ui_debug_launcher.UIDebug_ItemSpawn._homestead_spawn_hooked then
+                ui_debug_launcher.UIDebug_ItemSpawn._homestead_spawn_hooked = true
+                local orig_spawn = ui_debug_launcher.UIDebug_ItemSpawn.Spawn
+                if orig_spawn then
+                    ui_debug_launcher.UIDebug_ItemSpawn.Spawn = function(self, section, ...)
+                        grant_watchdog_immunity()
+                        return orig_spawn(self, section, ...)
                     end
-                    i = i + 1
+                end
+                local orig_action_spawn = ui_debug_launcher.UIDebug_ItemSpawn.Action_SpawnItem
+                if orig_action_spawn then
+                    ui_debug_launcher.UIDebug_ItemSpawn.Action_SpawnItem = function(self, ...)
+                        grant_watchdog_immunity()
+                        return orig_action_spawn(self, ...)
+                    end
                 end
             end
         end
-        return nil
     end
+    hook_debug_spawner()
+    safe_register_callback("actor_on_first_update", hook_debug_spawner)
 
-    local intercepts = get_axr_intercepts()
-
-    local function log_guard_error(cb_name, target, err)
-        local src = "unknown"
-        local line = -1
-        if type(target) == "function" then
-            local dbg = debug.getinfo(target, "S")
-            if dbg then
-                src = dbg.short_src or "unknown"
-                line = dbg.linedefined or -1
+    -- Also grant immunity when actor receives or registers any homestead or placeable item
+    safe_register_callback("actor_on_item_take", function(obj)
+        if obj and a_rax_wd and a_rax_wd.save_state then
+            local ok, sec = pcall(function() return obj:section() end)
+            if ok and sec and (string.find(sec, "homestead", 1, true) or string.find(sec, "placeable", 1, true)) then
+                grant_watchdog_immunity()
             end
         end
-        local msg = string.format("! [Homestead CrashGuard] Intercepted runtime error in callback '%s' (%s:%s): %s", tostring(cb_name), tostring(src), tostring(line), tostring(err))
-        printf("%s", msg)
-        pcall(function()
-            local f = io.open("homestead_crash_guard.log", "a")
-            if f then
-                f:write(msg .. "\n" .. debug.traceback() .. "\n\n")
-                f:close()
+    end)
+    safe_register_callback("server_entity_on_register", function(se_obj)
+        if se_obj and a_rax_wd and a_rax_wd.save_state then
+            local ok, sec = pcall(function() return se_obj:section_name() end)
+            if ok and sec and (string.find(sec, "homestead", 1, true) or string.find(sec, "placeable", 1, true)) then
+                grant_watchdog_immunity()
             end
-        end)
-    end
+        end
+    end)
+end
+patch_watchdog_lag_protection()
 
-    if axr_main and axr_main.make_callback then
-        local orig_make_callback = axr_main.make_callback
-        axr_main.make_callback = function(name, ...)
-            if not intercepts then
-                intercepts = get_axr_intercepts()
-            end
-            local tbl = intercepts and intercepts[name]
-            if tbl then
-                for func_or_userdata, _ in pairs(tbl) do
-                    if type(func_or_userdata) == "function" then
-                        local ok, err = pcall(func_or_userdata, ...)
+-- BarryBogs Detector Bone Hide Guard: prevents fatal crash in detec_bone_hide.script(20)
+-- when spawning heavy items or transitioning inventory device states
+function patch_detec_bone_hide_guard()
+    if detec_bone_hide and detec_bone_hide.actor_on_update and not detec_bone_hide._homestead_guarded then
+        detec_bone_hide._homestead_guarded = true
+        local orig_update = detec_bone_hide.actor_on_update
+        local safe_update = function(...)
+            pcall(orig_update, ...)
+        end
+        detec_bone_hide.actor_on_update = safe_update
+        if UnregisterScriptCallback and RegisterScriptCallback then
+            pcall(UnregisterScriptCallback, "actor_on_update", orig_update)
+            pcall(RegisterScriptCallback, "actor_on_update", safe_update)
+        end
+    end
+end
+patch_detec_bone_hide_guard()
+safe_register_callback("actor_on_first_update", patch_detec_bone_hide_guard)
+
+-- Task Manager Crash Guard: prevents fatal [C] __index crashes
+-- during task_manager:update() when tasks evaluate inventory items or hold dangling CGameTask handles
+function patch_task_manager_guard()
+    if task_manager and task_manager.CRandomTask and not task_manager.CRandomTask._homestead_guarded then
+        task_manager.CRandomTask._homestead_guarded = true
+        local orig_update = task_manager.CRandomTask.update
+        task_manager.CRandomTask.update = function(self, ...)
+            if self.task_info then
+                for k, v in pairs(self.task_info) do
+                    local tsk = self.task_info[k]
+                    if tsk and tsk.check_task then
+                        local ok, err = pcall(tsk.check_task, tsk)
                         if not ok then
-                            log_guard_error(name, func_or_userdata, err)
+                            printf("[Homestead Task Guard] Task [%s] error in check_task: %s", tostring(k), tostring(err))
+                            if tsk.t then
+                                tsk.t = nil
+                            end
                         end
-                    elseif type(func_or_userdata) == "table" or type(func_or_userdata) == "userdata" then
-                        local m = func_or_userdata[name]
-                        if type(m) == "function" then
-                            local ok, err = pcall(m, func_or_userdata, ...)
-                            if not ok then
-                                log_guard_error(name, m, err)
+                    end
+                    if tsk and tsk.timeout and tsk.repeat_timeout and game and game.get_game_time then
+                        local ok_time, diff = pcall(function() return game.get_game_time():diffSec(tsk.timeout) end)
+                        if ok_time and diff and diff > tsk.repeat_timeout then
+                            if ui_options and ui_options.get and ui_options.get("alife/dynamic_news/nearby_activity_news") then
+                                pcall(function()
+                                    if dynamic_news_manager and dynamic_news_manager.get_dynamic_news then
+                                        dynamic_news_manager.get_dynamic_news():GossipTaskRepeatTimeout(k)
+                                    end
+                                end)
+                            end
+                            local has_eng_task = false
+                            if db.actor and db.actor.get_task then
+                                pcall(function() has_eng_task = db.actor:get_task(k, true) ~= nil end)
+                            end
+                            if not has_eng_task then
+                                self.task_info[k] = nil
                             end
                         end
                     end
                 end
             else
-                local ok, err = pcall(orig_make_callback, name, ...)
-                if not ok then
-                    log_guard_error(name, orig_make_callback, err)
-                end
+                pcall(orig_update, self, ...)
             end
         end
     end
+end
+patch_task_manager_guard()
+safe_register_callback("actor_on_first_update", patch_task_manager_guard)
 
-    if _G.SendScriptCallback and not _G._homestead_send_cb_patched then
-        local orig_send = _G.SendScriptCallback
-        _G._homestead_send_cb_patched = true
-        _G.SendScriptCallback = function(name, ...)
-            local ok, err = pcall(orig_send, name, ...)
+-- Actor Binder Guard: wraps bind_stalker.actor_binder.update in pcall
+-- to prevent any unhandled engine update exceptions from deadlocking or crashing the process
+function patch_actor_binder_guard()
+    if bind_stalker and bind_stalker.actor_binder and not bind_stalker.actor_binder._homestead_guarded then
+        bind_stalker.actor_binder._homestead_guarded = true
+        local orig_update = bind_stalker.actor_binder.update
+        bind_stalker.actor_binder.update = function(self, delta)
+            local ok, err = pcall(orig_update, self, delta)
             if not ok then
-                log_guard_error("SendScriptCallback:" .. tostring(name), orig_send, err)
+                printf("[Homestead Guard] bind_stalker actor_binder update error: %s", tostring(err))
             end
         end
     end
-
-    if _G.level_input and not _G.level_input._homestead_patched then
-        local li = _G.level_input
-        if li.on_key_press then
-            local orig_kp = li.on_key_press
-            li.on_key_press = function(dik, bind, dis)
-                local ok, res = pcall(orig_kp, dik, bind, dis)
-                if ok then return res end
-                log_guard_error("level_input.on_key_press", orig_kp, res)
-                return false
-            end
-        end
-        if li.on_key_release then
-            local orig_kr = li.on_key_release
-            li.on_key_release = function(dik, bind, dis)
-                local ok, res = pcall(orig_kr, dik, bind, dis)
-                if ok then return res end
-                log_guard_error("level_input.on_key_release", orig_kr, res)
-                return false
-            end
-        end
-        if li.on_key_hold then
-            local orig_kh = li.on_key_hold
-            li.on_key_hold = function(dik, bind, dis)
-                local ok, res = pcall(orig_kh, dik, bind, dis)
-                if ok then return res end
-                log_guard_error("level_input.on_key_hold", orig_kh, res)
-                return false
-            end
-        end
-        li._homestead_patched = true
-    end
-    pcall(patch_xr_reach_task)
 end
-patch_safe_callback_system()
-
--- Monolith / Anomaly Engine Crash Guard: xr_reach_task soldier_execute protection
--- Fixes fatal crash in xr_reach_task.script(46): get_npc_command -> (351): soldier_execute
--- where level.vertex_position(vertex_id) executes on an invalid / out-of-bounds vertex (u32(-1) / 4294967295)
--- returned by commander:location_on_path(5, pos), aborting the engine.
-function patch_xr_reach_task()
-    if not (xr_reach_task and xr_reach_task.action_reach_task_location) then return false end
-    local act = xr_reach_task.action_reach_task_location
-    if act._homestead_reach_patched then return true end
-    act._homestead_reach_patched = true
-
-    local reach_formations = nil
-    local function get_reach_formations()
-        if not reach_formations then
-            reach_formations = {
-                { dir = vector():set(0.7, 0, -0.5), dist = 1.2 },
-                { dir = vector():set(-0.7, 0, -0.5), dist = 1.2 },
-                { dir = vector():set(0.4, 0, -1.0), dist = 2.4 },
-                { dir = vector():set(-0.4, 0, -1.0), dist = 2.4 },
-                { dir = vector():set(0.7, 0, -1.0), dist = 3.6 },
-                { dir = vector():set(-0.7, 0, -1.0), dist = 3.6 },
-                { dir = vector():set(0.7, 0, -1.0), dist = 4.8 },
-                { dir = vector():set(-0.7, 0, -1.0), dist = 4.8 },
-                { dir = vector():set(0.7, 0, -1.0), dist = 6.0 },
-                { dir = vector():set(-0.7, 0, -1.0), dist = 6.0 },
-                { dir = vector():set(0.7, 0, -1.0), dist = 7.2 },
-                { dir = vector():set(-0.7, 0, -1.0), dist = 7.2 },
-                { dir = vector():set(0.7, 0, -1.0), dist = 8.4 },
-                { dir = vector():set(-0.7, 0, -1.0), dist = 8.4 },
-                { dir = vector():set(0.7, 0, -1.0), dist = 9.6 },
-                { dir = vector():set(-0.7, 0, -1.0), dist = 9.6 }
-            }
-        end
-        return reach_formations
-    end
-
-    local function is_valid_vid(vid)
-        return type(vid) == "number" and vid >= 0 and vid < 2000000 and vid ~= 4294967295 and vid ~= -1
-    end
-
-    local orig_soldier_execute = act.soldier_execute
-    act.soldier_execute = function(self, squad)
-        local ok, err = pcall(function()
-            if not (squad and squad.assigned_target_id) then
-                if self.fake_target then
-                    return self:fake_target(squad)
-                end
-                return
-            end
-
-            local npc = self.object
-            if not (npc and npc.id) then return end
-
-            local c_id = squad.commander_id and squad:commander_id()
-            if not c_id then
-                pcall(npc.set_movement_type, npc, move.stand)
-                return
-            end
-
-            local commander = (db.storage[c_id] and db.storage[c_id].object) or level.object_by_id(c_id)
-            if not commander then
-                pcall(npc.set_movement_type, npc, move.stand)
-                return
-            end
-
-            local c_move = commander.movement_type and commander:movement_type()
-            if c_move == move.stand then
-                pcall(npc.set_movement_type, npc, move.stand)
-                return
-            end
-
-            -- Safe calculation of follower command
-            local c_lvid = commander.level_vertex_id and commander:level_vertex_id()
-            if not is_valid_vid(c_lvid) then
-                c_lvid = npc:level_vertex_id()
-            end
-            if not is_valid_vid(c_lvid) then
-                c_lvid = 0
-            end
-
-            local dir = commander.direction and commander:direction()
-            if dir then
-                dir.y = 0
-                if dir:magnitude() > 0.001 then
-                    dir:normalize()
-                else
-                    dir = vector():set(0, 0, 1)
-                end
-            else
-                dir = vector():set(0, 0, 1)
-            end
-
-            local vertex_id = nil
-            local pos = vector():set(0, 0, 0)
-            if commander.location_on_path then
-                local ok_loc, res_vid = pcall(commander.location_on_path, commander, 5, pos)
-                if ok_loc and is_valid_vid(res_vid) then
-                    local ok_vpos, vpos = pcall(level.vertex_position, res_vid)
-                    local ok_npos, npos = pcall(npc.position, npc)
-                    if ok_vpos and ok_npos and vpos and npos then
-                        if vpos:distance_to(npos) <= 5 then
-                            vertex_id = res_vid
-                        end
-                    end
-                end
-            end
-
-            if not vertex_id then
-                vertex_id = c_lvid
-            end
-
-            -- Formation indexing
-            local id = npc:id()
-            local _index = 1
-            if squad.squad_members then
-                for k in squad:squad_members() do
-                    if k.id == id then
-                        break
-                    elseif k.id ~= c_id then
-                        _index = _index + 1
-                    end
-                end
-            end
-
-            local forms = get_reach_formations()
-            local form_item = forms and forms[_index]
-            if not form_item then
-                local row = math.floor((_index - 1) / 2) + 1
-                local side = ((_index % 2) == 0) and -0.7 or 0.7
-                form_item = { dir = vector():set(side, 0, -1.0), dist = math.min(10, row * 1.2) }
-            end
-
-            local dir_s = form_item.dir
-            local dist_s = form_item.dist or 1.5
-
-            local angle = yaw_degree(dir_s, vector():set(0, 0, 1))
-            local vvv = vector_cross(dir_s, vector():set(0, 0, 1))
-            if vvv.y < 0 then
-                angle = -angle
-            end
-
-            local rot_dir = vector_rotate_y(dir, angle)
-            local target_lvid = vertex_id
-
-            if level.vertex_in_direction and is_valid_vid(vertex_id) then
-                local ok1, v1 = pcall(level.vertex_in_direction, vertex_id, rot_dir, dist_s)
-                if ok1 and is_valid_vid(v1) then
-                    local ok2, v2 = pcall(level.vertex_in_direction, v1, dir, 2)
-                    if ok2 and is_valid_vid(v2) then
-                        target_lvid = v2
-                    else
-                        target_lvid = v1
-                    end
-                end
-            end
-
-            if not is_valid_vid(target_lvid) then
-                target_lvid = vertex_id
-            end
-
-            -- Apply movement
-            if dir and utils_data and utils_data.vector_cmp and not utils_data.vector_cmp(dir, VEC_ZERO) then
-                pcall(npc.set_desired_direction, npc, dir)
-            end
-
-            pcall(npc.set_path_type, npc, game_object.level_path)
-
-            if is_valid_vid(target_lvid) and utils_obj and utils_obj.send_to_nearest_accessible_vertex then
-                local ok_send, new_lvid = pcall(utils_obj.send_to_nearest_accessible_vertex, npc, target_lvid, "xr_reach_task")
-                if ok_send and is_valid_vid(new_lvid) then
-                    target_lvid = new_lvid
-                end
-            end
-
-            local should_run = false
-            if is_valid_vid(target_lvid) then
-                local ok_vpos, vpos = pcall(level.vertex_position, target_lvid)
-                local ok_npos, npos = pcall(npc.position, npc)
-                if ok_vpos and ok_npos and vpos and npos and vpos:distance_to(npos) > 5 then
-                    should_run = true
-                end
-            end
-
-            if should_run then
-                pcall(npc.set_movement_type, npc, move.run)
-            else
-                if c_move then
-                    pcall(npc.set_movement_type, npc, c_move)
-                end
-                local c_mental = commander.mental_state and commander:mental_state()
-                if c_mental then
-                    pcall(npc.set_mental_state, npc, c_mental)
-                end
-            end
-        end)
-
-        if not ok then
-            if self.object and self.object.set_movement_type then
-                pcall(self.object.set_movement_type, self.object, move.stand)
-            end
-        end
-    end
-
-    local orig_execute = act.execute
-    act.execute = function(self)
-        local ok, err = pcall(orig_execute, self)
-        if not ok then
-            if self.object and self.object.set_movement_type then
-                pcall(self.object.set_movement_type, self.object, move.stand)
-            end
-        end
-    end
-
-    printf("[Homestead CrashGuard] Successfully patched xr_reach_task.action_reach_task_location")
-    return true
-end
-patch_xr_reach_task()
+patch_actor_binder_guard()
+safe_register_callback("actor_on_first_update", patch_actor_binder_guard)
 
 stalker_camp_builder.settler_lookup = stalker_camp_builder.settler_lookup or {}
 
@@ -4741,7 +4542,6 @@ function actor_on_first_update()
     stalker_camp_builder.homestead_teardown_grace_until = 0
     actor_update_slot = 0
     pcall(patch_item_artefact_binder_save)
-    pcall(patch_xr_reach_task)
     pcall(stalker_camp_builder.load_pending_cond)
     homestead_is_disconnecting = false
     stalker_camp_builder.homestead_is_disconnecting = false
@@ -6145,23 +5945,15 @@ function npc_on_hit_callback(npc, amount, local_direction, who, bone_index)
         pcall(function() npc:set_health_ex(1.0) end)
     end
 end
+-- safe_register_callback is defined at top of file
 
 -- Crash helper: when the engine hits a fatal script error it calls this first.
 -- Writes the offender and a traceback to the log so crashes can be traced.
 function homestead_luabind_fatal_diag(offender)
     pcall(function()
-        local msg = string.format("[Homestead] LUABIND FATAL offender: %s\n", tostring(offender))
-        printf(msg)
+        printf("[Homestead] LUABIND FATAL offender: %s", tostring(offender))
         if debug and debug.traceback then
-            local tr = debug.traceback("diag", 2)
-            printf("[Homestead] LUABIND FATAL trace: %s", tostring(tr))
-            msg = msg .. tostring(tr) .. "\n"
-        end
-        local f = io.open("homestead_crash.log", "a")
-        if f then
-            f:write(msg)
-            f:flush()
-            f:close()
+            printf("[Homestead] LUABIND FATAL trace: %s", tostring(debug.traceback("diag", 2)))
         end
     end)
 end
@@ -6206,7 +5998,7 @@ function on_game_start()
         printf("[Homestead] registered with AlifePlus ownership API")
     end
 
-    -- make sure the split-out scan module is loaded (it defines scan_camp_structures et al.)
+    -- make sure the split-out modules are loaded (they define scan_camp_structures, the camp inventory helpers, expeditions, ...)
     local _ = stalker_camp_builder_scan
     local _ = stalker_camp_builder_containers
     local _ = stalker_camp_builder_inventory
@@ -6214,8 +6006,10 @@ function on_game_start()
 
     patch_alife_storage_manager()
     patch_item_artefact_binder_save()
-    patch_safe_callback_system()
-    patch_xr_reach_task()
+    patch_watchdog_lag_protection()
+    patch_detec_bone_hide_guard()
+    patch_task_manager_guard()
+    patch_actor_binder_guard()
     -- v1.1.7: map_spot_menu_* callbacks are registered once at the end of
     pcall(function()
         local function get_weapon_repair_tier(sec)
