@@ -33,6 +33,9 @@
 - **Missing textures**: the foundation, roof tops and the metal fittings on the roofs and window wall were exported with the `default` engine shader instead of `models\model`, so they drew without their texture. All pieces now use `models\model`.
 - **Roof collision**: the hip and pyramid roofs only had collision for part of each face (about a fifth of the surface was missing, mostly along the hips and near the peak). They now use full strips up to the peak plus a box along each hip line, and the gable wall's collision follows its whole slope. Checked against the meshes in Blender (no gap over 12 cm on any roof).
 
+### 🧵 Rope texture:
+- `textures\item\item_rope.dds` was an uncompressed 1024×1024 RGBA texture without mipmaps (4 MB); it is now DXT1 with a full mip chain (0.7 MB). Its alpha was unused, so nothing is lost. The `item_rope.thm` beside it was a copy of the fuel canister's and gave the rope a metal detail map and the canister's bump map; it is removed, so the rope uses the engine defaults.
+
 ## v1.2.9 — Water Purifier
 
 ### 💧 Water Purifier (HomesteadHF):
