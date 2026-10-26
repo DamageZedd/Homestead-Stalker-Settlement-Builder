@@ -192,10 +192,7 @@ function on_game_start()
     end
 
     -- Hook vanilla subdialog handler so eptSettlement is handled correctly.
-    -- v1.1.7: skipped when the "No PDA Tab" FOMOD option is installed
-    -- (05_NoPDATab flag) -- previously the Settlement tab still appeared and
-    -- errored on open because its UI XML ships only with the PDA component.
-    if homestead_no_pda_tab_flag == nil then
+    do
         local og_set_active_subdialog = pda.set_active_subdialog
         function pda.set_active_subdialog(section)
             local pda_menu = ActorMenu.get_pda_menu()
@@ -422,11 +419,9 @@ function on_game_start()
         local ok, value = pcall(ui_mcm.get, "stalker_camp_builder/qol_debug/enable_pda_tab")
         if ok and value ~= nil then enable_tab = value end
     end
-    -- the MAC flag is a field of z_stalker_camp_builder_pda_mac's module, not a global; and with
-    -- No PDA Tab modxml injects no menu_btn_8, which Init3tButton would assert on
+    -- the MAC flag is a field of z_stalker_camp_builder_pda_mac's module, not a global
     local mac_flag = z_stalker_camp_builder_pda_mac and z_stalker_camp_builder_pda_mac.stalker_camp_builder_mac_flag
-    if not (pda_inter_gui and pda_inter_gui.CustomPDAX) or (mac_mcm and mac_flag) or (not enable_tab)
-        or homestead_no_pda_tab_flag ~= nil then
+    if not (pda_inter_gui and pda_inter_gui.CustomPDAX) or (mac_mcm and mac_flag) or (not enable_tab) then
         return
     end
 

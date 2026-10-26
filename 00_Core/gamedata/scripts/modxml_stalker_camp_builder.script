@@ -834,14 +834,6 @@ end
 function on_xml_read()
     local ipairs_ = ipairs
     local sfind = string.find
-    -- v1.1.7: when the "No PDA Tab" FOMOD option is chosen (05_NoPDATab flag
-    -- installed), skip ONLY the PDA tab-bar / interactive-PDA injections.
-    -- The NPC recruit/manage dialogs below must still be injected.
-    -- Checked lazily inside the callback: X-Ray loads scripts lazily, so the
-    -- flag global may not exist yet when on_xml_read() first registers us.
-    local function pda_ui_enabled()
-        return homestead_no_pda_tab_flag == nil
-    end
     RegisterScriptCallback("on_xml_read", function(xml_file_name, xml_obj)
         if (xml_file_name == [[gameplay\dialogs.xml]]) or (xml_file_name == [[gameplay/dialogs.xml]]) or sfind(xml_file_name, "gameplay[\\/]dialogs%.xml") then
             xml_obj:insertFromXMLString(dialogues)
@@ -861,7 +853,6 @@ function on_xml_read()
                 xml_obj:insertFromXMLString(get_paw_mapspots())
             end
         end
-        if not pda_ui_enabled() then return end
         if sfind(xml_file_name, "ui[\\/]pda.*%.xml") and not sfind(xml_file_name, "pda_apps", 1, true) and not sfind(xml_file_name, "pda_xcvb", 1, true) then
             local tabs = xml_obj:query("tab")
             if tabs then

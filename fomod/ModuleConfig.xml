@@ -62,15 +62,6 @@ Without these base mods active, you will experience missing section crashes when
 								<type name="Optional" />
 							</typeDescriptor>
 						</plugin>
-						<plugin name="No PDA Tab">
-							<description>Disables remote PDA interface. You will manage your settlements and reassign survivor jobs in-person at your Settlement Camp Hub (workbench).</description>
-							<files>
-								<folder source="05_NoPDATab/gamedata" destination="gamedata" priority="5" />
-							</files>
-							<typeDescriptor>
-								<type name="Optional" />
-							</typeDescriptor>
-						</plugin>
 					</plugins>
 				</group>
 			</optionalFileGroups>

@@ -1,7 +1,0 @@
--- Homestead v1.1.7: "No PDA Tab" marker flag.
--- Installed ONLY by the "No PDA Tab" FOMOD option. The modxml tab injector,
--- the PDA subdialog hook and the Mod App Creator registration all check for
--- this global; when it exists they leave the PDA UI untouched, so choosing
--- "No PDA Tab" no longer leaves a Settlement tab that errors on open
--- (its UI XML ships only with the PDA Settlement Manager component).
-homestead_no_pda_tab_flag = true

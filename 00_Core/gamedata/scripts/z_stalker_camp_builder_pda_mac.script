@@ -20,13 +20,6 @@ local function safe_get_ui()
 end
 
 function on_game_start()
-    -- v1.1.7: if the "No PDA Tab" FOMOD option is installed (05_NoPDATab
-    -- flag), do not register the MAC Settlement app -- the PDA UI XML is not
-    -- present in that configuration and opening the app would error.
-    if homestead_no_pda_tab_flag ~= nil then
-        return
-    end
-
     -- 1. Register app with safe UI getter
     if mac_mcm and mac_mcm.add_app then
         mac_mcm.add_app("app_settlement", {
