@@ -47,7 +47,10 @@ local function read_root_bone(visual)
         end
         rd:r_advance(size)
     end
-    fs:r_close(rd)
+    -- no fs:r_close(rd): in the game it raises a script error ([BusyHandsDebug] Runtime Error) on every
+    -- first placement of a model, which the pcall in root_bone caught after the bone name was read and
+    -- threw away, so the piece was never locked. Vanilla/HF scripts that r_open a reader leave it to the GC.
+    rd = nil
     return root
 end
 
