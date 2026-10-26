@@ -2430,7 +2430,7 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
         <text>Lock Placed Furniture</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_lock_furniture_desc">
-        <text>Furniture and building pieces placed with Hideout Furniture stay where they were placed: a piece that gets bumped or pushed out of place is put back once it stops moving. Pieces placed before this update are held where they stand now. When off, pieces stay wherever they end up. Default: ON.</text>
+        <text>Furniture and building pieces placed with Hideout Furniture cannot be pushed: only you, grenades and the level collide with them, so neighbouring pieces and NPCs no longer shove them out of place. NPCs, dropped items and bodies pass through them. Default: ON.</text>
     </string>
     <string id="st_homestead_ground_uneven">
         <text>Ground too uneven for a foundation here</text>

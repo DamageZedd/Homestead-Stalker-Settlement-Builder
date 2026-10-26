@@ -1,32 +1,21 @@
 -- homestead_lock.script
--- Placed Hideout Furniture should stay exactly where it was placed. HF already freezes every piece
--- when it comes online, and in the modded exes physics_shell:freeze() fixes every physics element
--- (what fixed_bones does), but a fixed piece is still a dynamic body: when a bump wakes it up, the
--- pieces it touches or overlaps (walls on foundations, wall corners, roofs on walls) push it away,
--- so pieces slid, tilted and crept. No script setting stops that, so this remembers where each
--- piece stands and puts a piece that moved back there once it has stopped (or after a few seconds).
+-- Placed Hideout Furniture should not move. HF freezes every piece when it comes online, and in the
+-- modded exes physics_shell:freeze() fixes every physics element, but a fixed piece is still a dynamic
+-- body: once a bump wakes it, the pieces it touches or overlaps (walls on foundations, wall corners,
+-- roofs on walls) push it away, and NPCs shove it. Scripts can't turn a piece into level geometry, so
+-- this puts every frozen piece in the engine's door mode (set_door_ignore_dynamics, what vanilla doors
+-- use): it then only collides with the player, grenades and the level, none of which can move a fixed
+-- body, so it stays where it was placed. NPCs, dropped items and bodies pass through such pieces.
 --
--- The spot is stored per piece (se_save_var, which the engine drops when the piece is released), so
--- it survives saving and loading. A piece placed from now on is anchored where it was placed; older
--- pieces are anchored where they stand the first time they come online with this version. A piece
--- the player unfreezes through HF's radial menu is left alone, and anchored where it is when it is
--- frozen again.
+-- Door mode lives on the physics shell, so it is set again every time a piece comes online. A piece the
+-- player unfreezes through HF's radial menu collides normally until it is frozen again. Pieces that are
+-- not physics objects (HF lamps and stash boxes) are left as they are.
 
 local MCM = "stalker_camp_builder/building/"
-local VAR = "hs_lock"
-
-local CHECK_MS = 500           -- how often the online pieces are checked
-local MAX_WAIT_MS = 3000       -- put a piece back after this long even if it is still moving
-local MOVE_TOL = 0.01          -- metres a piece may be off its spot
-local TURN_TOL = 0.005         -- radians a piece may be turned off its spot
-local REST_VEL = 0.01          -- below this (m/s, rad/s) a piece has stopped
-local GIMBAL = math.pi / 2 - 0.01  -- beyond this pitch obj:angle() is too coarse to rebuild the rotation
+local OLD_VAR = "hs_lock"      -- spot saved by the previous version of this script
 
 local enabled = true
-local tracked = {}             -- id of an online piece -> time_global() it was first seen off its spot, or 0
-local unfrozen = {}            -- id -> true while the player has the piece unfrozen in HF
-local next_check = 0
-local last_err = nil
+local online = {}              -- id of an online frozen piece -> true
 
 local function mcm_get(key, def)
     if not (ui_mcm and ui_mcm.get) then return def end
@@ -35,141 +24,17 @@ local function mcm_get(key, def)
     return v
 end
 
-local function load_settings()
-    enabled = mcm_get("lock_furniture", true)
-end
-
 local function report(err)
-    err = tostring(err)
-    if err == last_err then return end
-    last_err = err
-    printf("homestead_lock: %s", err)
+    printf("homestead_lock: %s", tostring(err))
 end
 
-local function save_anchor(id, obj)
-    local p, a = obj:position(), obj:angle()
-    se_save_var(id, nil, VAR, { p.x, p.y, p.z, a.x, a.y, a.z })
-end
-
--- Rows i, j, k of the engine's Fmatrix:setHPB. Spots are compared as rotations, because the same
--- rotation can have a different heading/pitch/bank (heading +-pi, a piece tipped onto its side).
-local function hpb_axes(h, p, b)
-    local sh, ch, sp, cp, sb, cb = math.sin(h), math.cos(h), math.sin(p), math.cos(p), math.sin(b), math.cos(b)
-    local cc, cs, sc, ss = ch * cb, ch * sb, sh * cb, sh * sb
-    return cc - sp * ss, -cp * sb, sp * cs + sc,
-        sp * sc + cs, cp * cb, ss - sp * cc,
-        -cp * sh, sp, cp * ch
-end
-
--- Angle of the rotation from one heading/pitch/bank to the other: trace(A^T B) = 1 + 2 cos(angle).
-local function turn_between(h1, p1, b1, h2, p2, b2)
-    local u1, u2, u3, u4, u5, u6, u7, u8, u9 = hpb_axes(h1, p1, b1)
-    local v1, v2, v3, v4, v5, v6, v7, v8, v9 = hpb_axes(h2, p2, b2)
-    local trace = u1 * v1 + u2 * v2 + u3 * v3 + u4 * v4 + u5 * v5 + u6 * v6 + u7 * v7 + u8 * v8 + u9 * v9
-    return math.acos(math.max(-1, math.min(1, (trace - 1) / 2)))
-end
-
--- A spot at pitch +-90 (a piece hung on a wall) only keeps its position: there obj:angle() changes a
--- lot for a tiny change of the rotation, so its rotation can neither be compared nor put back.
-local function keeps_rotation(anchor)
-    return math.abs(anchor[5]) < GIMBAL
-end
-
--- Distance and angle from the spot, or nil if the piece is within tolerance.
-local function offset(obj, anchor)
-    local p = obj:position()
-    local dx, dy, dz = p.x - anchor[1], p.y - anchor[2], p.z - anchor[3]
-    local dist = math.sqrt(dx * dx + dy * dy + dz * dz)
-    local turn = 0
-    if keeps_rotation(anchor) then
-        local a = obj:angle()
-        turn = turn_between(a.x, a.y, a.z, anchor[4], anchor[5], anchor[6])
-    end
-    if dist > MOVE_TOL or turn > TURN_TOL then
-        return dist, turn
-    end
-end
-
--- A body asleep in the physics world reports no velocity, so this is also true once it is asleep.
-local function at_rest(phys)
-    local v = vector()
-    phys:get_linear_vel(v)
-    if v:magnitude() > REST_VEL then return false end
-    phys:get_angular_vel(v)
-    return v:magnitude() <= REST_VEL
-end
-
--- hf_static pieces have no wrapper and are always frozen.
-local function is_frozen(id)
-    local wrapper = bind_hf_base.get_wrapper(id)
-    return not wrapper or wrapper.is_frozen
-end
-
-local function put_back(id, obj, phys, anchor, dist, turn)
-    if keeps_rotation(anchor) then
-        obj:force_set_angle(vector():set(anchor[4], anchor[5], anchor[6]), false)
-    end
-    obj:force_set_position(vector():set(anchor[1], anchor[2], anchor[3]), false)
-    phys:freeze()                      -- fixes every element again, which also zeroes its velocity
-    -- Should the engine not land it exactly on the spot, where it landed becomes the spot, so a piece
-    -- is never put back over and over.
-    if offset(obj, anchor) then
-        save_anchor(id, obj)
-    end
-    printf("homestead_lock: put %s back, it was %s off", obj:name(),
-        string.format("%.3f m, %.1f deg", dist, math.deg(turn)))
-end
-
-local function check_piece(id, since, now)
-    local obj = level.object_by_id(id)
-    if not obj then
-        tracked[id] = nil
-        unfrozen[id] = nil
-        return
-    end
-    if not is_frozen(id) then
-        unfrozen[id] = true
-        tracked[id] = 0
-        return
-    end
-    local anchor = se_load_var(id, nil, VAR)
-    if unfrozen[id] or not anchor then         -- frozen again by the player: this is its spot now
-        unfrozen[id] = nil
-        save_anchor(id, obj)
-        return
-    end
-
-    local dist, turn = offset(obj, anchor)
-    if not dist then
-        tracked[id] = 0
-        return
-    end
-    if not enabled then                        -- lock is off: a piece stays wherever it ends up
-        save_anchor(id, obj)
-        tracked[id] = 0
-        return
-    end
-    if since == 0 then
-        since = now
-        tracked[id] = now
-    end
-    local phys = obj:get_physics_shell()
-    if phys and (at_rest(phys) or now - since >= MAX_WAIT_MS) then
-        put_back(id, obj, phys, anchor, dist, turn)
-        tracked[id] = 0
-    end
-end
-
-local function check_pieces()
-    local now = time_global()
-    if now < next_check then return end
-    next_check = now + CHECK_MS
-    for id, since in pairs(tracked) do
-        local ok, err = pcall(check_piece, id, since, now)
-        if not ok then
-            tracked[id] = nil
-            report(err)
-        end
+local function set_static(obj, static)
+    local po = obj:get_physics_object()
+    if not (po and obj:get_physics_shell()) then return end
+    if static then
+        po:set_door_ignore_dynamics()
+    else
+        po:unset_door_ignore_dynamics()
     end
 end
 
@@ -177,10 +42,28 @@ end
 local function on_piece_frozen(id)
     local obj = level.object_by_id(id)
     if not obj then return end
-    tracked[id] = 0
-    unfrozen[id] = nil
-    if not se_load_var(id, nil, VAR) then
-        save_anchor(id, obj)
+    online[id] = true
+    if se_load_var(id, nil, OLD_VAR) then
+        se_save_var(id, nil, OLD_VAR, nil)
+    end
+    if enabled then
+        set_static(obj, true)
+    end
+end
+
+local function load_settings()
+    local was = enabled
+    enabled = mcm_get("lock_furniture", true)
+    if enabled == was then return end
+    for id in pairs(online) do
+        local obj = level.object_by_id(id)
+        if obj then
+            local wrapper = bind_hf_base.get_wrapper(id)
+            local ok, err = pcall(set_static, obj, enabled and (not wrapper or wrapper.is_frozen))
+            if not ok then report(err) end
+        else
+            online[id] = nil
+        end
     end
 end
 
@@ -198,14 +81,29 @@ local function hook_freeze(module)
     end
 end
 
+-- The radial menu's Freeze / Unfreeze: an unfrozen piece falls and collides like any other object.
+local function hook_set_frozen()
+    local wrapper_class = bind_hf_base.hf_binder_wrapper
+    local set_frozen = wrapper_class and wrapper_class.set_frozen
+    if not set_frozen then return end
+    wrapper_class.set_frozen = function(self, frozen)
+        set_frozen(self, frozen)
+        local obj = self.object
+        if obj and enabled then
+            local ok, err = pcall(set_static, obj, self.is_frozen)
+            if not ok then report(err) end
+        end
+    end
+end
+
 function on_game_start()
     local fs = getFS()
     if not fs:exist("$game_scripts$", "bind_hf_base.script") then return end
-    load_settings()
+    enabled = mcm_get("lock_furniture", true)
     hook_freeze(bind_hf_base)
     if fs:exist("$game_scripts$", "bind_hf_static.script") then
         hook_freeze(bind_hf_static)
     end
+    hook_set_frozen()
     RegisterScriptCallback("on_option_change", load_settings)
-    RegisterScriptCallback("actor_on_update", check_pieces)
 end
