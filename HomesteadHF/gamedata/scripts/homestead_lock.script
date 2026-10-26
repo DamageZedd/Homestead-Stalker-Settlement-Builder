@@ -11,16 +11,28 @@
 -- and bodies don't fall through them: door mode on the walls, roofs and furniture around them already
 -- stops those from pushing them, and their collision is inset 5 mm so snapped neighbours don't overlap.
 --
+-- Saving moves pieces too: the engine stores an online physics object's rotation with 8 bits per
+-- quaternion component, so every save and load turns each piece by up to about a degree (a few cm at
+-- the end of a wall). So the spot a piece is frozen at is kept at full precision (se_save_var, dropped
+-- when the piece is released) and the piece is put back on it each time it comes online.
+--
 -- Door mode lives on the physics shell, so it is set again every time a piece comes online. A piece the
--- player unfreezes through HF's radial menu collides normally until it is frozen again. Pieces that are
--- not physics objects (HF lamps and stash boxes) are left as they are.
+-- player unfreezes through HF's radial menu collides normally until it is frozen again, and its spot is
+-- taken again where it is frozen. Pieces that are not physics objects (HF lamps and stash boxes) only
+-- get their spot back.
 
 local MCM = "stalker_camp_builder/building/"
-local OLD_VAR = "hs_lock"      -- spot saved by the previous version of this script
+local VAR = "hs_spot"          -- x, y, z, heading, pitch, bank the piece was frozen at
+local OLD_VAR = "hs_lock"      -- spot saved by an earlier version of this script, no longer used
 local SOLID = { foundation = true, floor = true, stairs = true }   -- homestead_snap types that stay solid
+
+local MOVE_TOL = 0.001         -- metres a piece may be off its spot
+local TURN_TOL = 0.0005        -- radians a piece may be turned off its spot
+local GIMBAL = math.pi / 2 - 0.001  -- beyond this pitch obj:angle() is too coarse to rebuild the rotation
 
 local enabled = true
 local online = {}              -- id of an online frozen piece -> true
+local put_back_count = 0
 
 local function mcm_get(key, def)
     if not (ui_mcm and ui_mcm.get) then return def end
@@ -44,6 +56,66 @@ local function set_static(obj, static)
     end
 end
 
+local function save_spot(id, obj)
+    local p, a = obj:position(), obj:angle()
+    se_save_var(id, nil, VAR, { p.x, p.y, p.z, a.x, a.y, a.z })
+end
+
+local function clear_spot(id)
+    if se_load_var(id, nil, VAR) then
+        se_save_var(id, nil, VAR, nil)
+    end
+end
+
+-- Rows i, j, k of the engine's Fmatrix:setHPB. Spots are compared as rotations, because the same
+-- rotation can have a different heading/pitch/bank (heading +-pi, a piece tipped onto its side).
+local function hpb_axes(h, p, b)
+    local sh, ch, sp, cp, sb, cb = math.sin(h), math.cos(h), math.sin(p), math.cos(p), math.sin(b), math.cos(b)
+    local cc, cs, sc, ss = ch * cb, ch * sb, sh * cb, sh * sb
+    return cc - sp * ss, -cp * sb, sp * cs + sc,
+        sp * sc + cs, cp * cb, ss - sp * cc,
+        -cp * sh, sp, cp * ch
+end
+
+-- Angle of the rotation from one heading/pitch/bank to the other: trace(A^T B) = 1 + 2 cos(angle).
+local function turn_between(h1, p1, b1, h2, p2, b2)
+    local u1, u2, u3, u4, u5, u6, u7, u8, u9 = hpb_axes(h1, p1, b1)
+    local v1, v2, v3, v4, v5, v6, v7, v8, v9 = hpb_axes(h2, p2, b2)
+    local trace = u1 * v1 + u2 * v2 + u3 * v3 + u4 * v4 + u5 * v5 + u6 * v6 + u7 * v7 + u8 * v8 + u9 * v9
+    return math.acos(math.max(-1, math.min(1, (trace - 1) / 2)))
+end
+
+-- A spot at pitch +-90 (a piece hung on a wall) only keeps its position: there obj:angle() changes a
+-- lot for a tiny change of the rotation, so its rotation can't be rebuilt from it.
+local function keeps_rotation(spot)
+    return math.abs(spot[5]) < GIMBAL
+end
+
+local function report_put_back()
+    printf("homestead_lock: put %d piece(s) back on their spots", put_back_count)
+    put_back_count = 0
+    return true
+end
+
+-- force_set_* move the physics shell without waking it.
+local function put_back(obj, spot)
+    local p = obj:position()
+    local dx, dy, dz = p.x - spot[1], p.y - spot[2], p.z - spot[3]
+    local moved = dx * dx + dy * dy + dz * dz > MOVE_TOL * MOVE_TOL
+    local turned = false
+    if keeps_rotation(spot) then
+        local a = obj:angle()
+        turned = turn_between(a.x, a.y, a.z, spot[4], spot[5], spot[6]) > TURN_TOL
+    end
+    if not (moved or turned) then return end
+    if turned then
+        obj:force_set_angle(vector():set(spot[4], spot[5], spot[6]), false)
+    end
+    obj:force_set_position(vector():set(spot[1], spot[2], spot[3]), false)
+    put_back_count = put_back_count + 1
+    CreateTimeEvent("homestead_lock", "put_back", 1, report_put_back)
+end
+
 -- Runs after HF has frozen a piece that just came online.
 local function on_piece_frozen(id)
     local obj = level.object_by_id(id)
@@ -52,9 +124,17 @@ local function on_piece_frozen(id)
     if se_load_var(id, nil, OLD_VAR) then
         se_save_var(id, nil, OLD_VAR, nil)
     end
-    if enabled then
-        set_static(obj, true)
+    if not enabled then                -- lock is off: a piece stays wherever it ends up
+        clear_spot(id)
+        return
     end
+    local spot = se_load_var(id, nil, VAR)
+    if spot then
+        put_back(obj, spot)
+    else
+        save_spot(id, obj)
+    end
+    set_static(obj, true)
 end
 
 local function load_settings()
@@ -65,7 +145,11 @@ local function load_settings()
         local obj = level.object_by_id(id)
         if obj then
             local wrapper = bind_hf_base.get_wrapper(id)
-            local ok, err = pcall(set_static, obj, enabled and (not wrapper or wrapper.is_frozen))
+            local frozen = not wrapper or wrapper.is_frozen
+            local ok, err = pcall(function()
+                if enabled and frozen then save_spot(id, obj) else clear_spot(id) end
+                set_static(obj, enabled and frozen)
+            end)
             if not ok then report(err) end
         else
             online[id] = nil
@@ -87,7 +171,8 @@ local function hook_freeze(module)
     end
 end
 
--- The radial menu's Freeze / Unfreeze: an unfrozen piece falls and collides like any other object.
+-- The radial menu's Freeze / Unfreeze: an unfrozen piece falls and collides like any other object, and
+-- is kept wherever it is frozen again.
 local function hook_set_frozen()
     local wrapper_class = bind_hf_base.hf_binder_wrapper
     local set_frozen = wrapper_class and wrapper_class.set_frozen
@@ -96,7 +181,10 @@ local function hook_set_frozen()
         set_frozen(self, frozen)
         local obj = self.object
         if obj and enabled then
-            local ok, err = pcall(set_static, obj, self.is_frozen)
+            local ok, err = pcall(function()
+                if self.is_frozen then save_spot(obj:id(), obj) else clear_spot(obj:id()) end
+                set_static(obj, self.is_frozen)
+            end)
             if not ok then report(err) end
         end
     end
