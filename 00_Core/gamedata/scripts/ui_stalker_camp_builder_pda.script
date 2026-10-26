@@ -666,8 +666,9 @@ function SettlementManagerPDA:InitControls()
 
     local guide_sections = {
         { header = "st_guide_s1_header",        body = "st_guide_s1_body"        },  -- 1. Establishing & Hubs
-        { header = "st_guide_s2_header",        body = "st_guide_s2_body"        },  -- 2. Recruitment & Housing
-        { header = "st_guide_s3_header",        body = "st_guide_s3_body"        },  -- 3. Professions Overview
+        { header = "st_guide_build_header",     body = "st_guide_build_body"     },  -- 2. Building Kit, Snapping & Placement
+        { header = "st_guide_s2_header",        body = "st_guide_s2_body"        },  -- 3. Recruitment & Housing
+        { header = "st_guide_s3_header",        body = "st_guide_s3_body"        },  -- 4. Professions Overview
         { header = "st_guide_s3a_header",       body = "st_guide_s3a_body",       is_job = true },  -- Job: Idle & Recreation
         { header = "st_guide_s3b_header",       body = "st_guide_s3b_body",       is_job = true },  -- Job: Guard & Defense
         { header = "st_guide_s3c_header",       body = "st_guide_s3c_body",       is_job = true },  -- Job: Scavenger & Expeditions
@@ -682,13 +683,13 @@ function SettlementManagerPDA:InitControls()
         { header = "st_guide_s3k_header",       body = "st_guide_s3k_body",       is_job = true },  -- Job: Scrapper & Metal Salvage
         { header = "st_guide_s3l_header",       body = "st_guide_s3l_body",       is_job = true },  -- Job: Farmer & Bakery
         { header = "st_guide_s3m_header",       body = "st_guide_s3m_body",       is_job = true },  -- Job: Trader & Market Stall
-        { header = "st_guide_s4_header",        body = "st_guide_s4_body"        },  -- 4. Smart Storage Routing, Auto-Sort & Water/Fridges
-        { header = "st_guide_s5_header",        body = "st_guide_s5_body"        },  -- 5. Base Defense & Raids
-        { header = "st_guide_s6_header",        body = "st_guide_s6_body"        },  -- 6. Rival Wilderness Camps
-        { header = "st_guide_s7_header",        body = "st_guide_s7_body"        },  -- 7. Settlement Radio Feed
-        { header = "st_guide_s8_header",        body = "st_guide_s8_body"        },  -- 8. Specializations & Morale
-        { header = "st_guide_s9_header",        body = "st_guide_s9_body"        },  -- 9. MCM Configuration
-        { header = "st_guide_s10_header",       body = "st_guide_s10_body"       },  -- 10. Quick Start Guide
+        { header = "st_guide_s4_header",        body = "st_guide_s4_body"        },  -- 5. Smart Storage Routing, Auto-Sort & Water/Fridges
+        { header = "st_guide_s5_header",        body = "st_guide_s5_body"        },  -- 6. Base Defense & Raids
+        { header = "st_guide_s6_header",        body = "st_guide_s6_body"        },  -- 7. Rival Wilderness Camps
+        { header = "st_guide_s7_header",        body = "st_guide_s7_body"        },  -- 8. Settlement Radio Feed
+        { header = "st_guide_s8_header",        body = "st_guide_s8_body"        },  -- 9. Specializations & Morale
+        { header = "st_guide_s9_header",        body = "st_guide_s9_body"        },  -- 10. MCM Configuration
+        { header = "st_guide_s10_header",       body = "st_guide_s10_body"       },  -- 11. Quick Start Guide
     }
 
     for i, sec in ipairs(guide_sections) do
