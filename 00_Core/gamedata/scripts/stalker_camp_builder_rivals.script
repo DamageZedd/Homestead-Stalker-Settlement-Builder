@@ -882,6 +882,343 @@ local function reinforce_stronghold(sb, camp, sim)
     end
 end
 
+-- true when any member of the squad is still alive (online object first, server object otherwise)
+local function squad_has_living_member(sb, sim, squad)
+    for k in sb.safe_squad_members(squad) do
+        local online_obj = level.object_by_id(k.id)
+        if online_obj then
+            if online_obj:alive() then return true end
+        else
+            local se_obj = k.object or (k.id and sim and sim:object(k.id))
+            if se_obj and se_obj:alive() then return true end
+        end
+    end
+    return false
+end
+
+local function resolve_rival_camp_time_up(sb, camp, squad, sim, actor, same_level, current_sec)
+    camp.tier = camp.tier or 1
+    local roll = mrandom(100)
+    local did_upgrade = false
+    local did_hold = false
+
+    if camp.status == "mutant_nest" then
+        -- a mutant pack doesn't fortify or resupply; when its time is up it moves on
+    elseif camp.faction == "zombied" then
+        -- nor do zombified stalkers; they hold until someone clears them out
+        camp.setup_sec = current_sec
+        did_hold = true
+    elseif camp.tier == 1 then
+        if roll <= 70 and sb.cfg.rival_camp_progression ~= false then
+            sb.upgrade_rival_camp_tier(camp, 2)
+            camp.setup_sec = current_sec
+            camp.setup_duration = mrandom(21600, 64800) -- 6 to 18 in-game hours
+            did_upgrade = true
+        end
+    elseif camp.tier == 2 then
+        if roll <= 85 and sb.cfg.rival_camp_progression ~= false then
+            sb.upgrade_rival_camp_tier(camp, 3)
+            camp.setup_sec = current_sec
+            camp.setup_duration = mrandom(28800, 86400) -- 8 to 24 in-game hours
+            did_upgrade = true
+        end
+    elseif camp.tier >= 3 then
+        if roll <= 90 then
+            camp.setup_sec = current_sec
+            camp.setup_duration = mrandom(28800, 86400) -- 8 to 24 in-game hours
+            did_hold = true
+            -- offline too: the supplies go into the chest's server object
+            local box_obj = level.object_by_id(camp.chest_id) or alife_object(camp.chest_id)
+            if box_obj then
+                local resupply_loot = {"ammo_5.45x39_fmj", "ammo_5.56x45_fmj", "ammo_7.62x39_fmj", "medkit_army", "bandage", "antirad", "conserva"}
+                for _ = 1, mrandom(2, 4) do
+                    local itm = resupply_loot[mrandom(#resupply_loot)]
+                    if ini_sys:section_exist(itm) then
+                        pcall(alife_create_item, itm, box_obj)
+                    end
+                end
+            end
+            if actor and same_level then
+                local fac_name = camp.faction and game.translate_string(camp.faction) or "Forces"
+                stalker_camp_builder.camp_send_tip(actor, sformat(game.translate_string("st_recon_camp_reinforced_stronghold"), fac_name, camp.name), nil, "general_stalker", 8000, nil, "general")
+            end
+        end
+    end
+
+    if not did_upgrade and not did_hold then
+        release_rival_hold(sb, squad)
+        for _, ex_id in ipairs_(camp.extra_squad_ids or {}) do
+            release_rival_hold(sb, alife_object(ex_id))
+        end
+
+        local best_base = nil
+        local min_base_dist = math.huge
+        local cx = camp.position and camp.position.x or 0
+        local cy = camp.position and camp.position.y or 0
+        local cz = camp.position and camp.position.z or 0
+        if SIMBOARD and SIMBOARD.smarts_by_names and sim then
+            for sname, smart in pairs_(SIMBOARD.smarts_by_names) do
+                if smart and smart.m_game_vertex_id and smart.position then
+                    local s_level = sim:level_name(game_graph():vertex(smart.m_game_vertex_id):level_id())
+                    if s_level == camp.level and not sb.is_underground_level(s_level) then
+                        local dx = smart.position.x - cx
+                        local dy = smart.position.y - cy
+                        local dz = smart.position.z - cz
+                        local d = msqrt(dx*dx + dy*dy + dz*dz)
+                        if d < min_base_dist and d > 20 then
+                            min_base_dist = d
+                            best_base = smart
+                        end
+                    end
+                end
+            end
+        end
+        if best_base and SIMBOARD and SIMBOARD.assign_squad_to_smart then
+            if squad then
+                pcall(function() SIMBOARD:assign_squad_to_smart(squad, best_base.id) end)
+            end
+            if camp.extra_squad_ids and sim then
+                for _, ex_id in ipairs_(camp.extra_squad_ids) do
+                    local ex_sq = sim:object(ex_id)
+                    if ex_sq then
+                        pcall(function() SIMBOARD:assign_squad_to_smart(ex_sq, best_base.id) end)
+                    end
+                end
+            end
+        end
+
+        camp.status = "unoccupied"
+        camp.unoccupied_time = current_sec
+        camp.ruins_decay_time = mrandom(7200, 18000) -- 2 to 5 game hours
+        local old_faction = camp.faction
+        camp.faction = nil
+        camp.squad_id = nil
+        camp.extra_squad_ids = nil
+        camp.cleared = true
+        camp.despawn_chest_when_empty = true
+        camp.pending_skirmish = nil
+        camp.pending_skirmish_resolve_time = nil
+
+        sb.sync_rival_camp_map_spot(camp)
+
+        if actor then
+            stalker_camp_builder.camp_send_tip(actor, sformat(game.translate_string("st_recon_camp_moved_on"), camp.name), nil, "general_stalker", 10000, nil, "general")
+        end
+    end
+end
+
+local function roll_rival_heat_mutants(sb, camp, sim, level_name, same_level, v_scratch_pos)
+    camp.heat = 5
+    local has_active_heat_mutants = false
+    -- a pack stays at the outpost's smart terrain: none for one inside a settlement
+    local heat_smart = camp.smart_name and SIMBOARD and SIMBOARD.smarts_by_names
+        and SIMBOARD.smarts_by_names[camp.smart_name]
+    local smart_in_settlement = heat_smart and in_player_settlement(camp.level or level_name, heat_smart.position)
+    if camp.heat_mutant_squad_id then
+        local existing_m = sim:object(camp.heat_mutant_squad_id)
+        if existing_m and is_squad_alive(existing_m) and is_squad_monster[existing_m.player_id] then
+            has_active_heat_mutants = true
+            -- packs saved before this were sent at a squad id, which moves them nowhere;
+            -- one parked in a settlement goes back to the simulation
+            existing_m.scripted_target = (not smart_in_settlement) and camp.smart_name or nil
+        else
+            camp.heat_mutant_squad_id = nil
+        end
+    end
+
+    local player_near = is_player_near(camp.level or level_name, camp.position)
+    -- off the player's level too: on most levels no spot lies beyond the switch
+    -- distance from an outpost
+    if not has_active_heat_mutants and not player_near and not smart_in_settlement
+        and mrandom(100) <= 20 then
+        local mutant_types = {"simulation_dog", "simulation_flesh", "simulation_boar", "simulation_snork", "simulation_bloodsucker"}
+        local msec = mutant_types[mrandom(#mutant_types)]
+        local mlvid, mgpos, mgvid
+        if same_level then
+            local m_dist = mrandom(45, 80)
+            local m_ang = mrandom() * math.pi * 2
+            v_scratch_pos:set(camp.position.x + m_dist * mcos(m_ang), camp.position.y, camp.position.z + m_dist * msin(m_ang))
+            mlvid, mgpos = sb.get_ground_vertex_and_pos(v_scratch_pos, camp.position.y, 3.0)
+            mgvid = camp.game_vertex_id
+        else
+            -- the ground can be probed only on the loaded level: elsewhere the pack starts,
+            -- offline, at the outpost's smart terrain, which it heads for anyway
+            local smart = camp.smart_name and SIMBOARD and SIMBOARD.smarts_by_names
+                and SIMBOARD.smarts_by_names[camp.smart_name]
+            if smart then
+                mlvid, mgpos, mgvid = smart.m_level_vertex_id, smart.position, smart.m_game_vertex_id
+            end
+        end
+        if mlvid and mgpos and not is_player_near(camp.level or level_name, mgpos)
+            and not in_player_settlement(camp.level or level_name, mgpos) then
+            local m_squad = sb.create_squad_at_pos(msec, mgpos, mlvid, mgvid, true)
+            if m_squad and camp.squad_id then
+                camp.heat_mutant_squad_id = m_squad.id
+                -- the outpost's smart terrain, kept in the squad's save: the simulation moves a
+                -- squad toward a smart terrain or the player, never toward another squad
+                m_squad.scripted_target = camp.smart_name
+            end
+        end
+    end
+end
+
+local function trigger_rival_skirmish_sos(sb, camp, actor, level_name, same_level, current_sec, skirmish_cooldown_sec)
+    local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
+    if tf <= 0 then tf = 10 end
+    camp.skirmish_cooldown_until = current_sec + skirmish_cooldown_sec
+    camp.pending_skirmish = true
+    camp.pending_skirmish_resolve_time = current_sec + (180 * tf) -- 3 real minutes (180s) response countdown
+
+    if sb.cfg.rival_camp_distress_calls ~= false and not camp.sos_broadcasted and camp.status ~= "mutant_nest" then
+        local actor_comm = (actor and actor.character_community) and actor:character_community() or "stalker"
+        local rel = relation_registry.community_relation(camp.faction or "stalker", actor_comm)
+        if rel > -1000 then
+            camp.sos_broadcasted = true
+            camp.sos_active = true
+            camp.sos_time = current_sec
+            camp.sos_faction = camp.faction
+            local faction_name = game.translate_string(camp.faction or "stalker")
+            local lvl_name = game.translate_string(camp.level or level_name)
+            local mayday_text = sformat(game.translate_string("st_mayday_forces_taking_fire"), faction_name, camp.name, lvl_name)
+            if same_level or in_player_settlement(camp.level or level_name, camp.position) then
+                if actor then
+                    stalker_camp_builder.camp_send_tip(actor, mayday_text, nil, "red_danger", 14000, nil, "combat", true)
+                end
+            else
+                stalker_camp_builder.add_camp_radio_log(nil, "combat", mayday_text)
+            end
+        end
+    end
+
+    if camp.status ~= "mutant_nest" then
+        sb.trigger_allied_reinforcement(camp)
+    end
+end
+
+local function resolve_pending_rival_skirmish(sb, camp, actor, sim, level_name, same_level, actor_dist, current_sec, v_scratch_pos)
+    camp.pending_skirmish = nil
+    camp.pending_skirmish_resolve_time = nil
+
+    local safe_dist = get_safe_switch_distance()
+    if not same_level or actor_dist > safe_dist then
+        local is_mutant_attack = (mrandom(100) <= 20)
+        if is_mutant_attack and camp.status ~= "mutant_nest" then
+            -- the Emission Effects & Mutant Nests option: off, the outpost holds
+            if sb.cfg.rival_camp_surge_effects ~= false then
+                sb.transform_to_mutant_nest(camp, "simulation_bloodsucker")
+            end
+        else
+            local enemy_fac = nil
+            if camp.status == "mutant_nest" then
+                local level_facs = sb.get_level_factions(camp.level or level_name)
+                if level_facs and #level_facs > 0 then
+                    enemy_fac = level_facs[mrandom(#level_facs)]
+                end
+            else
+                enemy_fac = sb.get_enemy_faction_for(camp.faction or "stalker", camp.level or level_name)
+            end
+
+            if enemy_fac and mrandom(100) <= 45 then
+                local old_fac_name = (camp.status == "mutant_nest") and "a mutant pack" or game.translate_string(camp.faction or "stalker")
+                local new_fac_name = game.translate_string(enemy_fac)
+                camp.status = nil -- Cleared mutant nest, back to active outpost!
+                camp.faction = enemy_fac
+                camp.setup_sec = current_sec
+                camp.setup_duration = mrandom(21600, 64800)
+                camp.skirmish_cooldown_until = current_sec + 21600
+
+                local squad_pos = v_scratch_pos:set(camp.position.x, camp.position.y, camp.position.z)
+                local squad_sec = sb.get_dynamic_squad_section_for_faction(enemy_fac)
+
+                -- Clean up old garrison squad and members cleanly via alife_release
+                local old_sq = camp.squad_id and sim:object(camp.squad_id)
+                if old_sq then
+                    release_rival_hold(sb, old_sq)
+                    for k in sb.safe_squad_members(old_sq) do
+                        if k.id then
+                            if sb.camp_npc_released then sb.camp_npc_released[k.id] = nil end
+                            if sb.settler_lookup then sb.settler_lookup[k.id] = nil end
+                            local se_npc = sim:object(k.id)
+                            if se_npc then alife_release(se_npc) end
+                        end
+                    end
+                    alife_release(old_sq)
+                end
+                for _, ex_id in ipairs_(camp.extra_squad_ids or {}) do
+                    local ex_sq = sim:object(ex_id)
+                    if ex_sq then
+                        release_rival_hold(sb, ex_sq)
+                        for k in sb.safe_squad_members(ex_sq) do
+                            if k.id then
+                                if sb.camp_npc_released then sb.camp_npc_released[k.id] = nil end
+                                if sb.settler_lookup then sb.settler_lookup[k.id] = nil end
+                                local se_npc = sim:object(k.id)
+                                if se_npc then alife_release(se_npc) end
+                            end
+                        end
+                        alife_release(ex_sq)
+                    end
+                end
+                camp.extra_squad_ids = nil
+
+                local new_squad = sb.create_squad_at_pos(squad_sec, squad_pos, camp.level_vertex_id, camp.game_vertex_id)
+                if new_squad then
+                    camp.squad_id = new_squad.id
+                    sb.setup_rival_squad_positions(new_squad, camp, sim)
+                    reinforce_stronghold(sb, camp, sim)
+                    enforce_rival_camp_survivor_cap(camp, true)
+                end
+
+                local actor_comm = (actor and actor.character_community) and actor:character_community() or "stalker"
+                local rel = relation_registry.community_relation(camp.faction, actor_comm)
+                local is_hostile = (rel <= -1000)
+                camp.cleared = not is_hostile
+                sb.sync_rival_camp_map_spot(camp)
+                local skirmish_text = sformat(game.translate_string("st_zone_skirmish_cleansed"), new_fac_name, camp.name, old_fac_name)
+                if same_level or in_player_settlement(camp.level or level_name, camp.position) then
+                    if actor then
+                        stalker_camp_builder.camp_send_tip(actor, skirmish_text, nil, is_hostile and "red_danger" or "general_stalker", 12000, nil, "combat")
+                    end
+                else
+                    stalker_camp_builder.add_camp_radio_log(nil, "combat", skirmish_text)
+                end
+            end
+        end
+    end
+end
+
+local function mark_rival_garrison_eliminated(sb, camp, actor, current_sec)
+    camp.status = "unoccupied"
+    camp.unoccupied_time = current_sec
+    camp.ruins_decay_time = mrandom(7200, 18000) -- 2 to 5 game hours
+    local old_faction = camp.faction
+    camp.faction = nil
+    camp.squad_id = nil
+    camp.extra_squad_ids = nil
+    camp.cleared = true
+    camp.despawn_chest_when_empty = true
+    camp.pending_skirmish = nil
+    camp.pending_skirmish_resolve_time = nil
+
+    sb.sync_rival_camp_map_spot(camp)
+
+    if actor then
+        local faction_name = old_faction and game.translate_string(old_faction) or "occupying"
+        stalker_camp_builder.camp_send_tip(actor, sformat(game.translate_string("st_recon_garrison_eliminated"), camp.name, faction_name), nil, "general_stalker", 10000, nil, "general")
+    end
+
+    if sb.cfg.rival_camp_retaliation_raids ~= false and old_faction and old_faction ~= "monster" and old_faction ~= "zombied" then
+        local actor_comm = (actor and actor.character_community) and actor:character_community() or "stalker"
+        local rel = relation_registry.community_relation(old_faction, actor_comm)
+        if rel <= -1000 then
+            sb.faction_retaliation_timers = sb.faction_retaliation_timers or {}
+            if not sb.faction_retaliation_timers[old_faction] then
+                sb.faction_retaliation_timers[old_faction] = current_sec + mrandom(7200, 14400) -- 2 to 4 game hours
+            end
+        end
+    end
+end
+
 local function process_single_rival_camp(key, camp, level_name, actor, current_sec, sb, v_scratch_pos)
     if type(camp) ~= "table" or not camp.chest_id then return end
 
@@ -958,47 +1295,14 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                     squad = alife_object(camp.squad_id)
                 end
             end
-            local has_alive = false
-            if squad then
-                for k in sb.safe_squad_members(squad) do
-                    local is_alive = false
-                    local online_obj = level.object_by_id(k.id)
-                    if online_obj then
-                        is_alive = online_obj:alive()
-                    else
-                        local se_obj = k.object or (k.id and sim and sim:object(k.id))
-                        if se_obj and se_obj:alive() then
-                            is_alive = true
-                        end
-                    end
-                    if is_alive then
-                        has_alive = true
-                        break
-                    end
-                end
-            end
+            local has_alive = squad and squad_has_living_member(sb, sim, squad) or false
             if not has_alive and camp.extra_squad_ids then
                 for _, ex_id in ipairs_(camp.extra_squad_ids) do
                     local ex_sq = alife_object(ex_id)
-                    if ex_sq and is_valid_camp_squad(camp, ex_sq) then
-                        for k in sb.safe_squad_members(ex_sq) do
-                            local is_alive = false
-                            local online_obj = level.object_by_id(k.id)
-                            if online_obj then
-                                is_alive = online_obj:alive()
-                            else
-                                local se_obj = k.object or (k.id and sim and sim:object(k.id))
-                                if se_obj and se_obj:alive() then
-                                    is_alive = true
-                                end
-                            end
-                            if is_alive then
-                                has_alive = true
-                                break
-                            end
-                        end
+                    if ex_sq and is_valid_camp_squad(camp, ex_sq) and squad_has_living_member(sb, sim, ex_sq) then
+                        has_alive = true
+                        break
                     end
-                    if has_alive then break end
                 end
             end
             if has_alive then
@@ -1010,114 +1314,7 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                 local may_upgrade = (camp.tier or 1) < 3 and sb.cfg.rival_camp_progression ~= false
                     and camp.status ~= "mutant_nest" and camp.faction ~= "zombied"
                 if camp.setup_sec and (current_sec - camp.setup_sec >= lifespan) and not (in_view and may_upgrade) then
-                    camp.tier = camp.tier or 1
-                    local roll = mrandom(100)
-                    local did_upgrade = false
-                    local did_hold = false
-
-                    if camp.status == "mutant_nest" then
-                        -- a mutant pack doesn't fortify or resupply; when its time is up it moves on
-                    elseif camp.faction == "zombied" then
-                        -- nor do zombified stalkers; they hold until someone clears them out
-                        camp.setup_sec = current_sec
-                        did_hold = true
-                    elseif camp.tier == 1 then
-                        if roll <= 70 and sb.cfg.rival_camp_progression ~= false then
-                            sb.upgrade_rival_camp_tier(camp, 2)
-                            camp.setup_sec = current_sec
-                            camp.setup_duration = mrandom(21600, 64800) -- 6 to 18 in-game hours
-                            did_upgrade = true
-                        end
-                    elseif camp.tier == 2 then
-                        if roll <= 85 and sb.cfg.rival_camp_progression ~= false then
-                            sb.upgrade_rival_camp_tier(camp, 3)
-                            camp.setup_sec = current_sec
-                            camp.setup_duration = mrandom(28800, 86400) -- 8 to 24 in-game hours
-                            did_upgrade = true
-                        end
-                    elseif camp.tier >= 3 then
-                        if roll <= 90 then
-                            camp.setup_sec = current_sec
-                            camp.setup_duration = mrandom(28800, 86400) -- 8 to 24 in-game hours
-                            did_hold = true
-                            -- offline too: the supplies go into the chest's server object
-                            local box_obj = level.object_by_id(camp.chest_id) or alife_object(camp.chest_id)
-                            if box_obj then
-                                local resupply_loot = {"ammo_5.45x39_fmj", "ammo_5.56x45_fmj", "ammo_7.62x39_fmj", "medkit_army", "bandage", "antirad", "conserva"}
-                                for _ = 1, mrandom(2, 4) do
-                                    local itm = resupply_loot[mrandom(#resupply_loot)]
-                                    if ini_sys:section_exist(itm) then
-                                        pcall(alife_create_item, itm, box_obj)
-                                    end
-                                end
-                            end
-                            if actor and same_level then
-                                local fac_name = camp.faction and game.translate_string(camp.faction) or "Forces"
-                                stalker_camp_builder.camp_send_tip(actor, sformat(game.translate_string("st_recon_camp_reinforced_stronghold"), fac_name, camp.name), nil, "general_stalker", 8000, nil, "general")
-                            end
-                        end
-                    end
-
-                    if not did_upgrade and not did_hold then
-                        release_rival_hold(sb, squad)
-                        for _, ex_id in ipairs_(camp.extra_squad_ids or {}) do
-                            release_rival_hold(sb, alife_object(ex_id))
-                        end
-
-                        local best_base = nil
-                        local min_base_dist = math.huge
-                        local cx = camp.position and camp.position.x or 0
-                        local cy = camp.position and camp.position.y or 0
-                        local cz = camp.position and camp.position.z or 0
-                        if SIMBOARD and SIMBOARD.smarts_by_names and sim then
-                            for sname, smart in pairs_(SIMBOARD.smarts_by_names) do
-                                if smart and smart.m_game_vertex_id and smart.position then
-                                    local s_level = sim:level_name(game_graph():vertex(smart.m_game_vertex_id):level_id())
-                                    if s_level == camp.level and not sb.is_underground_level(s_level) then
-                                        local dx = smart.position.x - cx
-                                        local dy = smart.position.y - cy
-                                        local dz = smart.position.z - cz
-                                        local d = msqrt(dx*dx + dy*dy + dz*dz)
-                                        if d < min_base_dist and d > 20 then
-                                            min_base_dist = d
-                                            best_base = smart
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                        if best_base and SIMBOARD and SIMBOARD.assign_squad_to_smart then
-                            if squad then
-                                pcall(function() SIMBOARD:assign_squad_to_smart(squad, best_base.id) end)
-                            end
-                            if camp.extra_squad_ids and sim then
-                                for _, ex_id in ipairs_(camp.extra_squad_ids) do
-                                    local ex_sq = sim:object(ex_id)
-                                    if ex_sq then
-                                        pcall(function() SIMBOARD:assign_squad_to_smart(ex_sq, best_base.id) end)
-                                    end
-                                end
-                            end
-                        end
-
-                        camp.status = "unoccupied"
-                        camp.unoccupied_time = current_sec
-                        camp.ruins_decay_time = mrandom(7200, 18000) -- 2 to 5 game hours
-                        local old_faction = camp.faction
-                        camp.faction = nil
-                        camp.squad_id = nil
-                        camp.extra_squad_ids = nil
-                        camp.cleared = true
-                        camp.despawn_chest_when_empty = true
-                        camp.pending_skirmish = nil
-                        camp.pending_skirmish_resolve_time = nil
-
-                        sb.sync_rival_camp_map_spot(camp)
-
-                        if actor then
-                            stalker_camp_builder.camp_send_tip(actor, sformat(game.translate_string("st_recon_camp_moved_on"), camp.name), nil, "general_stalker", 10000, nil, "general")
-                        end
-                    end
+                    resolve_rival_camp_time_up(sb, camp, squad, sim, actor, same_level, current_sec)
                 else
                     if squad then
                         squad.get_script_target = function(self)
@@ -1128,58 +1325,7 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                     if camp.status ~= "mutant_nest" and camp.faction ~= "monster" and camp.squad_id then
                         camp.heat = (camp.heat or 0) + 1
                         if camp.heat >= 25 then
-                            camp.heat = 5
-                            local has_active_heat_mutants = false
-                            -- a pack stays at the outpost's smart terrain: none for one inside a settlement
-                            local heat_smart = camp.smart_name and SIMBOARD and SIMBOARD.smarts_by_names
-                                and SIMBOARD.smarts_by_names[camp.smart_name]
-                            local smart_in_settlement = heat_smart and in_player_settlement(camp.level or level_name, heat_smart.position)
-                            if camp.heat_mutant_squad_id then
-                                local existing_m = sim:object(camp.heat_mutant_squad_id)
-                                if existing_m and is_squad_alive(existing_m) and is_squad_monster[existing_m.player_id] then
-                                    has_active_heat_mutants = true
-                                    -- packs saved before this were sent at a squad id, which moves them nowhere;
-                                    -- one parked in a settlement goes back to the simulation
-                                    existing_m.scripted_target = (not smart_in_settlement) and camp.smart_name or nil
-                                else
-                                    camp.heat_mutant_squad_id = nil
-                                end
-                            end
-
-                            local player_near = is_player_near(camp.level or level_name, camp.position)
-                            -- off the player's level too: on most levels no spot lies beyond the switch
-                            -- distance from an outpost
-                            if not has_active_heat_mutants and not player_near and not smart_in_settlement
-                                and mrandom(100) <= 20 then
-                                local mutant_types = {"simulation_dog", "simulation_flesh", "simulation_boar", "simulation_snork", "simulation_bloodsucker"}
-                                local msec = mutant_types[mrandom(#mutant_types)]
-                                local mlvid, mgpos, mgvid
-                                if same_level then
-                                    local m_dist = mrandom(45, 80)
-                                    local m_ang = mrandom() * math.pi * 2
-                                    v_scratch_pos:set(camp.position.x + m_dist * mcos(m_ang), camp.position.y, camp.position.z + m_dist * msin(m_ang))
-                                    mlvid, mgpos = sb.get_ground_vertex_and_pos(v_scratch_pos, camp.position.y, 3.0)
-                                    mgvid = camp.game_vertex_id
-                                else
-                                    -- the ground can be probed only on the loaded level: elsewhere the pack starts,
-                                    -- offline, at the outpost's smart terrain, which it heads for anyway
-                                    local smart = camp.smart_name and SIMBOARD and SIMBOARD.smarts_by_names
-                                        and SIMBOARD.smarts_by_names[camp.smart_name]
-                                    if smart then
-                                        mlvid, mgpos, mgvid = smart.m_level_vertex_id, smart.position, smart.m_game_vertex_id
-                                    end
-                                end
-                                if mlvid and mgpos and not is_player_near(camp.level or level_name, mgpos)
-                                    and not in_player_settlement(camp.level or level_name, mgpos) then
-                                    local m_squad = sb.create_squad_at_pos(msec, mgpos, mlvid, mgvid, true)
-                                    if m_squad and camp.squad_id then
-                                        camp.heat_mutant_squad_id = m_squad.id
-                                        -- the outpost's smart terrain, kept in the squad's save: the simulation moves a
-                                        -- squad toward a smart terrain or the player, never toward another squad
-                                        m_squad.scripted_target = camp.smart_name
-                                    end
-                                end
-                            end
+                            roll_rival_heat_mutants(sb, camp, sim, level_name, same_level, v_scratch_pos)
                         end
                     end
 
@@ -1224,161 +1370,16 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
 
                     -- 1. Trigger SOS distress encounter with a 3-minute response window
                     if not is_on_cooldown and not camp.pending_skirmish and mrandom(1000) <= 5 then -- 0.5% roll every 10s tick
-                        local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
-                        if tf <= 0 then tf = 10 end
-                        camp.skirmish_cooldown_until = current_sec + skirmish_cooldown_sec
-                        camp.pending_skirmish = true
-                        camp.pending_skirmish_resolve_time = current_sec + (180 * tf) -- 3 real minutes (180s) response countdown
-
-                        if sb.cfg.rival_camp_distress_calls ~= false and not camp.sos_broadcasted and camp.status ~= "mutant_nest" then
-                            local actor_comm = (actor and actor.character_community) and actor:character_community() or "stalker"
-                            local rel = relation_registry.community_relation(camp.faction or "stalker", actor_comm)
-                            if rel > -1000 then
-                                camp.sos_broadcasted = true
-                                camp.sos_active = true
-                                camp.sos_time = current_sec
-                                camp.sos_faction = camp.faction
-                                local faction_name = game.translate_string(camp.faction or "stalker")
-                                local lvl_name = game.translate_string(camp.level or level_name)
-                                local mayday_text = sformat(game.translate_string("st_mayday_forces_taking_fire"), faction_name, camp.name, lvl_name)
-                                if same_level or in_player_settlement(camp.level or level_name, camp.position) then
-                                    if actor then
-                                        stalker_camp_builder.camp_send_tip(actor, mayday_text, nil, "red_danger", 14000, nil, "combat", true)
-                                    end
-                                else
-                                    stalker_camp_builder.add_camp_radio_log(nil, "combat", mayday_text)
-                                end
-                            end
-                        end
-
-                        if camp.status ~= "mutant_nest" then
-                            sb.trigger_allied_reinforcement(camp)
-                        end
+                        trigger_rival_skirmish_sos(sb, camp, actor, level_name, same_level, current_sec, skirmish_cooldown_sec)
                     end
 
                     -- 2. Resolve skirmish after the 3-minute countdown expires if player hasn't intervened
                     if camp.pending_skirmish and current_sec >= (camp.pending_skirmish_resolve_time or current_sec) then
-                        camp.pending_skirmish = nil
-                        camp.pending_skirmish_resolve_time = nil
-
-                        local safe_dist = get_safe_switch_distance()
-                        if not same_level or actor_dist > safe_dist then
-                            local is_mutant_attack = (mrandom(100) <= 20)
-                            if is_mutant_attack and camp.status ~= "mutant_nest" then
-                                -- the Emission Effects & Mutant Nests option: off, the outpost holds
-                                if sb.cfg.rival_camp_surge_effects ~= false then
-                                    sb.transform_to_mutant_nest(camp, "simulation_bloodsucker")
-                                end
-                            else
-                                local enemy_fac = nil
-                                if camp.status == "mutant_nest" then
-                                    local level_facs = sb.get_level_factions(camp.level or level_name)
-                                    if level_facs and #level_facs > 0 then
-                                        enemy_fac = level_facs[mrandom(#level_facs)]
-                                    end
-                                else
-                                    enemy_fac = sb.get_enemy_faction_for(camp.faction or "stalker", camp.level or level_name)
-                                end
-
-                                if enemy_fac and mrandom(100) <= 45 then
-                                    local old_fac_name = (camp.status == "mutant_nest") and "a mutant pack" or game.translate_string(camp.faction or "stalker")
-                                    local new_fac_name = game.translate_string(enemy_fac)
-                                    camp.status = nil -- Cleared mutant nest, back to active outpost!
-                                    camp.faction = enemy_fac
-                                    camp.setup_sec = current_sec
-                                    camp.setup_duration = mrandom(21600, 64800)
-                                    camp.skirmish_cooldown_until = current_sec + 21600
-
-                                    local squad_pos = v_scratch_pos:set(camp.position.x, camp.position.y, camp.position.z)
-                                    local squad_sec = sb.get_dynamic_squad_section_for_faction(enemy_fac)
-
-                                    -- Clean up old garrison squad and members cleanly via alife_release
-                                    local old_sq = camp.squad_id and sim:object(camp.squad_id)
-                                    if old_sq then
-                                        release_rival_hold(sb, old_sq)
-                                        for k in sb.safe_squad_members(old_sq) do
-                                            if k.id then
-                                                if sb.camp_npc_released then sb.camp_npc_released[k.id] = nil end
-                                                if sb.settler_lookup then sb.settler_lookup[k.id] = nil end
-                                                local se_npc = sim:object(k.id)
-                                                if se_npc then alife_release(se_npc) end
-                                            end
-                                        end
-                                        alife_release(old_sq)
-                                    end
-                                    for _, ex_id in ipairs_(camp.extra_squad_ids or {}) do
-                                        local ex_sq = sim:object(ex_id)
-                                        if ex_sq then
-                                            release_rival_hold(sb, ex_sq)
-                                            for k in sb.safe_squad_members(ex_sq) do
-                                                if k.id then
-                                                    if sb.camp_npc_released then sb.camp_npc_released[k.id] = nil end
-                                                    if sb.settler_lookup then sb.settler_lookup[k.id] = nil end
-                                                    local se_npc = sim:object(k.id)
-                                                    if se_npc then alife_release(se_npc) end
-                                                end
-                                            end
-                                            alife_release(ex_sq)
-                                        end
-                                    end
-                                    camp.extra_squad_ids = nil
-
-                                    local new_squad = sb.create_squad_at_pos(squad_sec, squad_pos, camp.level_vertex_id, camp.game_vertex_id)
-                                    if new_squad then
-                                        camp.squad_id = new_squad.id
-                                        sb.setup_rival_squad_positions(new_squad, camp, sim)
-                                        reinforce_stronghold(sb, camp, sim)
-                                        enforce_rival_camp_survivor_cap(camp, true)
-                                    end
-
-                                    local actor_comm = (actor and actor.character_community) and actor:character_community() or "stalker"
-                                    local rel = relation_registry.community_relation(camp.faction, actor_comm)
-                                    local is_hostile = (rel <= -1000)
-                                    camp.cleared = not is_hostile
-                                    sb.sync_rival_camp_map_spot(camp)
-                                    local skirmish_text = sformat(game.translate_string("st_zone_skirmish_cleansed"), new_fac_name, camp.name, old_fac_name)
-                                    if same_level or in_player_settlement(camp.level or level_name, camp.position) then
-                                        if actor then
-                                            stalker_camp_builder.camp_send_tip(actor, skirmish_text, nil, is_hostile and "red_danger" or "general_stalker", 12000, nil, "combat")
-                                        end
-                                    else
-                                        stalker_camp_builder.add_camp_radio_log(nil, "combat", skirmish_text)
-                                    end
-                                end
-                            end
-                        end
+                        resolve_pending_rival_skirmish(sb, camp, actor, sim, level_name, same_level, actor_dist, current_sec, v_scratch_pos)
                     end
                 end
             else
-                camp.status = "unoccupied"
-                camp.unoccupied_time = current_sec
-                camp.ruins_decay_time = mrandom(7200, 18000) -- 2 to 5 game hours
-                local old_faction = camp.faction
-                camp.faction = nil
-                camp.squad_id = nil
-                camp.extra_squad_ids = nil
-                camp.cleared = true
-                camp.despawn_chest_when_empty = true
-                camp.pending_skirmish = nil
-                camp.pending_skirmish_resolve_time = nil
-
-                sb.sync_rival_camp_map_spot(camp)
-
-                if actor then
-                    local faction_name = old_faction and game.translate_string(old_faction) or "occupying"
-                    stalker_camp_builder.camp_send_tip(actor, sformat(game.translate_string("st_recon_garrison_eliminated"), camp.name, faction_name), nil, "general_stalker", 10000, nil, "general")
-                end
-
-                if sb.cfg.rival_camp_retaliation_raids ~= false and old_faction and old_faction ~= "monster" and old_faction ~= "zombied" then
-                    local actor_comm = (actor and actor.character_community) and actor:character_community() or "stalker"
-                    local rel = relation_registry.community_relation(old_faction, actor_comm)
-                    if rel <= -1000 then
-                        sb.faction_retaliation_timers = sb.faction_retaliation_timers or {}
-                        if not sb.faction_retaliation_timers[old_faction] then
-                            sb.faction_retaliation_timers[old_faction] = current_sec + mrandom(7200, 14400) -- 2 to 4 game hours
-                        end
-                    end
-                end
+                mark_rival_garrison_eliminated(sb, camp, actor, current_sec)
             end
         elseif camp.status == "unoccupied" then
             local occupant_squad = nil
