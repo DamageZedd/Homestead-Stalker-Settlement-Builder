@@ -1,15 +1,16 @@
 -- homestead\hologram (r3/r4 - DX10/DX11)
--- Flat, alpha-blended tint for the placement hologram (homestead_hologram.script). Same stock
--- programs and pass setup as the engine's glass shader, with plain alpha blending so the colour
--- and opacity come from the texture (homestead_holo_ok / homestead_holo_bad).
+-- Alpha-blended tint for the placement hologram (homestead_hologram.script): colour and opacity from the
+-- texture (homestead_holo_ok / homestead_holo_bad), plus a rim glow. A normal forward pass with depth
+-- testing and no depth writes, set up like the Wearable Devices model shaders that also run on
+-- script attachments. It is not a "distort" shader: those draw offsets into the distortion buffer
+-- instead of colour, which refracts the scene rather than tinting it.
 function normal(shader, t_base, t_second, t_detail)
-	shader:begin("model_distort4glass", "particle_hard")
-		: sorting(3, true)
-		: blend(true, blend.srcalpha, blend.invsrcalpha)
-		: aref(true, 0)
-		: zb(true, false)
+	shader:begin("homestead_hologram", "homestead_hologram")
 		: fog(false)
-		: distort(true)
+		: zb(true, false)
+		: blend(true, blend.srcalpha, blend.invsrcalpha)
+		: sorting(1, true)
+
 	shader:dx10texture("s_base", t_base)
 	shader:dx10sampler("smp_base")
 end

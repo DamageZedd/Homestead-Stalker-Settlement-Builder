@@ -1,0 +1,25 @@
+// Placement hologram pixel shader (homestead\hologram): the tint texture's colour and opacity, a
+// brighter, more opaque rim where the surface turns away from the camera so the shape reads even
+// though there is no lighting, and a slow pulse.
+#include "common.h"
+
+struct v2p_holo
+{
+	float2 tc0 : TEXCOORD0;
+	float3 N   : TEXCOORD1;
+	float3 P   : TEXCOORD2;
+};
+
+float4 main( v2p_holo I ) : SV_Target
+{
+	float4 base = s_base.Sample( smp_base, I.tc0 );
+
+	float3 N = normalize( I.N );
+	float3 V = normalize( -I.P );
+	float rim = pow( 1.0f - saturate( abs( dot( N, V ) ) ), 2.0f );
+	float pulse = 0.9f + 0.1f * sin( timers.x * 3.0f );
+
+	float3 colour = base.rgb * ( 0.8f + 1.4f * rim );
+	float alpha = saturate( base.a * pulse * ( 0.8f + 1.6f * rim ) );
+	return float4( colour, alpha );
+}
