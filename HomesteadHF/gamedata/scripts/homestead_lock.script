@@ -1,18 +1,32 @@
 -- homestead_lock.script
--- Placed Hideout Furniture should stay exactly where it was placed. HF spawns every piece as a
--- dynamic physics body and only freezes it a moment later; a frozen body wakes up again when the
--- player bumps into it, so pieces drift, tilt and creep over time. This fixes the piece's root
--- bone to the world at spawn (the engine's `fixed_bones`, which the Homestead building pieces and
--- the 385 doors already use), so it is static from the first frame and cannot be pushed.
+-- Placed Hideout Furniture should stay exactly where it was placed. HF already freezes every piece
+-- when it comes online, and in the modded exes physics_shell:freeze() fixes every physics element
+-- (what fixed_bones does), but a fixed piece is still a dynamic body: when a bump wakes it up, the
+-- pieces it touches or overlaps (walls on foundations, wall corners, roofs on walls) push it away,
+-- so pieces slid, tilted and crept. No script setting stops that, so this remembers where each
+-- piece stands and puts a piece that moved back there once it has stopped (or after a few seconds).
 --
--- Only pieces placed after this is installed are locked; the setting is stored in the piece's
--- server data, so it survives saving and loading. Pieces whose section already lists
--- fixed_bones, and models whose root bone can't be read safely, are left as they are.
+-- The spot is stored per piece (se_save_var, which the engine drops when the piece is released), so
+-- it survives saving and loading. A piece placed from now on is anchored where it was placed; older
+-- pieces are anchored where they stand the first time they come online with this version. A piece
+-- the player unfreezes through HF's radial menu is left alone, and anchored where it is when it is
+-- frozen again.
 
 local MCM = "stalker_camp_builder/building/"
+local VAR = "hs_lock"
+
+local CHECK_MS = 500           -- how often the online pieces are checked
+local MAX_WAIT_MS = 3000       -- put a piece back after this long even if it is still moving
+local MOVE_TOL = 0.01          -- metres a piece may be off its spot
+local TURN_TOL = 0.005         -- radians a piece may be turned off its spot
+local REST_VEL = 0.01          -- below this (m/s, rad/s) a piece has stopped
+local GIMBAL = math.pi / 2 - 0.01  -- beyond this pitch obj:angle() is too coarse to rebuild the rotation
 
 local enabled = true
-local root_cache = {}          -- visual -> root bone name, or false
+local tracked = {}             -- id of an online piece -> time_global() it was first seen off its spot, or 0
+local unfrozen = {}            -- id -> true while the player has the piece unfrozen in HF
+local next_check = 0
+local last_err = nil
 
 local function mcm_get(key, def)
     if not (ui_mcm and ui_mcm.get) then return def end
@@ -25,82 +39,173 @@ local function load_settings()
     enabled = mcm_get("lock_furniture", true)
 end
 
--- Name of the bone without a parent, read from the model's bone list (OGF chunk 13).
-local function read_root_bone(visual)
-    local fs = getFS()
-    local rd = fs:r_open("$game_meshes$", visual)
-    if not rd then return false end
+local function report(err)
+    err = tostring(err)
+    if err == last_err then return end
+    last_err = err
+    printf("homestead_lock: %s", err)
+end
 
-    local root = false
-    while rd:r_elapsed() >= 8 do
-        local id = rd:r_u32()
-        local size = rd:r_u32()
-        if id == 13 then                       -- OGF_S_BONE_NAMES, stored uncompressed
-            local count = rd:r_u32()
-            for _ = 1, count do
-                local name = rd:r_stringZ()
-                local parent = rd:r_stringZ()
-                rd:r_advance(60)               -- the bone's 15 obb floats
-                if parent == "" and not root then root = name end
-            end
-            break
+local function save_anchor(id, obj)
+    local p, a = obj:position(), obj:angle()
+    se_save_var(id, nil, VAR, { p.x, p.y, p.z, a.x, a.y, a.z })
+end
+
+-- Rows i, j, k of the engine's Fmatrix:setHPB. Spots are compared as rotations, because the same
+-- rotation can have a different heading/pitch/bank (heading +-pi, a piece tipped onto its side).
+local function hpb_axes(h, p, b)
+    local sh, ch, sp, cp, sb, cb = math.sin(h), math.cos(h), math.sin(p), math.cos(p), math.sin(b), math.cos(b)
+    local cc, cs, sc, ss = ch * cb, ch * sb, sh * cb, sh * sb
+    return cc - sp * ss, -cp * sb, sp * cs + sc,
+        sp * sc + cs, cp * cb, ss - sp * cc,
+        -cp * sh, sp, cp * ch
+end
+
+-- Angle of the rotation from one heading/pitch/bank to the other: trace(A^T B) = 1 + 2 cos(angle).
+local function turn_between(h1, p1, b1, h2, p2, b2)
+    local u1, u2, u3, u4, u5, u6, u7, u8, u9 = hpb_axes(h1, p1, b1)
+    local v1, v2, v3, v4, v5, v6, v7, v8, v9 = hpb_axes(h2, p2, b2)
+    local trace = u1 * v1 + u2 * v2 + u3 * v3 + u4 * v4 + u5 * v5 + u6 * v6 + u7 * v7 + u8 * v8 + u9 * v9
+    return math.acos(math.max(-1, math.min(1, (trace - 1) / 2)))
+end
+
+-- A spot at pitch +-90 (a piece hung on a wall) only keeps its position: there obj:angle() changes a
+-- lot for a tiny change of the rotation, so its rotation can neither be compared nor put back.
+local function keeps_rotation(anchor)
+    return math.abs(anchor[5]) < GIMBAL
+end
+
+-- Distance and angle from the spot, or nil if the piece is within tolerance.
+local function offset(obj, anchor)
+    local p = obj:position()
+    local dx, dy, dz = p.x - anchor[1], p.y - anchor[2], p.z - anchor[3]
+    local dist = math.sqrt(dx * dx + dy * dy + dz * dz)
+    local turn = 0
+    if keeps_rotation(anchor) then
+        local a = obj:angle()
+        turn = turn_between(a.x, a.y, a.z, anchor[4], anchor[5], anchor[6])
+    end
+    if dist > MOVE_TOL or turn > TURN_TOL then
+        return dist, turn
+    end
+end
+
+-- A body asleep in the physics world reports no velocity, so this is also true once it is asleep.
+local function at_rest(phys)
+    local v = vector()
+    phys:get_linear_vel(v)
+    if v:magnitude() > REST_VEL then return false end
+    phys:get_angular_vel(v)
+    return v:magnitude() <= REST_VEL
+end
+
+-- hf_static pieces have no wrapper and are always frozen.
+local function is_frozen(id)
+    local wrapper = bind_hf_base.get_wrapper(id)
+    return not wrapper or wrapper.is_frozen
+end
+
+local function put_back(id, obj, phys, anchor, dist, turn)
+    if keeps_rotation(anchor) then
+        obj:force_set_angle(vector():set(anchor[4], anchor[5], anchor[6]), false)
+    end
+    obj:force_set_position(vector():set(anchor[1], anchor[2], anchor[3]), false)
+    phys:freeze()                      -- fixes every element again, which also zeroes its velocity
+    -- Should the engine not land it exactly on the spot, where it landed becomes the spot, so a piece
+    -- is never put back over and over.
+    if offset(obj, anchor) then
+        save_anchor(id, obj)
+    end
+    printf("homestead_lock: put %s back, it was %s off", obj:name(),
+        string.format("%.3f m, %.1f deg", dist, math.deg(turn)))
+end
+
+local function check_piece(id, since, now)
+    local obj = level.object_by_id(id)
+    if not obj then
+        tracked[id] = nil
+        unfrozen[id] = nil
+        return
+    end
+    if not is_frozen(id) then
+        unfrozen[id] = true
+        tracked[id] = 0
+        return
+    end
+    local anchor = se_load_var(id, nil, VAR)
+    if unfrozen[id] or not anchor then         -- frozen again by the player: this is its spot now
+        unfrozen[id] = nil
+        save_anchor(id, obj)
+        return
+    end
+
+    local dist, turn = offset(obj, anchor)
+    if not dist then
+        tracked[id] = 0
+        return
+    end
+    if not enabled then                        -- lock is off: a piece stays wherever it ends up
+        save_anchor(id, obj)
+        tracked[id] = 0
+        return
+    end
+    if since == 0 then
+        since = now
+        tracked[id] = now
+    end
+    local phys = obj:get_physics_shell()
+    if phys and (at_rest(phys) or now - since >= MAX_WAIT_MS) then
+        put_back(id, obj, phys, anchor, dist, turn)
+        tracked[id] = 0
+    end
+end
+
+local function check_pieces()
+    local now = time_global()
+    if now < next_check then return end
+    next_check = now + CHECK_MS
+    for id, since in pairs(tracked) do
+        local ok, err = pcall(check_piece, id, since, now)
+        if not ok then
+            tracked[id] = nil
+            report(err)
         end
-        rd:r_advance(size)
-    end
-    -- no fs:r_close(rd): in the game it raises a script error ([BusyHandsDebug] Runtime Error) on every
-    -- first placement of a model, which the pcall in root_bone caught after the bone name was read and
-    -- threw away, so the piece was never locked. Vanilla/HF scripts that r_open a reader leave it to the GC.
-    rd = nil
-    return root
-end
-
-local function root_bone(visual)
-    local cached = root_cache[visual]
-    if cached ~= nil then return cached end
-    local ok, name = pcall(read_root_bone, visual)
-    if not ok or not name or name == "" or string.find(name, "^%s") or string.find(name, "%s$")
-        or string.find(name, ",", 1, true) then
-        name = false
-    end
-    root_cache[visual] = name
-    return name
-end
-
-local function on_furniture_spawn(obj_id)
-    if not enabled then return end
-    local se = alife_object(obj_id)
-    if not se then return end
-
-    local section = se:section_name()
-    local fixed = ini_sys:r_string_ex(section, "fixed_bones")
-    if fixed and fixed ~= "" then return end
-
-    local visual = ini_sys:r_string_ex(section, "visual")
-    if not visual or visual == "" then return end
-    local bone = root_bone(visual)
-    if not bone then return end
-
-    local data = utils_stpk.get_physic_data(se)
-    if not data or data.fixed_bones == nil or data.fixed_bones ~= "" then return end
-    data.fixed_bones = bone
-    utils_stpk.set_physic_data(data, se)
-end
-
-local function safe_on_furniture_spawn(obj_id)
-    local ok, err = pcall(on_furniture_spawn, obj_id)
-    if not ok then
-        printf("homestead_lock: %s", tostring(err))
     end
 end
 
-local function hf_present()
-    local fs = getFS()
-    return fs:exist("$game_scripts$", "placeable_furniture.script")
+-- Runs after HF has frozen a piece that just came online.
+local function on_piece_frozen(id)
+    local obj = level.object_by_id(id)
+    if not obj then return end
+    tracked[id] = 0
+    unfrozen[id] = nil
+    if not se_load_var(id, nil, VAR) then
+        save_anchor(id, obj)
+    end
+end
+
+-- HF's net_spawn looks freeze_obj up when it runs, so replacing it here covers every piece.
+local function hook_freeze(module)
+    local freeze_obj = module.freeze_obj
+    if not freeze_obj then return end
+    module.freeze_obj = function(id)
+        local done = freeze_obj(id)
+        if done then
+            local ok, err = pcall(on_piece_frozen, id)
+            if not ok then report(err) end
+        end
+        return done
+    end
 end
 
 function on_game_start()
-    if not hf_present() then return end
+    local fs = getFS()
+    if not fs:exist("$game_scripts$", "bind_hf_base.script") then return end
     load_settings()
+    hook_freeze(bind_hf_base)
+    if fs:exist("$game_scripts$", "bind_hf_static.script") then
+        hook_freeze(bind_hf_static)
+    end
     RegisterScriptCallback("on_option_change", load_settings)
-    RegisterScriptCallback("hf_on_furniture_spawn", safe_on_furniture_spawn)
+    RegisterScriptCallback("actor_on_update", check_pieces)
 end
