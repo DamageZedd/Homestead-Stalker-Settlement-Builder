@@ -34,11 +34,6 @@ Put goods into a **Market Stall** and a settler **Trader** sells them for RU. Pr
 
 **Sell only:** you can only sell through the stall, and it never sells anything back. Camp supplies are never touched.
 
-### 💧 Water Purifier 🆕
-A gravity-fed **water purifier** on a concrete pad: an intake pipe comes up out of the ground into a blue steel settling drum, a grey carbon canister and two filter cartridges, and clean water runs out of a valve spout into the vanilla bucket. Ground water is irradiated, so it needs cleaning. It counts as a settlement water pump, so with charcoal or paper filters in camp storage your settlers fill clean flasks of water every few hours. It is built from vanilla G.A.M.M.A. parts and textures (the valve wheel, the bucket, and metal, concrete and rust textures). Craft it at a workbench; it weighs 10 kg in your inventory.
-
-<p align="center"><img src="docs/images/hero_water_purifier.jpg" alt="Water Purifier" width="70%"><br><b>WATER PURIFIER</b> 🆕</p>
-
 ### 🪑 Reworked furniture, collision & icons
 All eight HomesteadHF workstations now use a single baked texture atlas each. They have **real collision** (no more walking through them), **hold-Use pickup**, and placement outlines that fit the furniture. New inventory icons for every piece match the Hideout Furniture style.
 
@@ -68,6 +63,11 @@ Every job has its own placeable workstation. Settlers walk to it, work at it and
 <td align="center"><img src="https://media.moddb.com/images/members/5/4662/4661404/profile/hero_market_stall.png" alt="Market Stall"><br><b>MARKET STALL</b> 🆕<br><sub>Trader</sub></td>
 </tr>
 </table>
+
+### 💧 Water Purifier
+A gravity-fed **water purifier** on a concrete pad: an intake pipe comes up out of the ground into a blue steel settling drum, a grey carbon canister and two filter cartridges, and clean water runs out of a valve spout into the vanilla bucket. Ground water is irradiated, so it needs cleaning. It counts as a settlement water pump, so with charcoal or paper filters in camp storage your settlers fill clean flasks of water every few hours. It is built from vanilla G.A.M.M.A. parts and textures (the valve wheel, the bucket, and metal, concrete and rust textures). Craft it at a workbench; it weighs 10 kg in your inventory.
+
+<p align="center"><img src="docs/images/hero_water_purifier.jpg" alt="Water Purifier" width="70%"><br><b>WATER PURIFIER</b></p>
 
 ---
 
