@@ -18,6 +18,8 @@
 - New shader `homestead\hologram` (`shaders\r3\homestead_hologram.s`, alpha-blended, same programs as the engine's glass) and two tint textures (`textures\homestead\homestead_holo_ok/bad.dds`).
 
 ### 🛠 Building kit fixes:
+- **Foundation collision matched to the grid**: its collision top was 2.5 cm above the 0.4 m the snap sockets use (small bolt details were included), and it was 1.2 cm wider than a tile on each side. Furniture and walls placed on it were buried 2.5 cm and got pushed up by physics after placing. The collision is now exactly 0.4 m high and exactly one tile wide.
+- **Walls share one slab position**: the 385 walls have their collision centred 8 mm towards the front of the pivot; the Homestead window and gable walls now use the same offset, and the snap sockets (walls on floors and foundations, floors and roofs on wall tops, furniture against walls) measure from that slab.
 - **Missing textures**: the foundation, roof tops and the metal fittings on the roofs and window wall were exported with the `default` engine shader instead of `models\model`, so they drew without their texture. All pieces now use `models\model`.
 - **Roof collision**: the hip and pyramid roofs only had collision for part of each face (about a fifth of the surface was missing, mostly along the hips and near the peak). They now use full strips up to the peak plus a box along each hip line, and the gable wall's collision follows its whole slope. Checked against the meshes in Blender (no gap over 12 cm on any roof).
 

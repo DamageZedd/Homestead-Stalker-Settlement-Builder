@@ -21,6 +21,9 @@ local WALL_T     = 0.114076
 local SLAB       = 0.1
 local STOREY     = 2.68663
 local FOUND_TOP  = 0.4
+-- The 385 walls (bounding_box_origin z) and the Homestead walls both have their collision slab
+-- centred 8 mm towards the front (local -Z) of the pivot; sockets measure from that slab.
+local WALL_Z     = -0.008
 local ROOF_RISE  = TILE * math.tan(math.rad(30))
 local HALF_PI    = math.pi / 2
 local TARGET_MAX = 5      -- HF refuses to place further than this anyway
@@ -303,8 +306,8 @@ local function sockets(held, tinfo)
     elseif (hc == "floor" or hc == "roof_flat" or hc == "roof_pyramid") and tc == "wall" then
         -- the tile on top of the wall, on either side of it
         for _, lx in ipairs(wall_laterals(tinfo)) do
-            add(lx, WALL_H, TILE / 2 - tinfo.t / 2, 0, lx / 2, WALL_H, 0.6)
-            add(lx, WALL_H, -(TILE / 2 + tinfo.t / 2), 0, lx / 2, WALL_H, -0.6)
+            add(lx, WALL_H, TILE / 2 - tinfo.t / 2 + WALL_Z, 0, lx / 2, WALL_H, 0.6)
+            add(lx, WALL_H, -(TILE / 2 + tinfo.t / 2) + WALL_Z, 0, lx / 2, WALL_H, -0.6)
         end
 
     elseif (hc == "roof_slope" or hc == "roof_hip" or hc == "roof_valley") and tc == "wall" then
@@ -312,8 +315,8 @@ local function sockets(held, tinfo)
         -- pieces take any of the 4 yaws there
         local quad = hc ~= "roof_slope"
         for _, lx in ipairs(wall_laterals(tinfo)) do
-            add(lx, WALL_H, TILE / 2 - tinfo.t / 2, 0, lx / 2, WALL_H, 0.6, quad)
-            add(lx, WALL_H, -(TILE / 2 - tinfo.t / 2), math.pi, lx / 2, WALL_H, -0.6, quad)
+            add(lx, WALL_H, TILE / 2 - tinfo.t / 2 + WALL_Z, 0, lx / 2, WALL_H, 0.6, quad)
+            add(lx, WALL_H, -(TILE / 2 - tinfo.t / 2) + WALL_Z, math.pi, lx / 2, WALL_H, -0.6, quad)
         end
 
     elseif hc == "wall" and (tc == "foundation" or tc == "floor") then
@@ -322,7 +325,8 @@ local function sockets(held, tinfo)
         for _, d in ipairs(SIDES) do
             local ex, ez = d[2], -d[1]     -- along the edge
             local yaw = dir_yaw(-d[1], -d[2])
-            local inset = TILE / 2 - held.t / 2
+            -- the wall's slab sits WALL_Z towards its front (local -Z, which faces out)
+            local inset = TILE / 2 - held.t / 2 + WALL_Z
             for _, l in ipairs(laterals) do
                 add(d[1] * inset + ex * l, top, d[2] * inset + ez * l, yaw,
                     d[1] * (TILE / 2 - 0.3) + ex * l, top, d[2] * (TILE / 2 - 0.3) + ez * l)
@@ -395,7 +399,7 @@ local function solve_furniture(held, f, tinfo, hit, preview_yaw, cam_pos)
             reach = math.max(reach, -side * z)
         end
         local lx = clamp(quantise(hx, grid), -tinfo.w / 2, tinfo.w / 2)
-        local lz = side * (tinfo.t / 2 + reach)
+        local lz = WALL_Z + side * (tinfo.t / 2 + reach)
         return { pos = to_world(f, lx, -held.bottom, lz), yaw = yaw }
     end
 
