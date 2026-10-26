@@ -1,0 +1,543 @@
+-- homestead_snap.script
+-- Fallout 4-style snapping for Hideout Furniture placement. While the player holds a building
+-- piece (or any furniture) HF still drives the preview; we hook its bbox each frame, look at the
+-- piece under the crosshair and move the preview onto the nearest compatible socket.
+--
+-- Conventions (every Homestead piece and the 385 walls):
+--  * pivot at the bottom-centre of the piece
+--  * yaw is HF's: a local vector (x, z) turns to (x*cos - z*sin, x*sin + z*cos), the same maths
+--    as placeable_furniture's location offset, and local -Z is the front HF draws towards the player
+--  * a wall spans local X, its thickness is local Z; "facing out" = its front (-Z) points away
+--    from the tile it stands on
+--  * a sloped roof covers one tile in plan, low edge at local -Z, rising 30 degrees towards +Z
+--
+-- Snap classes come from the world section's homestead_snap key (foundation, floor, wall,
+-- roof, stairs; roof splits into roof_flat / roof_slope by value or section name). The walls of
+-- Even More Hideout Furnitures (385) are mapped below; everything else is furniture.
+
+local TILE       = 4.70895
+local WALL_H     = 2.58663
+local WALL_T     = 0.114076
+local SLAB       = 0.1
+local STOREY     = 2.68663
+local FOUND_TOP  = 0.4
+local ROOF_RISE  = TILE * math.tan(math.rad(30))
+local HALF_PI    = math.pi / 2
+local TARGET_MAX = 5      -- HF refuses to place further than this anyway
+local STICKY     = 1.0    -- s a target is remembered after the crosshair leaves it
+local YAW_BIAS   = 0.25   -- m of score per 180 degrees of yaw mismatch (breaks socket ties)
+
+local MCM = "stalker_camp_builder/building/"
+
+-- the 385 walls: full (one tile edge) or half width
+local WALLS_385 = {
+    placeable_wall               = { w = 4.70895, t = 0.114076 },
+    placeable_wall_metal         = { w = 4.70895, t = 0.114076 },
+    placeable_wall_doorway       = { w = 4.70895, t = 0.114076 },
+    placeable_wall_doorway_metal = { w = 4.70895, t = 0.114076 },
+    placeable_wall02             = { w = 2.35459, t = 0.109478, half = true },
+    placeable_wall02_metal       = { w = 2.35459, t = 0.109478, half = true },
+}
+
+local SIDES = { {1, 0}, {-1, 0}, {0, 1}, {0, -1} }
+
+-- top surface above the pivot, per target class
+local TOP = { foundation = FOUND_TOP, floor = SLAB, stairs = STOREY }
+
+local settings = { enabled = true, key = DIK_keys.DIK_G, rotate_key = DIK_keys.DIK_R, radius = 2.5, grid = 0.25 }
+
+-- placement state; cleared whenever HF goes back to IDLE
+local snap = {}
+local snap_on = true          -- runtime toggle, starts from the MCM default
+local yaw_offset = 0          -- extra yaw from the rotate key, in 90 degree steps
+local swallow_time = nil      -- time_global() of the last toggle / rotate press
+local last_target = nil       -- { id = , time = } for sticky building targets
+
+---------------------
+-- Settings
+---------------------
+local function mcm_get(key, def)
+    if not (ui_mcm and ui_mcm.get) then return def end
+    local v = ui_mcm.get(MCM .. key)
+    if v == nil then return def end
+    return v
+end
+
+local function load_settings()
+    settings.enabled = mcm_get("snap_enabled", true)
+    settings.key     = mcm_get("snap_key", DIK_keys.DIK_G)
+    settings.rotate_key = mcm_get("rotate_key", DIK_keys.DIK_R)
+    settings.radius  = mcm_get("snap_radius", 2.5)
+    settings.grid    = mcm_get("furniture_grid", 0.25)
+    snap_on = settings.enabled
+end
+
+---------------------
+-- Section info
+---------------------
+local info_cache = {}
+
+-- { class = , w = , t = , half = } for a world section; class "furniture" when not a building piece
+local function get_info(section)
+    if not section then return nil end
+    local cached = info_cache[section]
+    if cached then return cached end
+
+    local info
+    local wall = WALLS_385[section]
+    if wall then
+        info = { class = "wall", w = wall.w, t = wall.t, half = wall.half }
+    else
+        local cls = ini_sys:r_string_ex(section, "homestead_snap")
+        if cls == "roof" then
+            cls = "roof_flat"
+            for _, kind in ipairs({ "slope", "hip", "valley", "pyramid" }) do
+                if string.find(section, kind, 1, true) then cls = "roof_" .. kind end
+            end
+        end
+        if cls == "wall" then
+            info = { class = "wall", w = TILE, t = WALL_T }
+        elseif cls == "foundation" or cls == "floor" or cls == "stairs" or cls == "wall_gable" or cls == "roof_flat"
+            or cls == "roof_slope" or cls == "roof_hip" or cls == "roof_valley" or cls == "roof_pyramid" then
+            info = { class = cls }
+        else
+            info = { class = "furniture" }
+        end
+    end
+    info_cache[section] = info
+    return info
+end
+
+-- the 8 local corners of the HF bbox of a section, as HF builds it
+local function get_corners(section)
+    local size = str_explode(ini_sys:r_string_ex(section, "bounding_box_size", "0.5,0.5,0.5"), ",")
+    local orig = str_explode(ini_sys:r_string_ex(section, "bounding_box_origin", "0,0.25,0"), ",")
+    local w, l, h = tonumber(size[1]) or 0.5, tonumber(size[2]) or 0.5, tonumber(size[3]) or 0.5
+    local ox, oy, oz = tonumber(orig[1]) or 0, tonumber(orig[2]) or 0.25, tonumber(orig[3]) or 0
+    local corners = {}
+    for _, sx in ipairs({-0.5, 0.5}) do
+        for _, sz in ipairs({-0.5, 0.5}) do
+            corners[#corners + 1] = { x = ox + sx * w, z = oz + sz * l }
+        end
+    end
+    return corners, oy - h / 2
+end
+
+---------------------
+-- Maths
+---------------------
+local function rot_y(x, z, yaw)
+    local c, s = math.cos(yaw), math.sin(yaw)
+    return x * c - z * s, x * s + z * c
+end
+
+-- yaw that turns local +Z onto the direction (dx, dz)
+local function dir_yaw(dx, dz)
+    return math.atan2(-dx, dz)
+end
+
+local function wrap_angle(a)
+    a = math.fmod(a + math.pi, 2 * math.pi)
+    if a < 0 then a = a + 2 * math.pi end
+    return a - math.pi
+end
+
+-- base + k*90 degrees, the one nearest to want
+local function quad_yaw(base, want)
+    local k = math.floor(wrap_angle(want - base) / HALF_PI + 0.5)
+    return base + k * HALF_PI
+end
+
+local function quantise(v, step)
+    if not step or step <= 0 then return v end
+    return math.floor(v / step + 0.5) * step
+end
+
+local function clamp(v, lo, hi)
+    if v < lo then return lo elseif v > hi then return hi end
+    return v
+end
+
+local function to_world(f, lx, ly, lz)
+    local wx, wz = rot_y(lx, lz, f.yaw)
+    return vector():set(f.pos.x + wx, f.pos.y + ly, f.pos.z + wz)
+end
+
+local function to_local(f, p)
+    local lx, lz = rot_y(p.x - f.pos.x, p.z - f.pos.z, -f.yaw)
+    return lx, p.y - f.pos.y, lz
+end
+
+---------------------
+-- Targets
+---------------------
+-- position and yaw of a placed piece, from its server object
+local function get_frame(obj)
+    local se = alife_object(obj:id())
+    local pos = se and se.position or obj:position()
+    local yaw = se and se.angle and se.angle.y or 0
+    return { pos = vector():set(pos), yaw = yaw }
+end
+
+-- building classes each held class can snap to
+local ACCEPTS = {
+    foundation = { foundation = true },
+    floor      = { floor = true, foundation = true, wall = true },
+    roof_flat  = { wall = true, roof_flat = true },
+    roof_slope = { wall = true, roof_slope = true, roof_hip = true, roof_valley = true },
+    roof_hip   = { wall = true, roof_slope = true, roof_hip = true },
+    roof_valley  = { wall = true, roof_slope = true },
+    roof_pyramid = { wall = true },
+    wall_gable   = { wall = true },
+    wall       = { foundation = true, floor = true, wall = true },
+    stairs     = { floor = true, foundation = true },
+    furniture  = { floor = true, foundation = true, stairs = true, wall = true },
+}
+
+local function find_target(held, hit)
+    local accepts = ACCEPTS[held.class]
+    local obj = level.get_target_dist() <= TARGET_MAX and level.get_target_obj()
+    local info = obj and get_info(obj:section())
+    if info and accepts[info.class] then
+        last_target = { id = obj:id(), time = time_global() }
+        return obj, info
+    end
+
+    -- Building pieces may keep the last piece for a moment, so aiming at the ground just past
+    -- an edge still snaps to the neighbouring tile. Furniture never does.
+    if held.class == "furniture" or not last_target then return nil end
+    if time_global() - last_target.time > STICKY * 1000 then return nil end
+    obj = level.object_by_id(last_target.id)
+    info = obj and get_info(obj:section())
+    if not (info and accepts[info.class]) then return nil end
+    if obj:position():distance_to(hit) > TILE + settings.radius then return nil end
+    return obj, info
+end
+
+---------------------
+-- Pitched roofs
+---------------------
+-- Height of each pitched roof's surface above its pivot at local (x, z), one tile in plan.
+-- slope: eave on -Z rising to +Z. hip (outer corner): eaves on -Z and -X, peak at (+X, +Z).
+-- valley (inner corner): low point at (-X, -Z), +X and +Z edges at full height.
+local ROOF_SHAPE = {
+    roof_slope  = function(x, z) return ROOF_RISE * (z + TILE / 2) / TILE end,
+    roof_hip    = function(x, z) return ROOF_RISE * math.min(z + TILE / 2, x + TILE / 2) / TILE end,
+    roof_valley = function(x, z) return ROOF_RISE * math.max(z + TILE / 2, x + TILE / 2) / TILE end,
+}
+
+-- which pitched roofs may sit next to which (both directions are listed)
+local ROOF_PAIRS = {
+    roof_slope  = { roof_slope = true, roof_hip = true, roof_valley = true },
+    roof_hip    = { roof_slope = true, roof_hip = true },
+    roof_valley = { roof_slope = true },
+}
+
+-- Neighbour sockets between pitched roofs: a held piece one tile over on any side, in any of the
+-- 4 yaws, wherever its facing edge has the same height profile as the target's edge (after one
+-- vertical shift). Two eaves meeting (a V gutter) do not count.
+local function roof_neighbours(hc, tc, add)
+    local ft, fh = ROOF_SHAPE[tc], ROOF_SHAPE[hc]
+    if not (ft and fh and ROOF_PAIRS[hc] and ROOF_PAIRS[hc][tc]) then return end
+    local h = TILE / 2
+    for _, d in ipairs(SIDES) do
+        local px, pz = d[1] * TILE, d[2] * TILE
+        local tx, tz = d[2], -d[1]     -- along the shared edge
+        for k = 0, 3 do
+            local psi = k * HALF_PI
+            local dy, ok, gutter = nil, true, true
+            for _, t in ipairs({ -h, 0, h }) do
+                local ex, ez = d[1] * h + tx * t, d[2] * h + tz * t
+                local qx, qz = rot_y(ex - px, ez - pz, -psi)
+                local yt, yh = ft(ex, ez), fh(qx, qz)
+                if dy == nil then
+                    dy = yt - yh
+                elseif math.abs(yt - yh - dy) > 0.001 then
+                    ok = false
+                    break
+                end
+                if yt > 0.001 or yh > 0.001 then gutter = false end
+            end
+            if ok and not gutter then
+                add(px, dy, pz, psi, d[1] * h, ft(d[1] * h, d[2] * h), d[2] * h)
+            end
+        end
+    end
+end
+
+---------------------
+-- Sockets
+---------------------
+-- Each socket is a local position + yaw in the target's frame and an anchor: the point on the
+-- target the player aims at to pick it. quad = any of the 4 yaws, nearest to the preview wins.
+local function sockets(held, tinfo)
+    local out = {}
+    local function add(px, py, pz, dyaw, ax, ay, az, quad)
+        out[#out + 1] = { px = px, py = py, pz = pz, dyaw = dyaw or 0, ax = ax, ay = ay, az = az, quad = quad }
+    end
+
+    local hc, tc = held.class, tinfo.class
+
+    -- next tile over on each side
+    local function neighbours(py, top)
+        for _, d in ipairs(SIDES) do
+            add(d[1] * TILE, py, d[2] * TILE, 0, d[1] * TILE / 2, top, d[2] * TILE / 2)
+        end
+    end
+
+    -- lateral offsets of a tile centre along a wall: a half wall sits on either half of the edge
+    local function wall_laterals(info)
+        if info.half then return { TILE / 4, -TILE / 4 } end
+        return { 0 }
+    end
+
+    if hc == "foundation" and tc == "foundation" then
+        neighbours(0, FOUND_TOP)
+
+    elseif hc == "floor" and tc == "floor" then
+        neighbours(0, SLAB)
+
+    elseif hc == "floor" and tc == "foundation" then
+        neighbours(FOUND_TOP - SLAB, FOUND_TOP)
+
+    elseif (hc == "floor" or hc == "roof_flat" or hc == "roof_pyramid") and tc == "wall" then
+        -- the tile on top of the wall, on either side of it
+        for _, lx in ipairs(wall_laterals(tinfo)) do
+            add(lx, WALL_H, TILE / 2 - tinfo.t / 2, 0, lx / 2, WALL_H, 0.6)
+            add(lx, WALL_H, -(TILE / 2 + tinfo.t / 2), 0, lx / 2, WALL_H, -0.6)
+        end
+
+    elseif (hc == "roof_slope" or hc == "roof_hip" or hc == "roof_valley") and tc == "wall" then
+        -- low edge along the wall top, rising towards the tile on that side; the corner
+        -- pieces take any of the 4 yaws there
+        local quad = hc ~= "roof_slope"
+        for _, lx in ipairs(wall_laterals(tinfo)) do
+            add(lx, WALL_H, TILE / 2 - tinfo.t / 2, 0, lx / 2, WALL_H, 0.6, quad)
+            add(lx, WALL_H, -(TILE / 2 - tinfo.t / 2), math.pi, lx / 2, WALL_H, -0.6, quad)
+        end
+
+    elseif hc == "wall" and (tc == "foundation" or tc == "floor") then
+        local top = TOP[tc]
+        local laterals = held.half and { TILE / 4, -TILE / 4 } or { 0 }
+        for _, d in ipairs(SIDES) do
+            local ex, ez = d[2], -d[1]     -- along the edge
+            local yaw = dir_yaw(-d[1], -d[2])
+            local inset = TILE / 2 - held.t / 2
+            for _, l in ipairs(laterals) do
+                add(d[1] * inset + ex * l, top, d[2] * inset + ez * l, yaw,
+                    d[1] * (TILE / 2 - 0.3) + ex * l, top, d[2] * (TILE / 2 - 0.3) + ez * l)
+            end
+        end
+
+    elseif hc == "wall" and tc == "wall" then
+        -- stacked one storey up (over a half edge when the widths differ)
+        local diff = math.abs(tinfo.w - held.w) / 2
+        local stack = diff > 0.01 and { diff, -diff } or { 0 }
+        for _, lx in ipairs(stack) do
+            add(lx, STOREY, 0, 0, lx, WALL_H, 0)
+        end
+        -- continuing from either end
+        local reach = tinfo.w / 2 + held.w / 2
+        add(reach, 0, 0, 0, tinfo.w / 2, WALL_H / 2, 0)
+        add(-reach, 0, 0, 0, -tinfo.w / 2, WALL_H / 2, 0)
+
+    elseif hc == "wall_gable" and tc == "wall" then
+        -- base on the wall top, centred, high end towards either end (the rotate key flips it)
+        add(0, WALL_H, 0, 0, 0, WALL_H, 0)
+        add(0, WALL_H, 0, math.pi, 0, WALL_H, 0)
+
+    elseif hc == "stairs" and (tc == "floor" or tc == "foundation") then
+        add(0, TOP[tc], 0, 0, 0, TOP[tc], 0, true)
+
+    elseif hc == "roof_flat" and tc == "roof_flat" then
+        neighbours(0, SLAB)
+
+    elseif ROOF_SHAPE[hc] and ROOF_SHAPE[tc] then
+        -- beside it, further up / down the slope, meeting at a ridge, or around a hip / valley
+        roof_neighbours(hc, tc, add)
+    end
+    return out
+end
+
+-- best socket for a building piece: nearest anchor to the aim point within snap_radius
+local function solve_building(held, f, tinfo, hit, preview_yaw)
+    local best, best_score
+    for _, s in ipairs(sockets(held, tinfo)) do
+        local d = to_world(f, s.ax, s.ay, s.az):distance_to(hit)
+        if d <= settings.radius then
+            local yaw = f.yaw + s.dyaw
+            if s.quad then yaw = quad_yaw(yaw, preview_yaw) end
+            local score = d + YAW_BIAS * math.abs(wrap_angle(yaw - preview_yaw)) / math.pi
+            if not best_score or score < best_score then
+                best_score = score
+                best = { pos = to_world(f, s.px, s.py, s.pz), yaw = yaw }
+            end
+        end
+    end
+    return best
+end
+
+local function solve_furniture(held, f, tinfo, hit, preview_yaw, cam_pos)
+    local hx, hy, hz = to_local(f, hit)
+    local grid = settings.grid
+
+    if tinfo.class == "wall" then
+        -- back of the bbox flush against the face nearest the player, front facing out
+        local _, _, cz = to_local(f, cam_pos)
+        local side = cz >= 0 and 1 or -1
+        local face_yaw = f.yaw + dir_yaw(0, -side)
+        local yaw = face_yaw + quantise(wrap_angle(preview_yaw - device().cam_dir:getH()), HALF_PI)
+
+        -- how far the bbox reaches towards the wall from the pivot
+        local reach = -math.huge
+        for _, c in ipairs(held.corners) do
+            local _, z = rot_y(c.x, c.z, yaw - f.yaw)
+            reach = math.max(reach, -side * z)
+        end
+        local lx = clamp(quantise(hx, grid), -tinfo.w / 2, tinfo.w / 2)
+        local lz = side * (tinfo.t / 2 + reach)
+        return { pos = to_world(f, lx, -held.bottom, lz), yaw = yaw }
+    end
+
+    local top = TOP[tinfo.class]
+    -- stairs: only the landing at the top counts as a surface
+    if tinfo.class == "stairs" and hy < STOREY - 0.6 then return nil end
+    local lx = clamp(quantise(hx, grid), -TILE / 2, TILE / 2)
+    local lz = clamp(quantise(hz, grid), -TILE / 2, TILE / 2)
+    return { pos = to_world(f, lx, top - held.bottom, lz), yaw = quad_yaw(f.yaw, preview_yaw) }
+end
+
+-- snapped { pos, yaw } for this frame, or nil to leave HF's own transform alone
+local function solve(bbox)
+    local cam_pos = device().cam_pos
+    local hit = vector()
+    hit:mad(cam_pos, device().cam_dir, level.get_target_dist())
+
+    local obj, tinfo = find_target(snap.info, hit)
+    if not obj then return nil end
+
+    -- the rotate key turns the preview, so it picks the next yaw variant of a socket
+    local preview_yaw = (bbox.rotation and bbox.rotation:to_euler_angles().y or device().cam_dir:getH()) + yaw_offset
+    local f = get_frame(obj)
+    if snap.info.class == "furniture" then
+        return solve_furniture(snap.info, f, tinfo, hit, preview_yaw, cam_pos)
+    end
+    return solve_building(snap.info, f, tinfo, hit, preview_yaw)
+end
+
+local function snapping()
+    return snap_on and snap.section ~= nil
+        and placeable_furniture.is_state(placeable_furniture.states.HOLDING)
+end
+
+---------------------
+-- HF hooks
+---------------------
+local function install_hooks()
+    local states = placeable_furniture.states
+
+    local hf_start_placing_item = placeable_furniture.start_placing_item
+    function placeable_furniture.start_placing_item(section)
+        local was_idle = placeable_furniture.is_state(states.IDLE)
+        hf_start_placing_item(section)
+        if was_idle and placeable_furniture.in_placing_state() then
+            local info = get_info(section)
+            snap = { section = section, info = info }
+            yaw_offset = 0
+            if info.class == "furniture" then
+                info.corners, info.bottom = get_corners(section)
+            end
+        end
+    end
+
+    local hf_set_state = placeable_furniture.set_state
+    function placeable_furniture.set_state(new_state)
+        -- the snap key is not one of HF's movement keys, so its key handler cancels placement
+        if new_state == states.IDLE and swallow_time and time_global() - swallow_time < 50
+            and placeable_furniture.in_placing_state() then
+            return
+        end
+        hf_set_state(new_state)
+        if new_state == states.IDLE then
+            snap = {}
+            last_target = nil
+            yaw_offset = 0
+        end
+    end
+
+    local bbox_class = hf_bbox.bbox_collider
+    local base_set_origin = bbox_class.SetWorldOrigin or aol_bshape.bshape_collider.SetWorldOrigin
+    local base_check = bbox_class.CheckForCollisions or aol_bshape.bshape_collider.CheckForCollisions
+
+    function bbox_class:SetWorldOrigin(new_pos)
+        snap.active = false
+        if snapping() then
+            local res = solve(self)
+            if res then
+                snap.active = true
+                snap.pos = res.pos
+                snap.rot = aol_rotation.get_rotation_around(vector():set(0, 1, 0), res.yaw)
+                self.rotation = snap.rot
+                return base_set_origin(self, snap.pos)
+            end
+        end
+        -- unsnapped: turn about the piece's own up axis; HF commits bbox.rotation as it is
+        if yaw_offset ~= 0 and snap.section and self.rotation then
+            self.rotation = self.rotation:multiply(aol_rotation.get_rotation_around(vector():set(0, 1, 0), yaw_offset))
+        end
+        return base_set_origin(self, new_pos)
+    end
+
+    function bbox_class:CheckForCollisions()
+        if snap.active then
+            self.is_colliding = false
+            return false
+        end
+        return base_check(self)
+    end
+
+    local hf_create_object = placeable_furniture.create_object
+    function placeable_furniture.create_object(section, location, rotation, lvid, gvid)
+        if snap.active and section == snap.section and placeable_furniture.in_placing_state() then
+            location = vector():set(snap.pos)
+            rotation = snap.rot
+        end
+        return hf_create_object(section, location, rotation, lvid, gvid)
+    end
+end
+
+---------------------
+-- Toggle / rotate keys
+---------------------
+-- Both keys are only taken while placing; otherwise they do what they normally do
+-- (R reloads). Swallowing them also keeps HF from cancelling placement.
+local function on_before_key_press(key, bind, dis, flags)
+    if key ~= settings.key and key ~= settings.rotate_key then return end
+    if not (snap.section and placeable_furniture.in_placing_state()) then return end
+    swallow_time = time_global()
+    flags.ret_value = false
+    if key == settings.rotate_key then
+        yaw_offset = math.fmod(yaw_offset + HALF_PI, 2 * math.pi)
+        return
+    end
+    snap_on = not snap_on
+    actor_menu.set_msg(1, game.translate_string(snap_on and "st_homestead_snap_on" or "st_homestead_snap_off"), 3)
+end
+
+local function hf_present()
+    local fs = getFS()
+    return fs:exist("$game_scripts$", "placeable_furniture.script")
+        and fs:exist("$game_scripts$", "hf_bbox.script")
+        and fs:exist("$game_scripts$", "aol_rotation.script")
+end
+
+function on_game_start()
+    if not hf_present() then return end
+    if not (placeable_furniture and placeable_furniture.start_placing_item and hf_bbox and hf_bbox.bbox_collider) then
+        return
+    end
+    load_settings()
+    install_hooks()
+    RegisterScriptCallback("on_option_change", load_settings)
+    RegisterScriptCallback("on_before_key_press", on_before_key_press)
+end

@@ -2378,4 +2378,46 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_directive_farmer_grain">
         <text>Grain Focus (Bread)</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_building">
+        <text>Building</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_building_desc">
+        <text>Snapping for Homestead building pieces and furniture while placing with Hideout Furniture.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_snap_enabled">
+        <text>Snap to Grid</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_snap_enabled_desc">
+        <text>Snap foundations, floors, walls, roofs, stairs and furniture to the piece under the crosshair while placing. Default: ON.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_snap_key">
+        <text>Toggle Snapping Key</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_snap_key_desc">
+        <text>Turns snapping on or off while you are placing an object. Default: G.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_rotate_key">
+        <text>Rotate Piece Key</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_rotate_key_desc">
+        <text>Turns the held piece 90 degrees while placing; when snapped it steps to the next allowed orientation. Default: R.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_snap_radius">
+        <text>Snap Radius (m)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_snap_radius_desc">
+        <text>How close the crosshair must be to a snap point for the piece to jump to it. Default: 2.5.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_furniture_grid">
+        <text>Furniture Grid (m)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_furniture_grid_desc">
+        <text>Step for furniture placed on floors, foundations and walls. 0 = follow the crosshair freely. Default: 0.25.</text>
+    </string>
+    <string id="st_homestead_snap_on">
+        <text>Snap: ON</text>
+    </string>
+    <string id="st_homestead_snap_off">
+        <text>Snap: OFF</text>
+    </string>
 </string_table>
