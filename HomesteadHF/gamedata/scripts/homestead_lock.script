@@ -7,12 +7,17 @@
 -- use): it then only collides with the player, grenades and the level, none of which can move a fixed
 -- body, so it stays where it was placed. NPCs, dropped items and bodies pass through such pieces.
 --
+-- Pieces people and things stand on (Homestead foundations, floors and stairs) stay solid, so NPCs, items
+-- and bodies don't fall through them: door mode on the walls, roofs and furniture around them already
+-- stops those from pushing them, and their collision is inset 5 mm so snapped neighbours don't overlap.
+--
 -- Door mode lives on the physics shell, so it is set again every time a piece comes online. A piece the
 -- player unfreezes through HF's radial menu collides normally until it is frozen again. Pieces that are
 -- not physics objects (HF lamps and stash boxes) are left as they are.
 
 local MCM = "stalker_camp_builder/building/"
 local OLD_VAR = "hs_lock"      -- spot saved by the previous version of this script
+local SOLID = { foundation = true, floor = true, stairs = true }   -- homestead_snap types that stay solid
 
 local enabled = true
 local online = {}              -- id of an online frozen piece -> true
@@ -29,6 +34,7 @@ local function report(err)
 end
 
 local function set_static(obj, static)
+    if SOLID[ini_sys:r_string_ex(obj:section(), "homestead_snap") or ""] then return end
     local po = obj:get_physics_object()
     if not (po and obj:get_physics_shell()) then return end
     if static then
