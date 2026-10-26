@@ -2381,5 +2381,41 @@
     <string id="st_directive_farmer_grain">
         <text>Зерно (хлеб)</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_building">
+        <text>Строительство</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_building_desc">
+        <text>Привязка строительных элементов Homestead и мебели при размещении через Hideout Furniture.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_snap_enabled">
+        <text>Привязка к сетке</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_snap_enabled_desc">
+        <text>При размещении привязывать фундаменты, полы, стены, крыши, лестницы и мебель к элементу под прицелом. По умолчанию: ВКЛ.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_snap_key">
+        <text>Клавиша привязки</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_snap_key_desc">
+        <text>Включает или выключает привязку во время размещения объекта. По умолчанию: G.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_snap_radius">
+        <text>Радиус привязки (м)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_snap_radius_desc">
+        <text>Насколько близко прицел должен быть к точке привязки, чтобы элемент к ней прыгнул. По умолчанию: 2.5.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_furniture_grid">
+        <text>Сетка мебели (м)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_furniture_grid_desc">
+        <text>Шаг для мебели на полах, фундаментах и стенах. 0 = свободно следовать за прицелом. По умолчанию: 0.25.</text>
+    </string>
+    <string id="st_homestead_snap_on">
+        <text>Привязка: ВКЛ</text>
+    </string>
+    <string id="st_homestead_snap_off">
+        <text>Привязка: ВЫКЛ</text>
+    </string>
 </string_table>
 
