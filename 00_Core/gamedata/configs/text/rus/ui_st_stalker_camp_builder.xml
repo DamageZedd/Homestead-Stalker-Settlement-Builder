@@ -2399,6 +2399,12 @@
     <string id="ui_mcm_stalker_camp_builder_snap_key_desc">
         <text>Включает или выключает привязку во время размещения объекта. По умолчанию: G.</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_rotate_key">
+        <text>Клавиша поворота</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_rotate_key_desc">
+        <text>Поворачивает размещаемый элемент на 90 градусов; при привязке переключает на следующее допустимое положение. По умолчанию: R.</text>
+    </string>
     <string id="ui_mcm_stalker_camp_builder_snap_radius">
         <text>Радиус привязки (м)</text>
     </string>

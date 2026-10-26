@@ -2396,6 +2396,12 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="ui_mcm_stalker_camp_builder_snap_key_desc">
         <text>Turns snapping on or off while you are placing an object. Default: G.</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_rotate_key">
+        <text>Rotate Piece Key</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_rotate_key_desc">
+        <text>Turns the held piece 90 degrees while placing; when snapped it steps to the next allowed orientation. Default: R.</text>
+    </string>
     <string id="ui_mcm_stalker_camp_builder_snap_radius">
         <text>Snap Radius (m)</text>
     </string>

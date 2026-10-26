@@ -145,6 +145,7 @@ function on_mcm_load()
             { id = "building_header", type = "desc", text = "ui_mcm_stalker_camp_builder_building_desc", clr = {255, 255, 255, 255} },
             { id = "snap_enabled", type = "check", val = 1, def = true },
             { id = "snap_key", type = "key_bind", val = 2, def = DIK_keys.DIK_G },
+            { id = "rotate_key", type = "key_bind", val = 2, def = DIK_keys.DIK_R },
             { id = "snap_radius", type = "track", val = 2, min = 0.5, max = 5.0, step = 0.1, def = 2.5 },
             { id = "furniture_grid", type = "track", val = 2, min = 0, max = 1.0, step = 0.05, def = 0.25 },
         }) },
