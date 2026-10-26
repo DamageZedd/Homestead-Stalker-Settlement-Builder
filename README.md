@@ -130,7 +130,7 @@ Full 5-tab tactical interface accessible from anywhere in the Zone. The top stat
 Build real houses, Fallout 4 style. The new HomesteadHF building pieces and the Hideout Furniture walls snap to each other on one grid, and furniture snaps onto floors and flush against walls.
 
 - **Pieces** (crafted at a workbench): concrete foundation, plank floor, plank wall with window, gable wall, wooden stairs, and flat, sloped, outer-corner (hip), inner-corner (valley) and pyramid tin roofs. Walls, half walls and doorways come from *Even More Hideout Furnitures*.
-- **Grid**: one tile is 4.71 m (the width of a Hideout Furniture wall); one storey is a wall plus a floor. Stairs climb exactly one storey, and a sloped roof rises one storey over one tile.
+- **Grid**: one tile is 4.71 m (the width of a Hideout Furniture wall); one storey is a wall plus a floor. Stairs climb exactly one storey over 3.2 m (head at the tile edge, foot inset so a wall can stand in front of it), and a sloped roof rises one storey over one tile.
 - **Controls while placing**: aim at a placed piece and the preview snaps to it. **R** rotates 90° (to the next snap position when snapped), **G** turns snapping on or off. Both keys can be changed in MCM → Homestead → Building, along with the snap radius and the furniture grid.
 - **Placement hologram**: while placing any Hideout Furniture or Homestead item you see a translucent copy of the model, green where it fits and red where it is blocked. It can be turned off in MCM → Homestead → Building.
 
