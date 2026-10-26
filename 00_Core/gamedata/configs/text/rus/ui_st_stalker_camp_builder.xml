@@ -2423,6 +2423,21 @@
     <string id="ui_mcm_stalker_camp_builder_furniture_grid_desc">
         <text>Шаг для мебели на полах, фундаментах и стенах. 0 = свободно следовать за прицелом. По умолчанию: 0.25.</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_ground_fit">
+        <text>Выравнивать фундамент по земле</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_ground_fit_desc">
+        <text>Проверяет землю под фундаментом при установке и ставит его на самую высокую точку, так что юбка уходит в склон, а ставить можно без отключения коллизии. Не даёт ставить на слишком неровную землю. По умолчанию: вкл.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_lock_furniture">
+        <text>Закреплять расставленную мебель</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_lock_furniture_desc">
+        <text>Мебель и детали построек, поставленные через Hideout Furniture, закрепляются в мире: их нельзя сдвинуть, толкнуть или сместить. Действует на предметы, поставленные с этого момента; старые нужно поднять и поставить заново. По умолчанию: вкл.</text>
+    </string>
+    <string id="st_homestead_ground_uneven">
+        <text>Земля здесь слишком неровная для фундамента</text>
+    </string>
     <string id="st_homestead_snap_on">
         <text>Привязка: ВКЛ</text>
     </string>

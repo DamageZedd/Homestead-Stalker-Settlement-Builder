@@ -2420,6 +2420,21 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="ui_mcm_stalker_camp_builder_furniture_grid_desc">
         <text>Step for furniture placed on floors, foundations and walls. 0 = follow the crosshair freely. Default: 0.25.</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_ground_fit">
+        <text>Level Foundations to the Ground</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_ground_fit_desc">
+        <text>Checks the ground under a foundation while you place it and sets it at the highest point, so its skirt sinks into slopes and it can be placed without turning collision off. Refuses ground that is too uneven for the skirt. Default: ON.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_lock_furniture">
+        <text>Lock Placed Furniture</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_lock_furniture_desc">
+        <text>Furniture and building pieces placed with Hideout Furniture are fixed in the world and cannot be pushed, bumped or drift. Applies to pieces placed from now on; pick up and re-place older ones to lock them. Default: ON.</text>
+    </string>
+    <string id="st_homestead_ground_uneven">
+        <text>Ground too uneven for a foundation here</text>
+    </string>
     <string id="st_homestead_snap_on">
         <text>Snap: ON</text>
     </string>

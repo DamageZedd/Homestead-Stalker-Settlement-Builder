@@ -1,0 +1,103 @@
+-- homestead_lock.script
+-- Placed Hideout Furniture should stay exactly where it was placed. HF spawns every piece as a
+-- dynamic physics body and only freezes it a moment later; a frozen body wakes up again when the
+-- player bumps into it, so pieces drift, tilt and creep over time. This fixes the piece's root
+-- bone to the world at spawn (the engine's `fixed_bones`, which the Homestead building pieces and
+-- the 385 doors already use), so it is static from the first frame and cannot be pushed.
+--
+-- Only pieces placed after this is installed are locked; the setting is stored in the piece's
+-- server data, so it survives saving and loading. Pieces whose section already lists
+-- fixed_bones, and models whose root bone can't be read safely, are left as they are.
+
+local MCM = "stalker_camp_builder/building/"
+
+local enabled = true
+local root_cache = {}          -- visual -> root bone name, or false
+
+local function mcm_get(key, def)
+    if not (ui_mcm and ui_mcm.get) then return def end
+    local v = ui_mcm.get(MCM .. key)
+    if v == nil then return def end
+    return v
+end
+
+local function load_settings()
+    enabled = mcm_get("lock_furniture", true)
+end
+
+-- Name of the bone without a parent, read from the model's bone list (OGF chunk 13).
+local function read_root_bone(visual)
+    local fs = getFS()
+    local rd = fs:r_open("$game_meshes$", visual)
+    if not rd then return false end
+
+    local root = false
+    while rd:r_elapsed() >= 8 do
+        local id = rd:r_u32()
+        local size = rd:r_u32()
+        if id == 13 then                       -- OGF_S_BONE_NAMES, stored uncompressed
+            local count = rd:r_u32()
+            for _ = 1, count do
+                local name = rd:r_stringZ()
+                local parent = rd:r_stringZ()
+                rd:r_advance(60)               -- the bone's 15 obb floats
+                if parent == "" and not root then root = name end
+            end
+            break
+        end
+        rd:r_advance(size)
+    end
+    fs:r_close(rd)
+    return root
+end
+
+local function root_bone(visual)
+    local cached = root_cache[visual]
+    if cached ~= nil then return cached end
+    local ok, name = pcall(read_root_bone, visual)
+    if not ok or not name or name == "" or string.find(name, "^%s") or string.find(name, "%s$")
+        or string.find(name, ",", 1, true) then
+        name = false
+    end
+    root_cache[visual] = name
+    return name
+end
+
+local function on_furniture_spawn(obj_id)
+    if not enabled then return end
+    local se = alife_object(obj_id)
+    if not se then return end
+
+    local section = se:section_name()
+    local fixed = ini_sys:r_string_ex(section, "fixed_bones")
+    if fixed and fixed ~= "" then return end
+
+    local visual = ini_sys:r_string_ex(section, "visual")
+    if not visual or visual == "" then return end
+    local bone = root_bone(visual)
+    if not bone then return end
+
+    local data = utils_stpk.get_physic_data(se)
+    if not data or data.fixed_bones == nil or data.fixed_bones ~= "" then return end
+    data.fixed_bones = bone
+    utils_stpk.set_physic_data(data, se)
+end
+
+local function safe_on_furniture_spawn(obj_id)
+    local ok, err = pcall(on_furniture_spawn, obj_id)
+    if not ok then
+        printf("homestead_lock: %s", tostring(err))
+    end
+end
+
+local function hf_present()
+    local fs = getFS()
+    return fs:exist("$game_scripts$", "placeable_furniture.script")
+end
+
+function on_game_start()
+    if not hf_present() then return end
+    load_settings()
+    RegisterScriptCallback("on_option_change", load_settings)
+    RegisterScriptCallback("hf_on_furniture_spawn", safe_on_furniture_spawn)
+end

@@ -47,7 +47,7 @@ local SIDES = { {1, 0}, {-1, 0}, {0, 1}, {0, -1} }
 -- top surface above the pivot, per target class
 local TOP = { foundation = FOUND_TOP, floor = SLAB, stairs = STOREY }
 
-local settings = { enabled = true, key = DIK_keys.DIK_G, rotate_key = DIK_keys.DIK_R, radius = 2.5, grid = 0.25 }
+local settings = { enabled = true, key = DIK_keys.DIK_G, rotate_key = DIK_keys.DIK_R, radius = 2.5, grid = 0.25, fit = true }
 
 -- placement state; cleared whenever HF goes back to IDLE
 local snap = {}
@@ -72,6 +72,7 @@ local function load_settings()
     settings.rotate_key = mcm_get("rotate_key", DIK_keys.DIK_R)
     settings.radius  = mcm_get("snap_radius", 2.5)
     settings.grid    = mcm_get("furniture_grid", 0.25)
+    settings.fit     = mcm_get("ground_fit", true)
     snap_on = settings.enabled
 end
 
@@ -435,6 +436,43 @@ local function snapping()
 end
 
 ---------------------
+-- Foundation ground fit
+---------------------
+-- A foundation is meant to sink into the ground (its 1 m skirt hides uneven terrain), but HF's
+-- collision check treats any terrain poking into the preview box as a collision, so on a slope
+-- the first foundation could not be placed. Probe the ground under the footprint and put the
+-- pivot at its highest point: the box then clears the terrain, the skirt buries the low side.
+local FIT_STEPS  = 4      -- (FIT_STEPS + 1)^2 ground probes
+local FIT_SKIRT  = 0.9    -- the ground may fall this far below the pivot before the skirt stops covering it
+local FIT_REACH  = 1.5    -- probes start this far above the aimed point; the fit never moves further than this
+local fit_ray = nil
+
+local function ground_height(x, y, z)
+    fit_ray = fit_ray or demonized_geometry_ray.geometry_ray({
+        ray_range = FIT_REACH * 2 + 6, contact_range = FIT_REACH * 2 + 6, flags = 2, ignore_object = db.actor })
+    local res = fit_ray:get(vector():set(x, y + FIT_REACH, z), vector():set(0, -1, 0))
+    if res and res.success then return res.position.y end
+end
+
+-- fitted pivot height and whether the ground is too uneven for the skirt, or nil without ground
+local function fit_foundation(pos, yaw)
+    local hi, lo
+    local half = TILE / 2 - 0.05
+    for i = 0, FIT_STEPS do
+        for j = 0, FIT_STEPS do
+            local wx, wz = rot_y(-half + 2 * half * i / FIT_STEPS, -half + 2 * half * j / FIT_STEPS, yaw)
+            local gy = ground_height(pos.x + wx, pos.y, pos.z + wz)
+            if gy then
+                hi = hi and math.max(hi, gy) or gy
+                lo = lo and math.min(lo, gy) or gy
+            end
+        end
+    end
+    if not hi then return nil end
+    return clamp(hi, pos.y - FIT_REACH, pos.y + FIT_REACH), (hi - lo) > FIT_SKIRT, hi - lo
+end
+
+---------------------
 -- HF hooks
 ---------------------
 local function install_hooks()
@@ -475,6 +513,8 @@ local function install_hooks()
 
     function bbox_class:SetWorldOrigin(new_pos)
         snap.active = false
+        snap.fit_pos = nil
+        snap.uneven = nil
         if snapping() then
             local res = solve(self)
             if res then
@@ -489,6 +529,17 @@ local function install_hooks()
         if yaw_offset ~= 0 and snap.section and self.rotation then
             self.rotation = self.rotation:multiply(aol_rotation.get_rotation_around(vector():set(0, 1, 0), yaw_offset))
         end
+        if settings.fit and snap.info and snap.info.class == "foundation"
+            and placeable_furniture.is_state(states.HOLDING) then
+            local yaw = self.rotation and self.rotation:to_euler_angles().y or 0
+            local y, uneven, relief = fit_foundation(new_pos, yaw)
+            if y then
+                snap.fit_pos = vector():set(new_pos.x, y, new_pos.z)
+                snap.uneven = uneven
+                snap.relief = relief
+                return base_set_origin(self, snap.fit_pos)
+            end
+        end
         return base_set_origin(self, new_pos)
     end
 
@@ -497,7 +548,18 @@ local function install_hooks()
             self.is_colliding = false
             return false
         end
-        return base_check(self)
+        local colliding = base_check(self)
+        if snap.fit_pos and snap.uneven then
+            -- more relief than the skirt covers: the foundation would hang in the air on one side
+            local now = time_global()
+            if not snap.uneven_msg or now - snap.uneven_msg > 2500 then
+                snap.uneven_msg = now
+                actor_menu.set_msg(1, game.translate_string("st_homestead_ground_uneven"), 2)
+            end
+            self.is_colliding = true
+            return true
+        end
+        return colliding
     end
 
     local hf_create_object = placeable_furniture.create_object
@@ -505,6 +567,8 @@ local function install_hooks()
         if snap.active and section == snap.section and placeable_furniture.in_placing_state() then
             location = vector():set(snap.pos)
             rotation = snap.rot
+        elseif snap.fit_pos and section == snap.section and placeable_furniture.in_placing_state() then
+            location = vector():set(snap.fit_pos)
         end
         return hf_create_object(section, location, rotation, lvid, gvid)
     end
