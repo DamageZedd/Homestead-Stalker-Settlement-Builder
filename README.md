@@ -37,6 +37,8 @@ Put goods into a **Market Stall** and a settler **Trader** sells them for RU. Pr
 ### 💧 Water Purifier 🆕
 A gravity-fed **water purifier** on a concrete pad: an intake pipe comes up out of the ground into a blue steel settling drum, a grey carbon canister and two filter cartridges, and clean water runs out of a valve spout into the vanilla bucket. Ground water is irradiated, so it needs cleaning. It counts as a settlement water pump, so with charcoal or paper filters in camp storage your settlers fill clean flasks of water every few hours. It is built from vanilla G.A.M.M.A. parts and textures (the valve wheel, the bucket, and metal, concrete and rust textures). Craft it at a workbench; it weighs 10 kg in your inventory.
 
+<p align="center"><img src="docs/images/hero_water_purifier.jpg" alt="Water Purifier" width="70%"><br><b>WATER PURIFIER</b> 🆕</p>
+
 ### 🪑 Reworked furniture, collision & icons
 All eight HomesteadHF workstations now use a single baked texture atlas each. They have **real collision** (no more walking through them), **hold-Use pickup**, and placement outlines that fit the furniture. New inventory icons for every piece match the Hideout Furniture style.
 
@@ -132,6 +134,30 @@ Build real houses, Fallout 4 style. The new HomesteadHF building pieces and the 
 - **Pieces** (crafted at a workbench): concrete foundation, plank floor, plank wall with window, gable wall, wooden stairs, and flat, sloped, outer-corner (hip), inner-corner (valley) and pyramid tin roofs. Walls, half walls and doorways come from *Even More Hideout Furnitures*.
 - **Grid**: one tile is 4.71 m (the width of a Hideout Furniture wall); one storey is a wall plus a floor. Stairs climb exactly one storey over 3.2 m (head at the tile edge, foot inset so a wall can stand in front of it), and a sloped roof rises one storey over one tile.
 - **Controls while placing**: aim at a placed piece and the preview snaps to it. **R** rotates 90° (to the next snap position when snapped), **G** turns snapping on or off. Both keys can be changed in MCM → Homestead → Building, along with the snap radius and the furniture grid.
+
+<table>
+<tr>
+<td width="50%" align="center"><img src="docs/images/hero_foundation.jpg" alt="Concrete Foundation"><br><b>CONCRETE FOUNDATION</b><br><sub>sinks into slopes; levels itself to the ground</sub></td>
+<td width="50%" align="center"><img src="docs/images/hero_floor.jpg" alt="Plank Floor"><br><b>PLANK FLOOR</b><br><sub>on a foundation or on top of walls</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/hero_wall_window.jpg" alt="Plank Wall with Window"><br><b>PLANK WALL WITH WINDOW</b><br><sub>matches the Hideout Furniture wall</sub></td>
+<td align="center"><img src="docs/images/hero_wall_gable.jpg" alt="Gable Wall"><br><b>GABLE WALL</b><br><sub>closes the open end under a sloped roof</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/hero_stairs.jpg" alt="Wooden Stairs"><br><b>WOODEN STAIRS</b><br><sub>one storey in 3.2 m</sub></td>
+<td align="center"><img src="docs/images/hero_roof_flat.jpg" alt="Flat Tin Roof"><br><b>FLAT TIN ROOF</b></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/hero_roof_slope.jpg" alt="Sloped Tin Roof"><br><b>SLOPED TIN ROOF</b><br><sub>30°, one storey over one tile</sub></td>
+<td align="center"><img src="docs/images/hero_roof_hip.jpg" alt="Hip Roof"><br><b>HIP ROOF (OUTER CORNER)</b></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/hero_roof_valley.jpg" alt="Valley Roof"><br><b>VALLEY ROOF (INNER CORNER)</b></td>
+<td align="center"><img src="docs/images/hero_roof_pyramid.jpg" alt="Pyramid Roof"><br><b>PYRAMID ROOF</b></td>
+</tr>
+</table>
+
 - **Placement hologram**: while placing any Hideout Furniture or Homestead item you see a translucent copy of the model, green where it fits and red where it is blocked. It can be turned off in MCM → Homestead → Building.
 
 ## 🧑‍🤝‍🧑 Survivors & Recruitment
