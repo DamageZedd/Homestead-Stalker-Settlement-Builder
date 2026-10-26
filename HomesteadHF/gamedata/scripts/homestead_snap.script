@@ -97,7 +97,7 @@ local function get_info(section)
         end
         if cls == "wall" then
             info = { class = "wall", w = TILE, t = WALL_T }
-        elseif cls == "foundation" or cls == "floor" or cls == "stairs" or cls == "roof_flat"
+        elseif cls == "foundation" or cls == "floor" or cls == "stairs" or cls == "wall_gable" or cls == "roof_flat"
             or cls == "roof_slope" or cls == "roof_hip" or cls == "roof_valley" or cls == "roof_pyramid" then
             info = { class = cls }
         else
@@ -188,6 +188,7 @@ local ACCEPTS = {
     roof_hip   = { wall = true, roof_slope = true, roof_hip = true },
     roof_valley  = { wall = true, roof_slope = true },
     roof_pyramid = { wall = true },
+    wall_gable   = { wall = true },
     wall       = { foundation = true, floor = true, wall = true },
     stairs     = { floor = true, foundation = true },
     furniture  = { floor = true, foundation = true, stairs = true, wall = true },
@@ -339,6 +340,11 @@ local function sockets(held, tinfo)
         local reach = tinfo.w / 2 + held.w / 2
         add(reach, 0, 0, 0, tinfo.w / 2, WALL_H / 2, 0)
         add(-reach, 0, 0, 0, -tinfo.w / 2, WALL_H / 2, 0)
+
+    elseif hc == "wall_gable" and tc == "wall" then
+        -- base on the wall top, centred, high end towards either end (the rotate key flips it)
+        add(0, WALL_H, 0, 0, 0, WALL_H, 0)
+        add(0, WALL_H, 0, math.pi, 0, WALL_H, 0)
 
     elseif hc == "stairs" and (tc == "floor" or tc == "foundation") then
         add(0, TOP[tc], 0, 0, 0, TOP[tc], 0, true)
