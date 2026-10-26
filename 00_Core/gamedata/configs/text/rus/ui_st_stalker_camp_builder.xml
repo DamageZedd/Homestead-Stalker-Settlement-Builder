@@ -2387,6 +2387,12 @@
     <string id="ui_mcm_stalker_camp_builder_building_desc">
         <text>Привязка строительных элементов Homestead и мебели при размещении через Hideout Furniture.</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_hologram">
+        <text>Голограмма размещения</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_hologram_desc">
+        <text>Показывать полупрозрачную копию модели при установке мебели Hideout Furniture и предметов Homestead: зелёную, если можно поставить, и красную, если место занято. По умолчанию: вкл.</text>
+    </string>
     <string id="ui_mcm_stalker_camp_builder_snap_enabled">
         <text>Привязка к сетке</text>
     </string>

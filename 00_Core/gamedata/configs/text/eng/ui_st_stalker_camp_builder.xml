@@ -2384,6 +2384,12 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="ui_mcm_stalker_camp_builder_building_desc">
         <text>Snapping for Homestead building pieces and furniture while placing with Hideout Furniture.</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_hologram">
+        <text>Placement Hologram</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_hologram_desc">
+        <text>Show a translucent copy of the model while placing any Hideout Furniture or Homestead item: green where it can be placed, red where it is blocked. Default: ON.</text>
+    </string>
     <string id="ui_mcm_stalker_camp_builder_snap_enabled">
         <text>Snap to Grid</text>
     </string>

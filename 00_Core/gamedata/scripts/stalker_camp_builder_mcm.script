@@ -143,6 +143,7 @@ function on_mcm_load()
         { id = "building", sh = true, text = "ui_mcm_stalker_camp_builder_building", gr = prepare_group({
             { id = "title", type = "slide", link = "ui_options_slider_player", text = "ui_mcm_stalker_camp_builder_title", size = {512, 50}, spacing = 20 },
             { id = "building_header", type = "desc", text = "ui_mcm_stalker_camp_builder_building_desc", clr = {255, 255, 255, 255} },
+            { id = "hologram", type = "check", val = 1, def = true },
             { id = "snap_enabled", type = "check", val = 1, def = true },
             { id = "snap_key", type = "key_bind", val = 2, def = DIK_keys.DIK_G },
             { id = "rotate_key", type = "key_bind", val = 2, def = DIK_keys.DIK_R },

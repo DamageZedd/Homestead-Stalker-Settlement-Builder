@@ -13,6 +13,14 @@
 - **Furniture snaps too**: onto the top of floors, foundations and stairs (turned in 90° steps, on an optional grid) and flush against walls, standing on the floor.
 - **Keys**: **R** rotates the held piece 90° (to the next snap position when snapped), **G** turns snapping on or off. Both are rebindable in the new MCM *Building* group, with *Snap Radius* and *Furniture Grid*. Snapped pieces skip Hideout Furniture's collision check, since flush pieces always touch.
 
+### 👻 Placement Hologram:
+- **A translucent copy of the real model while placing any Hideout Furniture or Homestead item** (`homestead_hologram.script`), green where it can be placed and red where it is blocked. Hideout Furniture alone only draws a wireframe box. It uses the engine's world script attachments (`level.add_attachment`), reads the preview's final position and rotation each frame (after snapping), and leaves the wireframe alone if the engine or the model can't do it. Toggle: MCM *Building* → *Placement Hologram*.
+- New shader `homestead\hologram` (`shaders\r3\homestead_hologram.s`, alpha-blended, same programs as the engine's glass) and two tint textures (`textures\homestead\homestead_holo_ok/bad.dds`).
+
+### 🛠 Building kit fixes:
+- **Missing textures**: the foundation, roof tops and the metal fittings on the roofs and window wall were exported with the `default` engine shader instead of `models\model`, so they drew without their texture. All pieces now use `models\model`.
+- **Roof collision**: the hip and pyramid roofs only had collision for part of each face (about a fifth of the surface was missing, mostly along the hips and near the peak). They now use full strips up to the peak plus a box along each hip line, and the gable wall's collision follows its whole slope. Checked against the meshes in Blender (no gap over 12 cm on any roof).
+
 ## v1.2.9 — Water Purifier
 
 ### 💧 Water Purifier (HomesteadHF):

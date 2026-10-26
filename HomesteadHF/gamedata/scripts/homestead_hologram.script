@@ -1,0 +1,166 @@
+-- homestead_hologram.script
+-- A translucent copy of the real model while placing anything with Hideout Furniture (Homestead
+-- pieces and every HF furniture mod). HF itself only draws a wireframe box; this adds the model
+-- as a world script attachment (the engine's level.add_attachment, as used by R1 Online), shows it
+-- at the preview's final position and rotation, and tints it green or red from bbox.is_colliding.
+--
+-- It never touches HF's placement logic, so it works with homestead_snap whichever loads first:
+-- the transform is read from the collider HF is already drawing, after snapping has changed it.
+-- If the engine has no script attachments, or anything below fails, the wireframe is left alone.
+
+local MCM         = "stalker_camp_builder/building/"
+local ATT_NAME    = "homestead_hologram"
+local SHADER      = "homestead\\hologram"
+local TEX_OK      = "homestead\\homestead_holo_ok"
+local TEX_BAD     = "homestead\\homestead_holo_bad"
+
+local enabled = true
+local held = nil              -- world section being placed
+local holo = nil              -- { section =, att =, tex = }
+local failed = {}             -- sections whose model could not be attached
+
+local function mcm_get(key, def)
+    if not (ui_mcm and ui_mcm.get) then return def end
+    local v = ui_mcm.get(MCM .. key)
+    if v == nil then return def end
+    return v
+end
+
+local function load_settings()
+    enabled = mcm_get("hologram", true)
+    if not enabled then
+        remove_hologram()
+    end
+end
+
+---------------------
+-- Attachment handling
+---------------------
+local function model_path(section)
+    local visual = ini_sys:r_string_ex(section, "visual")
+    if not visual or visual == "" then return nil end
+    return (string.gsub(visual, "%.ogf$", ""))
+end
+
+local function tint(tex)
+    if holo.tex == tex then return end
+    local shaders = holo.att:get_shaders()
+    if type(shaders) == "table" and not shaders.error then
+        for id in pairs(shaders) do
+            if type(id) == "number" then
+                holo.att:set_shader(id, SHADER, tex)
+            end
+        end
+    else
+        holo.att:set_shader(-1, SHADER, tex)
+    end
+    holo.tex = tex
+end
+
+function remove_hologram()
+    if not holo then return end
+    holo = nil
+    pcall(level.remove_attachment, ATT_NAME)
+end
+
+local function ensure_hologram(section)
+    if holo and holo.section == section then return true end
+    remove_hologram()
+    if failed[section] then return false end
+
+    local path = model_path(section)
+    local ok, att = false, nil
+    if path then
+        ok, att = pcall(level.add_attachment, ATT_NAME, path)
+    end
+    if not (ok and att) then
+        failed[section] = true
+        printf("homestead_hologram: no model attachment for %s", tostring(section))
+        pcall(level.remove_attachment, ATT_NAME)
+        return false
+    end
+    holo = { section = section, att = att, tex = nil }
+    return true
+end
+
+local function update(collider)
+    if not (enabled and held and collider and collider.world_origin) then return end
+    if not ensure_hologram(held) then return end
+
+    local o = collider.world_origin
+    local yaw, pitch, roll = 0, 0, 0
+    if collider.rotation then
+        local a = collider.rotation:to_euler_angles()
+        yaw, pitch, roll = a.y, a.x, a.z
+    end
+    holo.att:set_position(o.x, o.y, o.z)
+    holo.att:set_rotation(math.deg(yaw), math.deg(pitch), math.deg(roll))
+    tint(collider.is_colliding and TEX_BAD or TEX_OK)
+end
+
+local function safe_update(collider)
+    local ok, err = pcall(update, collider)
+    if not ok then
+        printf("homestead_hologram: %s", tostring(err))
+        if held then failed[held] = true end
+        remove_hologram()
+    end
+end
+
+---------------------
+-- HF hooks
+---------------------
+local function install_hooks()
+    local hf_start_placing_item = placeable_furniture.start_placing_item
+    function placeable_furniture.start_placing_item(section)
+        local was_idle = placeable_furniture.is_state(placeable_furniture.states.IDLE)
+        hf_start_placing_item(section)
+        if was_idle and placeable_furniture.in_placing_state() then
+            held = section
+        end
+    end
+
+    local renderer = hf_bshape.bshape_renderer
+    local base_draw = renderer.DrawBShapeCollider
+    local base_stop = renderer.Stop
+
+    -- runs every frame after HF (and the snap hooks) have set the preview's final transform
+    function renderer:DrawBShapeCollider(collider)
+        base_draw(self, collider)
+        safe_update(collider)
+    end
+
+    function renderer:Stop()
+        base_stop(self)
+        held = nil
+        remove_hologram()
+    end
+end
+
+-- placement can end without the renderer being stopped (e.g. a save is loaded)
+local function on_update()
+    if holo and not (placeable_furniture and placeable_furniture.in_placing_state()) then
+        held = nil
+        remove_hologram()
+    end
+end
+
+local function hf_present()
+    local fs = getFS()
+    return fs:exist("$game_scripts$", "placeable_furniture.script")
+        and fs:exist("$game_scripts$", "hf_bshape.script")
+        and fs:exist("$game_scripts$", "aol_bshape.script")
+end
+
+function on_game_start()
+    if not hf_present() then return end
+    if not (level and level.add_attachment and level.remove_attachment) then return end
+    if not (placeable_furniture and placeable_furniture.start_placing_item and hf_bshape and hf_bshape.bshape_renderer) then
+        return
+    end
+    load_settings()
+    install_hooks()
+    RegisterScriptCallback("on_option_change", load_settings)
+    RegisterScriptCallback("actor_on_update", on_update)
+    RegisterScriptCallback("actor_on_net_destroy", remove_hologram)
+end
