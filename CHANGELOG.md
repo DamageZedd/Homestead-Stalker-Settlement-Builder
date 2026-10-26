@@ -1,11 +1,11 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
-## v1.2.9 — Hand-Cranked Water Pump
+## v1.2.9 — Water Purifier
 
-### 💧 Hand-Cranked Water Pump (HomesteadHF):
-- **New placeable: Hand-Cranked Water Pump** (`placeable_water_pump`, item `homestead_water_pump`, recipe `x_homestead_water_pump`): a cast-iron hand pump on a concrete pad with a galvanized bucket of water under the spout. It weighs **10 kg** in the inventory (3x3 slot) and is crafted at a workbench from scrap, fasteners, copper and rope.
-- **Built from vanilla G.A.M.M.A. assets**: the red valve hand-wheel (`workshop_room\ventil_01`, texture `mtl_ventil_pod_01`), the bucket (`workshop_room\vedro_01`, texture `prop_spade`) and the vanilla water texture `water_pool1`. The body uses one atlas (`homestead_hf\atlas_water_pump`, DXT1 with mipmaps) made only from vanilla textures (`mtl_sarcofag_t`, `mtl_rja_01`, `mtl_girder_reil`, `ston_beton_pod_03`, `wood_board_01`, `mtl_truba_ch_01`, `wood_collect`). Single `link` root bone, box collision.
-- **Wired into the settlement**: `placeable_water_pump` is mapped to the `water_pump` structure type, so it counts as a settlement water pump (the 6-hour flask production with charcoal or paper filters, camp stats, the PDA pump count and the Brewer's still check all see it). English and Russian names and descriptions, inventory icon on the workstation icon atlas, and a README entry.
+### 💧 Water Purifier (HomesteadHF):
+- **New placeable: Water Purifier** (`placeable_water_purifier`, item `homestead_water_purifier`, recipe `x_homestead_water_purifier`): a gravity-fed purifier on a concrete pad. An intake pipe rises out of the ground (through a bolted collar and a gate valve) into a blue steel settling drum with a funnel hopper, then through a grey carbon canister and two side filter cartridges, with a pressure gauge, a valve wheel and a spout over a bucket of water. Ground water carries radiation, so a purifier makes more sense than a hand pump. It weighs **10 kg** in the inventory (3x3 slot) and is crafted at a workbench from scrap, fasteners, copper and rope.
+- **Model**: about 14,000 triangles on a single atlas material, smooth shaded, with a single `link` root bone and box collision. The valve wheel, bucket and water are vanilla G.A.M.M.A. parts (`workshop_room\\ventil_01`, `workshop_room\\vedro_01`, textures `mtl_ventil_pod_01`, `prop_spade`, `water_pool1`). The body uses one atlas (`homestead_hf\\atlas_water_purifier`, DXT1 with mipmaps) made only from vanilla textures.
+- **Wired into the settlement**: `placeable_water_purifier` is mapped to the `water_pump` structure type, so it counts as a settlement water pump (the 6-hour flask production with charcoal or paper filters, camp stats, the PDA pump count and the Brewer's still check all see it). English and Russian names and descriptions, inventory icon on the workstation icon atlas, and a README entry.
 
 ## v1.2.8 — Farmer Job & Farmer Station, Trader Job & Market Stall, One Texture Atlas per Workstation
 
