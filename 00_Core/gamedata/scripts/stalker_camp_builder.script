@@ -207,6 +207,14 @@ function homestead_guard_log(tag, key, err)
     guard_log_last[key] = now
     printf("[Homestead %s] %s: %s", tag, key, tostring(err))
 end
+
+-- pcall that reports a failure through homestead_guard_log (once per 30s per tag) instead of dropping it
+local function guarded_call(tag, fn, ...)
+    local ok, err = pcall(fn, ...)
+    if not ok then homestead_guard_log("guard", tag, err) end
+    return ok, err
+end
+stalker_camp_builder.guarded_call = guarded_call
 -- Task Manager Crash Guard: prevents fatal [C] __index crashes
 -- during task_manager:update() when tasks evaluate inventory items or hold dangling CGameTask handles
 function patch_task_manager_guard()
@@ -1870,7 +1878,7 @@ local tg_expedition_tick = 0
 local function run_expedition_tick(tg)
     if tg >= tg_expedition_tick then
         tg_expedition_tick = tg + 1000
-        pcall(stalker_camp_builder.process_stash_expeditions)
+        guarded_call("process_stash_expeditions", stalker_camp_builder.process_stash_expeditions)
     end
 end
 
@@ -2050,7 +2058,7 @@ local function run_periodic_actor_tasks(in_teardown_grace, first, last)
         local task = PERIODIC_ACTOR_TASKS[i]
         if not (task.skip_during_grace and in_teardown_grace) then
             local fn = stalker_camp_builder[task.name]
-            if fn then pcall(fn) end
+            if fn then guarded_call(task.name, fn) end
         end
     end
 end
@@ -2064,7 +2072,7 @@ local function process_surge_reaction()
     local was = stalker_camp_builder.rival_storm_active
     stalker_camp_builder.rival_storm_active = storm
     if storm and was == false and stalker_camp_builder.process_rival_camp_surge then
-        pcall(stalker_camp_builder.process_rival_camp_surge, true)
+        guarded_call("process_rival_camp_surge", stalker_camp_builder.process_rival_camp_surge, true)
     end
 end
 
@@ -2114,7 +2122,7 @@ local function process_all_settler_eating(in_teardown_grace)
     if in_teardown_grace then return end
     if not stalker_camp_builder.process_settler_eating then return end
     for hub_id, camp in pairs(stalker_camp_builder.active_camps) do
-        pcall(stalker_camp_builder.process_settler_eating, hub_id, camp)
+        guarded_call("process_settler_eating", stalker_camp_builder.process_settler_eating, hub_id, camp)
     end
 end
 
@@ -2165,10 +2173,10 @@ function actor_on_update()
     elseif slot == 9 then
         process_surge_reaction()
         process_hospitality_buff(actor)
-        pcall(stalker_camp_builder.tick_hospitality_buff, actor)
+        guarded_call("tick_hospitality_buff", stalker_camp_builder.tick_hospitality_buff, actor)
         run_periodic_actor_tasks(in_teardown_grace, 8, 8)   -- trade routes
     else
-        if sync_all_camp_map_spots then pcall(sync_all_camp_map_spots) end
+        if sync_all_camp_map_spots then guarded_call("sync_all_camp_map_spots", sync_all_camp_map_spots) end
     end
 
     -- Profiling (debug_logging only): flag any slot that eats more than a frame's worth of budget.
@@ -4599,7 +4607,7 @@ function actor_on_first_update()
     local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
     if tf <= 0 then tf = 10 end
 
-    pcall(stalker_camp_builder.process_stash_expeditions)
+    guarded_call("process_stash_expeditions", stalker_camp_builder.process_stash_expeditions)
     rebase_all_survivor_jobs(cur_tg, cur_gsec, tf)
 
     clean_orphaned_camps(current_level)
@@ -4628,7 +4636,7 @@ function actor_on_first_update()
         pcall(snap_rival_camps_to_ground)
         pcall(restrain_rival_squads)
         pcall(populate_gamma_rival_chests_on_load)
-        pcall(sync_all_camp_map_spots)
+        guarded_call("sync_all_camp_map_spots", sync_all_camp_map_spots)
         return true
     end)
 
@@ -5047,7 +5055,7 @@ function check_camp_sleep_bonus()
                 news_manager.send_tip(actor, game.translate_string("st_camp_rest_bonus_msg"), nil, "general_stalker", 10000)
                 -- DANZY EDIT: sleeping at a happy settlement also grants the hospitality buff
                 if stalker_camp_builder.check_hospitality_on_sleep then
-                    pcall(stalker_camp_builder.check_hospitality_on_sleep, 6)
+                    guarded_call("check_hospitality_on_sleep", stalker_camp_builder.check_hospitality_on_sleep, 6)
                 end
             end
         end
@@ -5826,7 +5834,7 @@ function on_game_start()
     -- DANZY EDIT: eating cooked food at a happy settlement grants the hospitality buff
     safe_register_callback("actor_on_item_use", function(obj)
         if stalker_camp_builder.check_hospitality_on_item_use then
-            pcall(stalker_camp_builder.check_hospitality_on_item_use, obj)
+            guarded_call("check_hospitality_on_item_use", stalker_camp_builder.check_hospitality_on_item_use, obj)
         end
     end)
     if RegisterScriptCallback then

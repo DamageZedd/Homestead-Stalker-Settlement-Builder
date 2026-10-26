@@ -3612,7 +3612,7 @@ function stalker_camp_builder.update_camp_jobs()
                                     local craft_box = sb.find_best_container(hub_id, camp, {"workbench"}, camp_box_id) or camp_box_id or (is_valid_box(hub_id) and hub_id)
                                     did_work = sb.process_ammo_crafting(npc_id, craft_box, camp, survivor, camp_box_id)
                                     if sb.process_turret_maintenance then
-                                        pcall(sb.process_turret_maintenance, npc_id, craft_box, camp, camp_box_id)
+                                        sb.guarded_call("process_turret_maintenance", sb.process_turret_maintenance, npc_id, craft_box, camp, camp_box_id)
                                     end
                                 elseif job == "repair" then
                                     local repair_box = sb.find_best_container(hub_id, camp, {"repair_bench", "workbench"}, camp_box_id) or camp_box_id or (is_valid_box(hub_id) and hub_id)
@@ -3631,7 +3631,7 @@ function stalker_camp_builder.update_camp_jobs()
                                 elseif job == "guard" then
                                     did_work = true
                                     if sb.process_turret_maintenance then
-                                        pcall(sb.process_turret_maintenance, npc_id, camp_box_id, camp, camp_box_id)
+                                        sb.guarded_call("process_turret_maintenance", sb.process_turret_maintenance, npc_id, camp_box_id, camp, camp_box_id)
                                     end
                                 elseif job == "woodcutter" then
                                     did_work = sb.process_woodcutter_job(npc_id, hub_id, camp, survivor, camp_box_id)
@@ -3702,7 +3702,7 @@ function stalker_camp_builder.update_camp_jobs()
             end
 
             if sb.process_turret_maintenance and camp and camp.structures and camp_box_id then
-                pcall(sb.process_turret_maintenance, nil, camp_box_id, camp, camp_box_id)
+                sb.guarded_call("process_turret_maintenance", sb.process_turret_maintenance, nil, camp_box_id, camp, camp_box_id)
             end
         end
         end
