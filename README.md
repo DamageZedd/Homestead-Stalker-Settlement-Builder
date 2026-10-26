@@ -126,6 +126,13 @@ Full 5-tab tactical interface accessible from anywhere in the Zone. The top stat
 - Placeable structures: beds, stoves, stashes, fridges, sandbags, metal barricades, wooden walls, water pumps, generators, alarm sirens, automated pistol turrets, display counters, decorative furniture, and the HomesteadHF workstations
 - Secondary workbenches can be placed inside existing settlements
 
+### 🧱 Building Kit & Snapping
+Build real houses, Fallout 4 style. The new HomesteadHF building pieces and the Hideout Furniture walls snap to each other on one grid, and furniture snaps onto floors and flush against walls.
+
+- **Pieces** (crafted at a workbench): concrete foundation, plank floor, plank wall with window, gable wall, wooden stairs, and flat, sloped, outer-corner (hip), inner-corner (valley) and pyramid tin roofs. Walls, half walls and doorways come from *Even More Hideout Furnitures*.
+- **Grid**: one tile is 4.71 m (the width of a Hideout Furniture wall); one storey is a wall plus a floor. Stairs climb exactly one storey, and a sloped roof rises one storey over one tile.
+- **Controls while placing**: aim at a placed piece and the preview snaps to it. **R** rotates 90° (to the next snap position when snapped), **G** turns snapping on or off. Both keys can be changed in MCM → Homestead → Building, along with the snap radius and the furniture grid.
+
 ## 🧑‍🤝‍🧑 Survivors & Recruitment
 
 - Recruit any friendly/neutral stalker via dialogue

@@ -1,0 +1,396 @@
+;--------------------------------------------------------------------------------------------------
+; HomesteadHF Building Kit: modular foundations, floors, walls, stairs and roofs
+; One building tile is 4.70895 m, the width of the Hideout Furniture walls, so those walls fit the grid.
+; homestead_snap tells homestead_snap.script which pieces this one snaps to.
+;--------------------------------------------------------------------------------------------------
+
+;--------------------------
+;--- Concrete Foundation (Бетонный фундамент)
+;--------------------------
+
+[homestead_foundation]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\building\hs_foundation.ogf
+description                             = st_homestead_foundation_descr
+inv_name                                = st_homestead_foundation
+inv_name_short                          = st_homestead_foundation
+inv_grid_x                              = 0
+inv_grid_y                              = 0
+inv_grid_height                         = 3
+inv_grid_width                          = 3
+icons_texture                           = ui\ui_icon_homestead_building
+cost                                    = 3500
+inv_weight                              = 15.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_hs_foundation
+
+[placeable_hs_foundation]:physic_object
+visual                                  = dynamics\HomesteadHF\building\hs_foundation.ogf
+inv_weight                              = 2000.0
+placeable_type                          = prop
+base_rotation                           = 0
+fixed_bones                             = link
+script_binding                          = bind_hf_base.init
+item_section                            = homestead_foundation
+homestead_snap                          = foundation
+
+; width, depth, height / origin x, y (up), z: the nominal piece, like the Hideout Furniture walls
+bounding_box_size                       = 4.708950, 4.708950, 0.300000
+bounding_box_origin                     = 0.000000, 0.250000, 0.000000
+
+;--------------------------
+;--- Plank Floor (Дощатый пол)
+;--------------------------
+
+[homestead_floor]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\building\hs_floor.ogf
+description                             = st_homestead_floor_descr
+inv_name                                = st_homestead_floor
+inv_name_short                          = st_homestead_floor
+inv_grid_x                              = 3
+inv_grid_y                              = 0
+inv_grid_height                         = 3
+inv_grid_width                          = 3
+icons_texture                           = ui\ui_icon_homestead_building
+cost                                    = 2400
+inv_weight                              = 6.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_hs_floor
+
+[placeable_hs_floor]:physic_object
+visual                                  = dynamics\HomesteadHF\building\hs_floor.ogf
+inv_weight                              = 350.0
+placeable_type                          = prop
+base_rotation                           = 0
+fixed_bones                             = link
+script_binding                          = bind_hf_base.init
+item_section                            = homestead_floor
+homestead_snap                          = floor
+
+; width, depth, height / origin x, y (up), z: the nominal piece, like the Hideout Furniture walls
+bounding_box_size                       = 4.708950, 4.708950, 0.100000
+bounding_box_origin                     = 0.000000, 0.050000, 0.000000
+
+;--------------------------
+;--- Plank Wall with Window (Дощатая стена с окном)
+;--------------------------
+
+[homestead_wall_window]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\building\hs_wall_window.ogf
+description                             = st_homestead_wall_window_descr
+inv_name                                = st_homestead_wall_window
+inv_name_short                          = st_homestead_wall_window
+inv_grid_x                              = 6
+inv_grid_y                              = 0
+inv_grid_height                         = 3
+inv_grid_width                          = 3
+icons_texture                           = ui\ui_icon_homestead_building
+cost                                    = 2600
+inv_weight                              = 5.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_hs_wall_window
+
+[placeable_hs_wall_window]:physic_object
+visual                                  = dynamics\HomesteadHF\building\hs_wall_window.ogf
+inv_weight                              = 180.0
+placeable_type                          = prop
+base_rotation                           = 0
+fixed_bones                             = link
+script_binding                          = bind_hf_base.init
+item_section                            = homestead_wall_window
+homestead_snap                          = wall
+
+; width, depth, height / origin x, y (up), z: the nominal piece, like the Hideout Furniture walls
+bounding_box_size                       = 4.708950, 0.114076, 2.586630
+bounding_box_origin                     = 0.000000, 1.293315, 0.000000
+
+;--------------------------
+;--- Plank Gable Wall (Дощатый фронтон)
+;--------------------------
+
+[homestead_wall_gable]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\building\hs_wall_gable.ogf
+description                             = st_homestead_wall_gable_descr
+inv_name                                = st_homestead_wall_gable
+inv_name_short                          = st_homestead_wall_gable
+inv_grid_x                              = 0
+inv_grid_y                              = 3
+inv_grid_height                         = 3
+inv_grid_width                          = 3
+icons_texture                           = ui\ui_icon_homestead_building
+cost                                    = 1300
+inv_weight                              = 3.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_hs_wall_gable
+
+[placeable_hs_wall_gable]:physic_object
+visual                                  = dynamics\HomesteadHF\building\hs_wall_gable.ogf
+inv_weight                              = 90.0
+placeable_type                          = prop
+base_rotation                           = 0
+fixed_bones                             = link
+script_binding                          = bind_hf_base.init
+item_section                            = homestead_wall_gable
+homestead_snap                          = wall_gable
+
+; width, depth, height / origin x, y (up), z: the nominal piece, like the Hideout Furniture walls
+bounding_box_size                       = 4.708950, 0.114076, 2.718739
+bounding_box_origin                     = 0.000000, 1.359369, 0.000000
+
+;--------------------------
+;--- Wooden Stairs (Деревянная лестница)
+;--------------------------
+
+[homestead_stairs]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\building\hs_stairs.ogf
+description                             = st_homestead_stairs_descr
+inv_name                                = st_homestead_stairs
+inv_name_short                          = st_homestead_stairs
+inv_grid_x                              = 3
+inv_grid_y                              = 3
+inv_grid_height                         = 3
+inv_grid_width                          = 3
+icons_texture                           = ui\ui_icon_homestead_building
+cost                                    = 2600
+inv_weight                              = 6.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_hs_stairs
+
+[placeable_hs_stairs]:physic_object
+visual                                  = dynamics\HomesteadHF\building\hs_stairs.ogf
+inv_weight                              = 220.0
+placeable_type                          = prop
+base_rotation                           = 0
+fixed_bones                             = link
+script_binding                          = bind_hf_base.init
+item_section                            = homestead_stairs
+homestead_snap                          = stairs
+
+; width, depth, height / origin x, y (up), z: the nominal piece, like the Hideout Furniture walls
+bounding_box_size                       = 1.510000, 4.708950, 2.686630
+bounding_box_origin                     = 0.000000, 1.343315, 0.000000
+
+;--------------------------
+;--- Flat Tin Roof (Плоская жестяная крыша)
+;--------------------------
+
+[homestead_roof_flat]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\building\hs_roof_flat.ogf
+description                             = st_homestead_roof_flat_descr
+inv_name                                = st_homestead_roof_flat
+inv_name_short                          = st_homestead_roof_flat
+inv_grid_x                              = 6
+inv_grid_y                              = 3
+inv_grid_height                         = 3
+inv_grid_width                          = 3
+icons_texture                           = ui\ui_icon_homestead_building
+cost                                    = 2600
+inv_weight                              = 6.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_hs_roof_flat
+
+[placeable_hs_roof_flat]:physic_object
+visual                                  = dynamics\HomesteadHF\building\hs_roof_flat.ogf
+inv_weight                              = 160.0
+placeable_type                          = prop
+base_rotation                           = 0
+fixed_bones                             = link
+script_binding                          = bind_hf_base.init
+item_section                            = homestead_roof_flat
+homestead_snap                          = roof
+
+; width, depth, height / origin x, y (up), z: the nominal piece, like the Hideout Furniture walls
+bounding_box_size                       = 4.708950, 4.708950, 0.180000
+bounding_box_origin                     = 0.000000, 0.090000, 0.000000
+
+;--------------------------
+;--- Sloped Tin Roof (Скатная жестяная крыша)
+;--------------------------
+
+[homestead_roof_slope]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\building\hs_roof_slope.ogf
+description                             = st_homestead_roof_slope_descr
+inv_name                                = st_homestead_roof_slope
+inv_name_short                          = st_homestead_roof_slope
+inv_grid_x                              = 0
+inv_grid_y                              = 6
+inv_grid_height                         = 3
+inv_grid_width                          = 3
+icons_texture                           = ui\ui_icon_homestead_building
+cost                                    = 2800
+inv_weight                              = 7.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_hs_roof_slope
+
+[placeable_hs_roof_slope]:physic_object
+visual                                  = dynamics\HomesteadHF\building\hs_roof_slope.ogf
+inv_weight                              = 200.0
+placeable_type                          = prop
+base_rotation                           = 0
+fixed_bones                             = link
+script_binding                          = bind_hf_base.init
+item_section                            = homestead_roof_slope
+homestead_snap                          = roof
+
+; width, depth, height / origin x, y (up), z: the nominal piece, like the Hideout Furniture walls
+bounding_box_size                       = 4.708950, 4.708950, 2.898739
+bounding_box_origin                     = 0.000000, 1.449369, 0.000000
+
+;--------------------------
+;--- Tin Roof Outer Corner (Внешний угол жестяной крыши)
+;--------------------------
+
+[homestead_roof_hip]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\building\hs_roof_hip.ogf
+description                             = st_homestead_roof_hip_descr
+inv_name                                = st_homestead_roof_hip
+inv_name_short                          = st_homestead_roof_hip
+inv_grid_x                              = 3
+inv_grid_y                              = 6
+inv_grid_height                         = 3
+inv_grid_width                          = 3
+icons_texture                           = ui\ui_icon_homestead_building
+cost                                    = 3000
+inv_weight                              = 7.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_hs_roof_hip
+
+[placeable_hs_roof_hip]:physic_object
+visual                                  = dynamics\HomesteadHF\building\hs_roof_hip.ogf
+inv_weight                              = 200.0
+placeable_type                          = prop
+base_rotation                           = 0
+fixed_bones                             = link
+script_binding                          = bind_hf_base.init
+item_section                            = homestead_roof_hip
+homestead_snap                          = roof_hip
+
+; width, depth, height / origin x, y (up), z: the nominal piece, like the Hideout Furniture walls
+bounding_box_size                       = 4.708950, 4.708950, 2.898739
+bounding_box_origin                     = 0.000000, 1.449369, 0.000000
+
+;--------------------------
+;--- Tin Roof Inner Corner (Внутренний угол жестяной крыши)
+;--------------------------
+
+[homestead_roof_valley]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\building\hs_roof_valley.ogf
+description                             = st_homestead_roof_valley_descr
+inv_name                                = st_homestead_roof_valley
+inv_name_short                          = st_homestead_roof_valley
+inv_grid_x                              = 6
+inv_grid_y                              = 6
+inv_grid_height                         = 3
+inv_grid_width                          = 3
+icons_texture                           = ui\ui_icon_homestead_building
+cost                                    = 3000
+inv_weight                              = 7.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_hs_roof_valley
+
+[placeable_hs_roof_valley]:physic_object
+visual                                  = dynamics\HomesteadHF\building\hs_roof_valley.ogf
+inv_weight                              = 200.0
+placeable_type                          = prop
+base_rotation                           = 0
+fixed_bones                             = link
+script_binding                          = bind_hf_base.init
+item_section                            = homestead_roof_valley
+homestead_snap                          = roof_valley
+
+; width, depth, height / origin x, y (up), z: the nominal piece, like the Hideout Furniture walls
+bounding_box_size                       = 4.708950, 4.708950, 2.898739
+bounding_box_origin                     = 0.000000, 1.449369, 0.000000
+
+;--------------------------
+;--- Pyramid Tin Roof (Шатровая жестяная крыша)
+;--------------------------
+
+[homestead_roof_pyramid]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\building\hs_roof_pyramid.ogf
+description                             = st_homestead_roof_pyramid_descr
+inv_name                                = st_homestead_roof_pyramid
+inv_name_short                          = st_homestead_roof_pyramid
+inv_grid_x                              = 0
+inv_grid_y                              = 9
+inv_grid_height                         = 3
+inv_grid_width                          = 3
+icons_texture                           = ui\ui_icon_homestead_building
+cost                                    = 3600
+inv_weight                              = 9.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_hs_roof_pyramid
+
+[placeable_hs_roof_pyramid]:physic_object
+visual                                  = dynamics\HomesteadHF\building\hs_roof_pyramid.ogf
+inv_weight                              = 260.0
+placeable_type                          = prop
+base_rotation                           = 0
+fixed_bones                             = link
+script_binding                          = bind_hf_base.init
+item_section                            = homestead_roof_pyramid
+homestead_snap                          = roof_pyramid
+
+; width, depth, height / origin x, y (up), z: the nominal piece, like the Hideout Furniture walls
+bounding_box_size                       = 4.708950, 4.708950, 1.539369
+bounding_box_origin                     = 0.000000, 0.769685, 0.000000
+

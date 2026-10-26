@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="windows-1251" ?>
+<string_table>
+	<string id="st_homestead_foundation">
+		<text>Concrete Foundation</text>
+	</string>
+	<string id="st_homestead_foundation_descr">
+		<text>A cast concrete slab one building tile across, edged with steel angle and anchor bolts. It stands 40 cm proud of the ground and its deep skirt hides uneven terrain. Walls, floors and stairs snap onto it, and further foundations snap alongside.</text>
+	</string>
+	<string id="st_homestead_floor">
+		<text>Plank Floor</text>
+	</string>
+	<string id="st_homestead_floor_descr">
+		<text>Floorboards nailed over joists, one building tile across. Snaps beside other floors and foundations, or on top of walls to start the next storey; the joists underneath make the ceiling below.</text>
+	</string>
+	<string id="st_homestead_wall_window">
+		<text>Plank Wall with Window</text>
+	</string>
+	<string id="st_homestead_wall_window_descr">
+		<text>A plank wall the same size as the Hideout Furniture walls, with a four-pane window and a pair of shutters. Snaps to floor and foundation edges, beside other walls and on top of them.</text>
+	</string>
+	<string id="st_homestead_wall_gable">
+		<text>Plank Gable Wall</text>
+	</string>
+	<string id="st_homestead_wall_gable_descr">
+		<text>A triangular plank wall that sits on top of a wall and closes the open end under a sloped, hip or valley roof. Press R while placing to flip which end is high.</text>
+	</string>
+	<string id="st_homestead_stairs">
+		<text>Wooden Stairs</text>
+	</string>
+	<string id="st_homestead_stairs_descr">
+		<text>A wooden stair run with handrails that climbs exactly one storey over one building tile. Snaps onto floors and foundations.</text>
+	</string>
+	<string id="st_homestead_roof_flat">
+		<text>Flat Tin Roof</text>
+	</string>
+	<string id="st_homestead_roof_flat_descr">
+		<text>Rusted corrugated sheets on timber rafters, one building tile across. Snaps on top of walls and beside other flat roofs.</text>
+	</string>
+	<string id="st_homestead_roof_slope">
+		<text>Sloped Tin Roof</text>
+	</string>
+	<string id="st_homestead_roof_slope_descr">
+		<text>A 30 degree corrugated tin roof that rises one storey across one building tile. Snaps along wall tops and beside other sloped roofs; close the open sides with gable walls.</text>
+	</string>
+	<string id="st_homestead_roof_hip">
+		<text>Tin Roof Outer Corner</text>
+	</string>
+	<string id="st_homestead_roof_hip_descr">
+		<text>A hip corner for the sloped tin roof: two slopes meeting on a diagonal ridge. Four of them over a 2x2 building make a pyramid roof.</text>
+	</string>
+	<string id="st_homestead_roof_valley">
+		<text>Tin Roof Inner Corner</text>
+	</string>
+	<string id="st_homestead_roof_valley_descr">
+		<text>A valley corner for the sloped tin roof, joining two slopes at an inside corner with a steel valley flashing.</text>
+	</string>
+	<string id="st_homestead_roof_pyramid">
+		<text>Pyramid Tin Roof</text>
+	</string>
+	<string id="st_homestead_roof_pyramid_descr">
+		<text>A four-sided tin roof cap for a one-tile building, with eaves all round and a steel finial at the peak. Snaps on top of the walls.</text>
+	</string>
+</string_table>

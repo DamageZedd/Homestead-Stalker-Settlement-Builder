@@ -1,5 +1,18 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## v1.3.0 — Building Kit & Snapping
+
+### 🧱 Building Kit (HomesteadHF):
+- **Ten new placeable building pieces** (`items_homestead_building.ltx`, recipes `x_homestead_<piece>`): concrete foundation, plank floor, plank wall with window, plank gable wall, wooden stairs, and flat, sloped (30°), outer-corner (hip), inner-corner (valley) and pyramid tin roofs. Walls, half walls, doorways and doors still come from *Even More Hideout Furnitures*; the kit is sized to them.
+- **One grid**: a tile is 4.70895 m (the Hideout Furniture wall width), a storey is a 2.58663 m wall plus a 0.1 m floor. Stairs rise exactly one storey over one tile and a sloped roof rises one storey over one tile, so a lean-to meets the walls of the floor above. Four outer corners over a 2×2 building make a pyramid roof; the gable wall closes the open ends under sloped, hip and valley roofs.
+- **Models**: 56 to 2,500 triangles each, rigged like the HomesteadHF workstations (`link` root bone, all meshes skinned, `objects\large_furniture`). Vanilla textures plus the *Even More Hideout Furnitures* wall planks; the window wall uses the same plank texture, scale and offset as the 385 wall so plank lines carry across. Stairs and roofs have tilted collision boxes so they can be walked on; hip, valley, pyramid and gable pieces use several boxes on rigid child bones.
+- **Inventory icons** on a new atlas (`ui\ui_icon_homestead_building.dds`, 512×1024), English and Russian names and descriptions (`st_homestead_building.xml`). The window wall counts as a barricade in the settlement scan, the other pieces as decor.
+
+### 🧲 Snapping:
+- **Fallout 4-style snapping for Hideout Furniture placement** (`homestead_snap.script`): aim at a placed piece and the preview snaps foundations beside foundations, walls onto floor and foundation edges and on top of walls, floors onto wall tops, stairs onto floors, roofs onto wall tops and beside each other. The Hideout Furniture walls snap the same way.
+- **Furniture snaps too**: onto the top of floors, foundations and stairs (turned in 90° steps, on an optional grid) and flush against walls, standing on the floor.
+- **Keys**: **R** rotates the held piece 90° (to the next snap position when snapped), **G** turns snapping on or off. Both are rebindable in the new MCM *Building* group, with *Snap Radius* and *Furniture Grid*. Snapped pieces skip Hideout Furniture's collision check, since flush pieces always touch.
+
 ## v1.2.9 — Water Purifier
 
 ### 💧 Water Purifier (HomesteadHF):

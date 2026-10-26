@@ -1278,6 +1278,17 @@ local structure_type_exact = {
     placeable_hunter_station    = "hunter_station",
     placeable_farmer_station    = "farmer_station",
     placeable_market_stall      = "market_stall",
+    -- HomesteadHF Building Kit: the window wall defends like the Hideout Furniture walls, the rest is structure
+    placeable_hs_wall_window    = "barricade",
+    placeable_hs_wall_gable     = "decor",
+    placeable_hs_foundation     = "decor",
+    placeable_hs_floor          = "decor",
+    placeable_hs_stairs         = "decor",
+    placeable_hs_roof_flat      = "decor",
+    placeable_hs_roof_slope     = "decor",
+    placeable_hs_roof_hip       = "decor",
+    placeable_hs_roof_valley    = "decor",
+    placeable_hs_roof_pyramid   = "decor",
 }
 
 local structure_type_substrings = {

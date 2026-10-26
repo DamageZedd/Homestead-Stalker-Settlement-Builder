@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="windows-1251" ?>
+<string_table>
+	<string id="st_homestead_foundation">
+		<text>Бетонный фундамент</text>
+	</string>
+	<string id="st_homestead_foundation_descr">
+		<text>Литая бетонная плита размером в одну строительную клетку, окантованная стальным уголком с анкерными болтами. Возвышается над землёй на 40 см, а глубокая юбка скрывает неровности грунта. К ней примыкают стены, полы и лестницы, а рядом пристыковываются другие фундаменты.</text>
+	</string>
+	<string id="st_homestead_floor">
+		<text>Дощатый пол</text>
+	</string>
+	<string id="st_homestead_floor_descr">
+		<text>Половые доски на лагах, размером в одну строительную клетку. Пристыковывается к другим полам и фундаментам или ложится на стены, начиная следующий этаж; лаги снизу служат потолком нижнего этажа.</text>
+	</string>
+	<string id="st_homestead_wall_window">
+		<text>Дощатая стена с окном</text>
+	</string>
+	<string id="st_homestead_wall_window_descr">
+		<text>Дощатая стена того же размера, что и стены Hideout Furniture, с четырёхстворчатым окном и парой ставней. Ставится на край пола или фундамента, рядом с другими стенами и поверх них.</text>
+	</string>
+	<string id="st_homestead_wall_gable">
+		<text>Дощатый фронтон</text>
+	</string>
+	<string id="st_homestead_wall_gable_descr">
+		<text>Треугольная дощатая стена, которая ставится поверх стены и закрывает открытый торец под скатной, вальмовой или ендовой крышей. Нажмите R при установке, чтобы сменить сторону подъёма.</text>
+	</string>
+	<string id="st_homestead_stairs">
+		<text>Деревянная лестница</text>
+	</string>
+	<string id="st_homestead_stairs_descr">
+		<text>Деревянный лестничный марш с перилами, поднимающийся ровно на один этаж в пределах одной строительной клетки. Ставится на полы и фундаменты.</text>
+	</string>
+	<string id="st_homestead_roof_flat">
+		<text>Плоская жестяная крыша</text>
+	</string>
+	<string id="st_homestead_roof_flat_descr">
+		<text>Ржавые листы профнастила на деревянных стропилах, размером в одну строительную клетку. Ставится поверх стен и рядом с другими плоскими крышами.</text>
+	</string>
+	<string id="st_homestead_roof_slope">
+		<text>Скатная жестяная крыша</text>
+	</string>
+	<string id="st_homestead_roof_slope_descr">
+		<text>Крыша из профнастила с уклоном 30 градусов, поднимающаяся на один этаж в пределах одной строительной клетки. Ставится вдоль верха стен и рядом с другими скатами; открытые торцы закрываются фронтонами.</text>
+	</string>
+	<string id="st_homestead_roof_hip">
+		<text>Внешний угол жестяной крыши</text>
+	</string>
+	<string id="st_homestead_roof_hip_descr">
+		<text>Вальмовый угол для скатной жестяной крыши: два ската сходятся на диагональном ребре. Четыре таких угла над зданием 2x2 образуют шатровую крышу.</text>
+	</string>
+	<string id="st_homestead_roof_valley">
+		<text>Внутренний угол жестяной крыши</text>
+	</string>
+	<string id="st_homestead_roof_valley_descr">
+		<text>Ендова для скатной жестяной крыши: соединяет два ската во внутреннем углу через стальной желоб.</text>
+	</string>
+	<string id="st_homestead_roof_pyramid">
+		<text>Шатровая жестяная крыша</text>
+	</string>
+	<string id="st_homestead_roof_pyramid_descr">
+		<text>Четырёхскатная жестяная крыша для здания в одну клетку, со свесами по всему периметру и стальным навершием. Ставится поверх стен.</text>
+	</string>
+</string_table>
