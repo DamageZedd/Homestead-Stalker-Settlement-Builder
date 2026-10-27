@@ -30,7 +30,11 @@ def fix_images(objs):
                     tex = tex.split("~")[0] if "~" in tex else tex
                     p = find_tex(tex) or (n.image and find_tex(os.path.splitext(n.image.name)[0]))
                     if p:
-                        n.image = bpy.data.images.load(p, check_existing=True)
+                        if n.image:
+                            n.image.filepath = p
+                            n.image.reload()
+                        else:
+                            n.image = bpy.data.images.load(p)
                     else:
                         missing.add(tex)
     return missing

@@ -18,14 +18,17 @@ def start(materials, seed=57280):
     global COL
     random.seed(seed)
     PARTS.clear()
-    for o in list(bpy.data.objects):
-        if o.name.startswith(NAME) or o.name.startswith("_preview") or o.name == "Cube":
-            bpy.data.objects.remove(o, do_unlink=True)
     for c in list(bpy.data.collections):
-        if c.name in (NAME, NAME + "_accents", "accent_candidates"):
-            for o in list(c.objects):
+        for o in list(c.objects):
+            if not o.name.startswith("_preview"):
                 bpy.data.objects.remove(o, do_unlink=True)
+        try:
             bpy.data.collections.remove(c)
+        except Exception:
+            pass
+    for o in list(bpy.data.objects):
+        if not o.name.startswith("_preview"):
+            bpy.data.objects.remove(o, do_unlink=True)
     COL = bpy.data.collections.new(NAME)
     bpy.context.scene.collection.children.link(COL)
     for key, (tex, sh) in materials.items():
@@ -204,7 +207,7 @@ def T(x, y, z, rx=0, ry=0, rz=0):
 
 
 
-def accent(rel, matrix, ratio=None):
+def accent(rel, matrix, ratio=None, scale=None, base_z=None):
     """Import a vanilla .ogf and place it: matrix is applied about the mesh's bottom centre."""
     new, missing = import_ogf(rel, NAME + "_accents")
     meshes = []
@@ -214,14 +217,19 @@ def accent(rel, matrix, ratio=None):
     corners = [o.matrix_world @ Vector(c) for o in meshes for c in o.bound_box]
     lo = Vector([min(c[i] for c in corners) for i in range(3)])
     hi = Vector([max(c[i] for c in corners) for i in range(3)])
-    base = Vector(((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, lo.z))
+    bz = base_z if base_z is not None else lo.z
+    base = Vector(((lo.x + hi.x) / 2, (lo.y + hi.y) / 2, bz))
     keep = []
     for o in meshes:
         for mod in list(o.modifiers):
             o.modifiers.remove(mod)
         mw = o.matrix_world.copy()
         o.parent = None
-        o.matrix_world = matrix @ Matrix.Translation(-base) @ mw
+        if scale:
+            s_mat = Matrix.Diagonal((scale, scale, scale, 1.0))
+            o.matrix_world = matrix @ s_mat @ Matrix.Translation(-base) @ mw
+        else:
+            o.matrix_world = matrix @ Matrix.Translation(-base) @ mw
         if ratio:
             mod = o.modifiers.new("dec", 'DECIMATE'); mod.ratio = ratio
             bpy.context.view_layer.objects.active = o
