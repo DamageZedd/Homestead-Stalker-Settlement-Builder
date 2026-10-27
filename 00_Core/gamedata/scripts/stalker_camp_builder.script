@@ -588,7 +588,9 @@ function is_settlement_storage(sec)
 end
 stalker_camp_builder.is_settlement_storage = is_settlement_storage
 
-function is_valid_camp_box(box_id, hub_id, camp)
+-- personal = true asks the opposite question for the PDA auto-sort: is this the player's own
+-- furniture box (not shipped with Homestead) inside the camp?
+function is_valid_camp_box(box_id, hub_id, camp, personal)
     local type_ = type
     local sim = alife()
     if not box_id or type_(box_id) ~= "number" or box_id <= 0 or box_id >= 65535 then
@@ -633,8 +635,19 @@ function is_valid_camp_box(box_id, hub_id, camp)
         end
     end
 
-    -- the camp's own fallback box (a plain inventory_box made at the hub) is storage too
-    if not is_settlement_storage(se_box:section_name()) and not (camp and camp.camp_stash_id == box_id) then
+    local is_camp_storage = is_settlement_storage(se_box:section_name()) or (camp and camp.camp_stash_id == box_id)
+    if personal then
+        -- only placed furniture: a box that came with the level is nobody's
+        if is_camp_storage then return false end
+        local bsec = se_box:section_name()
+        local is_placed = bsec:find("placeable_", 1, true) ~= nil
+        if not is_placed and hf_furniture_types and hf_furniture_types.get_type then
+            local ok, t = pcall(hf_furniture_types.get_type, se_box)
+            is_placed = ok and t ~= nil
+        end
+        if not is_placed then return false end
+    elseif not is_camp_storage then
+        -- the camp's own fallback box (a plain inventory_box made at the hub) is storage too
         return false
     end
 

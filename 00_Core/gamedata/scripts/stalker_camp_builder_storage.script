@@ -176,11 +176,9 @@ function stalker_camp_builder.camp_has_storage_room(camp, hub_id, weight)
 end
 
 -- AUTO-SORT TARGET ROUTING & CENTRALIZED DEPOSIT SYSTEM (v1.3.0)
-local function get_camp_categorized_boxes(camp, hub_id)
+-- personal = true sorts the player's own furniture boxes in the camp instead of its storage
+local function build_categorized_boxes(camp, hub_id, personal)
     local sb = stalker_camp_builder
-    if camp and camp._cached_categorized_boxes and camp._cached_categorized_boxes.boxes_by_bucket then
-        return camp._cached_categorized_boxes
-    end
 
     local fridge_boxes, stove_boxes, crafter_boxes, tech_boxes, medic_boxes, weapon_boxes, armor_boxes = {}, {}, {}, {}, {}, {}, {}
     local chest_boxes, other_boxes, pantry_boxes, station_boxes = {}, {}, {}, {}
@@ -210,34 +208,38 @@ local function get_camp_categorized_boxes(camp, hub_id)
     local hub_obj = hub_id and stalker_camp_builder.safe_alife_object(hub_id)
     local hub_pos = hub_obj and hub_obj.position
 
-    sb.sanitize_primary_chest(camp)
-    if camp.primary_chest_id then
-        if stalker_camp_builder.is_valid_camp_box(camp.primary_chest_id, hub_id, camp) then
-            local meta = make_box_meta(camp.primary_chest_id)
-            seen_boxes[camp.primary_chest_id] = true
-            table.insert(chest_boxes, meta)
-            table.insert(all_boxes, meta)
-            any_box = any_box or camp.primary_chest_id
-        else
-            camp.primary_chest_id = nil
+    -- the main chest and the hub's workbench stash are settlement storage
+    if not personal then
+        sb.sanitize_primary_chest(camp)
+        if camp.primary_chest_id then
+            if stalker_camp_builder.is_valid_camp_box(camp.primary_chest_id, hub_id, camp) then
+                local meta = make_box_meta(camp.primary_chest_id)
+                seen_boxes[camp.primary_chest_id] = true
+                table.insert(chest_boxes, meta)
+                table.insert(all_boxes, meta)
+                any_box = any_box or camp.primary_chest_id
+            else
+                camp.primary_chest_id = nil
+            end
         end
-    end
 
-    local ws_id = hub_id and sb.linked_stash_id(hub_id)
-    if ws_id then
-        if not seen_boxes[ws_id] and stalker_camp_builder.is_valid_camp_box(ws_id, hub_id, camp) then
-            local meta = make_box_meta(ws_id)
-            seen_boxes[ws_id] = true
-            table.insert(tech_boxes, meta)
-            table.insert(chest_boxes, meta)
-            table.insert(all_boxes, meta)
-            any_box = any_box or ws_id
+        local ws_id = hub_id and sb.linked_stash_id(hub_id)
+        if ws_id then
+            if not seen_boxes[ws_id] and stalker_camp_builder.is_valid_camp_box(ws_id, hub_id, camp) then
+                local meta = make_box_meta(ws_id)
+                seen_boxes[ws_id] = true
+                table.insert(tech_boxes, meta)
+                table.insert(chest_boxes, meta)
+                table.insert(all_boxes, meta)
+                any_box = any_box or ws_id
+            end
         end
     end
 
     for id, stype in pairs(camp.structures or {}) do
-        local target_id = sb.linked_stash_id(id) or id
-        if target_id and not seen_boxes[target_id] and stalker_camp_builder.is_valid_camp_box(target_id, hub_id, camp) then
+        -- a station's hidden stash is settlement storage: the player's own boxes are the furniture itself
+        local target_id = personal and id or (sb.linked_stash_id(id) or id)
+        if target_id and not seen_boxes[target_id] and stalker_camp_builder.is_valid_camp_box(target_id, hub_id, camp, personal) then
             seen_boxes[target_id] = true
             local se = stalker_camp_builder.safe_alife_object(target_id)
             local ssec_raw = se and se:section_name() or ""
@@ -291,7 +293,8 @@ local function get_camp_categorized_boxes(camp, hub_id)
         end
     end
 
-    if not any_box and hub_pos then
+    -- the player's boxes have no fallback: what doesn't fit stays in the backpack
+    if not personal and not any_box and hub_pos then
         local registry = _G.server_objects_registry
         if registry then
             for i, _ in pairs(registry) do
@@ -322,7 +325,7 @@ local function get_camp_categorized_boxes(camp, hub_id)
         end
     end
 
-    if not any_box and hub_id and hub_obj and alife() then
+    if not personal and not any_box and hub_id and hub_obj and alife() then
         local new_box = alife():create("inventory_box", hub_obj.position, hub_obj.m_level_vertex_id, hub_obj.m_game_vertex_id)
         if new_box then
             camp.structures = camp.structures or {}
@@ -352,10 +355,28 @@ local function get_camp_categorized_boxes(camp, hub_id)
         },
         all_boxes = all_boxes,
     }
+    return res
+end
+
+local function get_camp_categorized_boxes(camp, hub_id)
+    if camp and camp._cached_categorized_boxes and camp._cached_categorized_boxes.boxes_by_bucket then
+        return camp._cached_categorized_boxes
+    end
+    local res = build_categorized_boxes(camp, hub_id, false)
     camp._cached_categorized_boxes = res
     return res
 end
 stalker_camp_builder.get_camp_categorized_boxes = get_camp_categorized_boxes
+
+-- kept on the camp-storage cache so every rescan that clears that one clears this too
+local function get_personal_categorized_boxes(camp, hub_id)
+    local cat = get_camp_categorized_boxes(camp, hub_id)
+    if not cat.personal then
+        cat.personal = build_categorized_boxes(camp, hub_id, true)
+    end
+    return cat.personal
+end
+stalker_camp_builder.get_personal_categorized_boxes = get_personal_categorized_boxes
 
 -- AUTO-SORT TARGET ROUTING & CENTRALIZED DEPOSIT SYSTEM (v1.3.0)
 function stalker_camp_builder.get_auto_sort_target_box(camp, hub_id, sec_or_item, is_player_dump, item_weight, weight_cache)
@@ -420,6 +441,15 @@ function stalker_camp_builder.get_auto_sort_target_box(camp, hub_id, sec_or_item
     end
 
     local b = cat.boxes_by_bucket
+    if is_player_dump then
+        -- the player's things go into their own furniture: Homestead's boxes and stations are the
+        -- settlers'. Food is the exception and still goes to the camp fridges first.
+        local own = get_personal_categorized_boxes(camp, hub_id).boxes_by_bucket
+        local fridges = b.fridge
+        b = {}
+        for k, list in pairs_(own) do b[k] = list end
+        b.fridge = fridges
+    end
     local is_mutant_part = sec_l:find("mutant_part_") ~= nil
     local is_edible_mutant_meat = is_mutant_part and (sec_l:find("_meat") or sec_l:find("boar_chop") or sec_l:find("snork_hand"))
 
