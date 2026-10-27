@@ -4,7 +4,7 @@
 		<text>Field Kitchen</text>
 	</string>
 	<string id="st_homestead_field_kitchen_descr">
-		<text>A field stove with pots, a chopping board and a fuel bin. The Cook works here: it counts as a stove, so the Cook makes full meals instead of campfire food (with stove fuel in camp storage when the MCM fuel rule is on). Use it to open its storage: 300 kg of settlement storage for food and drink. Weighs 30 kg to carry.</text>
+		<text>A welded steel range on a brick plinth, with a chimney, a prep shelf and a firewood rack. The Cook works here: it counts as a stove, so the Cook makes full meals instead of campfire food (with stove fuel in camp storage when the MCM fuel rule is on). Use it to open its storage: 300 kg of settlement storage for food and drink. Weighs 30 kg to carry.</text>
 	</string>
 	<string id="st_homestead_field_infirmary">
 		<text>Field Infirmary</text>
