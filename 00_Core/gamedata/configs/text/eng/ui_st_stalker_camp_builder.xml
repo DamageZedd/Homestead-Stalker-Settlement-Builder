@@ -1987,7 +1987,7 @@
         <text>%s felled timber and harvested %d wooden parts for camp storage.</text>
     </string>
     <string id="st_job_brewer_need_still">
-        <text>%s needs a Milk Can (Bidon) or Stove to distill vodka!</text>
+        <text>%s needs a Moonshine Distiller (or a Stove, Milk Can, water pump or workbench) to distill vodka!</text>
     </string>
     <string id="st_job_brewer_need_water">
         <text>%s needs clean water to operate the distillery.</text>
