@@ -445,8 +445,10 @@ function stalker_camp_builder.get_auto_sort_target_box(camp, hub_id, sec_or_item
         target_priority = { b.weapon, b.chest, b.other }
     elseif ((ini_sys and ini_sys:r_string_ex(sec, "burn_protection") ~= nil) or sec_l:find("outfit") or sec_l:find("helmet") or sec_l:find("helm_") or sec_l:find("exo_") or sec_l:find("trenchcoat")) then
         target_priority = { b.armor, b.chest, b.other }
-    elseif sec_l:find("ammo_") or sec_l:find("grenade_") or sec_l:find("gl_") or sec_l:find("vog_")
-       or sec_l:find("powder") or sec_l:find("scrap") or sec_l:find("casing") or sec_l:find("bullet")
+    elseif sec_l:find("ammo_") or sec_l:find("grenade_") or sec_l:find("gl_") or sec_l:find("vog_") then
+        -- the Armory Crate first, then where ammo went before
+        target_priority = { b.weapon, b.crafter, b.tech, b.chest, b.other }
+    elseif sec_l:find("powder") or sec_l:find("scrap") or sec_l:find("casing") or sec_l:find("bullet")
        or sec_l:find("primer") or sec_l:find("prt_i_copper") or sec_l:find("prt_i_paper") or sec_l:find("prt_i_plastic")
        or sec_l:find("prt_i_resistor") or sec_l:find("prt_i_transist") or sec_l:find("prt_i_cond") or sec_l:find("prt_i_capacit") or sec_l:find("prt_i_microchip")
        or (is_mutant_part and not is_edible_mutant_meat) then
@@ -467,8 +469,9 @@ function stalker_camp_builder.get_auto_sort_target_box(camp, hub_id, sec_or_item
     end
 
     -- Job deposits fallback: check any remaining container with room
-    -- not fridges, stoves or med cases: they hold their own kind (see sanitize_primary_chest)
-    local general_fallback = pick_box({ b.chest, b.other, b.tech, b.crafter, b.weapon, b.armor, b.station })
+    -- not fridges, stoves, med cases or the armory and quartermaster boxes: they hold their own kind
+    -- (see sanitize_primary_chest)
+    local general_fallback = pick_box({ b.chest, b.other, b.tech, b.crafter, b.station })
     if general_fallback then return general_fallback end
 
     -- no box that takes the item has room: deposit_item_to_camp drops it at the hub

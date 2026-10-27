@@ -1,0 +1,193 @@
+;--------------------------------------------------------------------------------------------------
+; HomesteadHF: Settlement storage boxes
+; Only boxes with homestead_storage (and work-station stashes, workbench stashes and fridges) are
+; camp storage; every other Hideout Furniture box is the player's own. homestead_storage_buckets
+; says what the sorter sends each box (stalker_camp_builder_storage.script).
+; STAND-IN VISUALS AND ICONS: the meshes and icons below come from the required Hideout Furniture
+; packs until each box's own model is made and approved.
+;--------------------------------------------------------------------------------------------------
+
+;--------------------------
+;--- Armory Crate (Оружейный ящик): weapons, ammo, grenades
+;--------------------------
+
+[homestead_armory_crate]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\efp_props\prop_ammo_box.ogf
+description                             = st_homestead_armory_crate_descr
+inv_name                                = st_homestead_armory_crate
+inv_name_short                          = st_homestead_armory_crate
+icons_texture                           = ui\ui_maid_efp_props
+inv_grid_x                              = 11
+inv_grid_y                              = 5
+inv_grid_width                          = 3
+inv_grid_height                         = 2
+cost                                    = 6000
+inv_weight                              = 14.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = stash
+placeable_section                       = placeable_homestead_armory
+
+[placeable_homestead_armory]:inv_backpack
+visual                                  = dynamics\efp_props\prop_ammo_box.ogf
+capacity                                = 250
+placeable_type                          = stash
+item_section                            = homestead_armory_crate
+homestead_storage                       = armory
+homestead_storage_buckets               = weapon
+
+base_rotation                           = -90
+bounding_box_size                       = 0.537134, 1.049702, 0.300536
+bounding_box_origin                     = -0.003363, 0.151252, 0.000095
+
+;--------------------------
+;--- Quartermaster Locker (Шкаф интенданта): armour, helmets, outfits
+;--------------------------
+
+[homestead_quartermaster_locker]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\Decor\storage01.ogf
+description                             = st_homestead_quartermaster_locker_descr
+inv_name                                = st_homestead_quartermaster_locker
+inv_name_short                          = st_homestead_quartermaster_locker
+icons_texture                           = ui\ui_decor
+inv_grid_x                              = 2
+inv_grid_y                              = 15
+inv_grid_width                          = 3
+inv_grid_height                         = 2
+cost                                    = 7000
+inv_weight                              = 18.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = stash
+placeable_section                       = placeable_homestead_quartermaster
+
+[placeable_homestead_quartermaster]:inv_backpack
+visual                                  = dynamics\Decor\storage01.ogf
+capacity                                = 250
+placeable_type                          = stash
+item_section                            = homestead_quartermaster_locker
+homestead_storage                       = quartermaster
+homestead_storage_buckets               = armor
+
+base_rotation                           = 0
+bounding_box_size                       = 1.26798, 0.700334, 0.467125
+bounding_box_origin                     = 0.001378, 0.235857, 0.000116
+
+;--------------------------
+;--- Pantry (Кладовая): food and drink that keeps (the fridge stays the first stop for food)
+;--------------------------
+
+[homestead_pantry]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\Decor\storage06.ogf
+description                             = st_homestead_pantry_descr
+inv_name                                = st_homestead_pantry
+inv_name_short                          = st_homestead_pantry
+icons_texture                           = ui\ui_decor
+inv_grid_x                              = 0
+inv_grid_y                              = 15
+inv_grid_width                          = 2
+inv_grid_height                         = 1
+cost                                    = 4000
+inv_weight                              = 10.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = stash
+placeable_section                       = placeable_homestead_pantry
+
+[placeable_homestead_pantry]:inv_backpack
+visual                                  = dynamics\Decor\storage06.ogf
+capacity                                = 200
+placeable_type                          = stash
+item_section                            = homestead_pantry
+homestead_storage                       = pantry
+homestead_storage_buckets               = pantry
+
+base_rotation                           = 0
+bounding_box_size                       = 0.896111, 0.465607, 0.420362
+bounding_box_origin                     = 0.002232, 0.21069, 0
+
+;--------------------------
+;--- Supply Crate (Ящик снабжения): parts, tools and everything else
+;--------------------------
+
+[homestead_supply_crate]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\Decor\storage02.ogf
+description                             = st_homestead_supply_crate_descr
+inv_name                                = st_homestead_supply_crate
+inv_name_short                          = st_homestead_supply_crate
+icons_texture                           = ui\ui_decor
+inv_grid_x                              = 8
+inv_grid_y                              = 13
+inv_grid_width                          = 4
+inv_grid_height                         = 2
+cost                                    = 8000
+inv_weight                              = 22.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = stash
+placeable_section                       = placeable_homestead_supply_crate
+
+[placeable_homestead_supply_crate]:inv_backpack
+visual                                  = dynamics\Decor\storage02.ogf
+capacity                                = 300
+placeable_type                          = stash
+item_section                            = homestead_supply_crate
+homestead_storage                       = supply
+homestead_storage_buckets               = chest, tech, crafter
+
+base_rotation                           = 0
+bounding_box_size                       = 2.23744, 1.12128, 1.04247
+bounding_box_origin                     = 0.007991, 0.532947, 0.005662
+
+;--------------------------
+;--- Med Crate (Медицинский ящик): medkits, bandages, drugs
+;--------------------------
+
+[homestead_med_crate]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\efp_props\prop_med_case.ogf
+description                             = st_homestead_med_crate_descr
+inv_name                                = st_homestead_med_crate
+inv_name_short                          = st_homestead_med_crate
+icons_texture                           = ui\ui_maid_efp_props
+inv_grid_x                              = 10
+inv_grid_y                              = 8
+inv_grid_width                          = 2
+inv_grid_height                         = 2
+cost                                    = 5000
+inv_weight                              = 6.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = stash
+placeable_section                       = placeable_homestead_med_crate
+
+[placeable_homestead_med_crate]:inv_backpack
+visual                                  = dynamics\efp_props\prop_med_case.ogf
+capacity                                = 100
+placeable_type                          = stash
+item_section                            = homestead_med_crate
+homestead_storage                       = medical
+homestead_storage_buckets               = medic
+
+base_rotation                           = -90
+bounding_box_size                       = 0.635256, 0.85776, 0.397624
+bounding_box_origin                     = -0.000492, 0.198815, -0.000147

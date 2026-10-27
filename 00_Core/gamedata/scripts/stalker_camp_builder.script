@@ -1295,6 +1295,12 @@ local structure_type_exact = {
     placeable_weapon_rack       = "weapon_rack",
     placeable_display_counter   = "display_counter",
     placeable_distiller         = "distiller",
+    -- HomesteadHF settlement boxes: their own types so only the Supply Crate is picked as a plain stash
+    placeable_homestead_armory        = "armory",
+    placeable_homestead_quartermaster = "quartermaster",
+    placeable_homestead_pantry        = "pantry",
+    placeable_homestead_med_crate     = "med_crate",
+    placeable_homestead_supply_crate  = "stash",
     placeable_ammo_bench        = "ammo_bench",
     placeable_wood_station      = "wood_station",
     placeable_generator_station = "generator_station",
@@ -1367,6 +1373,7 @@ local SPECIALIZED_CONTAINER_TYPES = {
     fridge = true, stove = true, medstation = true, workbench = true,
     repair_bench = true, hunter_station = true, farmer_station = true, water_pump = true, harvester = true,
     weapon_rack = true, display_counter = true, market_stall = true,
+    armory = true, quartermaster = true, pantry = true, med_crate = true,
 }
 function stalker_camp_builder.sanitize_primary_chest(camp)
     if not (camp and camp.primary_chest_id) then return end

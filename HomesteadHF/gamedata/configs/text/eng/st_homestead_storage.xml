@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="windows-1251" ?>
+<string_table>
+	<string id="st_homestead_armory_crate">
+		<text>Settlement Armory Crate</text>
+	</string>
+	<string id="st_homestead_armory_crate_descr">
+		<text>A stout ammunition crate for the settlement's guns. Settlement storage: settlers and Auto-Sort put weapons, ammunition and grenades in it first, and take what they need from it. Holds 250 kg.</text>
+	</string>
+	<string id="st_homestead_quartermaster_locker">
+		<text>Settlement Quartermaster Locker</text>
+	</string>
+	<string id="st_homestead_quartermaster_locker_descr">
+		<text>A metal locker for the settlement's protective gear. Settlement storage: settlers and Auto-Sort put suits, armour, helmets and gas masks in it first. Holds 250 kg.</text>
+	</string>
+	<string id="st_homestead_pantry">
+		<text>Settlement Pantry</text>
+	</string>
+	<string id="st_homestead_pantry_descr">
+		<text>A food chest for supplies that keep. Settlement storage: food and drink go to a fridge first, then here. Holds 200 kg.</text>
+	</string>
+	<string id="st_homestead_supply_crate">
+		<text>Settlement Supply Crate</text>
+	</string>
+	<string id="st_homestead_supply_crate_descr">
+		<text>A large crate for everything else the settlement owns: parts, tools, materials and odds and ends. Settlement storage, and the camp's main chest when it has one. Holds 300 kg.</text>
+	</string>
+	<string id="st_homestead_med_crate">
+		<text>Settlement Med Crate</text>
+	</string>
+	<string id="st_homestead_med_crate_descr">
+		<text>A medical case for the settlement's medicine. Settlement storage: medkits, bandages, drugs and anti-rad go here first. Holds 100 kg.</text>
+	</string>
+</string_table>

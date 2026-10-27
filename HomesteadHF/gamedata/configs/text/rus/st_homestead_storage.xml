@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="windows-1251" ?>
+<string_table>
+	<string id="st_homestead_armory_crate">
+		<text>Оружейный ящик поселения</text>
+	</string>
+	<string id="st_homestead_armory_crate_descr">
+		<text>Крепкий ящик для оружия поселения. Склад поселения: жители и авто-сортировка в первую очередь кладут сюда оружие, патроны и гранаты и берут из него то, что нужно. Вмещает 250 кг.</text>
+	</string>
+	<string id="st_homestead_quartermaster_locker">
+		<text>Шкаф интенданта поселения</text>
+	</string>
+	<string id="st_homestead_quartermaster_locker_descr">
+		<text>Металлический шкаф для защитного снаряжения поселения. Склад поселения: жители и авто-сортировка в первую очередь кладут сюда комбинезоны, броню, шлемы и противогазы. Вмещает 250 кг.</text>
+	</string>
+	<string id="st_homestead_pantry">
+		<text>Кладовая поселения</text>
+	</string>
+	<string id="st_homestead_pantry_descr">
+		<text>Сундук для припасов, которые не портятся. Склад поселения: еда и напитки сначала идут в холодильник, затем сюда. Вмещает 200 кг.</text>
+	</string>
+	<string id="st_homestead_supply_crate">
+		<text>Ящик снабжения поселения</text>
+	</string>
+	<string id="st_homestead_supply_crate_descr">
+		<text>Большой ящик для всего остального имущества поселения: деталей, инструментов, материалов и прочего. Склад поселения и главный сундук лагеря, если он есть. Вмещает 300 кг.</text>
+	</string>
+	<string id="st_homestead_med_crate">
+		<text>Медицинский ящик поселения</text>
+	</string>
+	<string id="st_homestead_med_crate_descr">
+		<text>Медицинский кейс для лекарств поселения. Склад поселения: аптечки, бинты, препараты и антирад кладутся сюда в первую очередь. Вмещает 100 кг.</text>
+	</string>
+</string_table>
