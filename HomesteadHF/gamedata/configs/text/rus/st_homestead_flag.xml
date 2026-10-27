@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="windows-1251" ?>
+<string_table>
+	<string id="st_homestead_settlement_flag">
+		<text>Флаг поселения</text>
+	</string>
+	<string id="st_homestead_settlement_flag_descr">
+		<text>Шест со знаменем, которым вы отмечаете эту землю как свою. Установка флага основывает здесь поселение, как и верстак, а на знамени - цвета вашей группировки. Это и главный склад лагеря: используйте флаг, чтобы открыть 300 кг склада поселения. Если снять флаг, поселение будет распущено. Весит 6 кг.</text>
+	</string>
+	<string id="st_homestead_settlement_flag_stalker">
+		<text>Флаг поселения (Одиночки)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_dolg">
+		<text>Флаг поселения (Долг)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_freedom">
+		<text>Флаг поселения (Свобода)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_csky">
+		<text>Флаг поселения (Чистое Небо)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_ecolog">
+		<text>Флаг поселения (Экологи)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_killer">
+		<text>Флаг поселения (Наёмники)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_army">
+		<text>Флаг поселения (Военные)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_bandit">
+		<text>Флаг поселения (Бандиты)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_monolith">
+		<text>Флаг поселения (Монолит)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_renegade">
+		<text>Флаг поселения (Ренегаты)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_greh">
+		<text>Флаг поселения (Грех)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_isg">
+		<text>Флаг поселения (ISG)</text>
+	</string>
+	<string id="st_hub_flag_inside_camp">
+		<text>Здесь уже есть поселение. Установите флаг за его границей, чтобы основать новое.</text>
+	</string>
+</string_table>

@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="windows-1251" ?>
+<string_table>
+	<string id="st_homestead_settlement_flag">
+		<text>Settlement Flag</text>
+	</string>
+	<string id="st_homestead_settlement_flag_descr">
+		<text>A pole and banner that marks the ground as yours. Placing it founds a settlement here, just like a Workshop bench, and it flies the colours of your faction. It is also the camp's main storage: use it to open 300 kg of settlement storage. Picking it up dismantles the settlement. Weighs 6 kg to carry.</text>
+	</string>
+	<string id="st_homestead_settlement_flag_stalker">
+		<text>Settlement Flag (Loners)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_dolg">
+		<text>Settlement Flag (Duty)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_freedom">
+		<text>Settlement Flag (Freedom)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_csky">
+		<text>Settlement Flag (Clear Sky)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_ecolog">
+		<text>Settlement Flag (Ecologists)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_killer">
+		<text>Settlement Flag (Mercenaries)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_army">
+		<text>Settlement Flag (Military)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_bandit">
+		<text>Settlement Flag (Bandits)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_monolith">
+		<text>Settlement Flag (Monolith)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_renegade">
+		<text>Settlement Flag (Renegades)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_greh">
+		<text>Settlement Flag (Sin)</text>
+	</string>
+	<string id="st_homestead_settlement_flag_isg">
+		<text>Settlement Flag (UNISG)</text>
+	</string>
+	<string id="st_hub_flag_inside_camp">
+		<text>There is already a settlement here. Plant the flag outside its boundary to found a new one.</text>
+	</string>
+</string_table>

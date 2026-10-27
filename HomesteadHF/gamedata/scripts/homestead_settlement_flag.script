@@ -1,0 +1,64 @@
+-- homestead_settlement_flag.script
+-- The Settlement Flag: a camp hub that flies the player's faction colours.
+-- The crafted homestead_settlement_flag becomes homestead_settlement_flag_<faction> as soon as it
+-- is in the player's inventory (their true faction, so a disguise doesn't change it). Placing a flag
+-- founds a settlement (homestead_hub, see stalker_camp_builder.hf_on_furniture_place); the flag
+-- holds the camp's main storage like a work station, and picking it up dismantles the settlement.
+
+local FLAG = "homestead_settlement_flag"
+
+local function actor_faction()
+    local comm = get_actor_true_community and get_actor_true_community()
+    if not comm and db.actor then comm = db.actor:character_community() end
+    comm = comm and comm:gsub("^actor_", "") or "stalker"
+    if not ini_sys:section_exist(FLAG .. "_" .. comm) then comm = "stalker" end
+    return comm
+end
+
+-- swap a flag of another faction (or the crafted one) for the player's faction's flag
+local function swap_flag(id, want)
+    local se = alife_object(id)
+    if se and db.actor and se.parent_id == db.actor:id() and se:section_name() ~= want then
+        alife_release(se)
+        alife_create_item(want, db.actor)
+    end
+    return true
+end
+
+local function actor_on_item_take(obj)
+    local sec = obj and obj:section()
+    if not (sec and sec:sub(1, #FLAG) == FLAG) then return end
+    local want = FLAG .. "_" .. actor_faction()
+    if sec == want then return end
+    local id = obj:id()
+    CreateTimeEvent("homestead_flag", "swap_" .. id, 0, swap_flag, id, want)
+end
+
+function on_game_start()
+    RegisterScriptCallback("actor_on_item_take", actor_on_item_take)
+end
+
+function init(obj)
+    obj:bind_object(flag_wrapper(obj).binder)
+end
+
+class "flag_wrapper" (homestead_station_storage.station_wrapper)
+
+function flag_wrapper:__init(obj)
+    super(obj)
+end
+
+-- picking the flag up takes the settlement down with it, like picking up a Workshop hub
+function flag_wrapper:pickup()
+    local hub_id = self.object and self.object:id()
+    -- storage not loaded yet: the station pickup refuses (and asks to try again), so keep the camp
+    local box_id = hub_id and homestead_station_storage.find_stash(hub_id)
+    if box_id and not level.object_by_id(box_id) then
+        return homestead_station_storage.station_wrapper.pickup(self)
+    end
+    local sb = stalker_camp_builder
+    if hub_id and sb and sb.active_camps and sb.active_camps[hub_id] and sb.dismantle_camp then
+        pcall(sb.dismantle_camp, hub_id)
+    end
+    return homestead_station_storage.station_wrapper.pickup(self)
+end

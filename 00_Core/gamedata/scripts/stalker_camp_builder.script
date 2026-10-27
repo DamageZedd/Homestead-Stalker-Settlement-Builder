@@ -3233,7 +3233,9 @@ function hf_on_furniture_place(obj_id)
     end
 
     local sec = se_obj:section_name()
-    if sec == "placeable_workshop" then
+    -- a hub: the Hideout Furniture Workshop, or a HomesteadHF Settlement Flag (homestead_hub)
+    local is_flag = ini_sys:r_bool_ex(sec, "homestead_hub", false)
+    if sec == "placeable_workshop" or is_flag then
         local inside_camp_id = nil
         local too_close_hub_id = nil
 
@@ -3251,6 +3253,19 @@ function hf_on_furniture_place(obj_id)
                     end
                 end
             end
+        end
+
+        -- a flag inside a settlement can't found another one: back into the inventory
+        if inside_camp_id and is_flag then
+            actor_menu.set_msg(1, game.translate_string("st_hub_flag_inside_camp"), 3)
+            alife_release(se_obj)
+            local inv_sec = ini_sys:r_string_ex(sec, "item_section") or "homestead_settlement_flag"
+            if db.actor then
+                alife():create(inv_sec, db.actor:position(), db.actor:level_vertex_id(), db.actor:game_vertex_id(), db.actor:id())
+            else
+                alife():create(inv_sec, se_obj.position, se_obj.m_level_vertex_id, se_obj.m_game_vertex_id)
+            end
+            return
         end
 
         if inside_camp_id then
@@ -5853,7 +5868,9 @@ function on_game_start()
         local obj = level.object_by_id(id)
         local sec = obj and obj:section()
         local is_wb = (mark and mark.hf_workshop) or sec == "placeable_workshop" or sec == "itm_workshop"
-        if not is_wb and stalker_camp_builder.active_camps and stalker_camp_builder.active_camps[id] then
+        -- a Settlement Flag hub has no workshop: its own use opens its storage
+        local is_flag = sec and ini_sys:r_bool_ex(sec, "homestead_hub", false)
+        if not is_wb and not is_flag and stalker_camp_builder.active_camps and stalker_camp_builder.active_camps[id] then
             is_wb = true
         end
         if is_wb then
