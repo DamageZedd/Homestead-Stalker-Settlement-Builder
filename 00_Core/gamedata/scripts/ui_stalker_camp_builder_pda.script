@@ -1769,10 +1769,23 @@ function SettlementManagerPDA:OnSurvivorSelected()
                 underbarrel = "VOG / 40mm",
             }
             local ord = craft_labels[s_item.craft_order or "auto"] or "Auto"
+            if s_item.shortfall_reason then
+                job_str = sformat("%s: [%s]%s (Waiting: %s)", job_lbl, ord, boost_str, s_item.shortfall_reason)
+                self.survivor_pos_txt:SetText(sformat("Status: Waiting for supplies (%s)", s_item.shortfall_reason))
+            elseif time_str ~= "" then
+                job_str = sformat("%s: [%s]%s (%d%% - %s remaining)", job_lbl, ord, boost_str, pct, time_str)
+            elseif pct >= 100 then
+                job_str = sformat("%s: [%s]%s (%d%% - Ready)", job_lbl, ord, boost_str, pct)
+            else
+                job_str = sformat("%s: [%s]%s (%d%%)", job_lbl, ord, boost_str, pct)
+            end
+            if not s_item.shortfall_reason then
+                self.survivor_pos_txt:SetText("Status: Crafting Ammunition & Loading Shells")
+            end
         elseif job == "cook" then
             local cook_labels = {
                 auto = "Auto-Balanced",
-                tier1 = "Roast Meat",
+                tier1 = "Simple Roast",
                 tier2 = "Boiled Stew",
                 tier3 = "Gourmet Feast",
             }
@@ -1790,19 +1803,6 @@ function SettlementManagerPDA:OnSurvivorSelected()
             if not s_item.shortfall_reason then
                 local desc = game.translate_string("st_homestead_job_cook_desc")
                 self.survivor_pos_txt:SetText(desc ~= "st_homestead_job_cook_desc" and desc or "Prepares meals and rations for the settlement.")
-            end
-            if s_item.shortfall_reason then
-                job_str = sformat("%s: [%s]%s (Waiting: %s)", job_lbl, ord, boost_str, s_item.shortfall_reason)
-                self.survivor_pos_txt:SetText(sformat("Status: Waiting for supplies (%s)", s_item.shortfall_reason))
-            elseif time_str ~= "" then
-                job_str = sformat("%s: [%s]%s (%d%% - %s remaining)", job_lbl, ord, boost_str, pct, time_str)
-            elseif pct >= 100 then
-                job_str = sformat("%s: [%s]%s (%d%% - Ready)", job_lbl, ord, boost_str, pct)
-            else
-                job_str = sformat("%s: [%s]%s (%d%%)", job_lbl, ord, boost_str, pct)
-            end
-            if not s_item.shortfall_reason then
-                self.survivor_pos_txt:SetText("Status: Crafting Ammunition & Loading Shells")
             end
         elseif job == "farmer" then
             if s_item.shortfall_reason then
@@ -2391,6 +2391,7 @@ function SettlementManagerPDA:FormatSurvivorStatus(survivor, camp, hub_id)
             grenade = "Grenades",
             underbarrel = "VOG/40mm",
         }
+        directive_tag = sformat(" [%s]", short_labels[c_order] or "Auto")
     elseif job == "cook" then
         local c_mode = survivor.cook_mode or "auto"
         local short_labels = {
@@ -2400,7 +2401,6 @@ function SettlementManagerPDA:FormatSurvivorStatus(survivor, camp, hub_id)
             tier3 = "Gourmet",
         }
         directive_tag = sformat(" [%s]", short_labels[c_mode] or "Auto")
-        directive_tag = sformat(" [%s]", short_labels[c_order] or "Auto")
     elseif job == "medic" then
         local m_order = survivor.medic_order or "auto"
         local short_labels = {

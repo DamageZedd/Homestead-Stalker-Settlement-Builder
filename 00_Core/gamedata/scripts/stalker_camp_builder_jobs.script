@@ -3189,16 +3189,22 @@ function stalker_camp_builder.process_settler_equipment(hub_id, camp, survivor, 
 
     local npc = level.object_by_id(npc_id)
     if not (npc and npc:alive()) then return end
-    local se_npc = alife_object(npc_id)
-    if not se_npc then return end
 
-    local buckets = sb.get_camp_storage_buckets and sb.get_camp_storage_buckets(camp, hub_id)
+    local cat = sb.get_camp_categorized_boxes and sb.get_camp_categorized_boxes(camp, hub_id)
+    local buckets = cat and cat.boxes_by_bucket
     if not buckets then return end
+
+    -- a firearm takes ammo: knives, binoculars and grenades have no ammo_class
+    local function is_firearm(sec)
+        local ac = ini_sys:r_string_ex(sec, "ammo_class")
+        return ac ~= nil and ac ~= "" and not sec:find("grenade")
+    end
 
     -- 1. WEAPON UPGRADE FROM ARMORY
     local weapon_boxes = buckets.weapon or {}
     if #weapon_boxes > 0 then
         local current_wpn = npc:best_weapon()
+        if current_wpn and not is_firearm(current_wpn:section()) then current_wpn = nil end
         local current_cost = 0
         if current_wpn then
             current_cost = (ini_sys:r_float_ex(current_wpn:section(), "cost") or 1000) * (current_wpn:condition() or 1.0)
@@ -3214,8 +3220,7 @@ function stalker_camp_builder.process_settler_equipment(hub_id, camp, survivor, 
                 sb.safe_iterate_inventory_box(box_obj, function(_, item)
                     if not item then return end
                     local sec = item:section()
-                    local is_gun = IsWeapon(item) and not sec:find("knife")
-                    if is_gun then
+                    if IsWeapon(item) and is_firearm(sec) then
                         local cond = item:condition() or 1.0
                         if cond >= 0.45 then
                             local cost = (ini_sys:r_float_ex(sec, "cost") or 1000) * cond
@@ -3248,13 +3253,16 @@ function stalker_camp_builder.process_settler_equipment(hub_id, camp, survivor, 
                 local ammo_list = str_explode(ammo_classes, ",")
                 local target_ammo_sec = ammo_list[1]
                 if target_ammo_sec then
-                    local ammo_transferred = 0
+                    -- pick the boxes first: moving items out of the box mid-iteration skips some
+                    local ammo = {}
                     sb.safe_iterate_inventory_box(best_box, function(_, item)
-                        if item and item:section() == target_ammo_sec and ammo_transferred < 2 then
-                            best_box:transfer_item(item, npc)
-                            ammo_transferred = ammo_transferred + 1
+                        if item and item:section() == target_ammo_sec and #ammo < 2 then
+                            ammo[#ammo + 1] = item
                         end
                     end)
+                    for _, item in ipairs(ammo) do
+                        best_box:transfer_item(item, npc)
+                    end
                 end
             end
 
@@ -3266,50 +3274,32 @@ function stalker_camp_builder.process_settler_equipment(hub_id, camp, survivor, 
     end
 
     -- 2. ARMOR UPGRADE FROM QUARTERMASTER
+    -- NPCs only wear a suit through Dynamic NPC Armor Visuals (DNPCAV): it rates a suit by
+    -- its visual and swaps the model when the NPC takes one. Without it there is no way to
+    -- compare suits, so settlers leave the locker alone.
+    local dnpcav = dynamic_npc_armor_visuals
     local armor_boxes = buckets.armor or {}
-    if #armor_boxes > 0 then
+    if dnpcav and dnpcav.get_visual_prot and dnpcav.is_allowed_comm and #armor_boxes > 0 then
         local best_outfit = nil
         local best_box = nil
-        local current_prot = 0
 
         local current_vis = npc:get_visual_name()
-        if dynamic_npc_armor_visuals and dynamic_npc_armor_visuals.get_visual_prot then
-            current_prot = dynamic_npc_armor_visuals.get_visual_prot(current_vis)
-        end
-
-        local best_prot = current_prot > 0 and (current_prot * 1.15) or 0
+        local current_prot = dnpcav.get_visual_prot(current_vis) or 0
+        local best_prot = current_prot * 1.15 -- must be clearly better to change suits
 
         for _, box_meta in ipairs(armor_boxes) do
             local box_obj = level.object_by_id(box_meta.id)
             if box_obj then
                 sb.safe_iterate_inventory_box(box_obj, function(_, item)
-                    if not item then return end
-                    local sec = item:section()
-                    local is_armor = IsOutfit(item) or (ini_sys:r_string_ex(sec, "burn_protection") ~= nil)
-                    if is_armor then
-                        local cond = item:condition() or 1.0
-                        if cond >= 0.45 then
-                            local allowed = true
-                            if dynamic_npc_armor_visuals and dynamic_npc_armor_visuals.is_allowed_comm then
-                                allowed = dynamic_npc_armor_visuals.is_allowed_comm(npc, item)
-                            end
-                            if allowed then
-                                local npc_vis = ini_sys:r_string_ex(sec, "npc_visual")
-                                if npc_vis then
-                                    local prot = 0
-                                    if dynamic_npc_armor_visuals and dynamic_npc_armor_visuals.get_visual_prot then
-                                        prot = dynamic_npc_armor_visuals.get_visual_prot(npc_vis, item)
-                                    else
-                                        prot = ini_sys:r_float_ex(sec, "cost") or 5000
-                                    end
-                                    if prot > best_prot then
-                                        best_prot = prot
-                                        best_outfit = item
-                                        best_box = box_obj
-                                    end
-                                end
-                            end
-                        end
+                    if not (item and IsOutfit(item)) then return end
+                    if (item:condition() or 1.0) < 0.45 then return end
+                    local npc_vis = ini_sys:r_string_ex(item:section(), "npc_visual")
+                    if not npc_vis or not dnpcav.is_allowed_comm(npc, item) then return end
+                    local prot = dnpcav.get_visual_prot(npc_vis, item) or 0
+                    if prot > best_prot then
+                        best_prot = prot
+                        best_outfit = item
+                        best_box = box_obj
                     end
                 end)
             end
@@ -3318,19 +3308,25 @@ function stalker_camp_builder.process_settler_equipment(hub_id, camp, survivor, 
         if best_outfit and best_box then
             local suit_sec = best_outfit:section()
             local suit_name = game.translate_string(ini_sys:r_string_ex(suit_sec, "inv_name") or suit_sec)
-            local npc_vis = ini_sys:r_string_ex(suit_sec, "npc_visual")
 
-            -- Transfer new armor to NPC
+            -- the suit being worn goes back to the locker (DNPCAV keeps it in the NPC's inventory)
+            local function vis_key(v)
+                return v and v:lower():gsub("/", "\\"):gsub("%.ogf$", "") or ""
+            end
+            local worn_key = vis_key(current_vis)
+            local worn = {}
+            npc:inventory_for_each(function(item)
+                if IsOutfit(item) and item:id() ~= best_outfit:id()
+                    and vis_key(ini_sys:r_string_ex(item:section(), "npc_visual")) == worn_key then
+                    worn[#worn + 1] = item
+                end
+            end)
+            for _, item in ipairs(worn) do
+                npc:transfer_item(item, best_box)
+            end
+
+            -- DNPCAV's npc_on_item_take swaps the visual once the suit arrives
             best_box:transfer_item(best_outfit, npc)
-
-            -- Apply visual model
-            if npc_vis then
-                npc:set_visual_name(npc_vis)
-                if se_npc then se_npc.visual_name = npc_vis end
-            end
-            if dynamic_npc_armor_visuals and dynamic_npc_armor_visuals.npc_on_item_take then
-                pcall(dynamic_npc_armor_visuals.npc_on_item_take, npc, best_outfit)
-            end
 
             local s_name = survivor.name or npc:character_name() or "Settler"
             sb.camp_send_tip(db.actor, string.format(game.translate_string("st_homestead_settler_equipped_armor"), s_name, suit_name), nil, "general_stalker", 7000)
