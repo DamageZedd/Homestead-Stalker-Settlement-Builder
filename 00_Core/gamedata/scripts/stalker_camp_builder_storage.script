@@ -3,7 +3,7 @@
 -- pending item-condition restore, and deposit / smart-dump into camp storage
 -- (split out of stalker_camp_builder.script).
 -- Exposed on the main table: get_box_capacity, get_box_current_weight, box_has_room_for,
--- camp_has_storage_room, get_auto_sort_target_box, save_pending_cond, load_pending_cond,
+-- camp_has_storage_room, get_item_sort_route, get_auto_sort_target_box, save_pending_cond, load_pending_cond,
 -- queue_item_cond, apply_pending_cond, pending_cond_tick, start_pending_cond_timer,
 -- deposit_item_to_camp, smart_dump_to_camp_storage.
 
@@ -378,6 +378,101 @@ local function get_personal_categorized_boxes(camp, hub_id)
 end
 stalker_camp_builder.get_personal_categorized_boxes = get_personal_categorized_boxes
 
+-- item kind (or engine class when there is none) -> auto-sort route: the debug spawner's
+-- category table (ui_debug_main.get_spawn_table), so any item the name checks miss still
+-- lands where its spawner category says. Fuel is food-class in GAMMA (charcoal and matches
+-- are boosters), which is why the name checks run first.
+local route_by_kind = {
+    i_food = "food", i_drink = "food", i_mutant_cooked = "food", i_mutant_raw = "food",
+    II_FOOD = "food", S_FOOD = "food", II_BOTTL = "food",
+
+    i_medical = "medic", II_BANDG = "medic", II_MEDKI = "medic", II_ANTIR = "medic",
+
+    w_melee = "weapon", WP_KNIFE = "weapon",
+    w_pistol = "weapon", WP_HPSA = "weapon", WP_PM = "weapon", WP_USP45 = "weapon",
+    w_shotgun = "weapon", WP_ASHTG = "weapon", WP_BM16 = "weapon",
+    w_smg = "weapon",
+    w_rifle = "weapon", WP_AK74 = "weapon", WP_GROZA = "weapon", WP_LR300 = "weapon", WP_VAL = "weapon",
+    w_sniper = "weapon", WP_SVD = "weapon", WP_SVU = "weapon",
+    WP_RG6 = "weapon", WP_RPG7 = "weapon",
+    w_misc = "weapon", WP_SCOPE = "weapon", WP_SILEN = "weapon", WP_GLAUN = "weapon",
+    S_WPN_MISC = "weapon", WP_BINOC = "weapon",
+
+    w_ammo = "ammo", AMMO = "ammo", AMMO_S = "ammo", S_OG7B = "ammo", S_VOG25 = "ammo", S_M209 = "ammo",
+    w_explosive = "ammo", G_F1_S = "ammo", G_RGD5_S = "ammo", G_F1 = "ammo", G_RGD5 = "ammo",
+
+    o_helmet = "armor", E_HLMET = "armor", EQU_HLMET = "armor",
+    o_light = "armor", o_medium = "armor", o_sci = "armor", o_heavy = "armor",
+    E_STLK = "armor", EQU_STLK = "armor",
+    i_mutant_belt = "armor", i_attach = "armor", i_backpack = "armor", EQ_BAKPK = "armor",
+
+    i_part = "parts", i_mutant_part = "parts",
+
+    i_kit = "tech", i_tool = "tech", i_repair = "tech", i_upgrade = "tech", upgrade_kit = "tech",
+}
+
+local function route_by_name(sec, sec_l)
+    local is_mutant_part = sec_l:find("mutant_part_") ~= nil
+    local is_edible_mutant_meat = is_mutant_part and (sec_l:find("_meat") or sec_l:find("boar_chop") or sec_l:find("snork_hand"))
+
+    if is_edible_mutant_meat or (not is_mutant_part and (sec_l:find("meat_") or sec_l:find("tushonka") or sec_l:find("conserva")
+       or sec_l:find("bread") or sec_l:find("kolbasa") or sec_l:find("cheese") or sec_l:find("nuts") or sec_l:find("chocolate")
+       or sec_l:find("salmon") or sec_l:find("sardina") or sec_l:find("beans") or sec_l:find("chili") or sec_l:find("snack")
+       or sec_l:find("water") or sec_l:find("mineral_water") or sec_l:find("flask") or sec_l:find("vodka") or sec_l:find("beer")
+       or sec_l:find("energy_drink") or sec_l:find("tea") or sec_l:find("drink_") or sec_l:find("bottle_") or sec_l:find("ration")
+       or sec_l:find("mre") or sec_l:find("cereal") or sec_l:find("tomato") or sec_l:find("corn") or sec_l:find("sausage"))) then
+        return "food"
+    elseif sec_l:find("charcoal") or sec_l:find("firewood") or sec_l:find("matches") or sec_l:find("kerosene")
+       or sec_l:find("fuel") or sec_l:find("diesel") or sec_l:find("coal") or sec_l:find("igniter") or sec_l:find("prt_i_wood") then
+        return "fuel"
+    elseif sec_l:find("medkit") or sec_l:find("bandage") or sec_l:find("antirad") or sec_l:find("drug_")
+       or sec_l:find("stimpack") or sec_l:find("salve") or sec_l:find("morphine") or sec_l:find("jgut")
+       or sec_l:find("e_syringe") or sec_l:find("glucose") or sec_l:find("analgetic") or sec_l:find("tetanus")
+       or sec_l:find("yad") or sec_l:find("antibio") or sec_l:find("splint") or sec_l:find("iod")
+       or sec_l == "akvatab" or sec_l:find("ibuprofen") then
+        return "medic"
+    elseif ((ini_sys and ini_sys:r_string_ex(sec, "ammo_class") ~= nil and not sec_l:find("knife")) or (sec_l:find("wpn_") ~= nil)) then
+        return "weapon"
+    elseif ((ini_sys and ini_sys:r_string_ex(sec, "burn_protection") ~= nil) or sec_l:find("outfit") or sec_l:find("helmet") or sec_l:find("helm_") or sec_l:find("exo_") or sec_l:find("trenchcoat")) then
+        return "armor"
+    elseif sec_l:find("ammo_") or sec_l:find("grenade_") or sec_l:find("gl_") or sec_l:find("vog_") then
+        return "ammo"
+    elseif sec_l:find("powder") or sec_l:find("scrap") or sec_l:find("casing") or sec_l:find("bullet")
+       or sec_l:find("primer") or sec_l:find("prt_i_copper") or sec_l:find("prt_i_paper") or sec_l:find("prt_i_plastic")
+       or sec_l:find("prt_i_resistor") or sec_l:find("prt_i_transist") or sec_l:find("prt_i_cond") or sec_l:find("prt_i_capacit") or sec_l:find("prt_i_microchip")
+       or (is_mutant_part and not is_edible_mutant_meat) then
+        return "parts"
+    elseif sec_l:find("toolkit") or sec_l:find("glue") or sec_l:find("sewing") or sec_l:find("oil") or sec_l:find("solvent")
+       or sec_l:find("rasp") or sec_l:find("ramrod") or sec_l:find("prt_w_") or sec_l:find("prt_o_")
+       or sec_l:find("cleaning_kit") or sec_l:find("repair_kit") or sec_l:find("upg_") or sec_l:find("lead_box") or sec_l:find("leatherman") then
+        return "tech"
+    end
+    return nil
+end
+
+-- sections never change in a session, so each one is classified once
+local item_route_cache = {}
+
+-- route name for an item section: food, fuel, medic, weapon, armor, ammo, parts, tech or misc
+function stalker_camp_builder.get_item_sort_route(sec)
+    if not sec or sec == "" then return "misc" end
+    local route = item_route_cache[sec]
+    if route then return route end
+
+    route = route_by_name(sec, string.lower(sec))
+    if not route and ini_sys and ini_sys:section_exist(sec) then
+        local kind = ini_sys:r_string_ex(sec, "kind")
+        route = kind and route_by_kind[kind]
+        if not route then
+            local class = ini_sys:r_string_ex(sec, "class")
+            route = class and route_by_kind[class]
+        end
+    end
+    route = route or "misc"
+    item_route_cache[sec] = route
+    return route
+end
+
 -- AUTO-SORT TARGET ROUTING & CENTRALIZED DEPOSIT SYSTEM (v1.3.0)
 function stalker_camp_builder.get_auto_sort_target_box(camp, hub_id, sec_or_item, is_player_dump, item_weight, weight_cache)
     local pairs_ = pairs
@@ -409,7 +504,6 @@ function stalker_camp_builder.get_auto_sort_target_box(camp, hub_id, sec_or_item
     if not camp then return nil end
 
     local sec = type_(sec_or_item) == "string" and sec_or_item or (sec_or_item and sec_or_item.section and sec_or_item:section()) or ""
-    local sec_l = string.lower(sec)
 
     local cat = get_camp_categorized_boxes(camp, hub_id)
     if not cat then return nil end
@@ -450,48 +544,20 @@ function stalker_camp_builder.get_auto_sort_target_box(camp, hub_id, sec_or_item
         for k, list in pairs_(own) do b[k] = list end
         b.fridge = fridges
     end
-    local is_mutant_part = sec_l:find("mutant_part_") ~= nil
-    local is_edible_mutant_meat = is_mutant_part and (sec_l:find("_meat") or sec_l:find("boar_chop") or sec_l:find("snork_hand"))
-
-    local target_priority = nil
-
-    if is_edible_mutant_meat or (not is_mutant_part and (sec_l:find("meat_") or sec_l:find("tushonka") or sec_l:find("conserva")
-       or sec_l:find("bread") or sec_l:find("kolbasa") or sec_l:find("cheese") or sec_l:find("nuts") or sec_l:find("chocolate")
-       or sec_l:find("salmon") or sec_l:find("sardina") or sec_l:find("beans") or sec_l:find("chili") or sec_l:find("snack")
-       or sec_l:find("water") or sec_l:find("mineral_water") or sec_l:find("flask") or sec_l:find("vodka") or sec_l:find("beer")
-       or sec_l:find("energy_drink") or sec_l:find("tea") or sec_l:find("drink_") or sec_l:find("bottle_") or sec_l:find("ration")
-       or sec_l:find("mre") or sec_l:find("cereal") or sec_l:find("tomato") or sec_l:find("corn") or sec_l:find("sausage"))) then
-        target_priority = { b.fridge, b.pantry, b.chest, b.other }
-    elseif sec_l:find("charcoal") or sec_l:find("firewood") or sec_l:find("matches") or sec_l:find("kerosene")
-       or sec_l:find("fuel") or sec_l:find("diesel") or sec_l:find("coal") or sec_l:find("igniter") or sec_l:find("prt_i_wood") then
-        target_priority = { b.stove, b.chest, b.other }
-    elseif sec_l:find("medkit") or sec_l:find("bandage") or sec_l:find("antirad") or sec_l:find("drug_")
-       or sec_l:find("stimpack") or sec_l:find("salve") or sec_l:find("morphine") or sec_l:find("jgut")
-       or sec_l:find("e_syringe") or sec_l:find("glucose") or sec_l:find("analgetic") or sec_l:find("tetanus")
-       or sec_l:find("yad") or sec_l:find("antibio") or sec_l:find("splint") or sec_l:find("iod")
-       or sec_l == "akvatab" or sec_l:find("ibuprofen") then
-        target_priority = { b.medic, b.chest, b.other }
-    elseif ((ini_sys and ini_sys:r_string_ex(sec, "ammo_class") ~= nil and not sec_l:find("knife")) or (sec_l:find("wpn_") ~= nil)) then
-        target_priority = { b.weapon, b.chest, b.other }
-    elseif ((ini_sys and ini_sys:r_string_ex(sec, "burn_protection") ~= nil) or sec_l:find("outfit") or sec_l:find("helmet") or sec_l:find("helm_") or sec_l:find("exo_") or sec_l:find("trenchcoat")) then
-        target_priority = { b.armor, b.chest, b.other }
-    elseif sec_l:find("ammo_") or sec_l:find("grenade_") or sec_l:find("gl_") or sec_l:find("vog_") then
+    local routes = {
+        food = { b.fridge, b.pantry, b.chest, b.other },
+        fuel = { b.stove, b.chest, b.other },
+        medic = { b.medic, b.chest, b.other },
+        weapon = { b.weapon, b.chest, b.other },
+        armor = { b.armor, b.chest, b.other },
         -- the Armory Crate first, then where ammo went before
-        target_priority = { b.weapon, b.crafter, b.tech, b.chest, b.other }
-    elseif sec_l:find("powder") or sec_l:find("scrap") or sec_l:find("casing") or sec_l:find("bullet")
-       or sec_l:find("primer") or sec_l:find("prt_i_copper") or sec_l:find("prt_i_paper") or sec_l:find("prt_i_plastic")
-       or sec_l:find("prt_i_resistor") or sec_l:find("prt_i_transist") or sec_l:find("prt_i_cond") or sec_l:find("prt_i_capacit") or sec_l:find("prt_i_microchip")
-       or (is_mutant_part and not is_edible_mutant_meat) then
-        target_priority = { b.crafter, b.tech, b.chest, b.other }
-    elseif sec_l:find("toolkit") or sec_l:find("glue") or sec_l:find("sewing") or sec_l:find("oil") or sec_l:find("solvent")
-       or sec_l:find("rasp") or sec_l:find("ramrod") or sec_l:find("prt_w_") or sec_l:find("prt_o_")
-       or sec_l:find("cleaning_kit") or sec_l:find("repair_kit") or sec_l:find("upg_") or sec_l:find("lead_box") or sec_l:find("leatherman") then
-        target_priority = { b.tech, b.crafter, b.chest, b.other }
-    else
-        target_priority = { b.chest, b.other }
-    end
+        ammo = { b.weapon, b.crafter, b.tech, b.chest, b.other },
+        parts = { b.crafter, b.tech, b.chest, b.other },
+        tech = { b.tech, b.crafter, b.chest, b.other },
+        misc = { b.chest, b.other },
+    }
 
-    local chosen = pick_box(target_priority)
+    local chosen = pick_box(routes[sb.get_item_sort_route(sec)] or routes.misc)
     if chosen then return chosen end
 
     if is_player_dump then
