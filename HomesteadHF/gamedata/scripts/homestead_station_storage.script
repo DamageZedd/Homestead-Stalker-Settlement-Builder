@@ -1,0 +1,126 @@
+-- homestead_station_storage.script
+-- Every Homestead work station holds 300 kg: a hidden station_stash under the station (like the
+-- Market Stall's goods and the Hideout Furniture workshop stash), opened by using the station.
+-- The stash is settlement storage: settlers fill and draw from it, and the sorter sends it what
+-- the station's homestead_storage_buckets name. stash ids live in alife_storage_manager state:
+-- station_stashes[station_id] = stash_id.
+
+local function state()
+    local m = alife_storage_manager.get_state()
+    m.station_stashes = m.station_stashes or {}
+    return m.station_stashes
+end
+
+-- the camps cache their containers: a new or removed stash must show up at once
+local function forget_camp_containers()
+    local sb = stalker_camp_builder
+    for _, camp in pairs(sb and sb.active_camps or {}) do
+        if type(camp) == "table" then
+            camp._cached_containers = nil
+            camp._cached_categorized_boxes = nil
+        end
+    end
+end
+
+-- id of the station's stash, creating it when there is none yet
+function get_stash(station_id)
+    local stashes = state()
+    local se_box = stashes[station_id] and alife_object(stashes[station_id])
+    if se_box and se_box:section_name() ~= "station_stash" then se_box = nil end -- a reused id
+    if not se_box then
+        local obj = get_object_by_id(station_id)
+        if not obj then return nil end
+        local pos = vec_set(obj:position())
+        pos.y = pos.y - 50
+        se_box = alife_create("station_stash", pos, obj:level_vertex_id(), obj:game_vertex_id())
+        if not se_box then return nil end
+        stashes[station_id] = se_box.id
+        forget_camp_containers()
+    end
+    return se_box.id
+end
+
+-- the stash id if it already exists (no creation)
+function find_stash(station_id)
+    local id = state()[station_id]
+    local se_box = id and alife_object(id)
+    if se_box and se_box:section_name() == "station_stash" then return id end
+    return nil
+end
+
+local function open_stash(box_id)
+    local box = box_id and level.object_by_id(box_id)
+    if not box then return false end -- not online yet: the time event repeats
+    hide_hud_inventory()
+    box:use(db.actor)
+    return true
+end
+
+-- ui_on_simple_interaction: a quick use opens the station's storage; hold-use keeps the standard
+-- Hideout Furniture menu (with Pick Up)
+function use_station(station_id)
+    local box_id = get_stash(station_id)
+    if not box_id then return end
+    -- the box must be online to be opened
+    alife():set_switch_online(box_id, true)
+    alife():set_switch_offline(box_id, false)
+    CreateTimeEvent("homestead_station", "open_" .. station_id, 0, open_stash, box_id)
+end
+
+local function make_stash(station_id)
+    get_stash(station_id)
+    return true
+end
+
+function init(obj)
+    obj:bind_object(station_wrapper(obj).binder)
+end
+
+class "station_wrapper" (bind_hf_base.hf_binder_wrapper)
+
+function station_wrapper:__init(obj)
+    super(obj)
+end
+
+-- the stash is made as soon as the station is placed (or first comes online in an older save),
+-- so settlers can store in it before the player ever opens it
+function station_wrapper:net_spawn()
+    bind_hf_base.hf_binder_wrapper.net_spawn(self)
+    local id = self.object:id()
+    CreateTimeEvent("homestead_station", "stash_" .. id, 1, make_stash, id)
+end
+
+function station_wrapper:net_destroy()
+    if self.object then
+        RemoveTimeEvent("homestead_station", "stash_" .. self.object:id())
+    end
+    bind_hf_base.hf_binder_wrapper.net_destroy(self)
+end
+
+-- picking the station up hands its storage back first
+function station_wrapper:pickup()
+    local id = self.object and self.object:id()
+    local stashes = state()
+    local box_id = id and stashes[id]
+    local se_box = box_id and alife_object(box_id)
+    if se_box and se_box:section_name() == "station_stash" then
+        local box = level.object_by_id(box_id)
+        if not box then
+            -- releasing an offline box would release what is in it: bring it online and let the
+            -- player pick the station up again in a moment
+            alife():set_switch_online(box_id, true)
+            alife():set_switch_offline(box_id, false)
+            actor_menu.set_msg(1, game.translate_string("st_homestead_station_stash_busy"), 3)
+            return false
+        end
+        box:iterate_inventory_box(function(temp, item)
+            box:transfer_item(item, db.actor)
+        end, box)
+        alife_release(se_box)
+    end
+    if box_id then
+        stashes[id] = nil
+        forget_camp_containers()
+    end
+    return bind_hf_base.hf_binder_wrapper.pickup(self)
+end

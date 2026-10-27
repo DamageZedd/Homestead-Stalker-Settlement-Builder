@@ -149,10 +149,9 @@ function stalker_camp_builder.camp_has_storage_room(camp, hub_id, weight)
     end
 
     -- Check workshop stash
-    local m_data = alife_storage_manager and alife_storage_manager.get_state()
-    if m_data and m_data.workshop_stashes and hub_id and m_data.workshop_stashes[hub_id] then
-        local ws_id = m_data.workshop_stashes[hub_id]
-        if ws_id and not checked[ws_id] and stalker_camp_builder.is_valid_camp_box(ws_id, hub_id, camp) then
+    local ws_id = hub_id and sb.linked_stash_id(hub_id)
+    if ws_id then
+        if not checked[ws_id] and stalker_camp_builder.is_valid_camp_box(ws_id, hub_id, camp) then
             checked[ws_id] = true
             if sb.box_has_room_for(ws_id, needed_w, weight_cache) then
                 return true
@@ -160,13 +159,10 @@ function stalker_camp_builder.camp_has_storage_room(camp, hub_id, weight)
         end
     end
 
-    -- Check all camp structures that are valid containers
+    -- Check all camp structures that are valid containers (a work station's stash for the station)
     if camp.structures then
         for struct_id, _ in pairs(camp.structures) do
-            local target_id = struct_id
-            if m_data and m_data.workshop_stashes and m_data.workshop_stashes[struct_id] then
-                target_id = m_data.workshop_stashes[struct_id]
-            end
+            local target_id = sb.linked_stash_id(struct_id) or struct_id
             if not checked[target_id] and stalker_camp_builder.is_valid_camp_box(target_id, hub_id, camp) then
                 checked[target_id] = true
                 if sb.box_has_room_for(target_id, needed_w, weight_cache) then
@@ -187,7 +183,12 @@ local function get_camp_categorized_boxes(camp, hub_id)
     end
 
     local fridge_boxes, stove_boxes, crafter_boxes, tech_boxes, medic_boxes, weapon_boxes, armor_boxes = {}, {}, {}, {}, {}, {}, {}
-    local chest_boxes, other_boxes = {}, {}
+    local chest_boxes, other_boxes, pantry_boxes, station_boxes = {}, {}, {}, {}
+    local bucket_lists = {
+        fridge = fridge_boxes, stove = stove_boxes, crafter = crafter_boxes, tech = tech_boxes,
+        medic = medic_boxes, weapon = weapon_boxes, armor = armor_boxes, chest = chest_boxes,
+        other = other_boxes, pantry = pantry_boxes,
+    }
     local all_boxes = {}
     local seen_boxes = {}
     local any_box = nil
@@ -222,10 +223,9 @@ local function get_camp_categorized_boxes(camp, hub_id)
         end
     end
 
-    local m_data = alife_storage_manager and alife_storage_manager.get_state and alife_storage_manager.get_state()
-    if m_data and m_data.workshop_stashes and hub_id and m_data.workshop_stashes[hub_id] then
-        local ws_id = m_data.workshop_stashes[hub_id]
-        if ws_id and not seen_boxes[ws_id] and stalker_camp_builder.is_valid_camp_box(ws_id, hub_id, camp) then
+    local ws_id = hub_id and sb.linked_stash_id(hub_id)
+    if ws_id then
+        if not seen_boxes[ws_id] and stalker_camp_builder.is_valid_camp_box(ws_id, hub_id, camp) then
             local meta = make_box_meta(ws_id)
             seen_boxes[ws_id] = true
             table.insert(tech_boxes, meta)
@@ -236,10 +236,7 @@ local function get_camp_categorized_boxes(camp, hub_id)
     end
 
     for id, stype in pairs(camp.structures or {}) do
-        local target_id = id
-        if m_data and m_data.workshop_stashes and m_data.workshop_stashes[id] then
-            target_id = m_data.workshop_stashes[id]
-        end
+        local target_id = sb.linked_stash_id(id) or id
         if target_id and not seen_boxes[target_id] and stalker_camp_builder.is_valid_camp_box(target_id, hub_id, camp) then
             seen_boxes[target_id] = true
             local se = stalker_camp_builder.safe_alife_object(target_id)
@@ -249,7 +246,30 @@ local function get_camp_categorized_boxes(camp, hub_id)
             any_box = any_box or target_id
             table.insert(all_boxes, meta)
 
-            if ssec:find("fridge") or ssec:find("refrigerator") or ssec:find("cooler") then
+            -- Homestead storage names its buckets: a themed box on its own section, a work
+            -- station's stash on the station's section. Station stashes also take overflow.
+            local named = ini_sys and ini_sys:r_string_ex(ssec_raw, "homestead_storage_buckets")
+            if not named and target_id ~= id then
+                local se_station = stalker_camp_builder.safe_alife_object(id)
+                named = se_station and ini_sys and ini_sys:r_string_ex(se_station:section_name(), "homestead_storage_buckets")
+            end
+            if ssec_raw == "station_stash" then
+                table.insert(station_boxes, meta)
+            end
+            if named then
+                local placed = false
+                for bucket in string.gmatch(named, "[%w_]+") do
+                    if bucket_lists[bucket] then
+                        table.insert(bucket_lists[bucket], meta)
+                        placed = true
+                    end
+                end
+                if not placed and ssec_raw ~= "station_stash" then
+                    table.insert(other_boxes, meta)
+                end
+            elseif ssec_raw == "station_stash" then
+                -- a station without buckets: overflow only
+            elseif ssec:find("fridge") or ssec:find("refrigerator") or ssec:find("cooler") then
                 table.insert(fridge_boxes, meta)
             elseif ssec:find("stove") or ssec:find("fireplace") or ssec:find("wood_stove") or ssec:find("barrel_metal") then
                 table.insert(stove_boxes, meta)
@@ -308,6 +328,7 @@ local function get_camp_categorized_boxes(camp, hub_id)
             camp.structures = camp.structures or {}
             camp.structures[new_box.id] = "stash"
             camp.primary_chest_id = new_box.id
+            camp.camp_stash_id = new_box.id -- the camp's own box: settlement storage (is_valid_camp_box)
             any_box = new_box.id
             local meta = make_box_meta(new_box.id, "inventory_box")
             table.insert(chest_boxes, meta)
@@ -326,6 +347,8 @@ local function get_camp_categorized_boxes(camp, hub_id)
             armor = armor_boxes,
             chest = chest_boxes,
             other = other_boxes,
+            pantry = pantry_boxes,
+            station = station_boxes,
         },
         all_boxes = all_boxes,
     }
@@ -408,7 +431,7 @@ function stalker_camp_builder.get_auto_sort_target_box(camp, hub_id, sec_or_item
        or sec_l:find("water") or sec_l:find("mineral_water") or sec_l:find("flask") or sec_l:find("vodka") or sec_l:find("beer")
        or sec_l:find("energy_drink") or sec_l:find("tea") or sec_l:find("drink_") or sec_l:find("bottle_") or sec_l:find("ration")
        or sec_l:find("mre") or sec_l:find("cereal") or sec_l:find("tomato") or sec_l:find("corn") or sec_l:find("sausage"))) then
-        target_priority = { b.fridge, b.chest, b.other }
+        target_priority = { b.fridge, b.pantry, b.chest, b.other }
     elseif sec_l:find("charcoal") or sec_l:find("firewood") or sec_l:find("matches") or sec_l:find("kerosene")
        or sec_l:find("fuel") or sec_l:find("diesel") or sec_l:find("coal") or sec_l:find("igniter") or sec_l:find("prt_i_wood") then
         target_priority = { b.stove, b.chest, b.other }
@@ -445,7 +468,7 @@ function stalker_camp_builder.get_auto_sort_target_box(camp, hub_id, sec_or_item
 
     -- Job deposits fallback: check any remaining container with room
     -- not fridges, stoves or med cases: they hold their own kind (see sanitize_primary_chest)
-    local general_fallback = pick_box({ b.chest, b.other, b.tech, b.crafter, b.weapon, b.armor })
+    local general_fallback = pick_box({ b.chest, b.other, b.tech, b.crafter, b.weapon, b.armor, b.station })
     if general_fallback then return general_fallback end
 
     -- no box that takes the item has room: deposit_item_to_camp drops it at the hub

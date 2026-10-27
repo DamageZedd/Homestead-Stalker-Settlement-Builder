@@ -37,10 +37,9 @@ function stalker_camp_builder.get_camp_containers(hub_id, camp)
     local function add_box(bid)
         if not bid or type(bid) ~= "number" or seen[bid] then return end
 
-        local m_data = alife_storage_manager and alife_storage_manager.get_state()
-        if m_data and m_data.workshop_stashes and m_data.workshop_stashes[bid] then
-            local ws_id = m_data.workshop_stashes[bid]
-            if ws_id and not seen[ws_id] and sb.is_valid_camp_box(ws_id, hub_id, camp) then
+        local ws_id = sb.linked_stash_id(bid)
+        if ws_id then
+            if not seen[ws_id] and sb.is_valid_camp_box(ws_id, hub_id, camp) then
                 seen[ws_id] = true
                 containers[#containers + 1] = ws_id
             end

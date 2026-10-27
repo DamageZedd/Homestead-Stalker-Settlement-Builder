@@ -34,7 +34,10 @@ inv_weight                              = 55.0
 placeable_type                          = prop
 base_rotation                           = 0
 fixed_bones                            = link
-script_binding                          = bind_hf_base.init
+script_binding                          = homestead_station_storage.init
+ui_on_simple_interaction                = homestead_station_storage.use_station
+; its 300 kg stash: which camp storage the sorter treats it as
+homestead_storage_buckets               = pantry
 item_section                            = homestead_distiller
 
 bounding_box_size                       = 1.547147, 0.819330, 1.674037
@@ -72,7 +75,10 @@ inv_weight                              = 85.0
 placeable_type                          = prop
 base_rotation                           = 0
 fixed_bones                            = link
-script_binding                          = bind_hf_base.init
+script_binding                          = homestead_station_storage.init
+ui_on_simple_interaction                = homestead_station_storage.use_station
+; its 300 kg stash: which camp storage the sorter treats it as
+homestead_storage_buckets               = crafter
 item_section                            = homestead_ammo_bench
 
 bounding_box_size                       = 1.300000, 0.961285, 1.272500
@@ -110,7 +116,10 @@ inv_weight                              = 75.0
 placeable_type                          = prop
 base_rotation                           = 0
 fixed_bones                            = link
-script_binding                          = bind_hf_base.init
+script_binding                          = homestead_station_storage.init
+ui_on_simple_interaction                = homestead_station_storage.use_station
+; its 300 kg stash: which camp storage the sorter treats it as
+homestead_storage_buckets               = stove
 item_section                            = homestead_wood_station
 
 bounding_box_size                       = 2.194761, 1.380000, 1.481058
@@ -148,7 +157,10 @@ inv_weight                              = 95.0
 placeable_type                          = prop
 base_rotation                           = 0
 fixed_bones                            = link
-script_binding                          = bind_hf_base.init
+script_binding                          = homestead_station_storage.init
+ui_on_simple_interaction                = homestead_station_storage.use_station
+; its 300 kg stash: which camp storage the sorter treats it as
+homestead_storage_buckets               = tech
 item_section                            = homestead_generator_station
 
 bounding_box_size                       = 1.755272, 0.910721, 1.410000
@@ -184,7 +196,10 @@ inv_weight                              = 110.0
 placeable_type                          = prop
 base_rotation                           = 0
 fixed_bones                            = link
-script_binding                          = bind_hf_base.init
+script_binding                          = homestead_station_storage.init
+ui_on_simple_interaction                = homestead_station_storage.use_station
+; its 300 kg stash: which camp storage the sorter treats it as
+homestead_storage_buckets               = tech
 item_section                            = homestead_repair_bench
 
 bounding_box_size                       = 2.247447, 0.826988, 1.942585
@@ -222,7 +237,10 @@ inv_weight                              = 150.0
 placeable_type                          = prop
 base_rotation                           = 0
 fixed_bones                            = link
-script_binding                          = bind_hf_base.init
+script_binding                          = homestead_station_storage.init
+ui_on_simple_interaction                = homestead_station_storage.use_station
+; its 300 kg stash: which camp storage the sorter treats it as
+homestead_storage_buckets               = pantry, crafter
 item_section                            = homestead_hunter_station
 
 bounding_box_size                       = 4.465149, 2.502267, 2.264005
@@ -260,7 +278,10 @@ inv_weight                              = 90.0
 placeable_type                          = prop
 base_rotation                           = 0
 fixed_bones                             = link
-script_binding                          = bind_hf_base.init
+script_binding                          = homestead_station_storage.init
+ui_on_simple_interaction                = homestead_station_storage.use_station
+; its 300 kg stash: which camp storage the sorter treats it as
+homestead_storage_buckets               = pantry
 item_section                            = homestead_farmer_station
 
 ; width, depth, height / origin x, y (up), z: measured from the mesh bounds, 3 cm inset per side, 10 cm lifted
@@ -347,6 +368,13 @@ bounding_box_origin                     = 0.000000, 1.167000, -0.257500
 [market_stash]:hidden_box
 capacity                                = 150
 
+; a work station's storage: a hidden box under the station, opened by using the station.
+; homestead_storage marks a box as settlement storage (only those are camp storage; see
+; stalker_camp_builder.is_settlement_storage)
+[station_stash]:hidden_box
+capacity                                = 300
+homestead_storage                       = station
+
 ;--------------------------
 ;--- Water Purifier (Очиститель воды)
 ;--------------------------
@@ -379,7 +407,10 @@ inv_weight                              = 40.0
 placeable_type                          = prop
 base_rotation                           = 0
 fixed_bones                             = link
-script_binding                          = bind_hf_base.init
+script_binding                          = homestead_station_storage.init
+ui_on_simple_interaction                = homestead_station_storage.use_station
+; its 300 kg stash: which camp storage the sorter treats it as
+homestead_storage_buckets               = pantry
 item_section                            = homestead_water_purifier
 
 ; width, depth, height / origin x, y (up), z: measured from the above-ground mesh bounds, 3 cm inset per side, 10 cm lifted

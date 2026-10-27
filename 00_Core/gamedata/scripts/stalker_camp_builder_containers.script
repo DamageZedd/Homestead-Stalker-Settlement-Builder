@@ -1,9 +1,19 @@
 -- stalker_camp_builder_containers.script
 -- Homestead server-container / inventory-box iteration helpers (split out of stalker_camp_builder.script).
 -- Exposed on the main table: invalidate_server_container_cache, get_server_container_items,
--- iterate_server_container, safe_iterate_inventory_box, is_actual_container.
+-- iterate_server_container, safe_iterate_inventory_box, is_actual_container, linked_stash_id.
 
 local known_bad_inventory_boxes = {}
+
+-- the hidden stash that holds a piece's items: a Hideout Furniture workbench's workshop_stash or
+-- a Homestead work station's station_stash. nil for anything else.
+function stalker_camp_builder.linked_stash_id(id)
+    if not id then return nil end
+    local m_data = alife_storage_manager and alife_storage_manager.get_state()
+    if not m_data then return nil end
+    return (m_data.workshop_stashes and m_data.workshop_stashes[id])
+        or (m_data.station_stashes and m_data.station_stashes[id])
+end
 
 -- iterate_server_container -- robustly iterate items in an ALife container
 local _server_container_cache = {}
@@ -78,9 +88,8 @@ function stalker_camp_builder.iterate_server_container(box_id_or_se, callback)
     end
     if not se_box or not box_id then return end
 
-    local m_data = alife_storage_manager and alife_storage_manager.get_state()
-    if m_data and m_data.workshop_stashes and m_data.workshop_stashes[box_id] then
-        local ws_id = m_data.workshop_stashes[box_id]
+    local ws_id = stalker_camp_builder.linked_stash_id(box_id)
+    if ws_id then
         local ws_se = sim:object(ws_id)
         if ws_se then
             se_box = ws_se
@@ -221,7 +230,7 @@ function stalker_camp_builder.is_actual_container(box_id)
     if not sec then return false end
     local s = sec:lower()
 
-    if s == "workshop_stash" or s:find("workshop_stash") then
+    if s == "workshop_stash" or s:find("workshop_stash") or s == "station_stash" then
         known_bad_inventory_boxes[box_id] = nil
         return true
     end

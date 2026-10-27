@@ -531,6 +531,18 @@ local function outpost_piece_ids(fresh)
 end
 stalker_camp_builder.outpost_piece_ids = outpost_piece_ids
 
+-- Only the settlement's own storage is camp storage: Homestead's boxes and work-station stashes
+-- (homestead_storage key), Hideout Furniture workbench stashes and fridges. Every other Hideout
+-- Furniture or level box is the player's own: no job, sorter or supply count touches it.
+function is_settlement_storage(sec)
+    if not sec then return false end
+    if sec == "workshop_stash" or sec:find("workshop_stash", 1, true) or sec:find("fridge", 1, true) then
+        return true
+    end
+    return ini_sys ~= nil and ini_sys:section_exist(sec) and ini_sys:r_string_ex(sec, "homestead_storage") ~= nil
+end
+stalker_camp_builder.is_settlement_storage = is_settlement_storage
+
 function is_valid_camp_box(box_id, hub_id, camp)
     local type_ = type
     local sim = alife()
@@ -576,6 +588,11 @@ function is_valid_camp_box(box_id, hub_id, camp)
         end
     end
 
+    -- the camp's own fallback box (a plain inventory_box made at the hub) is storage too
+    if not is_settlement_storage(se_box:section_name()) and not (camp and camp.camp_stash_id == box_id) then
+        return false
+    end
+
     local hub_obj = hub_id and safe_alife_object(hub_id)
     local hub_pos = hub_obj and hub_obj.position
     local gg = game_graph()
@@ -604,7 +621,8 @@ function is_valid_camp_box(box_id, hub_id, camp)
 
     if hub_pos and se_box.position then
         local sec = se_box:section_name() and se_box:section_name():lower() or ""
-        local is_ws = (sec == "workshop_stash" or sec:find("workshop_stash") ~= nil)
+        -- hidden stashes sit 50 m under their workbench or station
+        local is_ws = (sec == "workshop_stash" or sec:find("workshop_stash") ~= nil or sec == "station_stash")
         local y_diff = math.abs(se_box.position.y - hub_pos.y)
         if not is_ws and y_diff > 15.0 then return false end
         local bdist = (sb.cfg and sb.cfg.boundary_dist) or 50
@@ -1397,13 +1415,15 @@ function find_best_container(hub_id, camp, preferred_types, fallback_box_id)
 
     for _, ptype in ipairs(preferred_types) do
         for struct_id, struct_type in pairs_(camp and camp.structures or {}) do
-            if struct_type == ptype and is_valid_camp_box(struct_id, hub_id, camp) then
+            -- a work station or workbench stores in its hidden stash
+            local box_id = sb.linked_stash_id(struct_id) or struct_id
+            if struct_type == ptype and is_valid_camp_box(box_id, hub_id, camp) then
                 local obj = safe_alife_object(struct_id)
                 if obj and obj.position and hub_obj.position then
                     local dist = obj.position:distance_to(hub_obj.position)
                     if dist < min_dist then
                         min_dist = dist
-                        best_id = struct_id
+                        best_id = box_id
                     end
                 end
             end

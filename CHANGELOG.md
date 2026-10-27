@@ -38,6 +38,12 @@
 ### 🧵 Rope texture:
 - `textures\item\item_rope.dds` was an uncompressed 1024×1024 RGBA texture without mipmaps (4 MB); it is now DXT1 with a full mip chain (0.7 MB). Its alpha was unused, so nothing is lost. The `item_rope.thm` beside it was a copy of the fuel canister's and gave the rope a metal detail map and the canister's bump map; it is removed, so the rope uses the engine defaults.
 
+### 📦 Settlement storage vs. personal storage:
+- **Only the settlement's own storage is camp storage now.** Settlers, Auto-Sort, supply counts and job deposits use the HomesteadHF work stations' storage, the hub workbench's stash, fridges, and boxes marked `homestead_storage`. Every other Hideout Furniture box and level stash inside the camp boundary is the player's personal storage: no settler takes from it or fills it (`stalker_camp_builder.is_settlement_storage`, checked in `is_valid_camp_box`).
+- **Every HomesteadHF work station holds 300 kg** (`homestead_station_storage.script`): the Distiller, Ammunition Bench, Woodcutter Station, Generator Station, Repair Bench, Hunter Station, Farmer Station and Water Purifier each get a hidden `station_stash` under them, made as soon as the station comes online. A quick use opens it; hold-use keeps the Hideout Furniture menu with Pick Up. Picking a station up hands its storage to the player (if the stash isn't loaded yet, the pickup waits and asks you to try again, so nothing is lost).
+- The sorter sends each station what its `homestead_storage_buckets` name: food and drink to the Distiller, Farmer, Hunter and Water Purifier stations (after fridges), ammo, grenades and mutant parts to the Ammunition Bench and Hunter Station, tools and parts to the Repair Bench and Generator Station, fuel to the Woodcutter Station. What a job makes that fits nowhere else goes into any station with room. Stashes are looked up through `stalker_camp_builder.linked_stash_id` (workbench or station), which replaces the separate `workshop_stashes` lookups.
+- **Heads-up for existing saves:** supplies kept in Hideout Furniture boxes inside a camp stay where they are, but settlers no longer see them. Move them into a station's storage or a fridge.
+
 ## v1.2.9 — Water Purifier
 
 ### 💧 Water Purifier (HomesteadHF):
