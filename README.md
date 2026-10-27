@@ -62,12 +62,45 @@ Every job has its own placeable workstation. Settlers walk to it, work at it and
 <td align="center"><img src="https://media.moddb.com/images/members/5/4662/4661404/profile/hero_farmer_station.png" alt="Farmer Station"><br><b>FARMER STATION</b> 🆕<br><sub>Farmer</sub></td>
 <td align="center"><img src="https://media.moddb.com/images/members/5/4662/4661404/profile/hero_market_stall.png" alt="Market Stall"><br><b>MARKET STALL</b> 🆕<br><sub>Trader</sub></td>
 </tr>
+<tr>
+<td align="center"><img src="docs/images/hero_field_kitchen.jpg" alt="Field Kitchen"><br><b>FIELD KITCHEN</b><br><sub>Cook · counts as a stove · 300 kg of food &amp; drink storage</sub></td>
+<td align="center"><img src="docs/images/hero_field_infirmary.jpg" alt="Field Infirmary"><br><b>FIELD INFIRMARY</b><br><sub>Medic · 300 kg of medicine storage</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/hero_guard_post.jpg" alt="Guard Post"><br><b>GUARD POST</b><br><sub>Guard · 300 kg of weapon, ammo &amp; grenade storage</sub></td>
+<td align="center"><img src="docs/images/hero_salvage_table.jpg" alt="Salvage Table"><br><b>SALVAGE TABLE</b><br><sub>Scavenger · 300 kg of tool, parts &amp; salvage storage</sub></td>
+</tr>
 </table>
 
 ### 💧 Water Purifier
 A gravity-fed **water purifier** on a concrete pad: an intake pipe comes up out of the ground into a blue steel settling drum, a grey carbon canister and two filter cartridges, and clean water runs out of a valve spout into the vanilla bucket. Ground water is irradiated, so it needs cleaning. It counts as a settlement water pump, so with charcoal or paper filters in camp storage your settlers fill clean flasks of water every few hours. It is built from vanilla G.A.M.M.A. parts and textures (the valve wheel, the bucket, and metal, concrete and rust textures). Craft it at a workbench; it weighs 10 kg in your inventory.
 
 <p align="center"><img src="docs/images/hero_water_purifier.jpg" alt="Water Purifier" width="70%"><br><b>WATER PURIFIER</b></p>
+
+### 🏴 Settlement Flag
+A pole and banner that marks the ground as yours. Placing it founds a settlement, just like a Workshop bench, and it flies the colours of your faction. It is also the camp's main storage (300 kg). Picking it up dismantles the settlement.
+
+<p align="center"><img src="docs/images/hero_settlement_flag.jpg" alt="Settlement Flag" width="70%"><br><b>SETTLEMENT FLAG</b></p>
+
+<p align="center"><img src="docs/images/hero_settlement_flag_factions.jpg" alt="Settlement Flag faction banners"><br><sub>Loners · Duty · Freedom · Clear Sky · Ecologists · Military<br>Bandits · Renegades · Mercenaries · Monolith · Sin · ISG</sub></p>
+
+### 📦 Settlement Storage
+Themed boxes for the settlement's own stock. Settlers and Auto-Sort put each kind of item in its own box first, and settlers take what they need from them.
+
+<table>
+<tr>
+<td width="50%" align="center"><img src="docs/images/hero_armory_crate.jpg" alt="Armory Crate"><br><b>ARMORY CRATE</b><br><sub>weapons, ammunition &amp; grenades · 250 kg</sub></td>
+<td width="50%" align="center"><img src="docs/images/hero_quartermaster_locker.jpg" alt="Quartermaster Locker"><br><b>QUARTERMASTER LOCKER</b><br><sub>suits, armour, helmets &amp; gas masks · 250 kg</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/hero_med_crate.jpg" alt="Med Crate"><br><b>MED CRATE</b><br><sub>medkits, bandages, drugs &amp; anti-rad · 100 kg</sub></td>
+<td align="center"><img src="docs/images/hero_pantry.jpg" alt="Pantry"><br><b>PANTRY</b><br><sub>food &amp; drink that keeps (after the fridges) · 200 kg</sub></td>
+</tr>
+<tr>
+<td align="center"><img src="docs/images/hero_supply_crate.jpg" alt="Supply Crate"><br><b>SUPPLY CRATE</b><br><sub>parts, tools, materials &amp; everything else · 300 kg</sub></td>
+<td align="center"></td>
+</tr>
+</table>
 
 ---
 
@@ -103,12 +136,12 @@ Full 5-tab tactical interface accessible from anywhere in the Zone. The top stat
 
 | Job | What it does | Workstation |
 |---|---|---|
-| **Guard** | Patrols, boosts Defense Rating, mans sentry posts, radio callouts | — |
-| **Scavenger** | Zone-wide stash expeditions with live tracking and loot receipts | — |
+| **Guard** | Patrols, boosts Defense Rating, mans sentry posts, radio callouts | Guard Post |
+| **Scavenger** | Zone-wide stash expeditions with live tracking and loot receipts | Salvage Table |
 | **Crafter** | Ammunition and turret supplies | Ammunition Crafting Bench |
 | **Repairer** | Weapons, armor, and passive storage repairs | Gunsmith & Armor Repair Bench |
-| **Cook** | Processes meat, produces food, grants 4-hour hospitality buffs | — |
-| **Medic** | Medical supplies, field healing and radiation treatment | — |
+| **Cook** | Processes meat, produces food, grants 4-hour hospitality buffs | Field Kitchen |
+| **Medic** | Medical supplies, field healing and radiation treatment | Field Infirmary |
 | **Electrician** | Power grid, night lights, turret overcharge, battery charging | Electrician Generator Bench |
 | **Woodcutter** | Firewood and charcoal | Woodcutter Station |
 | **Brewer** | Distills vodka, uses potatoes first | Moonshine Distiller |
