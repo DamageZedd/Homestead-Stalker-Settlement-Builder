@@ -336,7 +336,7 @@ local STATIC_SPIRAL_SCAN_DIRS = {
 
 -- JOB DISPATCH TABLE
 local JOB_DISPATCH = {
-    guard       = { try = {"barricade", "gadget"},
+    guard       = { try = {"guard_post", "barricade", "gadget"},
                     anims = {"guard", "threat_na", "wait_na"} },
     cook        = { try = {"stove", "fridge", "workbench"},
                     anims = {"roast_kolbasa_bred", "roast_kolbasa", "wait_na", "sit_knee"} },
@@ -1301,6 +1301,11 @@ local structure_type_exact = {
     placeable_homestead_pantry        = "pantry",
     placeable_homestead_med_crate     = "med_crate",
     placeable_homestead_supply_crate  = "stash",
+    -- HomesteadHF stations for the jobs that had none
+    placeable_field_kitchen_stove = "stove",       -- the Cook's Field Kitchen is a real stove
+    placeable_field_infirmary     = "medstation",
+    placeable_guard_post          = "guard_post",
+    placeable_salvage_table       = "salvage_table",
     placeable_ammo_bench        = "ammo_bench",
     placeable_wood_station      = "wood_station",
     placeable_generator_station = "generator_station",
@@ -1375,10 +1380,16 @@ local SPECIALIZED_CONTAINER_TYPES = {
     weapon_rack = true, display_counter = true, market_stall = true,
     armory = true, quartermaster = true, pantry = true, med_crate = true,
 }
+-- a work station's hidden stash is that station's storage, never the main chest
+local function is_station_stash(box_id)
+    local se = box_id and alife_object(box_id)
+    return se ~= nil and se:section_name() == "station_stash"
+end
+
 function stalker_camp_builder.sanitize_primary_chest(camp)
     if not (camp and camp.primary_chest_id) then return end
     local t = camp.structures and camp.structures[camp.primary_chest_id]
-    if t and SPECIALIZED_CONTAINER_TYPES[t] then
+    if (t and SPECIALIZED_CONTAINER_TYPES[t]) or is_station_stash(camp.primary_chest_id) then
         camp.primary_chest_id = nil
     end
 end
@@ -1480,7 +1491,7 @@ function find_best_container(hub_id, camp, preferred_types, fallback_box_id)
     -- Only remember general storage boxes as the main chest.
     if best_id and camp and not camp.primary_chest_id then
         local t = camp.structures and camp.structures[best_id]
-        if not (t and SPECIALIZED_CONTAINER_TYPES[t]) then
+        if not (t and SPECIALIZED_CONTAINER_TYPES[t]) and not is_station_stash(best_id) then
             camp.primary_chest_id = best_id
         end
     end
@@ -3056,10 +3067,12 @@ function npc_on_update(npc)
                 {"sit_knee", "wait_na", "guard"}, true, nil)
             return
         end
-        local target_lvid, is_fb, sid = get_job_target_lvid("scavenge", "stash")
+        local target_lvid, is_fb, sid = get_job_target_lvid("scavenge", "salvage_table")
         if is_fb then
-            local alt, alt_sid = find_struct_lvid("workbench")
-            if alt then target_lvid, is_fb, sid = alt, false, alt_sid end
+            for _, stype in ipairs({"stash", "workbench"}) do
+                local alt, alt_sid = find_struct_lvid(stype)
+                if alt then target_lvid, is_fb, sid = alt, false, alt_sid; break end
+            end
         end
         move_to_job_furniture(target_lvid, 1.3,
             {"sit_knee", "ward", "wait_na", "guard"}, is_fb, sid)

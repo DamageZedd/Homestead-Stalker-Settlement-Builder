@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="windows-1251" ?>
+<string_table>
+	<string id="st_homestead_field_kitchen">
+		<text>Field Kitchen</text>
+	</string>
+	<string id="st_homestead_field_kitchen_descr">
+		<text>A field stove with pots, a chopping board and a fuel bin. The Cook works here: it counts as a stove, so the Cook makes full meals instead of campfire food (with stove fuel in camp storage when the MCM fuel rule is on). Use it to open its storage: 300 kg of settlement storage for food and drink. Weighs 30 kg to carry.</text>
+	</string>
+	<string id="st_homestead_field_infirmary">
+		<text>Field Infirmary</text>
+	</string>
+	<string id="st_homestead_field_infirmary_descr">
+		<text>A medical corner with an instrument stand, drip and supplies. The Medic works here: it counts as a medical station. Use it to open its storage: 300 kg of settlement storage for medicine. Weighs 28 kg to carry.</text>
+	</string>
+	<string id="st_homestead_guard_post">
+		<text>Guard Post</text>
+	</string>
+	<string id="st_homestead_guard_post_descr">
+		<text>A sentry table with a logbook and a rack for the watch. Guards stand watch here first, before the barricades and turrets. Use it to open its storage: 300 kg of settlement storage for weapons, ammo and grenades. Weighs 26 kg to carry.</text>
+	</string>
+	<string id="st_homestead_salvage_table">
+		<text>Salvage Table</text>
+	</string>
+	<string id="st_homestead_salvage_table_descr">
+		<text>A sorting table for what the scavengers drag home. Scavengers wait here between expeditions. Use it to open its storage: 300 kg of settlement storage for tools, parts and salvage. Weighs 24 kg to carry.</text>
+	</string>
+</string_table>

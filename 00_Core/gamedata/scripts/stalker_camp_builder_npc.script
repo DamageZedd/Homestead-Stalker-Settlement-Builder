@@ -450,7 +450,7 @@ function stalker_camp_builder.get_settler_job_target(npc_id, hub_id)
 
     local job = survivor and survivor.job or "idle"
     local job_structs = {
-        guard = {"barricade", "gadget"},
+        guard = {"guard_post", "barricade", "gadget"},
         cook = {"stove", "fridge", "workbench"},
         craft = {"ammo_bench", "workbench"},
         repair = {"repair_bench", "workbench"},
@@ -461,8 +461,8 @@ function stalker_camp_builder.get_settler_job_target(npc_id, hub_id)
         trader = {"market_stall", "display_counter", "barricade", "box"},
         brewer ={"distiller", "stove", "bidon", "workbench", "medstation", "box"},
         scrapper = {"repair_bench", "workbench", "box", "stash"},
-        scavenge = {"stash", "box", "fridge", "workbench"},
-        scavenger = {"stash", "box", "fridge", "workbench"},
+        scavenge = {"salvage_table", "stash", "box", "fridge", "workbench"},
+        scavenger = {"salvage_table", "stash", "box", "fridge", "workbench"},
         hunter = {"fridge", "box", "stash", "workbench"},
         idle = {"piano", "radio"}
     }
