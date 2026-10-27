@@ -28,6 +28,9 @@ def fix_images(objs):
                 if n.type == 'TEX_IMAGE':
                     tex = m.xray.texture if hasattr(m, "xray") and getattr(m.xray, "texture", "") else m.name
                     tex = tex.split("~")[0] if "~" in tex else tex
+                    import re
+                    m_dup = re.match(r"^(.*?)\.\d{3}$", tex)
+                    tex = m_dup.group(1) if m_dup else tex
                     p = find_tex(tex) or (n.image and find_tex(os.path.splitext(n.image.name)[0]))
                     if p:
                         if n.image:

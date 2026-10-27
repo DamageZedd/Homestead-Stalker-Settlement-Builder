@@ -5,21 +5,20 @@
 ; the Hideout Furniture Workshop does (homestead_hub), and the flag holds 300 kg as the camp's main
 ; storage (a station_stash, homestead_station_storage.script). Picking it up dismantles the camp.
 ; One placeable section per faction so each can carry its own emblem.
-; STAND-IN VISUAL AND ICON: Hideout Furniture Expansion's vertical poster until the flag model is
-; made and approved.
+; Model: custom Settlement Flag with welded mast, guy wires, outriggers, weathered crate chest, kerosene lantern, and embroidered faction banner.
 ;--------------------------------------------------------------------------------------------------
 
 ; the crafted flag: becomes the player's faction's flag once it is in their inventory
 [homestead_settlement_flag]:tch_junk
 class                                   = II_ATTCH
 kind                                    = i_tool
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag.ogf
 description                             = st_homestead_settlement_flag_descr
 inv_name                                = st_homestead_settlement_flag
 inv_name_short                          = st_homestead_settlement_flag
-icons_texture                           = ui\ui_maid_efp_props
-inv_grid_x                              = 3
-inv_grid_y                              = 5
+icons_texture                           = ui\ui_icon_homestead_workstations
+inv_grid_x                              = 6
+inv_grid_y                              = 15
 inv_grid_width                          = 1
 inv_grid_height                         = 2
 cost                                    = 5000
@@ -34,13 +33,13 @@ placeable_section                       = placeable_settlement_flag_stalker
 [homestead_settlement_flag_stalker]:tch_junk
 class                                   = II_ATTCH
 kind                                    = i_tool
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_stalker.ogf
 description                             = st_homestead_settlement_flag_descr
 inv_name                                = st_homestead_settlement_flag_stalker
 inv_name_short                          = st_homestead_settlement_flag_stalker
-icons_texture                           = ui\ui_maid_efp_props
-inv_grid_x                              = 3
-inv_grid_y                              = 5
+icons_texture                           = ui\ui_icon_homestead_workstations
+inv_grid_x                              = 6
+inv_grid_y                              = 15
 inv_grid_width                          = 1
 inv_grid_height                         = 2
 cost                                    = 5000
@@ -53,7 +52,7 @@ placeable_type                          = prop
 placeable_section                       = placeable_settlement_flag_stalker
 
 [placeable_settlement_flag_stalker]:physic_object
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_stalker.ogf
 inv_weight                              = 12.0
 placeable_type                          = prop
 base_rotation                           = 0
@@ -65,19 +64,20 @@ homestead_flag_faction                  = stalker
 ; the camp's main storage
 homestead_storage_buckets               = chest
 
-bounding_box_size                       = 0.029702, 0.726874, 1.009274
-bounding_box_origin                     = 0.005057, 0.5057, 0.000149
+; width, depth, height / origin x, y (up), z: measured from mesh bounds
+bounding_box_size                       = 1.094000, 0.759000, 2.493000
+bounding_box_origin                     = 0.141000, 1.246500, -0.057000
 
 [homestead_settlement_flag_dolg]:tch_junk
 class                                   = II_ATTCH
 kind                                    = i_tool
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_dolg.ogf
 description                             = st_homestead_settlement_flag_descr
 inv_name                                = st_homestead_settlement_flag_dolg
 inv_name_short                          = st_homestead_settlement_flag_dolg
-icons_texture                           = ui\ui_maid_efp_props
-inv_grid_x                              = 3
-inv_grid_y                              = 5
+icons_texture                           = ui\ui_icon_homestead_workstations
+inv_grid_x                              = 6
+inv_grid_y                              = 15
 inv_grid_width                          = 1
 inv_grid_height                         = 2
 cost                                    = 5000
@@ -90,7 +90,7 @@ placeable_type                          = prop
 placeable_section                       = placeable_settlement_flag_dolg
 
 [placeable_settlement_flag_dolg]:physic_object
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_dolg.ogf
 inv_weight                              = 12.0
 placeable_type                          = prop
 base_rotation                           = 0
@@ -102,19 +102,20 @@ homestead_flag_faction                  = dolg
 ; the camp's main storage
 homestead_storage_buckets               = chest
 
-bounding_box_size                       = 0.029702, 0.726874, 1.009274
-bounding_box_origin                     = 0.005057, 0.5057, 0.000149
+; width, depth, height / origin x, y (up), z: measured from mesh bounds
+bounding_box_size                       = 1.094000, 0.759000, 2.493000
+bounding_box_origin                     = 0.141000, 1.246500, -0.057000
 
 [homestead_settlement_flag_freedom]:tch_junk
 class                                   = II_ATTCH
 kind                                    = i_tool
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_freedom.ogf
 description                             = st_homestead_settlement_flag_descr
 inv_name                                = st_homestead_settlement_flag_freedom
 inv_name_short                          = st_homestead_settlement_flag_freedom
-icons_texture                           = ui\ui_maid_efp_props
-inv_grid_x                              = 3
-inv_grid_y                              = 5
+icons_texture                           = ui\ui_icon_homestead_workstations
+inv_grid_x                              = 6
+inv_grid_y                              = 15
 inv_grid_width                          = 1
 inv_grid_height                         = 2
 cost                                    = 5000
@@ -127,7 +128,7 @@ placeable_type                          = prop
 placeable_section                       = placeable_settlement_flag_freedom
 
 [placeable_settlement_flag_freedom]:physic_object
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_freedom.ogf
 inv_weight                              = 12.0
 placeable_type                          = prop
 base_rotation                           = 0
@@ -139,19 +140,20 @@ homestead_flag_faction                  = freedom
 ; the camp's main storage
 homestead_storage_buckets               = chest
 
-bounding_box_size                       = 0.029702, 0.726874, 1.009274
-bounding_box_origin                     = 0.005057, 0.5057, 0.000149
+; width, depth, height / origin x, y (up), z: measured from mesh bounds
+bounding_box_size                       = 1.094000, 0.759000, 2.493000
+bounding_box_origin                     = 0.141000, 1.246500, -0.057000
 
 [homestead_settlement_flag_csky]:tch_junk
 class                                   = II_ATTCH
 kind                                    = i_tool
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_csky.ogf
 description                             = st_homestead_settlement_flag_descr
 inv_name                                = st_homestead_settlement_flag_csky
 inv_name_short                          = st_homestead_settlement_flag_csky
-icons_texture                           = ui\ui_maid_efp_props
-inv_grid_x                              = 3
-inv_grid_y                              = 5
+icons_texture                           = ui\ui_icon_homestead_workstations
+inv_grid_x                              = 6
+inv_grid_y                              = 15
 inv_grid_width                          = 1
 inv_grid_height                         = 2
 cost                                    = 5000
@@ -164,7 +166,7 @@ placeable_type                          = prop
 placeable_section                       = placeable_settlement_flag_csky
 
 [placeable_settlement_flag_csky]:physic_object
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_csky.ogf
 inv_weight                              = 12.0
 placeable_type                          = prop
 base_rotation                           = 0
@@ -176,19 +178,20 @@ homestead_flag_faction                  = csky
 ; the camp's main storage
 homestead_storage_buckets               = chest
 
-bounding_box_size                       = 0.029702, 0.726874, 1.009274
-bounding_box_origin                     = 0.005057, 0.5057, 0.000149
+; width, depth, height / origin x, y (up), z: measured from mesh bounds
+bounding_box_size                       = 1.094000, 0.759000, 2.493000
+bounding_box_origin                     = 0.141000, 1.246500, -0.057000
 
 [homestead_settlement_flag_ecolog]:tch_junk
 class                                   = II_ATTCH
 kind                                    = i_tool
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_ecolog.ogf
 description                             = st_homestead_settlement_flag_descr
 inv_name                                = st_homestead_settlement_flag_ecolog
 inv_name_short                          = st_homestead_settlement_flag_ecolog
-icons_texture                           = ui\ui_maid_efp_props
-inv_grid_x                              = 3
-inv_grid_y                              = 5
+icons_texture                           = ui\ui_icon_homestead_workstations
+inv_grid_x                              = 6
+inv_grid_y                              = 15
 inv_grid_width                          = 1
 inv_grid_height                         = 2
 cost                                    = 5000
@@ -201,7 +204,7 @@ placeable_type                          = prop
 placeable_section                       = placeable_settlement_flag_ecolog
 
 [placeable_settlement_flag_ecolog]:physic_object
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_ecolog.ogf
 inv_weight                              = 12.0
 placeable_type                          = prop
 base_rotation                           = 0
@@ -213,19 +216,20 @@ homestead_flag_faction                  = ecolog
 ; the camp's main storage
 homestead_storage_buckets               = chest
 
-bounding_box_size                       = 0.029702, 0.726874, 1.009274
-bounding_box_origin                     = 0.005057, 0.5057, 0.000149
+; width, depth, height / origin x, y (up), z: measured from mesh bounds
+bounding_box_size                       = 1.094000, 0.759000, 2.493000
+bounding_box_origin                     = 0.141000, 1.246500, -0.057000
 
 [homestead_settlement_flag_killer]:tch_junk
 class                                   = II_ATTCH
 kind                                    = i_tool
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_killer.ogf
 description                             = st_homestead_settlement_flag_descr
 inv_name                                = st_homestead_settlement_flag_killer
 inv_name_short                          = st_homestead_settlement_flag_killer
-icons_texture                           = ui\ui_maid_efp_props
-inv_grid_x                              = 3
-inv_grid_y                              = 5
+icons_texture                           = ui\ui_icon_homestead_workstations
+inv_grid_x                              = 6
+inv_grid_y                              = 15
 inv_grid_width                          = 1
 inv_grid_height                         = 2
 cost                                    = 5000
@@ -238,7 +242,7 @@ placeable_type                          = prop
 placeable_section                       = placeable_settlement_flag_killer
 
 [placeable_settlement_flag_killer]:physic_object
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_killer.ogf
 inv_weight                              = 12.0
 placeable_type                          = prop
 base_rotation                           = 0
@@ -250,19 +254,20 @@ homestead_flag_faction                  = killer
 ; the camp's main storage
 homestead_storage_buckets               = chest
 
-bounding_box_size                       = 0.029702, 0.726874, 1.009274
-bounding_box_origin                     = 0.005057, 0.5057, 0.000149
+; width, depth, height / origin x, y (up), z: measured from mesh bounds
+bounding_box_size                       = 1.094000, 0.759000, 2.493000
+bounding_box_origin                     = 0.141000, 1.246500, -0.057000
 
 [homestead_settlement_flag_army]:tch_junk
 class                                   = II_ATTCH
 kind                                    = i_tool
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_army.ogf
 description                             = st_homestead_settlement_flag_descr
 inv_name                                = st_homestead_settlement_flag_army
 inv_name_short                          = st_homestead_settlement_flag_army
-icons_texture                           = ui\ui_maid_efp_props
-inv_grid_x                              = 3
-inv_grid_y                              = 5
+icons_texture                           = ui\ui_icon_homestead_workstations
+inv_grid_x                              = 6
+inv_grid_y                              = 15
 inv_grid_width                          = 1
 inv_grid_height                         = 2
 cost                                    = 5000
@@ -275,7 +280,7 @@ placeable_type                          = prop
 placeable_section                       = placeable_settlement_flag_army
 
 [placeable_settlement_flag_army]:physic_object
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_army.ogf
 inv_weight                              = 12.0
 placeable_type                          = prop
 base_rotation                           = 0
@@ -287,19 +292,20 @@ homestead_flag_faction                  = army
 ; the camp's main storage
 homestead_storage_buckets               = chest
 
-bounding_box_size                       = 0.029702, 0.726874, 1.009274
-bounding_box_origin                     = 0.005057, 0.5057, 0.000149
+; width, depth, height / origin x, y (up), z: measured from mesh bounds
+bounding_box_size                       = 1.094000, 0.759000, 2.493000
+bounding_box_origin                     = 0.141000, 1.246500, -0.057000
 
 [homestead_settlement_flag_bandit]:tch_junk
 class                                   = II_ATTCH
 kind                                    = i_tool
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_bandit.ogf
 description                             = st_homestead_settlement_flag_descr
 inv_name                                = st_homestead_settlement_flag_bandit
 inv_name_short                          = st_homestead_settlement_flag_bandit
-icons_texture                           = ui\ui_maid_efp_props
-inv_grid_x                              = 3
-inv_grid_y                              = 5
+icons_texture                           = ui\ui_icon_homestead_workstations
+inv_grid_x                              = 6
+inv_grid_y                              = 15
 inv_grid_width                          = 1
 inv_grid_height                         = 2
 cost                                    = 5000
@@ -312,7 +318,7 @@ placeable_type                          = prop
 placeable_section                       = placeable_settlement_flag_bandit
 
 [placeable_settlement_flag_bandit]:physic_object
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_bandit.ogf
 inv_weight                              = 12.0
 placeable_type                          = prop
 base_rotation                           = 0
@@ -324,19 +330,20 @@ homestead_flag_faction                  = bandit
 ; the camp's main storage
 homestead_storage_buckets               = chest
 
-bounding_box_size                       = 0.029702, 0.726874, 1.009274
-bounding_box_origin                     = 0.005057, 0.5057, 0.000149
+; width, depth, height / origin x, y (up), z: measured from mesh bounds
+bounding_box_size                       = 1.094000, 0.759000, 2.493000
+bounding_box_origin                     = 0.141000, 1.246500, -0.057000
 
 [homestead_settlement_flag_monolith]:tch_junk
 class                                   = II_ATTCH
 kind                                    = i_tool
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_monolith.ogf
 description                             = st_homestead_settlement_flag_descr
 inv_name                                = st_homestead_settlement_flag_monolith
 inv_name_short                          = st_homestead_settlement_flag_monolith
-icons_texture                           = ui\ui_maid_efp_props
-inv_grid_x                              = 3
-inv_grid_y                              = 5
+icons_texture                           = ui\ui_icon_homestead_workstations
+inv_grid_x                              = 6
+inv_grid_y                              = 15
 inv_grid_width                          = 1
 inv_grid_height                         = 2
 cost                                    = 5000
@@ -349,7 +356,7 @@ placeable_type                          = prop
 placeable_section                       = placeable_settlement_flag_monolith
 
 [placeable_settlement_flag_monolith]:physic_object
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_monolith.ogf
 inv_weight                              = 12.0
 placeable_type                          = prop
 base_rotation                           = 0
@@ -361,19 +368,20 @@ homestead_flag_faction                  = monolith
 ; the camp's main storage
 homestead_storage_buckets               = chest
 
-bounding_box_size                       = 0.029702, 0.726874, 1.009274
-bounding_box_origin                     = 0.005057, 0.5057, 0.000149
+; width, depth, height / origin x, y (up), z: measured from mesh bounds
+bounding_box_size                       = 1.094000, 0.759000, 2.493000
+bounding_box_origin                     = 0.141000, 1.246500, -0.057000
 
 [homestead_settlement_flag_renegade]:tch_junk
 class                                   = II_ATTCH
 kind                                    = i_tool
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_renegade.ogf
 description                             = st_homestead_settlement_flag_descr
 inv_name                                = st_homestead_settlement_flag_renegade
 inv_name_short                          = st_homestead_settlement_flag_renegade
-icons_texture                           = ui\ui_maid_efp_props
-inv_grid_x                              = 3
-inv_grid_y                              = 5
+icons_texture                           = ui\ui_icon_homestead_workstations
+inv_grid_x                              = 6
+inv_grid_y                              = 15
 inv_grid_width                          = 1
 inv_grid_height                         = 2
 cost                                    = 5000
@@ -386,7 +394,7 @@ placeable_type                          = prop
 placeable_section                       = placeable_settlement_flag_renegade
 
 [placeable_settlement_flag_renegade]:physic_object
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_renegade.ogf
 inv_weight                              = 12.0
 placeable_type                          = prop
 base_rotation                           = 0
@@ -398,19 +406,20 @@ homestead_flag_faction                  = renegade
 ; the camp's main storage
 homestead_storage_buckets               = chest
 
-bounding_box_size                       = 0.029702, 0.726874, 1.009274
-bounding_box_origin                     = 0.005057, 0.5057, 0.000149
+; width, depth, height / origin x, y (up), z: measured from mesh bounds
+bounding_box_size                       = 1.094000, 0.759000, 2.493000
+bounding_box_origin                     = 0.141000, 1.246500, -0.057000
 
 [homestead_settlement_flag_greh]:tch_junk
 class                                   = II_ATTCH
 kind                                    = i_tool
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_greh.ogf
 description                             = st_homestead_settlement_flag_descr
 inv_name                                = st_homestead_settlement_flag_greh
 inv_name_short                          = st_homestead_settlement_flag_greh
-icons_texture                           = ui\ui_maid_efp_props
-inv_grid_x                              = 3
-inv_grid_y                              = 5
+icons_texture                           = ui\ui_icon_homestead_workstations
+inv_grid_x                              = 6
+inv_grid_y                              = 15
 inv_grid_width                          = 1
 inv_grid_height                         = 2
 cost                                    = 5000
@@ -423,7 +432,7 @@ placeable_type                          = prop
 placeable_section                       = placeable_settlement_flag_greh
 
 [placeable_settlement_flag_greh]:physic_object
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_greh.ogf
 inv_weight                              = 12.0
 placeable_type                          = prop
 base_rotation                           = 0
@@ -435,19 +444,20 @@ homestead_flag_faction                  = greh
 ; the camp's main storage
 homestead_storage_buckets               = chest
 
-bounding_box_size                       = 0.029702, 0.726874, 1.009274
-bounding_box_origin                     = 0.005057, 0.5057, 0.000149
+; width, depth, height / origin x, y (up), z: measured from mesh bounds
+bounding_box_size                       = 1.094000, 0.759000, 2.493000
+bounding_box_origin                     = 0.141000, 1.246500, -0.057000
 
 [homestead_settlement_flag_isg]:tch_junk
 class                                   = II_ATTCH
 kind                                    = i_tool
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_isg.ogf
 description                             = st_homestead_settlement_flag_descr
 inv_name                                = st_homestead_settlement_flag_isg
 inv_name_short                          = st_homestead_settlement_flag_isg
-icons_texture                           = ui\ui_maid_efp_props
-inv_grid_x                              = 3
-inv_grid_y                              = 5
+icons_texture                           = ui\ui_icon_homestead_workstations
+inv_grid_x                              = 6
+inv_grid_y                              = 15
 inv_grid_width                          = 1
 inv_grid_height                         = 2
 cost                                    = 5000
@@ -460,7 +470,7 @@ placeable_type                          = prop
 placeable_section                       = placeable_settlement_flag_isg
 
 [placeable_settlement_flag_isg]:physic_object
-visual                                  = dynamics\efp_props\prop_poster_vertical.ogf
+visual                                  = dynamics\HomesteadHF\settlement_flag_isg.ogf
 inv_weight                              = 12.0
 placeable_type                          = prop
 base_rotation                           = 0
@@ -472,5 +482,6 @@ homestead_flag_faction                  = isg
 ; the camp's main storage
 homestead_storage_buckets               = chest
 
-bounding_box_size                       = 0.029702, 0.726874, 1.009274
-bounding_box_origin                     = 0.005057, 0.5057, 0.000149
+; width, depth, height / origin x, y (up), z: measured from mesh bounds
+bounding_box_size                       = 1.094000, 0.759000, 2.493000
+bounding_box_origin                     = 0.141000, 1.246500, -0.057000
