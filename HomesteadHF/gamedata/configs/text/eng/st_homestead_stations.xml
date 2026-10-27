@@ -16,7 +16,7 @@
 		<text>Guard Post</text>
 	</string>
 	<string id="st_homestead_guard_post_descr">
-		<text>A sentry table with a logbook and a rack for the watch. Guards stand watch here first, before the barricades and turrets. Use it to open its storage: 300 kg of settlement storage for weapons, ammo and grenades. Weighs 26 kg to carry.</text>
+		<text>A fortified sentry station on a raised timber duckboard platform with a sandbag breastwork, warning sign, lamp, duty logbook, and an integrated 3-gun weapon rack. Guards stand watch here first, before the barricades and turrets. Use it to open its storage: 300 kg of settlement storage for weapons, ammo and grenades. Weighs 26 kg to carry.</text>
 	</string>
 	<string id="st_homestead_salvage_table">
 		<text>Salvage Table</text>

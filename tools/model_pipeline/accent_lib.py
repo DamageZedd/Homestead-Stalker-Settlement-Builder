@@ -44,7 +44,9 @@ def import_ogf(rel, collection_name):
         bpy.context.scene.collection.children.link(col)
     before = set(bpy.data.objects)
     d, f = os.path.split(path)
-    bpy.ops.xray_import.ogf(directory=d, files=[{'name': f}])
+    win = bpy.context.window if bpy.context.window else bpy.context.window_manager.windows[0]
+    with bpy.context.temp_override(window=win):
+        bpy.ops.xray_import.ogf(directory=d, files=[{'name': f}])
     new = [o for o in bpy.data.objects if o not in before]
     for o in new:
         for c in list(o.users_collection):
