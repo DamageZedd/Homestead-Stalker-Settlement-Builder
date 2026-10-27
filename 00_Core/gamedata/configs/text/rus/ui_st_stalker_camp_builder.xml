@@ -2267,6 +2267,33 @@
     <string id="st_directive_craft_turret">
         <text>Боезапас турелей поселения</text>
     </string>
+    <string id="st_directive_craft_grenade">
+        <text>Ручные гранаты (Ф-1, РГД-5)</text>
+    </string>
+    <string id="st_directive_craft_underbarrel">
+        <text>Подствольные гранаты (ВОГ-25 / 40мм M209)</text>
+    </string>
+    <string id="st_directive_cook_auto">
+        <text>Авто-выбор (Лучшее из доступного)</text>
+    </string>
+    <string id="st_directive_cook_tier1">
+        <text>Жареное мясо (Базовое)</text>
+    </string>
+    <string id="st_directive_cook_tier2">
+        <text>Вареное мясо (С водой)</text>
+    </string>
+    <string id="st_directive_cook_tier3">
+        <text>Деликатес (С водкой)</text>
+    </string>
+    <string id="st_pda_cook_mode">
+        <text>Режим готовки: %s</text>
+    </string>
+    <string id="st_homestead_settler_equipped_weapon">
+        <text>[Оружейная] %s вооружился %s со склада поселения.</text>
+    </string>
+    <string id="st_homestead_settler_equipped_armor">
+        <text>[Интендант] %s экипировал %s со склада поселения.</text>
+    </string>
     <string id="st_directive_btn_orders">
         <text>Приказы</text>
     </string>

@@ -1765,8 +1765,32 @@ function SettlementManagerPDA:OnSurvivorSelected()
                 rifle_heavy = "Assault 7.62x39",
                 sniper = "Sniper Calibers",
                 turret = "Turret Rounds",
+                grenade = "Hand Grenades",
+                underbarrel = "VOG / 40mm",
             }
             local ord = craft_labels[s_item.craft_order or "auto"] or "Auto"
+        elseif job == "cook" then
+            local cook_labels = {
+                auto = "Auto-Balanced",
+                tier1 = "Roast Meat",
+                tier2 = "Boiled Stew",
+                tier3 = "Gourmet Feast",
+            }
+            local ord = cook_labels[s_item.cook_mode or "auto"] or "Auto"
+            if s_item.shortfall_reason then
+                job_str = sformat("%s: [%s]%s (Waiting: %s)", job_lbl, ord, boost_str, s_item.shortfall_reason)
+                self.survivor_pos_txt:SetText(sformat("Status: Waiting for supplies (%s)", s_item.shortfall_reason))
+            elseif time_str ~= "" then
+                job_str = sformat("%s: [%s]%s (%d%% - %s remaining)", job_lbl, ord, boost_str, pct, time_str)
+            elseif pct >= 100 then
+                job_str = sformat("%s: [%s]%s (%d%% - Ready)", job_lbl, ord, boost_str, pct)
+            else
+                job_str = sformat("%s: [%s]%s (%d%%)", job_lbl, ord, boost_str, pct)
+            end
+            if not s_item.shortfall_reason then
+                local desc = game.translate_string("st_homestead_job_cook_desc")
+                self.survivor_pos_txt:SetText(desc ~= "st_homestead_job_cook_desc" and desc or "Prepares meals and rations for the settlement.")
+            end
             if s_item.shortfall_reason then
                 job_str = sformat("%s: [%s]%s (Waiting: %s)", job_lbl, ord, boost_str, s_item.shortfall_reason)
                 self.survivor_pos_txt:SetText(sformat("Status: Waiting for supplies (%s)", s_item.shortfall_reason))
@@ -1917,7 +1941,7 @@ function SettlementManagerPDA:OnSurvivorSelected()
     end
 
     local pos_y = btn_start_y + 228
-    local has_dir = (job == "medic" or job == "woodcutter" or job == "craft" or job == "farmer")
+    local has_dir = (job == "medic" or job == "woodcutter" or job == "craft" or job == "farmer" or job == "cook")
     -- the status above the buttons can run to several lines (a paused job says why in a
     -- sentence): the buttons and everything under them go below its last line
     local st_extra = 0
@@ -1972,6 +1996,13 @@ function SettlementManagerPDA:OnSurvivorSelected()
                 local order_label = hs_theme.short(game.translate_string("st_directive_craft_" .. c_order))
                 if self.btn_job_directive.TextControl and self.btn_job_directive:TextControl() then
                     self.btn_job_directive:TextControl():SetText("[ " .. order_label .. " ]")
+                    self.btn_job_directive:TextControl():SetTextColor(hs_theme.argb("warn"))
+                end
+            elseif job == "cook" then
+                local c_mode = s_item.cook_mode or "auto"
+                local mode_label = hs_theme.short(game.translate_string("st_directive_cook_" .. c_mode))
+                if self.btn_job_directive.TextControl and self.btn_job_directive:TextControl() then
+                    self.btn_job_directive:TextControl():SetText("[ " .. mode_label .. " ]")
                     self.btn_job_directive:TextControl():SetTextColor(hs_theme.argb("warn"))
                 end
             end
@@ -2143,12 +2174,26 @@ function SettlementManagerPDA:OnJobDirectiveClicked()
             rifle_nato = "rifle_heavy",
             rifle_heavy = "sniper",
             sniper = "turret",
-            turret = "auto"
+            turret = "grenade",
+            grenade = "underbarrel",
+            underbarrel = "auto"
         }
         local next_order = cycle[cur] or "auto"
         s_item.craft_order = next_order
         local order_label = game.translate_string("st_directive_craft_" .. next_order)
         actor_menu.set_msg(1, string.format(game.translate_string("st_pda_crafter_directive"), order_label), 3)
+    elseif job == "cook" then
+        local cur = s_item.cook_mode or "auto"
+        local cycle = {
+            auto = "tier1",
+            tier1 = "tier2",
+            tier2 = "tier3",
+            tier3 = "auto"
+        }
+        local next_mode = cycle[cur] or "auto"
+        s_item.cook_mode = next_mode
+        local mode_label = game.translate_string("st_directive_cook_" .. next_mode)
+        actor_menu.set_msg(1, string.format(game.translate_string("st_pda_cook_mode") or "Cook Mode: %s", mode_label), 3)
     end
     self:OnSurvivorSelected()
 end
@@ -2343,7 +2388,18 @@ function SettlementManagerPDA:FormatSurvivorStatus(survivor, camp, hub_id)
             rifle_heavy = "7.62x39",
             sniper = "Marksman",
             turret = "Turret",
+            grenade = "Grenades",
+            underbarrel = "VOG/40mm",
         }
+    elseif job == "cook" then
+        local c_mode = survivor.cook_mode or "auto"
+        local short_labels = {
+            auto = "Auto",
+            tier1 = "Roast",
+            tier2 = "Boiled",
+            tier3 = "Gourmet",
+        }
+        directive_tag = sformat(" [%s]", short_labels[c_mode] or "Auto")
         directive_tag = sformat(" [%s]", short_labels[c_order] or "Auto")
     elseif job == "medic" then
         local m_order = survivor.medic_order or "auto"

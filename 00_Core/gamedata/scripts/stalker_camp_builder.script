@@ -289,6 +289,51 @@ end
 patch_actor_binder_guard()
 safe_register_callback("actor_on_first_update", patch_actor_binder_guard)
 
+function patch_meat_spoiling_fridges()
+    if not meat_spoiling then return end
+    if meat_spoiling._homestead_patched then return end
+    meat_spoiling._homestead_patched = true
+
+    if meat_spoiling.get_meat_is_frozen then
+        local orig_get_meat_is_frozen = meat_spoiling.get_meat_is_frozen
+        meat_spoiling.get_meat_is_frozen = function(se_obj)
+            if not se_obj then return false end
+            if orig_get_meat_is_frozen(se_obj) then return true end
+            local pid = se_obj.parent_id
+            if pid and pid < 65535 then
+                local se_parent = alife_object(pid)
+                if se_parent then
+                    local psec = se_parent:section_name()
+                    if psec:find("fridge") or psec:find("refrigerator") or psec:find("cooler") then
+                        return true
+                    end
+                    for _, camp in pairs(stalker_camp_builder.active_camps or {}) do
+                        if camp.structures and camp.structures[pid] == "fridge" then
+                            return true
+                        end
+                    end
+                end
+            end
+            return false
+        end
+    end
+
+    if meat_spoiling.get_meat_is_frozen_cell then
+        local orig_get_meat_is_frozen_cell = meat_spoiling.get_meat_is_frozen_cell
+        meat_spoiling.get_meat_is_frozen_cell = function(cell)
+            if orig_get_meat_is_frozen_cell and orig_get_meat_is_frozen_cell(cell) then return true end
+            local id = cell and cell.ID
+            if not id then return false end
+            local se_obj = alife_object(id)
+            if se_obj and meat_spoiling.get_meat_is_frozen and meat_spoiling.get_meat_is_frozen(se_obj) then
+                return true
+            end
+            return false
+        end
+    end
+end
+safe_register_callback("actor_on_first_update", patch_meat_spoiling_fridges)
+
 stalker_camp_builder.settler_lookup = stalker_camp_builder.settler_lookup or {}
 
 -- Local references for fast local access inside this file
@@ -5617,6 +5662,7 @@ function on_game_start()
     patch_detec_bone_hide_guard()
     patch_task_manager_guard()
     patch_actor_binder_guard()
+    patch_meat_spoiling_fridges()
     -- v1.1.7: map_spot_menu_* callbacks are registered once at the end of
     pcall(function()
         local function get_weapon_repair_tier(sec)

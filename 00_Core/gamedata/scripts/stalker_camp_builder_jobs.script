@@ -564,6 +564,18 @@ function stalker_camp_builder.is_camp_supply_capped(hub_id, camp, category, surv
                 local s = sec:lower()
                 return s:find("ammo_9x19") or s:find("ammo_9x18")
             end
+        elseif c_order == "grenade" then
+            cap = 8
+            check_func = function(sec)
+                local s = sec:lower()
+                return s:find("grenade_f1") or s:find("grenade_rgd5") or s:find("grenade_gd")
+            end
+        elseif c_order == "underbarrel" then
+            cap = 10
+            check_func = function(sec)
+                local s = sec:lower()
+                return s:find("ammo_vog") or s:find("ammo_m209")
+            end
         else -- "auto"
             cap = 15
             if camp and camp.structures then
@@ -696,6 +708,18 @@ function stalker_camp_builder.process_ammo_crafting(npc_id, box_id, camp, surviv
             ammo_pool = {"ammo_7.62x39_fmj"}
         elseif craft_order == "sniper" then
             ammo_pool = {"ammo_7.62x54_7h1", "ammo_7.62x51_fmj", "ammo_9x39_ap"}
+        elseif craft_order == "grenade" then
+            if chosen_pw.tier >= 2 then
+                ammo_pool = {"grenade_f1", "grenade_rgd5"}
+            else
+                ammo_pool = {"grenade_rgd5", "grenade_gd-05"}
+            end
+        elseif craft_order == "underbarrel" then
+            if chosen_pw.tier >= 2 then
+                ammo_pool = {"ammo_vog-25", "ammo_m209", "ammo_vog-25p"}
+            else
+                ammo_pool = {"ammo_vog-25", "ammo_m209"}
+            end
         elseif craft_order == "turret" or (craft_order == "auto" and prefer_turrets) then
             if chosen_pw.tier >= 3 then
                 ammo_pool = {"ammo_9x19_ap", "ammo_9x19_pbp"}
@@ -1069,7 +1093,14 @@ function stalker_camp_builder.get_cooked_version(sec, tier)
     tier = tier or sb.cfg.cook_output_tier or 1
 
     if tier >= 3 then
-        local t3_options = {"kolbasa", "ration_ru", "bread", "conserva"}
+        local base_meat = sb.meat_cooking_map[sec]
+        if base_meat then
+            local gourmet_sec = base_meat .. "_a"
+            if ini_sys and ini_sys.section_exist and ini_sys:section_exist(gourmet_sec) then
+                return gourmet_sec
+            end
+        end
+        local t3_options = {"meat_chimera_a", "meat_bloodsucker_a", "meat_boar_a", "ration_ru", "ration_ukr", "kolbasa", "conserva"}
         for _, s in ipairs(t3_options) do
             if ini_sys and ini_sys.section_exist and ini_sys:section_exist(s) then
                 return s
@@ -1788,13 +1819,14 @@ function stalker_camp_builder.process_cook_job(npc_id, hub_id, camp, survivor, b
 
             local surv_tier = (survivor and survivor.tier) or 0
             local max_tier = math.max(sb.cfg.cook_output_tier or 1, surv_tier)
+            local cook_order = survivor and (survivor.job_directive or survivor.cook_mode) or "auto"
 
-            if max_tier >= 3 then
+            if cook_order == "tier3" or (cook_order == "auto" and max_tier >= 3) then
                 consumed_vodka = sb.find_and_consume_item(
                     hub_id, camp,
                     function(sec)
                         local s = sec:lower()
-                        return s:find("vodka") or s == "vodka_quality" or s == "vodka_putinka"
+                        return s:find("vodka") or s == "vodka_quality" or s == "vodka_putinka" or s == "alcohol" or s:find("spirit") ~= nil
                     end,
                     meat_box_id
                 )
@@ -1803,7 +1835,7 @@ function stalker_camp_builder.process_cook_job(npc_id, hub_id, camp, survivor, b
                 end
             end
 
-            if cooking_tier < 3 and max_tier >= 2 then
+            if cooking_tier < 3 and (cook_order == "tier2" or cook_order == "auto") and (max_tier >= 2 or cook_order == "tier2") then
                 consumed_water = sb.find_and_consume_item(hub_id, camp, is_clean_water, meat_box_id)
                 if consumed_water then
                     cooking_tier = 2
@@ -3147,6 +3179,165 @@ end
 local MAX_GLOBAL_CYCLES_PER_TICK = 6
 local last_round_robin_camp_idx = 1
 
+
+-- process_settler_equipment -- survivors inspect Armory Crate and Quartermaster Locker for weapon and armor upgrades
+function stalker_camp_builder.process_settler_equipment(hub_id, camp, survivor, npc_id)
+    if not (camp and survivor and npc_id) then return end
+    local sb = stalker_camp_builder
+    if sb.is_companion and sb.is_companion(npc_id) then return end
+    if survivor.on_expedition then return end
+
+    local npc = level.object_by_id(npc_id)
+    if not (npc and npc:alive()) then return end
+    local se_npc = alife_object(npc_id)
+    if not se_npc then return end
+
+    local buckets = sb.get_camp_storage_buckets and sb.get_camp_storage_buckets(camp, hub_id)
+    if not buckets then return end
+
+    -- 1. WEAPON UPGRADE FROM ARMORY
+    local weapon_boxes = buckets.weapon or {}
+    if #weapon_boxes > 0 then
+        local current_wpn = npc:best_weapon()
+        local current_cost = 0
+        if current_wpn then
+            current_cost = (ini_sys:r_float_ex(current_wpn:section(), "cost") or 1000) * (current_wpn:condition() or 1.0)
+        end
+
+        local best_wpn = nil
+        local best_box = nil
+        local best_cost = current_cost * 1.25 -- must be at least 25% better to upgrade
+
+        for _, box_meta in ipairs(weapon_boxes) do
+            local box_obj = level.object_by_id(box_meta.id)
+            if box_obj then
+                sb.safe_iterate_inventory_box(box_obj, function(_, item)
+                    if not item then return end
+                    local sec = item:section()
+                    local is_gun = IsWeapon(item) and not sec:find("knife")
+                    if is_gun then
+                        local cond = item:condition() or 1.0
+                        if cond >= 0.45 then
+                            local cost = (ini_sys:r_float_ex(sec, "cost") or 1000) * cond
+                            if cost > best_cost then
+                                best_cost = cost
+                                best_wpn = item
+                                best_box = box_obj
+                            end
+                        end
+                    end
+                end)
+            end
+        end
+
+        if best_wpn and best_box then
+            local wpn_sec = best_wpn:section()
+            local wpn_name = game.translate_string(ini_sys:r_string_ex(wpn_sec, "inv_name") or wpn_sec)
+
+            -- Transfer new weapon to NPC
+            best_box:transfer_item(best_wpn, npc)
+
+            -- If NPC had an old weapon, return it to the armory box
+            if current_wpn and current_wpn:id() ~= best_wpn:id() then
+                npc:transfer_item(current_wpn, best_box)
+            end
+
+            -- Supply matching ammo from armory box
+            local ammo_classes = ini_sys:r_string_ex(wpn_sec, "ammo_class")
+            if ammo_classes and str_explode then
+                local ammo_list = str_explode(ammo_classes, ",")
+                local target_ammo_sec = ammo_list[1]
+                if target_ammo_sec then
+                    local ammo_transferred = 0
+                    sb.safe_iterate_inventory_box(best_box, function(_, item)
+                        if item and item:section() == target_ammo_sec and ammo_transferred < 2 then
+                            best_box:transfer_item(item, npc)
+                            ammo_transferred = ammo_transferred + 1
+                        end
+                    end)
+                end
+            end
+
+            npc:make_item_active(best_wpn)
+
+            local s_name = survivor.name or npc:character_name() or "Settler"
+            sb.camp_send_tip(db.actor, string.format(game.translate_string("st_homestead_settler_equipped_weapon"), s_name, wpn_name), nil, "general_stalker", 7000)
+        end
+    end
+
+    -- 2. ARMOR UPGRADE FROM QUARTERMASTER
+    local armor_boxes = buckets.armor or {}
+    if #armor_boxes > 0 then
+        local best_outfit = nil
+        local best_box = nil
+        local current_prot = 0
+
+        local current_vis = npc:get_visual_name()
+        if dynamic_npc_armor_visuals and dynamic_npc_armor_visuals.get_visual_prot then
+            current_prot = dynamic_npc_armor_visuals.get_visual_prot(current_vis)
+        end
+
+        local best_prot = current_prot > 0 and (current_prot * 1.15) or 0
+
+        for _, box_meta in ipairs(armor_boxes) do
+            local box_obj = level.object_by_id(box_meta.id)
+            if box_obj then
+                sb.safe_iterate_inventory_box(box_obj, function(_, item)
+                    if not item then return end
+                    local sec = item:section()
+                    local is_armor = IsOutfit(item) or (ini_sys:r_string_ex(sec, "burn_protection") ~= nil)
+                    if is_armor then
+                        local cond = item:condition() or 1.0
+                        if cond >= 0.45 then
+                            local allowed = true
+                            if dynamic_npc_armor_visuals and dynamic_npc_armor_visuals.is_allowed_comm then
+                                allowed = dynamic_npc_armor_visuals.is_allowed_comm(npc, item)
+                            end
+                            if allowed then
+                                local npc_vis = ini_sys:r_string_ex(sec, "npc_visual")
+                                if npc_vis then
+                                    local prot = 0
+                                    if dynamic_npc_armor_visuals and dynamic_npc_armor_visuals.get_visual_prot then
+                                        prot = dynamic_npc_armor_visuals.get_visual_prot(npc_vis, item)
+                                    else
+                                        prot = ini_sys:r_float_ex(sec, "cost") or 5000
+                                    end
+                                    if prot > best_prot then
+                                        best_prot = prot
+                                        best_outfit = item
+                                        best_box = box_obj
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end)
+            end
+        end
+
+        if best_outfit and best_box then
+            local suit_sec = best_outfit:section()
+            local suit_name = game.translate_string(ini_sys:r_string_ex(suit_sec, "inv_name") or suit_sec)
+            local npc_vis = ini_sys:r_string_ex(suit_sec, "npc_visual")
+
+            -- Transfer new armor to NPC
+            best_box:transfer_item(best_outfit, npc)
+
+            -- Apply visual model
+            if npc_vis then
+                npc:set_visual_name(npc_vis)
+                if se_npc then se_npc.visual_name = npc_vis end
+            end
+            if dynamic_npc_armor_visuals and dynamic_npc_armor_visuals.npc_on_item_take then
+                pcall(dynamic_npc_armor_visuals.npc_on_item_take, npc, best_outfit)
+            end
+
+            local s_name = survivor.name or npc:character_name() or "Settler"
+            sb.camp_send_tip(db.actor, string.format(game.translate_string("st_homestead_settler_equipped_armor"), s_name, suit_name), nil, "general_stalker", 7000)
+        end
+    end
+end
+
 function stalker_camp_builder.update_camp_jobs()
     local mmin = math.min
     local mmax = math.max
@@ -3422,6 +3613,12 @@ function stalker_camp_builder.update_camp_jobs()
 
             for npc_id, survivor in pairs_(camp.survivors) do
                 local job = survivor.job or "idle"
+                -- Settler Equipment Maintenance: inspect Armory and Quartermaster for upgrades
+                local last_eq = survivor.last_equip_check or 0
+                if (current_sec - last_eq) >= 1800 then
+                    survivor.last_equip_check = current_sec
+                    sb.process_settler_equipment(hub_id, camp, survivor, npc_id)
+                end
                 -- a waiting reason belongs to the job that raised it: drop one left over from an earlier job
                 if survivor.shortfall_job ~= job then
                     survivor.shortfall_reason = nil

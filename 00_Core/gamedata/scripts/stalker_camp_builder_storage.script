@@ -708,6 +708,14 @@ function stalker_camp_builder.deposit_item_to_camp(hub_id, camp, sec, is_yellow,
 
     if not (se_item and se_item.id and alife_object(se_item.id)) then return nil end
 
+    if box_se and se_item and (box_se:section_name():find("fridge") or (camp and camp.structures and camp.structures[target_box_id] == "fridge")) then
+        -- Ensure pristine condition and frozen freshness for food deposited into settlement fridges
+        if sec:find("^meat_") or sec:find("mutant_part") or sec == "kolbasa" or sec == "tushonka" or sec == "bread" or sec == "conserva" then
+            cond = 1.0
+            pcall(function() se_item.condition = 1.0 end)
+        end
+    end
+
     local final_parts = nil
     if custom_parts and item_parts and item_parts.set_parts_con then
         -- se_save_var keeps the table it is given: a haul item deposited twice would give both

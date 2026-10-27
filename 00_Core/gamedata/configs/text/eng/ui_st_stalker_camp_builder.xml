@@ -2270,6 +2270,33 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_directive_craft_turret">
         <text>Turret Defenses (Camp Turret Calibers)</text>
     </string>
+    <string id="st_directive_craft_grenade">
+        <text>Hand Grenades (F-1, RGD-5)</text>
+    </string>
+    <string id="st_directive_craft_underbarrel">
+        <text>Underbarrel Grenades (VOG-25 / 40mm M209)</text>
+    </string>
+    <string id="st_directive_cook_auto">
+        <text>Auto-Balanced (Best Available)</text>
+    </string>
+    <string id="st_directive_cook_tier1">
+        <text>Simple Roast (Basic Meat)</text>
+    </string>
+    <string id="st_directive_cook_tier2">
+        <text>Boiled Stew (Water Stewed)</text>
+    </string>
+    <string id="st_directive_cook_tier3">
+        <text>Gourmet Feast (Alcohol / Gourmet)</text>
+    </string>
+    <string id="st_pda_cook_mode">
+        <text>Cook Mode: %s</text>
+    </string>
+    <string id="st_homestead_settler_equipped_weapon">
+        <text>[Armory] %s equipped %s from settlement storage.</text>
+    </string>
+    <string id="st_homestead_settler_equipped_armor">
+        <text>[Quartermaster] %s donned %s from settlement storage.</text>
+    </string>
     <string id="st_directive_btn_orders">
         <text>Orders</text>
     </string>
