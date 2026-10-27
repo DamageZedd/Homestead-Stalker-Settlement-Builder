@@ -16,7 +16,7 @@
 		<text>Settlement Pantry</text>
 	</string>
 	<string id="st_homestead_pantry_descr">
-		<text>A food chest for supplies that keep. Settlement storage: food and drink go to a fridge first, then here. Holds 200 kg.</text>
+		<text>An open pantry rack for supplies that keep. Settlement storage: food and drink go to a fridge first, then here. Holds 200 kg.</text>
 	</string>
 	<string id="st_homestead_supply_crate">
 		<text>Settlement Supply Crate</text>
