@@ -28,6 +28,6 @@
 		<text>Settlement Med Crate</text>
 	</string>
 	<string id="st_homestead_med_crate_descr">
-		<text>A medical case for the settlement's medicine. Settlement storage: medkits, bandages, drugs and anti-rad go here first. Holds 100 kg.</text>
+		<text>A steel field medical chest for the settlement's medicine. Settlement storage: medkits, bandages, drugs and anti-rad go here first. Holds 100 kg.</text>
 	</string>
 </string_table>
