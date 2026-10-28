@@ -1661,7 +1661,7 @@ end
 
 local function roll_expedition_ambush(actor, exp)
     local sb = stalker_camp_builder
-    local chance = (sb.cfg and (sb.cfg.scavenger_ambush_chance or sb.cfg.scavenge_ambush_chance)) or 15
+    local chance = (sb.cfg and (sb.cfg.scavenger_ambush_chance or sb.cfg.scavenge_ambush_chance)) or 20
     local name = exp.survivor_name or "Scavenger"
 
     if math.random(100) > chance then

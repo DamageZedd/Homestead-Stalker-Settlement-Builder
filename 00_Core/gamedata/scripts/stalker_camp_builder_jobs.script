@@ -3762,7 +3762,7 @@ function stalker_camp_builder.update_camp_jobs()
 
                                 if job == "scavenge" then
                                     local roll = math.random(100)
-                                    local ambush_chance = (sb.cfg and (sb.cfg.scavenge_ambush_chance or sb.cfg.scavenger_ambush_chance)) or 15
+                                    local ambush_chance = (sb.cfg and (sb.cfg.scavenge_ambush_chance or sb.cfg.scavenger_ambush_chance)) or 20
                                     if roll <= ambush_chance then
                                         did_work = false
                                         if survivor then survivor.shortfall_reason = "Ambushed" end

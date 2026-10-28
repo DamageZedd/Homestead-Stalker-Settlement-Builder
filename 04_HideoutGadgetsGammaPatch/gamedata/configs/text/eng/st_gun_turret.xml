@@ -6,8 +6,8 @@
     <string id="st_pistol_turret_descr">
 		<text>Improvised auto-turret built around a silenced MP7. Tracks hostiles and spits pistol rounds fast, but burns through ammo and needs careful placement. \n \n
 			%c[ui_white]PROPERTIES:\n
-			%c[d_orange] • %c[ui_white] Placeable\n
-			%c[d_blue] • %c[ui_white] Ammo: 9x19\n</text>
+			%c[d_orange] * %c[ui_white] Placeable\n
+			%c[d_blue] * %c[ui_white] Ammo: 9x19\n</text>
 	</string>
 	<string id="st_turret_table">
         <text>Turret table</text>
@@ -15,7 +15,7 @@
     <string id="st_turret_table_descr">
 		<text>Junk welded together to form a stable table for your gun turret. \n \n
 			%c[ui_white]PROPERTIES:\n
-			%c[d_orange] • %c[ui_white] Placeable\n</text>
+			%c[d_orange] * %c[ui_white] Placeable\n</text>
 	</string>
 	<string id="st_reload_pistel_turret">
 		<text>Reload</text>
@@ -32,7 +32,7 @@
 	<string id="st_display_counter_descr">
 		<text>A nixie tube counter that displays the values transmitted by a specified device. \n \n
 			%c[ui_white]PROPERTIES:\n
-			%c[d_orange] • %c[ui_white] Placeable\n</text>
+			%c[d_orange] * %c[ui_white] Placeable\n</text>
 	</string>
 </string_table>
 
