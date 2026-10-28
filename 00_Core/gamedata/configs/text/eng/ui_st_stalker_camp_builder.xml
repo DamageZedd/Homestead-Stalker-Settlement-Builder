@@ -1983,6 +1983,12 @@
     <string id="st_job_electrician_recharged">
         <text>%s recharged %d lamp(s) in the camp! (Used 1 battery)</text>
     </string>
+    <string id="st_job_electrician_recharged_batt">
+        <text>%s recharged a depleted battery cell for settlement equipment.</text>
+    </string>
+    <string id="st_homestead_job_cook_desc">
+        <text>Prepares meals and rations for the settlement.</text>
+    </string>
     <string id="st_job_electrician_all_powered">
         <text>%s found no lamps needing maintenance.</text>
     </string>
