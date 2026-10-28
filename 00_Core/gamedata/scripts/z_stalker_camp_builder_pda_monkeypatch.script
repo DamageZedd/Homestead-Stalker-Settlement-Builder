@@ -413,6 +413,18 @@ function on_game_start()
         end
     end
 
+    -- Guarantee homestead disconnect grace is engaged on level change and net destroy
+    if RegisterScriptCallback then
+        local function engage_homestead_disconnect_grace()
+            if stalker_camp_builder then
+                stalker_camp_builder.homestead_is_disconnecting = true
+                stalker_camp_builder.homestead_teardown_grace_until = (time_global and time_global() or 0) + 600000
+            end
+        end
+        RegisterScriptCallback("on_level_changing", engage_homestead_disconnect_grace)
+        RegisterScriptCallback("actor_on_net_destroy", engage_homestead_disconnect_grace)
+    end
+
     -- If Interactive PDA is not installed, or if Mod App Creator is active with our patch, we don't need to patch the left rail
     local enable_tab = true
     if ui_mcm and ui_mcm.get then
@@ -491,17 +503,5 @@ function on_game_start()
             return
         end
         return _orig_OnClickMainMenu(self, num)
-    end
-
-    -- Guarantee homestead disconnect grace is engaged on level change and net destroy
-    if RegisterScriptCallback then
-        local function engage_homestead_disconnect_grace()
-            if stalker_camp_builder then
-                stalker_camp_builder.homestead_is_disconnecting = true
-                stalker_camp_builder.homestead_teardown_grace_until = (time_global and time_global() or 0) + 600000
-            end
-        end
-        RegisterScriptCallback("on_level_changing", engage_homestead_disconnect_grace)
-        RegisterScriptCallback("actor_on_net_destroy", engage_homestead_disconnect_grace)
     end
 end

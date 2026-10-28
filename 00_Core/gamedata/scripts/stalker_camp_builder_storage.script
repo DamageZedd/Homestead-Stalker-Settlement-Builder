@@ -1009,6 +1009,9 @@ function stalker_camp_builder.smart_dump_to_camp_storage(target_hub_id)
                 if weight_cache[target_box_id] ~= nil then
                     weight_cache[target_box_id] = weight_cache[target_box_id] + item_w
                 end
+            else
+                -- the box is offline or gone: the item stays in the backpack
+                count_skipped = count_skipped + 1
             end
         else
             -- no box for its kind has room, or the camp has none: it stays in the backpack
