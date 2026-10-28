@@ -2194,6 +2194,9 @@ function stalker_camp_builder.dismiss_survivor(actor, npc)
     if not npc then return end
     local npc_id = type(npc) == "number" and npc or (npc.id and (type(npc.id) == "function" and npc:id() or npc.id))
     if not npc_id then return end
+    if sb.recall_scavenger_expedition_by_npc then
+        sb.recall_scavenger_expedition_by_npc(npc_id)
+    end
 
     for hub_id, camp in pairs(sb.active_camps) do
         local survivor = camp.survivors and (camp.survivors[npc_id] or camp.survivors[tostring(npc_id)])
@@ -2204,7 +2207,9 @@ function stalker_camp_builder.dismiss_survivor(actor, npc)
             camp.survivors[tostring(npc_id)] = nil
 
             local on_npc = level.object_by_id(npc_id) or (type(npc) == "userdata" and npc)
-            sb.purge_settler_companion_and_squad_state(npc_id, on_npc, true)
+            -- only a companion goes on the banished list, as in banish_npc
+            local is_comp = (survivor.job == "companion" or survivor.is_companion) and true or false
+            sb.purge_settler_companion_and_squad_state(npc_id, on_npc, is_comp)
             if sb.reassign_freed_settler_to_smart then
                 sb.reassign_freed_settler_to_smart(npc_id)
             end
