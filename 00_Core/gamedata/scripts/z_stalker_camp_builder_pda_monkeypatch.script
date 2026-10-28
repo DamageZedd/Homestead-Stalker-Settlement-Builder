@@ -313,7 +313,8 @@ function on_game_start()
                     self.st.beh = {}
                 end
             end
-            pcall(og_beh_execute, self)
+            local ok, res = pcall(og_beh_execute, self)
+            if ok then return res end
         end
     end
 
