@@ -3152,7 +3152,12 @@ function stalker_camp_builder.check_sos_rescue_reward(actor)
                     camp.pending_skirmish_resolve_time = nil
 
                     local reward_rubles = math.random(3000, 5500)
-                    dialogs.relocate_money_to_actor(db.actor, nil, reward_rubles)
+                    -- dialogs has no relocate_money_to_actor in every build: fall back to a plain payout
+                    if dialogs and dialogs.relocate_money_to_actor then
+                        dialogs.relocate_money_to_actor(db.actor, nil, reward_rubles)
+                    elseif db.actor then
+                        db.actor:give_money(reward_rubles)
+                    end
 
                     local faction_name = camp.faction and game.translate_string(camp.faction) or "Stalkers"
                     stalker_camp_builder.camp_send_tip(actor, string.format(game.translate_string("st_recon_rescue_complete"), faction_name, reward_rubles), nil, "general_stalker", 12000, nil, "general", true)

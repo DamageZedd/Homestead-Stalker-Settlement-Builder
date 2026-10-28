@@ -2371,7 +2371,7 @@ function stalker_camp_builder.process_woodcutter_job(npc_id, hub_id, camp, survi
     local do_charcoal = false
     if mode == "charcoal" then
         do_charcoal = true
-    elseif mode == "auto" then
+    elseif mode == "auto" and survivor then
         survivor._woodcutter_alt = survivor._woodcutter_alt ~= true
         do_charcoal = survivor._woodcutter_alt
     end
@@ -3670,7 +3670,7 @@ function stalker_camp_builder.update_camp_jobs()
                 local last_eq = survivor.last_equip_check or 0
                 if (current_sec - last_eq) >= 1800 then
                     survivor.last_equip_check = current_sec
-                    sb.process_settler_equipment(hub_id, camp, survivor, npc_id)
+                    sb.guarded_call("process_settler_equipment", sb.process_settler_equipment, hub_id, camp, survivor, npc_id)
                 end
                 -- a waiting reason belongs to the job that raised it: drop one left over from an earlier job
                 if survivor.shortfall_job ~= job then
