@@ -1977,6 +1977,12 @@
     <string id="st_job_electrician_recharged">
         <text>%s зарядил ламп в лагере: %d шт.! (Использован 1 аккумулятор)</text>
     </string>
+    <string id="st_job_electrician_recharged_batt">
+        <text>%s перезарядил разряженную батарею для оборудования поселения.</text>
+    </string>
+    <string id="st_homestead_job_cook_desc">
+        <text>Готовит еду и пайки для поселения.</text>
+    </string>
     <string id="st_job_electrician_all_powered">
         <text>%s не нашел ламп, требующих обслуживания.</text>
     </string>
