@@ -14,6 +14,7 @@ end
 function get_stash(stall_id)
     local stashes = state()
     local se_box = stashes[stall_id] and alife_object(stashes[stall_id])
+    if se_box and se_box:section_name() ~= "market_stash" then se_box = nil end -- a reused id
     if not se_box then
         local obj = get_object_by_id(stall_id)
         if not obj then return nil end
@@ -32,7 +33,8 @@ end
 -- the stash id if it already exists (no creation): what the Trader sells from
 function find_stash(stall_id)
     local id = state()[stall_id]
-    if id and alife_object(id) then return id end
+    local se_box = id and alife_object(id)
+    if se_box and se_box:section_name() == "market_stash" then return id end
     return nil
 end
 
@@ -67,25 +69,23 @@ function market_stall_wrapper:pickup()
     local id = self.object and self.object:id()
     local stashes = state()
     local box_id = id and stashes[id]
-    if box_id then
+    local se_box = box_id and alife_object(box_id)
+    -- a reused id is no stash of this stall: forget it and pick the stall up
+    if se_box and se_box:section_name() == "market_stash" then
         local box = level.object_by_id(box_id)
         if not box then
             -- releasing an offline box would release the goods in it: bring it online and let the
             -- player pick the stall up again in a moment
-            if alife_object(box_id) then
-                alife():set_switch_online(box_id, true)
-                alife():set_switch_offline(box_id, false)
-                actor_menu.set_msg(1, game.translate_string("st_homestead_station_stash_busy"), 3)
-                return false
-            end
-        else
-            box:iterate_inventory_box(function(temp, item)
-                box:transfer_item(item, db.actor)
-            end, box)
+            alife():set_switch_online(box_id, true)
+            alife():set_switch_offline(box_id, false)
+            actor_menu.set_msg(1, game.translate_string("st_homestead_station_stash_busy"), 3)
+            return false
         end
-        stashes[id] = nil
-        local se_box = alife_object(box_id)
-        if se_box then alife_release(se_box) end
+        box:iterate_inventory_box(function(temp, item)
+            box:transfer_item(item, db.actor)
+        end, box)
+        alife_release(se_box)
     end
+    if box_id then stashes[id] = nil end
     return bind_hf_base.hf_binder_wrapper.pickup(self)
 end
