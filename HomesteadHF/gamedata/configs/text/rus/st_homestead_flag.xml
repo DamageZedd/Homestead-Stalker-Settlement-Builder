@@ -42,6 +42,9 @@
 	<string id="st_homestead_settlement_flag_isg">
 		<text>Флаг поселения (ISG)</text>
 	</string>
+	<string id="st_homestead_settlement_flag_zombied">
+		<text>Флаг поселения (Зомбированные)</text>
+	</string>
 	<string id="st_hub_flag_inside_camp">
 		<text>Здесь уже есть поселение. Установите флаг за его границей, чтобы основать новое.</text>
 	</string>

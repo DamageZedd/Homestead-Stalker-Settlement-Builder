@@ -485,3 +485,41 @@ homestead_storage_buckets               = chest
 ; width, depth, height / origin x, y (up), z: measured from mesh bounds
 bounding_box_size                       = 1.094000, 0.759000, 2.493000
 bounding_box_origin                     = 0.141000, 1.246500, -0.057000
+
+[homestead_settlement_flag_zombied]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\settlement_flag_zombied.ogf
+description                             = st_homestead_settlement_flag_descr
+inv_name                                = st_homestead_settlement_flag_zombied
+inv_name_short                          = st_homestead_settlement_flag_zombied
+icons_texture                           = ui\ui_icon_homestead_workstations
+inv_grid_x                              = 6
+inv_grid_y                              = 15
+inv_grid_width                          = 1
+inv_grid_height                         = 2
+cost                                    = 5000
+inv_weight                              = 6.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_settlement_flag_zombied
+
+[placeable_settlement_flag_zombied]:physic_object
+visual                                  = dynamics\HomesteadHF\settlement_flag_zombied.ogf
+inv_weight                              = 12.0
+placeable_type                          = prop
+base_rotation                           = 0
+script_binding                          = homestead_settlement_flag.init
+ui_on_simple_interaction                = homestead_station_storage.use_station
+item_section                            = homestead_settlement_flag_zombied
+homestead_hub                           = true
+homestead_flag_faction                  = zombied
+; the camp's main storage
+homestead_storage_buckets               = chest
+
+; width, depth, height / origin x, y (up), z: measured from mesh bounds
+bounding_box_size                       = 1.094000, 0.759000, 2.493000
+bounding_box_origin                     = 0.141000, 1.246500, -0.057000

@@ -42,6 +42,9 @@
 	<string id="st_homestead_settlement_flag_isg">
 		<text>Settlement Flag (UNISG)</text>
 	</string>
+	<string id="st_homestead_settlement_flag_zombied">
+		<text>Settlement Flag (Zombified)</text>
+	</string>
 	<string id="st_hub_flag_inside_camp">
 		<text>There is already a settlement here. Plant the flag outside its boundary to found a new one.</text>
 	</string>
