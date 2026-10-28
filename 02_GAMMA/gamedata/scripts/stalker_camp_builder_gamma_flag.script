@@ -1,3 +1,5 @@
 -- Homestead: G.A.M.M.A. Modpack integration flag
 _G.is_gamma = true
+-- Read by stalker_camp_builder.script and stalker_camp_builder_rivals.script as gamma mode
+_G.stalker_camp_builder_gamma_flag = true
 
