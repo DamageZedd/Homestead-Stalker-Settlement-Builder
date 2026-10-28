@@ -22,6 +22,18 @@ function hf_workshop_wrapper:net_destroy()
 end
 
 function hf_workshop_wrapper:pickup()
+    -- the stash is released with the workbench: an offline one would take its contents with it,
+    -- so bring it online and let the player pick the workbench up again in a moment
+    local m_data = alife_storage_manager.get_state()
+    local wid = self.object and self.object:id()
+    local sid = wid and m_data.workshop_stashes and m_data.workshop_stashes[wid]
+    if sid and alife_object(sid) and not (level and level.object_by_id and level.object_by_id(sid)) then
+        alife():set_switch_online(sid, true)
+        alife():set_switch_offline(sid, false)
+        actor_menu.set_msg(1, game.translate_string("st_homestead_station_stash_busy"), 3)
+        return false
+    end
+
     -- If this workbench is a Homestead settlement hub, picking it up through
     -- the normal Hideout Furniture interaction must perform the same registry
     -- cleanup as the PDA "Dismantle Camp" button. Otherwise the physical
@@ -33,7 +45,6 @@ function hf_workshop_wrapper:pickup()
         pcall(function() stalker_camp_builder.dismantle_camp(hub_id) end)
     end
 
-    local m_data = alife_storage_manager.get_state()
     if m_data.workshop_stashes then
         local id = m_data.workshop_stashes[self.object:id()]
         if id then
@@ -47,5 +58,5 @@ function hf_workshop_wrapper:pickup()
             alife_release_id(id)
         end
     end
-    bind_hf_base.hf_binder_wrapper.pickup(self)
+    return bind_hf_base.hf_binder_wrapper.pickup(self)
 end

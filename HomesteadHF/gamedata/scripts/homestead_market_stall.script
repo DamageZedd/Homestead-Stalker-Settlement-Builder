@@ -69,7 +69,16 @@ function market_stall_wrapper:pickup()
     local box_id = id and stashes[id]
     if box_id then
         local box = level.object_by_id(box_id)
-        if box then
+        if not box then
+            -- releasing an offline box would release the goods in it: bring it online and let the
+            -- player pick the stall up again in a moment
+            if alife_object(box_id) then
+                alife():set_switch_online(box_id, true)
+                alife():set_switch_offline(box_id, false)
+                actor_menu.set_msg(1, game.translate_string("st_homestead_station_stash_busy"), 3)
+                return false
+            end
+        else
             box:iterate_inventory_box(function(temp, item)
                 box:transfer_item(item, db.actor)
             end, box)
