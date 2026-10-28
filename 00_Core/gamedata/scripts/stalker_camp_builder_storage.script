@@ -534,35 +534,38 @@ function stalker_camp_builder.get_auto_sort_target_box(camp, hub_id, sec_or_item
         return nil
     end
 
+    local function route_box(b)
+        local routes = {
+            food = { b.fridge, b.pantry, b.chest, b.other },
+            fuel = { b.stove, b.chest, b.other },
+            medic = { b.medic, b.chest, b.other },
+            weapon = { b.weapon, b.chest, b.other },
+            armor = { b.armor, b.chest, b.other },
+            -- the Armory Crate first, then where ammo went before
+            ammo = { b.weapon, b.crafter, b.tech, b.chest, b.other },
+            parts = { b.crafter, b.tech, b.chest, b.other },
+            tech = { b.tech, b.crafter, b.chest, b.other },
+            misc = { b.chest, b.other },
+        }
+        return pick_box(routes[sb.get_item_sort_route(sec)] or routes.misc)
+    end
+
     local b = cat.boxes_by_bucket
     if is_player_dump then
-        -- the player's things go into their own furniture: Homestead's boxes and stations are the
-        -- settlers'. Food is the exception and still goes to the camp fridges first.
+        -- the player's things go into their own furniture first: Homestead's boxes and stations are
+        -- the settlers'. Food is the exception and still goes to the camp fridges first.
         local own = get_personal_categorized_boxes(camp, hub_id).boxes_by_bucket
-        local fridges = b.fridge
-        b = {}
-        for k, list in pairs_(own) do b[k] = list end
-        b.fridge = fridges
+        local personal = {}
+        for k, list in pairs_(own) do personal[k] = list end
+        personal.fridge = b.fridge
+        local chosen = route_box(personal)
+        if chosen then return chosen end
+        -- no own box has room (or the player has none): fall back to Homestead's boxes
+        return route_box(b)
     end
-    local routes = {
-        food = { b.fridge, b.pantry, b.chest, b.other },
-        fuel = { b.stove, b.chest, b.other },
-        medic = { b.medic, b.chest, b.other },
-        weapon = { b.weapon, b.chest, b.other },
-        armor = { b.armor, b.chest, b.other },
-        -- the Armory Crate first, then where ammo went before
-        ammo = { b.weapon, b.crafter, b.tech, b.chest, b.other },
-        parts = { b.crafter, b.tech, b.chest, b.other },
-        tech = { b.tech, b.crafter, b.chest, b.other },
-        misc = { b.chest, b.other },
-    }
 
-    local chosen = pick_box(routes[sb.get_item_sort_route(sec)] or routes.misc)
+    local chosen = route_box(b)
     if chosen then return chosen end
-
-    if is_player_dump then
-        return nil
-    end
 
     -- Job deposits fallback: check any remaining container with room
     -- not fridges, stoves, med cases or the armory and quartermaster boxes: they hold their own kind

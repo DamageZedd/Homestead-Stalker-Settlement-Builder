@@ -12,11 +12,11 @@
 
 ### 📦 Settlement storage
 - **Settlers only use the settlement's storage**: Homestead boxes, work-station storage, the workbench stash and fridges. Your other furniture boxes are yours; settlers never touch them.
-- **PDA Auto-Sort fills your own boxes**, not the settlers'. Food still goes to the camp fridges first.
+- **PDA Auto-Sort fills your own boxes first**. Food still goes to the camp fridges first, and anything your boxes can't take falls back to the settlement's Homestead boxes.
 - **Five settlement boxes**: Armory Crate, Quartermaster Locker, Pantry, Supply Crate, Med Crate.
 - **Every work station holds 300 kg**. Quick use opens it; picking a station up gives you its contents.
 - **New stations** for the jobs that had none: Field Kitchen (Cook), Field Infirmary (Medic), Guard Post (Guards), Salvage Table (Scavengers).
-- **Settlement Flag**: plant it to found a settlement. It shows your faction's emblem (Zombified players included) and holds 300 kg as the main storage. Picking it up dismantles the settlement.
+- **Settlement Flag**: the settlement hub. Plant it to found a settlement. It shows your faction's emblem (Zombified players included) and holds 300 kg as the main storage. Picking it up dismantles the settlement.
 - New models for all five boxes, the four new stations and the flag.
 
 ### 👷 Settlers

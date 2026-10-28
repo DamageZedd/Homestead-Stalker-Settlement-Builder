@@ -18,7 +18,7 @@
 
 Homestead is a comprehensive settlement management and tactical camp-building mod for S.T.A.L.K.E.R. Anomaly. Build functioning camps, recruit survivors, automate production, repel hostile raids, and watch the Zone come alive as rival factions fight over territory around you.
 
-Place a Hideout Furniture Workbench to establish a 50-meter settlement boundary. Construct beds, stoves, stashes, defensive barricades, water pumps, alarm sirens, automated pistol turrets, power generators, and decorative furniture. Recruit stalkers or shelter refugees, assign them specialized jobs, manage morale and resources, and control everything remotely through a full 5-tab PDA interface and extensive MCM.
+Plant a Settlement Flag to establish a 50-meter settlement boundary. Construct beds, stoves, stashes, defensive barricades, water pumps, alarm sirens, automated pistol turrets, power generators, and decorative furniture. Recruit stalkers or shelter refugees, assign them specialized jobs, manage morale and resources, and control everything remotely through a full 5-tab PDA interface and extensive MCM.
 
 ---
 
@@ -28,7 +28,7 @@ Place a Hideout Furniture Workbench to establish a 50-meter settlement boundary.
 10 modular pieces (foundation, floor, window wall, gable wall, stairs and five tin roofs) on the same grid as the Hideout Furniture walls. Pieces snap together, furniture snaps onto floors and against walls, and a see-through hologram shows green where a piece fits and red where it doesn't. Placed furniture stays put.
 
 ### 📦 Settlement storage & new stations
-Settlers now only use the settlement's own storage: five new boxes (Armory Crate, Quartermaster Locker, Pantry, Supply Crate, Med Crate), the work stations (each holds 300 kg) and the fridges. Your own furniture boxes stay yours, and the PDA Auto-Sort fills them. New stations for the Cook, Medic, Guards and Scavengers, and a **Settlement Flag** in your faction's colours that founds a settlement.
+Settlers now only use the settlement's own storage: five new boxes (Armory Crate, Quartermaster Locker, Pantry, Supply Crate, Med Crate), the work stations (each holds 300 kg) and the fridges. Your own furniture boxes stay yours, and the PDA Auto-Sort fills them first, falling back to the settlement's boxes. New stations for the Cook, Medic, Guards and Scavengers, and a **Settlement Flag** in your faction's colours that founds a settlement.
 
 ### 👷 Settlers
 Better guns and suits from the Armory Crate and Quartermaster Locker, Cook orders, fridges that keep food from spoiling, grenade and VOG orders for the Crafter, and an Electrician whose generator now runs on kerosene.
@@ -74,7 +74,7 @@ A gravity-fed **water purifier** on a concrete pad: an intake pipe comes up out 
 <p align="center"><img src="docs/images/hero_water_purifier.jpg" alt="Water Purifier" width="70%"><br><b>WATER PURIFIER</b></p>
 
 ### 🏴 Settlement Flag
-A pole and banner that marks the ground as yours. Placing it founds a settlement, just like a Workshop bench, and it flies the colours of your faction. It is also the camp's main storage (300 kg). Picking it up dismantles the settlement.
+A pole and banner that marks the ground as yours. Placing it founds a settlement and makes it the camp hub. It flies the colours of your faction. It is also the camp's main storage (300 kg). Picking it up dismantles the settlement.
 
 <p align="center"><img src="docs/images/hero_settlement_flag.jpg" alt="Settlement Flag" width="70%"><br><b>SETTLEMENT FLAG</b></p>
 
@@ -151,7 +151,7 @@ Full 5-tab tactical interface accessible from anywhere in the Zone. The top stat
 
 ## 🏕️ Settlement Building
 
-- Deployable Camp Hub via Hideout Furniture Workbench
+- Deployable Camp Hub: the Settlement Flag
 - 50m territory boundary with visual placement feedback
 - 100m minimum distance between settlements (failed placements refund items)
 - Placeable structures: beds, stoves, stashes, fridges, sandbags, metal barricades, wooden walls, water pumps, generators, alarm sirens, automated pistol turrets, display counters, decorative furniture, and the HomesteadHF workstations
