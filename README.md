@@ -7,7 +7,7 @@
 
 *Build camps. Recruit survivors. Automate production. Hold the line.*
 
-![Version](https://img.shields.io/badge/version-v1.3.0-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-v1.3.1-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
 
 **[GAMMA Discord Thread](https://discord.com/channels/912320241713958912/1515669053606334504/1542893750408315030)** · **[Full Changelog](CHANGELOG.md)** · **[ModDB](https://www.moddb.com/mods/stalker-anomaly/addons/homestead-stalker-settlement-builder)** · **[Latest Release](https://github.com/DamageZedd/Homestead-Stalker-Settlement-Builder/releases/latest)**
 
@@ -19,6 +19,16 @@
 Homestead is a comprehensive settlement management and tactical camp-building mod for S.T.A.L.K.E.R. Anomaly. Build functioning camps, recruit survivors, automate production, repel hostile raids, and watch the Zone come alive as rival factions fight over territory around you.
 
 Plant a Settlement Flag to establish a 50-meter settlement boundary. Construct beds, stoves, stashes, defensive barricades, water pumps, alarm sirens, automated pistol turrets, power generators, and decorative furniture. Recruit stalkers or shelter refugees, assign them specialized jobs, manage morale and resources, and control everything remotely through a full 5-tab PDA interface and extensive MCM.
+
+---
+
+## 🆕 New in v1.3.1
+
+### 🛠️ Dedicated Homestead Crafting Tab & Basic Tools Tier
+Added a dedicated **Homestead** category tab in the Workshop Crafting menu so all 35 Homestead hubs, workstations, storage boxes, building pieces, and defense gadgets are organized in one place (while still appearing in *Furniture*). All 25 basic recipes (`recipe_basic_0`) now require **Basic Tools** instead of Advanced Tools.
+
+### 🛡️ Stability & Bug Fixes
+Guarded `demonized_ledge_grabbing.checkLedgeGrabbing` against transient Luabind `geometry_ray:get` nil lookups on `actor_on_update`, prevented `patch_actor_binder_guard` from re-raising third-party update errors as fatal CTDs, fixed the `02_GAMMA` flag script module/global collision, guarded Market Stall and Workbench stashes when offline or when ALife object IDs are reused, and added missing Electrician/Cook PDA localization strings.
 
 ---
 

@@ -2492,5 +2492,8 @@
     <string id="st_homestead_snap_off">
         <text>Привязка: ВЫКЛ</text>
     </string>
+    <string id="st_ui_craft_homestead">
+        <text>Поселение</text>
+    </string>
 </string_table>
 

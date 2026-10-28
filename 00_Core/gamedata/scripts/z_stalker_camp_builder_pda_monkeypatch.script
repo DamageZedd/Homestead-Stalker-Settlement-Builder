@@ -426,6 +426,57 @@ function on_game_start()
         RegisterScriptCallback("actor_on_net_destroy", engage_homestead_disconnect_grace)
     end
 
+    -- Add dedicated "Homestead" crafting category tab to Workshop Crafting UI
+    -- Force lazy-load of workshop_autoinject first so its top-level LoadRecipes definition runs before our wrapper
+    local _ = workshop_autoinject
+    if ui_workshop and ui_workshop.UIWorkshopCraft and ui_workshop.UIWorkshopCraft.LoadRecipes and not ui_workshop.UIWorkshopCraft._homestead_craft_tab_patched then
+        ui_workshop.UIWorkshopCraft._homestead_craft_tab_patched = true
+        local og_load_recipes = ui_workshop.UIWorkshopCraft.LoadRecipes
+        local homestead_extra_sections = {
+            workshop_item = true,
+            alarm_system = true,
+            alarm_system_pda = true,
+            pistol_turret = true,
+            turret_table = true,
+            display_counter = true,
+        }
+        local function is_homestead_craft_sec(sec)
+            if not sec then return false end
+            if homestead_extra_sections[sec] then return true end
+            return string.sub(sec, 1, 10) == "homestead_"
+        end
+        ui_workshop.UIWorkshopCraft.LoadRecipes = function(self, ...)
+            og_load_recipes(self, ...)
+            if not (self and self.recipes and self.recipes_type and self.list_menu and ui_workshop.list_element) then
+                return
+            end
+            for i = 1, #self.recipes_type do
+                if self.recipes_type[i] == "st_ui_craft_homestead" then
+                    return
+                end
+            end
+            local hs_recipes = {}
+            local seen = {}
+            for _, cat in pairs(self.recipes) do
+                if type(cat) == "table" then
+                    for _, r in pairs(cat) do
+                        if type(r) == "table" and is_homestead_craft_sec(r.sec) and not seen[r.sec] then
+                            seen[r.sec] = true
+                            hs_recipes[#hs_recipes + 1] = r
+                        end
+                    end
+                end
+            end
+            if #hs_recipes > 0 then
+                local new_idx = #self.recipes_type + 1
+                self.recipes_type[new_idx] = "st_ui_craft_homestead"
+                self.recipes[new_idx] = hs_recipes
+                local _itm = ui_workshop.list_element(new_idx, "st_ui_craft_homestead")
+                self.list_menu:AddExistingItem(_itm)
+            end
+        end
+    end
+
     -- If Interactive PDA is not installed, or if Mod App Creator is active with our patch, we don't need to patch the left rail
     local enable_tab = true
     if ui_mcm and ui_mcm.get then

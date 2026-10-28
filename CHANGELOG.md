@@ -1,5 +1,17 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## v1.3.1 — Dedicated Crafting Tab, Crash Guards & Bug Fixes
+
+### 🛠️ Workshop Crafting & Recipes
+- **Dedicated Homestead Crafting Tab**: added a dedicated **Homestead** category tab in the Workshop Crafting menu (`st_ui_craft_homestead` in English and Russian) containing all 35 Homestead hubs, workstations, storage boxes, building pieces, and defense gadgets in one place (while keeping them in *Furniture*).
+- **Basic Tools Tier Alignment**: updated `mod_craft_homestead_hf.ltx` so all 25 `recipe_basic_0` Homestead recipes require **Basic Tools** (`1`) instead of **Advanced Tools** (`2`), while the 4 advanced workstations (`homestead_distiller`, `homestead_generator_station`, `homestead_repair_bench`, `homestead_field_infirmary`) remain on **Advanced Tools** (`2`).
+
+### 🛡️ Stability & Bug Fixes
+- **Ledge Grabbing & Actor Update Crash Guard**: guarded `demonized_ledge_grabbing.checkLedgeGrabbing` against transient Luabind `geometry_ray:get` nil lookups during `actor_on_update` and stopped `patch_actor_binder_guard` from re-raising third-party update errors as fatal CTDs.
+- **G.A.M.M.A. Patch Fixes**: renamed `02_GAMMA/gamedata/scripts/z_homestead_gamma_flag.script` so its module name no longer collides with its own global flag, aligned `02_GAMMA` Settlement Flag strings, and aligned the Scavenger ambush fallback chance to 20%.
+- **Stash & Pickup Safety**: guarded Market Stall stash IDs against reused ALife object IDs, prevented picking up a Market Stall or Workbench while its stash is still switching online so contents are never lost, and counted Auto-Sort items whose target box is offline as skipped.
+- **Lifecycle, Jobs & UI Fixes**: preserved original return values through guard and monkeypatch wrappers (`bind_stalker_ext`, `xr_motivator`, `ui_inventory`, `death_manager`), guarded the settler equipment check and rescue payout in the job engine, unified `dismiss_survivor` with `banish_npc`, added missing Electrician/Cook PDA localization strings (`st_job_status_no_fuel` and `st_cook_dir_s1`–`s3`), and registered disconnect-grace callbacks before the PDA tab early return.
+
 ## v1.3.0 — Building Kit, Settlement Storage & New Models
 
 ### 🧱 Building

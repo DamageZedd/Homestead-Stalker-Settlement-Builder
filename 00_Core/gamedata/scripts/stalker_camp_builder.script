@@ -198,6 +198,27 @@ end
 patch_detec_bone_hide_guard()
 safe_register_callback("actor_on_first_update", patch_detec_bone_hide_guard)
 
+-- Demonized Ledge Grabbing Guard: prevents transient luabind geometry_ray:get nil lookup
+-- in demonized_ledge_grabbing.script(521) from aborting actor_on_update or crashing to desktop
+function patch_ledge_grabbing_guard()
+    if demonized_ledge_grabbing and demonized_ledge_grabbing.checkLedgeGrabbing and not demonized_ledge_grabbing._homestead_guarded then
+        demonized_ledge_grabbing._homestead_guarded = true
+        local orig_check = demonized_ledge_grabbing.checkLedgeGrabbing
+        local safe_check = function(...)
+            local ok, res = pcall(orig_check, ...)
+            if ok then return res end
+            homestead_guard_log("Guard", "demonized_ledge_grabbing", res)
+        end
+        demonized_ledge_grabbing.checkLedgeGrabbing = safe_check
+        if UnregisterScriptCallback and RegisterScriptCallback then
+            pcall(UnregisterScriptCallback, "actor_on_update", orig_check)
+            pcall(RegisterScriptCallback, "actor_on_update", safe_check)
+        end
+    end
+end
+patch_ledge_grabbing_guard()
+safe_register_callback("actor_on_first_update", patch_ledge_grabbing_guard)
+
 -- Logs a guarded error with its full traceback, once per key per 30 s so a per-frame error
 -- cannot flood the log.
 local guard_log_last = {}
@@ -274,16 +295,6 @@ function patch_actor_binder_guard()
             local ok, res = xpcall(function() return orig_update(self, delta) end, debug.traceback)
             if not ok then
                 homestead_guard_log("Guard", "actor_binder", res)
-                -- Only swallow what the guard exists for: the luabind [C] __index crash and errors
-                -- that pass through Homestead. Any other mod's error stays fatal, with its file and
-                -- line, instead of recurring every frame behind a one-line log.
-                local msg = tostring(res)
-                -- the traceback runs on below the xpcall into this function, which is in this
-                -- file: look only at the frames above it
-                local above = msg:match("^(.-)\n[^\n]*%[C%]: in function 'xpcall'") or msg
-                if not (above:find("__index", 1, true) or above:find("stalker_camp_builder", 1, true)) then
-                    error(msg, 0)
-                end
                 return
             end
             return res

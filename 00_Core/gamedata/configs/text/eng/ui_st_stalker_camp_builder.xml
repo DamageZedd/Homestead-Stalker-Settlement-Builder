@@ -2489,4 +2489,7 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_homestead_snap_off">
         <text>Snap: OFF</text>
     </string>
+    <string id="st_ui_craft_homestead">
+        <text>Homestead</text>
+    </string>
 </string_table>
