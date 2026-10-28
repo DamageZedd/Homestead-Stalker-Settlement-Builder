@@ -185,7 +185,8 @@ function patch_detec_bone_hide_guard()
         detec_bone_hide._homestead_guarded = true
         local orig_update = detec_bone_hide.actor_on_update
         local safe_update = function(...)
-            pcall(orig_update, ...)
+            local ok, res = pcall(orig_update, ...)
+            if ok then return res end
         end
         detec_bone_hide.actor_on_update = safe_update
         if UnregisterScriptCallback and RegisterScriptCallback then
@@ -254,7 +255,8 @@ function patch_task_manager_guard()
                     end
                 end
             else
-                pcall(orig_update, self, ...)
+                local ok, res = pcall(orig_update, self, ...)
+                if ok then return res end
             end
         end
     end
@@ -269,20 +271,22 @@ function patch_actor_binder_guard()
         bind_stalker.actor_binder._homestead_guarded = true
         local orig_update = bind_stalker.actor_binder.update
         bind_stalker.actor_binder.update = function(self, delta)
-            local ok, err = xpcall(function() return orig_update(self, delta) end, debug.traceback)
+            local ok, res = xpcall(function() return orig_update(self, delta) end, debug.traceback)
             if not ok then
-                homestead_guard_log("Guard", "actor_binder", err)
+                homestead_guard_log("Guard", "actor_binder", res)
                 -- Only swallow what the guard exists for: the luabind [C] __index crash and errors
                 -- that pass through Homestead. Any other mod's error stays fatal, with its file and
                 -- line, instead of recurring every frame behind a one-line log.
-                local msg = tostring(err)
+                local msg = tostring(res)
                 -- the traceback runs on below the xpcall into this function, which is in this
                 -- file: look only at the frames above it
                 local above = msg:match("^(.-)\n[^\n]*%[C%]: in function 'xpcall'") or msg
                 if not (above:find("__index", 1, true) or above:find("stalker_camp_builder", 1, true)) then
                     error(msg, 0)
                 end
+                return
             end
+            return res
         end
     end
 end
