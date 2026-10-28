@@ -7,7 +7,7 @@
 
 *Build camps. Recruit survivors. Automate production. Hold the line.*
 
-![Version](https://img.shields.io/badge/version-v1.2.8-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-v1.3.0-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
 
 **[GAMMA Discord Thread](https://discord.com/channels/912320241713958912/1515669053606334504/1542893750408315030)** · **[Full Changelog](CHANGELOG.md)** · **[ModDB](https://www.moddb.com/mods/stalker-anomaly/addons/homestead-stalker-settlement-builder)** · **[Latest Release](https://github.com/DamageZedd/Homestead-Stalker-Settlement-Builder/releases/latest)**
 
@@ -22,22 +22,18 @@ Place a Hideout Furniture Workbench to establish a 50-meter settlement boundary.
 
 ---
 
-## 🆕 New in v1.2.8
+## 🆕 New in v1.3.0
 
-### 🥔 Farmer — potatoes, grain & bread
-Settlers can now work the land. **Potatoes** feed the Brewer's still (a richer mash and an extra bottle of vodka per batch). **Grain** is milled and baked into **bread**. Choose the crop like Crafters and Medics: *Auto-Rotate*, *Potato Focus* or *Grain Focus*, from the PDA or by talking to the settler.
+### 🧱 Building Kit
+10 modular pieces (foundation, floor, window wall, gable wall, stairs and five tin roofs) on the same grid as the Hideout Furniture walls. Pieces snap together, furniture snaps onto floors and against walls, and a see-through hologram shows green where a piece fits and red where it doesn't. Placed furniture stays put.
 
-The new **Farmer Station** (raised potato and wheat beds, field oven, work crate, sacks and fence, built from vanilla G.A.M.M.A. props) doubles the harvest and bakes bread right in the field. A Stove can bake as well.
+### 📦 Settlement storage & new stations
+Settlers now only use the settlement's own storage: five new boxes (Armory Crate, Quartermaster Locker, Pantry, Supply Crate, Med Crate), the work stations (each holds 300 kg) and the fridges. Your own furniture boxes stay yours, and the PDA Auto-Sort fills them. New stations for the Cook, Medic, Guards and Scavengers, and a **Settlement Flag** in your faction's colours that founds a settlement.
 
-### 🛒 Trader & Market Stall
-Put goods into a **Market Stall** and a settler **Trader** sells them for RU. Prices follow each item's base price (a share of it, adjustable in MCM); worn gear and part-empty ammo boxes sell for less. Talk to the Trader to hand over the takings, which go straight into your normal G.A.M.M.A. wallet.
+### 👷 Settlers
+Better guns and suits from the Armory Crate and Quartermaster Locker, Cook orders, fridges that keep food from spoiling, grenade and VOG orders for the Crafter, and an Electrician whose generator now runs on kerosene.
 
-**Sell only:** you can only sell through the stall, and it never sells anything back. Camp supplies are never touched.
-
-### 🪑 Reworked furniture, collision & icons
-All eight HomesteadHF workstations now use a single baked texture atlas each. They have **real collision** (no more walking through them), **hold-Use pickup**, and placement outlines that fit the furniture. New inventory icons for every piece match the Hideout Furniture style.
-
-The release also no longer ships duplicate copies of vanilla / G.A.M.M.A. textures, so the download is much smaller.
+**Existing saves:** settlers no longer see supplies in your own Hideout Furniture boxes. Move what they need into a Homestead box, a station or a fridge.
 
 ---
 
