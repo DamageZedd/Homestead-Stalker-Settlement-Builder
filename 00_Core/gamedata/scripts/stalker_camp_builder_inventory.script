@@ -514,6 +514,7 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
         has_cloth = false,
         has_bandage = false,
         has_battery = false,
+        has_generator_fuel = false,
         wood_count = 0,
         charcoal_count = 0,
         box_weights = {},
@@ -691,6 +692,12 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
             if not snapshot.has_battery then
                 if sb.is_lamp_battery and sb.is_lamp_battery(sec) then
                     snapshot.has_battery = true
+                end
+            end
+
+            if not snapshot.has_generator_fuel then
+                if sb.is_generator_fuel and sb.is_generator_fuel(sec) then
+                    snapshot.has_generator_fuel = true
                 end
             end
 

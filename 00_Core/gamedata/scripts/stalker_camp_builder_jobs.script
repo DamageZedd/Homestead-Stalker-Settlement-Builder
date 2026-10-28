@@ -64,6 +64,8 @@ local LAMP_BATTERIES = {
     batteries_dead = true, batteries = true, battery = true, battery_dead = true,
     ammo_battery = true, ammo_battery_d = true, prt_i_battery = true,
 }
+-- the generator station runs on liquid fuel: kerosene (1) first, then a jerrycan or gasoline (2)
+local GENERATOR_FUEL = { kerosene = 1, explo_jerrycan_fuel = 2, jerrycan_fuel = 2, gasoline = 2 }
 local GUNPOWDER_TIER = { powder_1 = 1, powder_2 = 2, powder_3 = 3, powder_4 = 3 }
 local CRAFT_SCRAP = { prt_i_scrap = true }
 local MEDIC_CLOTH = { prt_i_cloth = true }
@@ -71,6 +73,7 @@ local MEDIC_CLOTH = { prt_i_cloth = true }
 local function is_wood_part(sec) return WOOD_PARTS[sec] == true end
 local function is_clean_water(sec) return CLEAN_WATER[sec] == true end
 local function is_lamp_battery(sec) return LAMP_BATTERIES[sec] == true end
+local function is_generator_fuel(sec) return GENERATOR_FUEL[sec] ~= nil end
 local function is_gunpowder(sec) return GUNPOWDER_TIER[sec] ~= nil end
 local function is_scrap(sec) return sec and CRAFT_SCRAP[sec:lower()] == true end
 local function is_cloth(sec) return sec and MEDIC_CLOTH[sec:lower()] == true end
@@ -89,6 +92,7 @@ end
 stalker_camp_builder.is_wood_part = is_wood_part
 stalker_camp_builder.is_clean_water = is_clean_water
 stalker_camp_builder.is_lamp_battery = is_lamp_battery
+stalker_camp_builder.is_generator_fuel = is_generator_fuel
 stalker_camp_builder.is_gunpowder = is_gunpowder
 stalker_camp_builder.is_scrap = is_scrap
 stalker_camp_builder.is_cloth = is_cloth
@@ -1565,19 +1569,35 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         end
         if has_generator_station then
             -- Generator station powers the grid and charges small battery packs without external lamp dependencies
-            return false, nil, nil
+            local fueled = sb.cfg.generator_requires_fuel == false
+            if not fueled then
+                if snap then
+                    fueled = snap.has_generator_fuel
+                else
+                    fueled = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_generator_fuel)
+                end
+            end
+            if fueled then
+                return false, nil, nil
+            end
+            -- out of fuel the generator is off, and the lamps need batteries as in a camp without one
+            if not has_lights then
+                return true, "No Fuel", "The generator station has no kerosene or other fuel"
+            end
         end
         if not has_lights then
             return true, "No Lamps", "Camp has no lamps or spotlights to power/maintain"
         end
+        local has_batt
         if snap then
-            if not snap.has_battery then
-                return true, "No Battery", "Camp storage has no batteries for electrician maintenance"
-            end
-            return false, nil, nil
+            has_batt = snap.has_battery
+        else
+            has_batt = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_lamp_battery)
         end
-        local has_batt = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_lamp_battery)
         if not has_batt then
+            if has_generator_station then
+                return true, "No Fuel", "The generator station has no kerosene or other fuel"
+            end
             return true, "No Battery", "Camp storage has no batteries for electrician maintenance"
         end
         return false, nil, nil
@@ -2145,6 +2165,22 @@ function stalker_camp_builder.process_electrician_job(npc_id, hub_id, camp, surv
         return 0
     end
 
+    -- The generator burns one use of fuel the first time the shift needs it (nothing when there is
+    -- no work). Out of fuel it stays off and the Electrician works like in a camp without one.
+    local generator_on, generator_dry = false, false
+    local function run_generator()
+        if generator_on then return true end
+        if not has_generator_station or generator_dry then return false end
+        if sb.cfg.generator_requires_fuel == false
+            or sb.find_and_consume_item(hub_id, camp, function(sec) return GENERATOR_FUEL[sec] == 1 end, nil)
+            or sb.find_and_consume_item(hub_id, camp, is_generator_fuel, nil) then
+            generator_on = true
+        else
+            generator_dry = true
+        end
+        return generator_on
+    end
+
     -- a lamp burns fuel only while it is online and switched on (its binder's update), so a
     -- battery goes only to lamps under half their fuel
     local low = {}
@@ -2159,18 +2195,21 @@ function stalker_camp_builder.process_electrician_job(npc_id, hub_id, camp, surv
 
     local serviced_lamps = 0
     if #low > 0 then
-        local power_available = false
-        if has_generator_station then
-            -- Generator station powers the camp grid directly: zero battery drain from storage!
-            power_available = true
-        else
+        -- a running generator powers the lamps directly, with no battery from storage
+        local power_available = run_generator()
+        if not power_available then
             local consumed = sb.find_and_consume_item(hub_id, camp, is_lamp_battery, nil)
             power_available = (consumed ~= nil)
         end
 
         if not power_available then
-            if survivor then survivor.shortfall_reason = "No Batteries" end
-            sb.camp_send_tip(actor, sformat(game.translate_string("st_job_electrician_no_battery"), name), nil, "general_stalker", 8000)
+            if generator_dry then
+                if survivor then survivor.shortfall_reason = "No Fuel" end
+                sb.camp_send_tip(actor, sformat(game.translate_string("st_job_electrician_no_fuel"), name), nil, "general_stalker", 8000)
+            else
+                if survivor then survivor.shortfall_reason = "No Batteries" end
+                sb.camp_send_tip(actor, sformat(game.translate_string("st_job_electrician_no_battery"), name), nil, "general_stalker", 8000)
+            end
             return 0
         end
 
@@ -2199,56 +2238,69 @@ function stalker_camp_builder.process_electrician_job(npc_id, hub_id, camp, surv
 
     if has_generator_station then
         -- Multi-slot charging dock: a battery's condition is its charge (batteries_dead, the Battery Pack),
-        -- so a drained one is recharged in place, online, where it takes it
+        -- so a drained one is recharged in place, online, where it takes it. The work is gathered
+        -- first so the generator only burns fuel when there is something to charge.
         local max_slots = math.min(4, math.max(1, math.floor(3 * tier_mult * spec_mult + 0.5)))
+        local to_charge = {}
         if sb.camp_iterate_inventory then
             sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
                 if cl_item and is_lamp_battery(sec) and cond and cond < 0.95 then
-                    pcall(function() cl_item:set_condition(1.0) end)
-                    charged_count = charged_count + 1
-                    return charged_count >= max_slots
+                    to_charge[#to_charge+1] = cl_item
+                    return #to_charge >= max_slots
                 end
             end)
         end
 
         -- If no batteries were available in storage, check if electrician can fabricate a fresh battery pack from spare materials (copper wire + scrap)
-        if charged_count == 0 and not (sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_lamp_battery)) then
-            local is_copper = function(sec) return sec and (sec:lower() == "prt_i_copper" or sec:lower() == "prt_i_resistors") end
-            local has_copper = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_copper)
-            local has_scrap_item = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_scrap)
-            if has_copper and has_scrap_item then
-                sb.find_and_consume_item(hub_id, camp, is_copper, nil)
-                sb.find_and_consume_item(hub_id, camp, is_scrap, nil)
-                -- deposit_item_to_camp gives it a worn charge, which the dock tops up
-                sb.deposit_item_to_camp(hub_id, camp, "batteries_dead")
-                charged_count = 1
-            end
-        end
+        local is_copper = function(sec) return sec and (sec:lower() == "prt_i_copper" or sec:lower() == "prt_i_resistors") end
+        local can_fabricate = #to_charge == 0 and not (sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_lamp_battery))
+            and sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_copper) and sb.camp_has_item(hub_id, camp, is_scrap)
 
         -- Condition a degraded detector or torch (the dock has the batteries; "battery" also matched the af_dummy_battery artefact)
+        local tool
         if sb.camp_iterate_inventory then
             sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
                 if not sec then return end
                 local s = sec:lower()
                 if cl_item and (s:find("detector") or s:find("torch")) and cond and cond < 0.95 then
-                    pcall(function() cl_item:set_condition(1.0) end)
-                    charged_count = charged_count + 1
+                    tool = cl_item
                     return true
                 end
             end)
         end
 
-        if serviced_lamps + charged_count == 0 then
+        if (#to_charge > 0 or can_fabricate or tool) and run_generator() then
+            for _, cl_item in ipairs(to_charge) do
+                pcall(function() cl_item:set_condition(1.0) end)
+                charged_count = charged_count + 1
+            end
+            if can_fabricate then
+                sb.find_and_consume_item(hub_id, camp, is_copper, nil)
+                sb.find_and_consume_item(hub_id, camp, is_scrap, nil)
+                -- deposit_item_to_camp gives it a worn charge, which the dock tops up
+                sb.deposit_item_to_camp(hub_id, camp, "batteries_dead")
+                charged_count = charged_count + 1
+            end
+            if tool then
+                pcall(function() tool:set_condition(1.0) end)
+                charged_count = charged_count + 1
+            end
+        end
+
+        if generator_on then
+            if survivor then survivor.shortfall_reason = nil end
+            local tip_str = game.translate_string("st_job_electrician_station_work")
+            if tip_str == "st_job_electrician_station_work" then
+                tip_str = "%s operated the generator station, recharging small battery packs (%d charged) and tuning settlement power relays!"
+            end
+            sb.camp_send_tip(actor, sformat(tip_str, name, charged_count), nil, "general_stalker", 10000)
+            return math.max(1, serviced_lamps + charged_count)
+        end
+        if not generator_dry then
             if survivor then survivor.shortfall_reason = "Grid Fully Powered" end
             return 0
         end
-        if survivor then survivor.shortfall_reason = nil end
-        local tip_str = game.translate_string("st_job_electrician_station_work")
-        if tip_str == "st_job_electrician_station_work" then
-            tip_str = "%s operated the generator station, recharging small battery packs (%d charged) and tuning settlement power relays!"
-        end
-        sb.camp_send_tip(actor, sformat(tip_str, name, charged_count), nil, "general_stalker", 10000)
-        return math.max(1, serviced_lamps + charged_count)
+        -- out of fuel: work the lamps and batteries by hand, below
     end
 
     -- If no generator station, fall back to default single degraded battery recharge if lamps didn't need work
@@ -2281,6 +2333,11 @@ function stalker_camp_builder.process_electrician_job(npc_id, hub_id, camp, surv
             end
         end
 
+        if generator_dry then
+            if survivor then survivor.shortfall_reason = "No Fuel" end
+            sb.camp_send_tip(actor, sformat(game.translate_string("st_job_electrician_no_fuel"), name), nil, "general_stalker", 8000)
+            return 0
+        end
         if survivor then survivor.shortfall_reason = "Grid Fully Powered" end
         sb.camp_send_tip(actor, sformat(game.translate_string("st_job_electrician_all_powered"), name), nil, "general_stalker", 8000)
         return 0

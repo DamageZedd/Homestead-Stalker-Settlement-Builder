@@ -22,6 +22,7 @@
 ### 👷 Settlers
 - **Better gear**: settlers swap to better guns from the Armory Crate or Guard Post, and better suits from the Quartermaster Locker. Suits need Dynamic NPC Armor Visuals, which GAMMA includes. Old gear goes back in the box.
 - **Cook orders**: Auto, Simple Roast, Boiled Stew, Gourmet Feast. Gourmet meals use vodka or other alcohol.
+- **The generator needs fuel**: the Electrician's generator station burns one use of kerosene (or a jerrycan or gasoline) from camp storage each shift it has work. Without fuel it stays off, he keeps the lamps going with batteries, and the PDA shows *No Fuel*. Toggle in MCM → *Generator Requires Fuel*.
 - **Fridges freeze food**: nothing spoils in a camp fridge, including food settlers put there.
 - **Craftsman orders for grenades** (RGD-5, F-1, GD-05) and **VOG / 40mm rounds**.
 

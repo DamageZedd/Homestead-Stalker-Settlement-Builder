@@ -791,7 +791,7 @@
         <text>JOB: ELECTRICIAN (POWER GRID &amp; LAMPS)</text>
     </string>
     <string id="st_guide_s3h_body">
-        <text>%c[255,238,196,112]>> CAMP ILLUMINATION &amp; POWER GRID%c[default]\n \n  - Keeps placed lamps lit: when a lamp is below half its fuel, the electrician uses one Battery Pack from camp storage and refills every such lamp. Without batteries in storage (and without a Generator Relay Station) the job waits.\n  - %c[255,144,238,144]Defense:%c[default] Lamps and spotlights light the camp but add no Defense rating.\n \n%c[255,238,196,112]>> BATTERY CHARGING &amp; GENERATOR RELAY STATION%c[default]\n \n  - %c[255,144,238,144]Grid power:%c[default] Lamps are refilled without using any batteries.\n  - %c[255,144,238,144]Charging dock:%c[default] Recharges up to %c[255,144,238,144]3 drained Battery Packs%c[default] in camp storage every cycle (up to 4 with rank and specialization).\n  - %c[255,144,238,144]Spare batteries:%c[default] With no batteries in storage it builds one from copper wire (or resistors) and scrap, and it tops up a worn detector or flashlight.</text>
+        <text>%c[255,238,196,112]>> CAMP ILLUMINATION &amp; POWER GRID%c[default]\n \n  - Keeps placed lamps lit: when a lamp is below half its fuel, the electrician uses one Battery Pack from camp storage and refills every such lamp. Without batteries in storage (and without a Generator Relay Station) the job waits.\n  - %c[255,144,238,144]Defense:%c[default] Lamps and spotlights light the camp but add no Defense rating.\n \n%c[255,238,196,112]>> BATTERY CHARGING &amp; GENERATOR RELAY STATION%c[default]\n \n  - %c[255,144,238,144]Fuel:%c[default] The generator burns one use of kerosene (or a jerrycan or gasoline) from camp storage each cycle it has work. Without fuel it is off: lamps need batteries again and the PDA shows No Fuel (MCM: Generator Requires Fuel).\n  - %c[255,144,238,144]Grid power:%c[default] Lamps are refilled without using any batteries.\n  - %c[255,144,238,144]Charging dock:%c[default] Recharges up to %c[255,144,238,144]3 drained Battery Packs%c[default] in camp storage every cycle (up to 4 with rank and specialization).\n  - %c[255,144,238,144]Spare batteries:%c[default] With no batteries in storage it builds one from copper wire (or resistors) and scrap, and it tops up a worn detector or flashlight.</text>
     </string>
     <string id="st_guide_s3i_header">
         <text>JOB: WOODCUTTER (TIMBER LOGGING &amp; CHARCOAL KILN)</text>
@@ -969,6 +969,12 @@
     </string>
     <string id="ui_mcm_stalker_camp_builder_cook_requires_fuel_desc">
         <text>When ON, the cook job requires charcoal/kerosene/gasoline in a camp container for actual stoves. Campfires are always free. Turn OFF for a more relaxed experience.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_generator_requires_fuel">
+        <text>Generator Requires Fuel</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_generator_requires_fuel_desc">
+        <text>When ON, the Electrician's generator station burns one use of kerosene (or a jerrycan or gasoline) from camp storage each shift it has work. Without fuel the generator is off, and he maintains lamps with batteries like a camp without one. The Cook's stoves burn the same fuel. Turn OFF to run the generator for free.</text>
     </string>
     <string id="st_dismiss_ask">
         <text>You're dismissed from the settlement. Go in peace.</text>
@@ -1967,6 +1973,9 @@
     </string>
     <string id="st_job_electrician_no_lamps">
         <text>%s has no lamps to maintain.</text>
+    </string>
+    <string id="st_job_electrician_no_fuel">
+        <text>%s can't run the generator: the camp has no kerosene or other fuel.</text>
     </string>
     <string id="st_job_electrician_no_battery">
         <text>%s has lamps to maintain but no battery available.</text>
