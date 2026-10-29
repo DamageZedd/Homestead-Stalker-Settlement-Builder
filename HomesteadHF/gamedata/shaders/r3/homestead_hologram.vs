@@ -2,7 +2,6 @@
 // visuals, passing the view-space normal and position on for the edge glow in homestead_hologram.ps.
 #include "common.h"
 #include "skin.h"
-#include "screenspace_mvectors.h"
 
 struct v2p_holo
 {
@@ -16,7 +15,6 @@ v2p_holo _main( v_model I )
 {
 	v2p_holo O;
 	O.hpos = mul( m_WVP, I.P );
-	O.hpos.xy = ssfx_taa_jitter(O.hpos);
 	O.tc0 = I.tc.xy;
 	O.N = mul( (float3x3)m_WV, (float3)I.N );
 	O.P = (float3)mul( m_WV, I.P );

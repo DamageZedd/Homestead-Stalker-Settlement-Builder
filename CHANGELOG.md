@@ -15,6 +15,9 @@
 ### 📦 Ghost Camp Stash Cleanup on Hub Pickup
 - **Eliminated Invisible Camp Stash Left Behind on Pickup**: replaced the legacy ground-level `camp.camp_stash_id` (`inventory_box` spawned at the Workbench/Flag's exact coordinates) with the hub's underground `-50m` linked stash (`ensure_hub_stash`), and added automatic migration and cleanup (`release_legacy_camp_stash`) when opening storage, dismantling a camp, or picking up a Workbench or Settlement Flag so an invisible `inventory_box` is never left behind.
 
+### 🎨 Placement Hologram Shader Compatibility (Vanilla Anomaly & Non-SSS Modpacks)
+- **Universal Hologram Vertex Shader**: removed `#include "screenspace_mvectors.h"` and SSS TAA jitter from `homestead_hologram.vs`. This resolves a fatal crash to desktop (`error X1507: failed to open source file: 'screenspace_mvectors.h'`) when entering placement mode on Vanilla Anomaly, older SSS versions, or modpacks lacking Screen Space Shaders Update 23.
+
 ## v1.3.1 — Dedicated Crafting Tab, Crash Guards & Bug Fixes
 
 ### 🛠️ Workshop Crafting & Recipes
