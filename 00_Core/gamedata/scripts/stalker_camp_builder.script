@@ -2319,8 +2319,6 @@ local RIVAL_VALID_STATES = {
 local RIVAL_IDLES = { "guard", "threat_na", "wait_na", "caution", "smoking_stand", "sit_knee" }
 local _rival_chest_pos = vector()
 local _rival_test_p = vector()
-local _rival_look_pos = vector()
-local _rival_look_arg = { look_position = _rival_look_pos }
 local _rival_fast_set = { fast_set = true }
 
 local function run_rival_npc_patrol(npc, npc_id, rival_info)
@@ -2513,12 +2511,13 @@ local function run_rival_npc_patrol(npc, npc_id, rival_info)
             local cur_state = state_mgr.get_state(npc)
             if not RIVAL_VALID_STATES[cur_state] then
                 local chosen_idle = RIVAL_IDLES[mrandom(#RIVAL_IDLES)]
-                _rival_look_pos:set(
+                -- the state manager keeps the look_position it is given: one per rival
+                local look_pos = vector():set(
                     npc_pos.x + (npc_pos.x - active_center_pos.x) * 2.0,
                     npc_pos.y,
                     npc_pos.z + (npc_pos.z - active_center_pos.z) * 2.0
                 )
-                state_mgr.set_state(npc, chosen_idle, nil, nil, _rival_look_arg, _rival_fast_set)
+                state_mgr.set_state(npc, chosen_idle, nil, nil, { look_position = look_pos }, _rival_fast_set)
             end
             return
         end
