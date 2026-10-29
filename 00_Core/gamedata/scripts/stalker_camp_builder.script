@@ -3493,8 +3493,9 @@ function server_object_on_unregister(se_obj)
         or (time_global and stalker_camp_builder.homestead_teardown_grace_until and time_global() < stalker_camp_builder.homestead_teardown_grace_until)
     if in_teardown_grace then return end
 
-    if stalker_camp_builder.invalidate_roof_cover_cache then
-        stalker_camp_builder.invalidate_roof_cover_cache()
+    -- every released object passes here; only a roof or floor piece changes the roof cover
+    if stalker_camp_builder.note_roof_piece then
+        stalker_camp_builder.note_roof_piece(se_obj, false)
     end
 
     for hub_id, camp in pairs(stalker_camp_builder.active_camps) do
@@ -5888,6 +5889,39 @@ function on_game_start()
             _roof_cover_cache_tg = -1
         end
 
+        -- Ids of the roof and floor pieces: one pass over the server objects the first time
+        -- they are needed, then kept current as pieces register and release
+        local _roof_ids = nil
+
+        local function find_roof_ids()
+            local ids = {}
+            local registry = _G.server_objects_registry
+            if registry then
+                for id, se_obj in pairs(registry) do
+                    local sec = se_obj and se_obj.section_name and se_obj:section_name()
+                    if sec and HOMESTEAD_ROOF_SECTIONS[sec] then ids[id] = true end
+                end
+            else
+                local sim = alife()
+                if sim then
+                    for id = 1, 65534 do
+                        local se_obj = sim:object(id)
+                        local sec = se_obj and se_obj.section_name and se_obj:section_name()
+                        if sec and HOMESTEAD_ROOF_SECTIONS[sec] then ids[id] = true end
+                    end
+                end
+            end
+            return ids
+        end
+
+        -- a server object registered (placed) or released: a roof or floor piece updates the list
+        function stalker_camp_builder.note_roof_piece(se_obj, placed)
+            local sec = se_obj and se_obj.section_name and se_obj:section_name()
+            if not (sec and HOMESTEAD_ROOF_SECTIONS[sec]) then return end
+            if _roof_ids then _roof_ids[se_obj.id] = placed or nil end
+            _roof_cover_cache_tg = -1
+        end
+
         local function rebuild_roof_cover_cache(cur_lvl, tg)
             local list = {}
             local count = 0
@@ -5945,28 +5979,27 @@ function on_game_start()
                 end
             end
 
-            -- 3. Fallback scan of server objects on the current level if none were online yet
-            if count == 0 and sim and gg then
-                for i = 1, 65534 do
-                    if not seen[i] then
-                        local se_obj = sim:object(i)
-                        if se_obj and se_obj.position and se_obj.section_name then
-                            local sec = se_obj:section_name()
+            -- 3. Every other roof and floor piece on this level, standalone ones included
+            if not _roof_ids then _roof_ids = find_roof_ids() end
+            if sim and gg then
+                for id in pairs(_roof_ids) do
+                    if not seen[id] then
+                        local se_obj = sim:object(id)
+                        if not se_obj then
+                            _roof_ids[id] = nil
+                        else
+                            local sec = se_obj.section_name and se_obj:section_name()
                             local kind = sec and HOMESTEAD_ROOF_SECTIONS[sec]
-                            if kind then
-                                local gvid = se_obj.m_game_vertex_id
-                                if gvid and gg:valid_vertex_id(gvid) then
-                                    local obj_lvl = sim:level_name(gg:vertex(gvid):level_id())
-                                    if obj_lvl == cur_lvl then
-                                        count = count + 1
-                                        list[count] = {
-                                            x = se_obj.position.x,
-                                            y = se_obj.position.y,
-                                            z = se_obj.position.z,
-                                            is_floor = (kind == "floor"),
-                                        }
-                                    end
-                                end
+                            local gvid = se_obj.m_game_vertex_id
+                            if kind and se_obj.position and gvid and gg:valid_vertex_id(gvid)
+                                    and sim:level_name(gg:vertex(gvid):level_id()) == cur_lvl then
+                                count = count + 1
+                                list[count] = {
+                                    x = se_obj.position.x,
+                                    y = se_obj.position.y,
+                                    z = se_obj.position.z,
+                                    is_floor = (kind == "floor"),
+                                }
                             end
                         end
                     end
@@ -6154,6 +6187,11 @@ function on_game_start()
     safe_register_callback("server_entity_on_unregister", server_entity_on_unregister)
     -- the modded exes add this callback; elsewhere safe_register_callback registers nothing
     safe_register_callback("server_object_on_unregister", server_object_on_unregister)
+    safe_register_callback("server_object_on_register", function(se_obj)
+        if stalker_camp_builder.note_roof_piece then
+            stalker_camp_builder.note_roof_piece(se_obj, true)
+        end
+    end)
     init_hf_pickup_hook()
 
     safe_register_callback("game_object_on_net_spawn", function(obj)
