@@ -60,14 +60,17 @@ function stalker_camp_builder.release_legacy_camp_stash(camp, hub_pos, dest_box_
     local sim = alife()
     if not sim then return end
 
+    -- Returns false to leave the box for a later pass: a box with a stash to fill moves its items
+    -- only while both are online, with transfer_item, which keeps each item as it is.
     local function drain_and_release_box(box_id)
-        if not box_id then return end
+        if not box_id then return true end
         local se_box = sim:object(box_id)
-        if not se_box then return end
-        if se_box:section_name() ~= "inventory_box" then return end
+        if not se_box then return true end
+        if se_box:section_name() ~= "inventory_box" then return true end
 
         local cl_box = level and level.object_by_id and level.object_by_id(box_id)
         local cl_dest = dest_box_id and level and level.object_by_id and level.object_by_id(dest_box_id)
+        if dest_box_id and not (cl_box and cl_dest) then return false end
         local target_cl = cl_dest or (db and db.actor)
         if cl_box and cl_box.iterate_inventory_box and target_cl then
             pcall(function()
@@ -78,31 +81,37 @@ function stalker_camp_builder.release_legacy_camp_stash(camp, hub_pos, dest_box_
                 end, cl_box)
             end)
         else
-            local target_pid = dest_box_id or (db and db.actor and db.actor:id()) or 0
+            local target_pid = (db and db.actor and db.actor:id()) or 0
             local dest_se = (target_pid > 0 and sim:object(target_pid)) or se_box
+            -- the box's child list is live: list the items first, since releasing one while
+            -- walking it skips the next, which then goes with the box
+            local items = {}
             stalker_camp_builder.iterate_server_container(se_box, function(cid, se_item)
-                if se_item then
-                    local isec = se_item:section_name()
-                    if isec then
-                        alife_release(se_item)
-                        sim:create(isec, dest_se.position, dest_se.m_level_vertex_id, dest_se.m_game_vertex_id, target_pid)
-                    end
-                end
+                if se_item then items[#items + 1] = se_item end
             end)
+            for _, se_item in ipairs(items) do
+                local isec = se_item:section_name()
+                if isec then
+                    alife_release(se_item)
+                    sim:create(isec, dest_se.position, dest_se.m_level_vertex_id, dest_se.m_game_vertex_id, target_pid)
+                end
+            end
         end
         pcall(alife_release, se_box)
+        return true
     end
 
     if camp and camp.camp_stash_id then
         local cid = camp.camp_stash_id
-        camp.camp_stash_id = nil
-        if camp.primary_chest_id == cid then
-            camp.primary_chest_id = dest_box_id
+        if drain_and_release_box(cid) then
+            camp.camp_stash_id = nil
+            if camp.primary_chest_id == cid then
+                camp.primary_chest_id = dest_box_id
+            end
+            if camp.structures then
+                camp.structures[cid] = nil
+            end
         end
-        if camp.structures then
-            camp.structures[cid] = nil
-        end
-        drain_and_release_box(cid)
     end
 
     -- Also sweep for any orphaned raw "inventory_box" spawned right at hub_pos (within 1.0m)
@@ -113,6 +122,7 @@ function stalker_camp_builder.release_legacy_camp_stash(camp, hub_pos, dest_box_
     if hub_pos and hub_pos.x and hub_pos.y and hub_pos.z then
         local caches = treasure_manager and treasure_manager.caches
         local registry = _G.server_objects_registry
+        local orphans = {}
         local function check_orphan(id, se)
             if not (se and se.parent_id == 65535 and se.position) then return end
             if se:section_name() ~= "inventory_box" then return end
@@ -122,11 +132,7 @@ function stalker_camp_builder.release_legacy_camp_stash(camp, hub_pos, dest_box_
             local dy = se.position.y - hub_pos.y
             local dz = se.position.z - hub_pos.z
             if (dx * dx + dy * dy + dz * dz) <= 1.0 then
-                if camp then
-                    if camp.primary_chest_id == id then camp.primary_chest_id = dest_box_id end
-                    if camp.structures then camp.structures[id] = nil end
-                end
-                drain_and_release_box(id)
+                orphans[#orphans + 1] = id
             end
         end
         if registry then
@@ -137,6 +143,13 @@ function stalker_camp_builder.release_legacy_camp_stash(camp, hub_pos, dest_box_
             for id = 1, 65534 do
                 local se = sim:object(id)
                 if se then check_orphan(id, se) end
+            end
+        end
+        -- drained after the walk: a release or a new item changes the registry being walked
+        for _, id in ipairs(orphans) do
+            if drain_and_release_box(id) and camp then
+                if camp.primary_chest_id == id then camp.primary_chest_id = dest_box_id end
+                if camp.structures then camp.structures[id] = nil end
             end
         end
     end
