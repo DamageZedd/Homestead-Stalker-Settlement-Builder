@@ -36,9 +36,11 @@ function stalker_camp_builder.ensure_hub_stash(hub_id)
         end
     end
     if sec == "placeable_workshop" then
-        if ui_furniture_workshop and ui_furniture_workshop.GetStash then
-            local sid = ui_furniture_workshop.GetStash(hub_id)
-            if sid and alife_object(sid) then return sid end
+        -- GetStash makes a missing stash from the bench's game object, which an offline bench
+        -- doesn't have; the stash is made below from the server object instead
+        if ui_furniture_workshop and ui_furniture_workshop.GetStash and level.object_by_id(hub_id) then
+            local ok, sid = pcall(ui_furniture_workshop.GetStash, hub_id)
+            if ok and sid and alife_object(sid) then return sid end
         end
         local m_data = alife_storage_manager and alife_storage_manager.get_state()
         if m_data and se_hub.position and se_hub.m_level_vertex_id and se_hub.m_game_vertex_id then
