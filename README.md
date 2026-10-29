@@ -7,7 +7,7 @@
 
 *Build camps. Recruit survivors. Automate production. Hold the line.*
 
-![Version](https://img.shields.io/badge/version-v1.3.1-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-v1.3.2-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
 
 **[GAMMA Discord Thread](https://discord.com/channels/912320241713958912/1515669053606334504/1542893750408315030)** · **[Full Changelog](CHANGELOG.md)** · **[ModDB](https://www.moddb.com/mods/stalker-anomaly/addons/homestead-stalker-settlement-builder)** · **[Latest Release](https://github.com/DamageZedd/Homestead-Stalker-Settlement-Builder/releases/latest)**
 
@@ -19,6 +19,19 @@
 Homestead is a comprehensive settlement management and tactical camp-building mod for S.T.A.L.K.E.R. Anomaly. Build functioning camps, recruit survivors, automate production, repel hostile raids, and watch the Zone come alive as rival factions fight over territory around you.
 
 Plant a Settlement Flag to establish a 50-meter settlement boundary. Construct beds, stoves, stashes, defensive barricades, water pumps, alarm sirens, automated pistol turrets, power generators, and decorative furniture. Recruit stalkers or shelter refugees, assign them specialized jobs, manage morale and resources, and control everything remotely through a full 5-tab PDA interface and extensive MCM.
+
+---
+
+## 🆕 New in v1.3.2
+
+### 🌩️ Roof Shelter Protection Against Emissions & Psi-Storms
+Standing underneath any placed Homestead roof piece (`placeable_hs_roof_flat`, `placeable_hs_roof_slope`, `placeable_hs_roof_hip`, `placeable_hs_roof_valley`, `placeable_hs_roof_pyramid`) or upper-story floor (`placeable_hs_floor`) now protects the player and NPCs from Emissions and Psi-Storms, lighting up the HUD shelter indicator and integrating cleanly with Dynamic Emission Cover.
+
+### ⚡ Lua Garbage & Frame-Time Optimization
+Eliminated per-frame and per-tick Lua closure, table, and vector allocations across `actor_on_update` guards, surge cover checks, NPC weapon checks, rival patrols, and structure scans (pre-filtering 65,534 ALife objects by float distance before calling C++ Luabind methods) to dramatically reduce Lua garbage generation and periodic GC freeze spikes.
+
+### 🛠️ Vanilla Anomaly Crafting Tab & Ghost Stash Fix
+Fixed the dedicated **Homestead** crafting category on Vanilla Anomaly / non-GAMMA setups where `craft.ltx` stops at category `[6]`, and eliminated the invisible ground-level `inventory_box` left behind when picking up a Workbench or Settlement Flag by migrating hub storage to the underground `-50m` linked stash and cleaning up any legacy `camp_stash_id` boxes on pickup or dismantle.
 
 ---
 

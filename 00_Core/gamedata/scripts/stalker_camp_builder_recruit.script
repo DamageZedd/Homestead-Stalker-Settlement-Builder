@@ -2488,6 +2488,12 @@ function stalker_camp_builder.dismantle_camp(hub_id)
 
     local zone_id = camp.zone_id
 
+    -- Release any legacy ground-level camp_stash_id (or orphaned Homestead inventory_box at the hub)
+    -- after transferring its contents to the player so no invisible stash remains behind.
+    if sb.release_legacy_camp_stash then
+        pcall(sb.release_legacy_camp_stash, camp, hub_obj and hub_obj.position)
+    end
+
     -- Clear settlement registry
     if sb.release_camp_trader then
         sb.release_camp_trader(camp)

@@ -57,6 +57,11 @@ function flag_wrapper:pickup()
         return homestead_station_storage.station_wrapper.pickup(self)
     end
     local sb = stalker_camp_builder
+    local hub_pos = self.object and self.object:position()
+    if sb and sb.release_legacy_camp_stash then
+        local camp = hub_id and sb.active_camps and sb.active_camps[hub_id]
+        pcall(sb.release_legacy_camp_stash, camp, hub_pos)
+    end
     if hub_id and sb and sb.active_camps and sb.active_camps[hub_id] and sb.dismantle_camp then
         pcall(sb.dismantle_camp, hub_id)
     end

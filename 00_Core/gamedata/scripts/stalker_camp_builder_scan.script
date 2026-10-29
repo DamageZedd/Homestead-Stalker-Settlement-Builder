@@ -1,5 +1,7 @@
 local pairs_ = pairs
 local ipairs_ = ipairs
+local mabs = math.abs
+local msqrt = math.sqrt
 -- stalker_camp_builder_scan.script
 -- Homestead camp structure scanning (split out of stalker_camp_builder.script).
 -- Finds the furniture / storage that belongs to each camp and caches the result.
@@ -9,8 +11,13 @@ local ipairs_ = ipairs
 
 local scan_camp_structures_cache = {}
 
+local function _se_sec_name(se_obj) return se_obj:section_name() end
+
 function stalker_camp_builder.reset_scan_camp_structures_cache()
     scan_camp_structures_cache = {}
+    if stalker_camp_builder.invalidate_roof_cover_cache then
+        stalker_camp_builder.invalidate_roof_cover_cache()
+    end
 end
 
 local scan_camp_structures_last_run = {}
@@ -45,6 +52,10 @@ function stalker_camp_builder.scan_camp_structures(hub_id, force)
 
     local new_structures = {}
     local hub_pos = hub_obj.position
+    if not hub_pos then return end
+    local hx, hy, hz = hub_pos.x, hub_pos.y, hub_pos.z
+    local bdist = stalker_camp_builder.cfg.boundary_dist or 50
+    local bdist_sq = bdist * bdist
 
     local gg = game_graph()
     local sim = alife()
@@ -54,47 +65,58 @@ function stalker_camp_builder.scan_camp_structures(hub_id, force)
     local hub_level_id = hub_vertex:level_id()
     -- an outpost's pieces near the hub stay the outpost's
     local outposts = stalker_camp_builder.outpost_piece_ids(true)
+    local hf_get_type = hf_furniture_types and hf_furniture_types.get_type
+    local resolve_stype = stalker_camp_builder.resolve_structure_type
 
+    -- Check distance FIRST using pure float math before calling C++ methods (section_name, vertex, etc.)
+    -- or allocating strings, filtering out 98%+ of world objects with zero garbage.
     local function evaluate_furniture_candidate(id, se_obj)
-        if id ~= hub_id and not outposts[id] and se_obj and se_obj.parent_id == 65535 and se_obj.m_game_vertex_id then
-            local vertex = gg:vertex(se_obj.m_game_vertex_id)
-            if vertex and vertex:level_id() == hub_level_id then
-                local ok_sec, sec = pcall(function() return se_obj:section_name() end)
-                if ok_sec and sec then
-                    local s_sec_lower = sec:lower()
-                    local c_id = se_obj.clsid and se_obj:clsid()
-                    local is_real_box = (c_id == clsid.inventory_box or c_id == clsid.inventory_box_s or s_sec_lower:find("inventory_box") or s_sec_lower:find("backpack") or s_sec_lower:find("safe") or s_sec_lower:find("stash"))
-                    local is_furniture = (not s_sec_lower:find("workshop_stash")) and (is_real_box or sec:find("placeable_") or sec:find("rival_") or sec:find("hg_") or sec:find("turret") or sec:find("alarm"))
-                    if not is_furniture and hf_furniture_types and not s_sec_lower:find("workshop_stash") then
-                        pcall(function() is_furniture = hf_furniture_types.get_type(se_obj) end)
-                    end
-                    if is_furniture and se_obj.position and hub_pos then
-                        local y_diff = math.abs(se_obj.position.y - hub_pos.y)
-                        if y_diff <= 12.0 then
-                            local dist = se_obj.position:distance_to(hub_pos)
-                            if is_real_box or sec:find("_stash") then
-                                local dx = se_obj.position.x - hub_pos.x
-                                local dz = se_obj.position.z - hub_pos.z
-                                dist = math.sqrt(dx*dx + dz*dz)
-                            end
-                            if dist <= stalker_camp_builder.cfg.boundary_dist then
-                                local ok_stype, stype = pcall(stalker_camp_builder.resolve_structure_type, se_obj)
-                                if ok_stype and stype and stype ~= "unknown" then
-                                    new_structures[id] = stype
-                                elseif is_real_box and not s_sec_lower:find("workshop_stash") then
-                                    new_structures[id] = "stash"
-                                end
-                            end
-                        end
-                    end
-                end
+        if id == hub_id or outposts[id] then return end
+        if not (se_obj and se_obj.parent_id == 65535 and se_obj.m_game_vertex_id) then return end
+        local spos = se_obj.position
+        if not spos then return end
+        local y_diff = mabs(spos.y - hy)
+        if y_diff > 12.0 then return end
+        local dx = spos.x - hx
+        local dz = spos.z - hz
+        local horiz_sq = dx * dx + dz * dz
+        if horiz_sq > bdist_sq then return end
+
+        local vertex = gg:vertex(se_obj.m_game_vertex_id)
+        if not (vertex and vertex:level_id() == hub_level_id) then return end
+
+        local ok_sec, sec = pcall(_se_sec_name, se_obj)
+        if not (ok_sec and sec) then return end
+        local s_sec_lower = sec:lower()
+        local c_id = se_obj.clsid and se_obj:clsid()
+        local is_real_box = (c_id == clsid.inventory_box or c_id == clsid.inventory_box_s or s_sec_lower:find("inventory_box", 1, true) or s_sec_lower:find("backpack", 1, true) or s_sec_lower:find("safe", 1, true) or s_sec_lower:find("stash", 1, true))
+        local is_ws_stash = s_sec_lower:find("workshop_stash", 1, true) ~= nil
+        local is_furniture = (not is_ws_stash) and (is_real_box or sec:find("placeable_", 1, true) or sec:find("rival_", 1, true) or sec:find("hg_", 1, true) or sec:find("turret", 1, true) or sec:find("alarm", 1, true))
+        if not is_furniture and hf_get_type and not is_ws_stash then
+            local ok_hf, hft = pcall(hf_get_type, se_obj)
+            if ok_hf then is_furniture = hft end
+        end
+        if not is_furniture then return end
+
+        local in_range = false
+        if is_real_box or sec:find("_stash", 1, true) then
+            in_range = (horiz_sq <= bdist_sq)
+        else
+            in_range = ((horiz_sq + y_diff * y_diff) <= bdist_sq)
+        end
+        if in_range then
+            local ok_stype, stype = pcall(resolve_stype, se_obj)
+            if ok_stype and stype and stype ~= "unknown" then
+                new_structures[id] = stype
+            elseif is_real_box and not is_ws_stash then
+                new_structures[id] = "stash"
             end
         end
     end
 
     local registry = _G.server_objects_registry
     if registry then
-        for id, se_obj in pairs(registry) do
+        for id, se_obj in pairs_(registry) do
             evaluate_furniture_candidate(id, se_obj)
         end
     else
@@ -117,6 +139,9 @@ function stalker_camp_builder.scan_camp_structures(hub_id, force)
     camp._cached_storage_metrics_tg = nil
     camp._stats_cache_tick = nil
     camp._stats_cache = nil
+    if stalker_camp_builder.invalidate_roof_cover_cache then
+        stalker_camp_builder.invalidate_roof_cover_cache()
+    end
     scan_camp_structures_cache[hub_id] = {
         structures = camp.structures,
         expires_tg = now_tg + 600000,  -- DANZY EDIT: was 2 min; placing/removing furniture already forces a rescan
@@ -135,18 +160,25 @@ function stalker_camp_builder.scan_multiple_camp_structures(hub_ids, force)
 
     local now_tg = time_global()
     local outposts = stalker_camp_builder.outpost_piece_ids(true)
+    local bdist = stalker_camp_builder.cfg.boundary_dist or 50
+    local bdist_sq = bdist * bdist
+    local hf_get_type = hf_furniture_types and hf_furniture_types.get_type
+    local resolve_stype = stalker_camp_builder.resolve_structure_type
     local camps_data = {}
 
-    for _, hub_id in ipairs(hub_ids) do
+    for _, hub_id in ipairs_(hub_ids) do
         local camp = stalker_camp_builder.active_camps[hub_id]
         local hub_obj = camp and alife_object(hub_id)
-        if camp and hub_obj and hub_obj.m_game_vertex_id then
+        if camp and hub_obj and hub_obj.m_game_vertex_id and hub_obj.position then
             local hub_vertex = gg:vertex(hub_obj.m_game_vertex_id)
             if hub_vertex then
                 camps_data[#camps_data + 1] = {
                     hub_id = hub_id,
                     camp = camp,
                     hub_pos = hub_obj.position,
+                    hx = hub_obj.position.x,
+                    hy = hub_obj.position.y,
+                    hz = hub_obj.position.z,
                     hub_level_id = hub_vertex:level_id(),
                     new_structures = {},
                 }
@@ -160,13 +192,33 @@ function stalker_camp_builder.scan_multiple_camp_structures(hub_ids, force)
     local function evaluate_multi(id, se_obj)
         if not (se_obj and se_obj.parent_id == 65535 and se_obj.m_game_vertex_id) then return end
         if outposts[id] then return end
+        local spos = se_obj.position
+        if not spos then return end
+
+        local near_any = false
+        for i = 1, #camps_data do
+            local cdata = camps_data[i]
+            if id ~= cdata.hub_id then
+                local y_diff = mabs(spos.y - cdata.hy)
+                if y_diff <= 12.0 then
+                    local dx = spos.x - cdata.hx
+                    local dz = spos.z - cdata.hz
+                    if (dx * dx + dz * dz) <= bdist_sq then
+                        near_any = true
+                        break
+                    end
+                end
+            end
+        end
+        if not near_any then return end
 
         local vertex = gg:vertex(se_obj.m_game_vertex_id)
         if not vertex then return end
         local obj_level_id = vertex:level_id()
 
         local has_level_match = false
-        for _, cdata in ipairs(camps_data) do
+        for i = 1, #camps_data do
+            local cdata = camps_data[i]
             if cdata.hub_level_id == obj_level_id and id ~= cdata.hub_id then
                 has_level_match = true
                 break
@@ -174,33 +226,44 @@ function stalker_camp_builder.scan_multiple_camp_structures(hub_ids, force)
         end
         if not has_level_match then return end
 
-        local ok_sec, sec = pcall(function() return se_obj:section_name() end)
+        local ok_sec, sec = pcall(_se_sec_name, se_obj)
         if not (ok_sec and sec) then return end
         local s_sec_lower = sec:lower()
         local c_id = se_obj.clsid and se_obj:clsid()
-        local is_real_box = (c_id == clsid.inventory_box or c_id == clsid.inventory_box_s or s_sec_lower:find("inventory_box") or s_sec_lower:find("backpack") or s_sec_lower:find("safe") or s_sec_lower:find("stash"))
-        local is_furniture = (not s_sec_lower:find("workshop_stash")) and (is_real_box or sec:find("placeable_") or sec:find("rival_") or sec:find("hg_") or sec:find("turret") or sec:find("alarm"))
-        if not is_furniture and hf_furniture_types and not s_sec_lower:find("workshop_stash") then
-            pcall(function() is_furniture = hf_furniture_types.get_type(se_obj) end)
+        local is_real_box = (c_id == clsid.inventory_box or c_id == clsid.inventory_box_s or s_sec_lower:find("inventory_box", 1, true) or s_sec_lower:find("backpack", 1, true) or s_sec_lower:find("safe", 1, true) or s_sec_lower:find("stash", 1, true))
+        local is_ws_stash = s_sec_lower:find("workshop_stash", 1, true) ~= nil
+        local is_furniture = (not is_ws_stash) and (is_real_box or sec:find("placeable_", 1, true) or sec:find("rival_", 1, true) or sec:find("hg_", 1, true) or sec:find("turret", 1, true) or sec:find("alarm", 1, true))
+        if not is_furniture and hf_get_type and not is_ws_stash then
+            local ok_hf, hft = pcall(hf_get_type, se_obj)
+            if ok_hf then is_furniture = hft end
         end
-        if not (is_furniture and se_obj.position) then return end
+        if not is_furniture then return end
 
-        for _, cdata in ipairs(camps_data) do
+        local stype_resolved = false
+        local ok_stype, stype = false, nil
+
+        for i = 1, #camps_data do
+            local cdata = camps_data[i]
             if cdata.hub_level_id == obj_level_id and id ~= cdata.hub_id then
-                local hub_pos = cdata.hub_pos
-                local y_diff = math.abs(se_obj.position.y - hub_pos.y)
+                local y_diff = mabs(spos.y - cdata.hy)
                 if y_diff <= 12.0 then
-                    local dist = se_obj.position:distance_to(hub_pos)
-                    if is_real_box or sec:find("_stash") then
-                        local dx = se_obj.position.x - hub_pos.x
-                        local dz = se_obj.position.z - hub_pos.z
-                        dist = math.sqrt(dx*dx + dz*dz)
+                    local dx = spos.x - cdata.hx
+                    local dz = spos.z - cdata.hz
+                    local horiz_sq = dx * dx + dz * dz
+                    local in_range = false
+                    if is_real_box or sec:find("_stash", 1, true) then
+                        in_range = (horiz_sq <= bdist_sq)
+                    else
+                        in_range = ((horiz_sq + y_diff * y_diff) <= bdist_sq)
                     end
-                    if dist <= stalker_camp_builder.cfg.boundary_dist then
-                        local ok_stype, stype = pcall(stalker_camp_builder.resolve_structure_type, se_obj)
+                    if in_range then
+                        if not stype_resolved then
+                            stype_resolved = true
+                            ok_stype, stype = pcall(resolve_stype, se_obj)
+                        end
                         if ok_stype and stype and stype ~= "unknown" then
                             cdata.new_structures[id] = stype
-                        elseif is_real_box and not s_sec_lower:find("workshop_stash") then
+                        elseif is_real_box and not is_ws_stash then
                             cdata.new_structures[id] = "stash"
                         end
                     end
@@ -211,7 +274,7 @@ function stalker_camp_builder.scan_multiple_camp_structures(hub_ids, force)
 
     local registry = _G.server_objects_registry
     if registry then
-        for id, se_obj in pairs(registry) do
+        for id, se_obj in pairs_(registry) do
             evaluate_multi(id, se_obj)
         end
     else
@@ -223,7 +286,7 @@ function stalker_camp_builder.scan_multiple_camp_structures(hub_ids, force)
         end
     end
 
-    for _, cdata in ipairs(camps_data) do
+    for _, cdata in ipairs_(camps_data) do
         local camp = cdata.camp
         local hub_id = cdata.hub_id
         camp.structures = cdata.new_structures
@@ -241,9 +304,15 @@ function stalker_camp_builder.scan_multiple_camp_structures(hub_ids, force)
             expires_tg = now_tg + 600000,
         }
     end
+    if stalker_camp_builder.invalidate_roof_cover_cache then
+        stalker_camp_builder.invalidate_roof_cover_cache()
+    end
 end
 
 function stalker_camp_builder.invalidate_scan_camp_structures_cache(hub_id)
+    if stalker_camp_builder.invalidate_roof_cover_cache then
+        stalker_camp_builder.invalidate_roof_cover_cache()
+    end
     if hub_id then
         scan_camp_structures_cache[hub_id] = nil
         stalker_camp_builder.camp_box_id_cache[hub_id] = nil
@@ -261,7 +330,7 @@ function stalker_camp_builder.invalidate_scan_camp_structures_cache(hub_id)
         scan_camp_structures_cache = {}
         stalker_camp_builder.camp_box_id_cache = {}
         if stalker_camp_builder.active_camps then
-            for _, c in pairs(stalker_camp_builder.active_camps) do
+            for _, c in pairs_(stalker_camp_builder.active_camps) do
                 c._cached_containers = nil
                 c._cached_containers_tg = nil
                 c._cached_categorized_boxes = nil

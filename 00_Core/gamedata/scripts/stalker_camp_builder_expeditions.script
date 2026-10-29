@@ -1910,14 +1910,16 @@ end
 -- process_stash_expeditions -- orchestrator
 function stalker_camp_builder.process_stash_expeditions()
     local sb = stalker_camp_builder
+    local exps = sb.active_stash_expeditions
+    if not (exps and next(exps)) then return end
     local actor = db.actor
     if not actor then return end
 
     local current_sec = game_sec()
 
-    local completed = {}
+    local completed = nil
 
-    for stash_id, exp in pairs_(sb.active_stash_expeditions or {}) do
+    for stash_id, exp in pairs_(exps) do
         local elapsed, dur, progress = get_expedition_progress(exp, current_sec)
 
         exp.chatter        = exp.chatter or {}
@@ -1932,12 +1934,15 @@ function stalker_camp_builder.process_stash_expeditions()
         loot_due_stashes(exp, stash_id, progress)
 
         if elapsed >= dur then
+            completed = completed or {}
             completed[#completed + 1] = stash_id
         end
     end
 
-    for _, stash_id in ipairs_(completed) do
-        pcall(complete_expedition, stash_id)
-        cleanup_expedition(stash_id)
+    if completed then
+        for _, stash_id in ipairs_(completed) do
+            pcall(complete_expedition, stash_id)
+            cleanup_expedition(stash_id)
+        end
     end
 end

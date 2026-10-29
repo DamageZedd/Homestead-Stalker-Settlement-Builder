@@ -2,6 +2,11 @@
 -- Monkeypatches CustomPDAX to add slot 8 (Settlement) to the left-rail for non-MAC users.
 -- When clicked, it redirects to the standalone Settlements subdialog.
 
+local function _se_community(se_obj) return se_obj:community() end
+local function _se_clsid(se_obj) return se_obj:clsid() end
+local function _se_profile_name(se_obj) return se_obj:profile_name() end
+local function _se_set_profile_name(se_obj, fallback) se_obj:set_profile_name(fallback) end
+
 function on_game_start()
     -- Safely monkeypatch bind_hf_base's is_pickupable to prevent crashes on non-player placed furniture and protect rival camp decor
     if bind_hf_base and bind_hf_base.hf_binder_wrapper then
@@ -54,25 +59,22 @@ function on_game_start()
     keep_outpost_piece_in_dialog(placeable_radio and placeable_radio.UIFurnitureRadio, "obj_id")
     keep_outpost_piece_in_dialog(ui_furniture_light and ui_furniture_light.UIFurnitureLight, "light_id")
 
-    -- Protect player settlements and settlers from Surge and Psi-Storm fatalities
+    -- Protect player settlements, settlers, and Homestead roofs from Surge and Psi-Storm fatalities.
+    -- Call the original cover check first and avoid closure allocations: Useful Idiots (SURGE.buildCovers)
+    -- and NPC surge logic call pos_in_cover 15,000+ times on level load / surge start.
     if surge_manager and surge_manager.CSurgeManager then
         local og_pos_in_cover = surge_manager.CSurgeManager.pos_in_cover
         surge_manager.CSurgeManager.pos_in_cover = function(self, pos, by_name)
-            if pos and stalker_camp_builder then
-                local in_camp = false
-                pcall(function()
-                    if (stalker_camp_builder.is_pos_in_active_camp and stalker_camp_builder.is_pos_in_active_camp(pos))
-                        or (stalker_camp_builder.is_settler_at_pos and stalker_camp_builder.is_settler_at_pos(pos)) then
-                        in_camp = true
-                    end
-                end)
-                if in_camp then
-                    return by_name and "homestead_settlement_cover" or true
-                end
-            end
             if og_pos_in_cover then
                 local ok, result = pcall(og_pos_in_cover, self, pos, by_name)
-                if ok then return result end
+                if ok and result then return result end
+            end
+            local sb = stalker_camp_builder
+            if pos and sb then
+                if (sb.is_pos_in_active_camp and sb.is_pos_in_active_camp(pos))
+                    or (sb.is_pos_under_homestead_roof and sb.is_pos_under_homestead_roof(pos)) then
+                    return by_name and "homestead_settlement_cover" or true
+                end
             end
             return false
         end
@@ -82,25 +84,53 @@ function on_game_start()
         local og_psi_pos_in_cover = psi_storm_manager.CPsiStormManager.pos_in_cover
         if og_psi_pos_in_cover then
             psi_storm_manager.CPsiStormManager.pos_in_cover = function(self, pos, by_name)
-                if pos and stalker_camp_builder then
-                    local in_camp = false
-                    pcall(function()
-                        if (stalker_camp_builder.is_pos_in_active_camp and stalker_camp_builder.is_pos_in_active_camp(pos))
-                            or (stalker_camp_builder.is_settler_at_pos and stalker_camp_builder.is_settler_at_pos(pos)) then
-                            in_camp = true
-                        end
-                    end)
-                    if in_camp then
+                local ok, result = pcall(og_psi_pos_in_cover, self, pos, by_name)
+                if ok and result then return result end
+                local sb = stalker_camp_builder
+                if pos and sb then
+                    if (sb.is_pos_in_active_camp and sb.is_pos_in_active_camp(pos))
+                        or (sb.is_pos_under_homestead_roof and sb.is_pos_under_homestead_roof(pos)) then
                         return by_name and "homestead_settlement_cover" or true
                     end
                 end
-                local ok, result = pcall(og_psi_pos_in_cover, self, pos, by_name)
-                if ok then return result end
                 return false
             end
         end
     end
 
+    -- Protect the player (db.actor) under placed Homestead roofs / upper floors during Emissions & Psi-Storms.
+    -- Anomaly and G.A.M.M.A. check GetEvent("current_safe_cover"), which actor_status updates every 1s via
+    -- scan_safe_zone / scan_safe_zone_old (returning 5 just like standing inside a placed tent).
+    if actor_status then
+        if actor_status.scan_safe_zone and not actor_status._homestead_safe_zone_patched then
+            actor_status._homestead_safe_zone_patched = true
+            local og_scan_safe_zone = actor_status.scan_safe_zone
+            actor_status.scan_safe_zone = function(...)
+                local curr, near, num = og_scan_safe_zone(...)
+                if not curr and db.actor and stalker_camp_builder and stalker_camp_builder.is_pos_under_homestead_roof then
+                    local apos = db.actor:position()
+                    if apos and stalker_camp_builder.is_pos_under_homestead_roof(apos) then
+                        return true, near, 5
+                    end
+                end
+                return curr, near, num
+            end
+        end
+        if actor_status.scan_safe_zone_old and not actor_status._homestead_safe_zone_old_patched then
+            actor_status._homestead_safe_zone_old_patched = true
+            local og_scan_safe_zone_old = actor_status.scan_safe_zone_old
+            actor_status.scan_safe_zone_old = function(...)
+                local curr, near, num = og_scan_safe_zone_old(...)
+                if not curr and db.actor and stalker_camp_builder and stalker_camp_builder.is_pos_under_homestead_roof then
+                    local apos = db.actor:position()
+                    if apos and stalker_camp_builder.is_pos_under_homestead_roof(apos) then
+                        return true, near, 5
+                    end
+                end
+                return curr, near, num
+            end
+        end
+    end
 
     -- Safely wrap tasks_guide guider companion checks to prevent crashes when NPCs have no squad
     if tasks_guide then
@@ -152,6 +182,17 @@ function on_game_start()
     -- Fall back to se_obj:section_name() so creature names are recognized and displayed properly without error spam.
     if tasks_placeable_waypoints and tasks_placeable_waypoints.safename then
         local og_safename = tasks_placeable_waypoints.safename
+        local special_cases = {
+            dog             = "blind_dog",
+            bird            = "crow",
+            giant           = "pseudogiant",
+            SM_KARLIK       = "karlik",
+            SM_LURKER       = "lurker",
+            SM_POLTER_G     = "poltergeist",
+            SM_PYRO_G       = "pyrogeist",
+            SM_PSEUDO_G     = "pseudogeist",
+            SM_PSYSUCKER    = "psysucker",
+        }
         tasks_placeable_waypoints.safename = function(id)
             if not (id and type(id) == "number") then return og_safename(id) end
             local se_obj = alife_object(id)
@@ -161,17 +202,6 @@ function on_game_start()
                     local obj = level and level.object_by_id and level.object_by_id(id)
                     local section = (obj and obj:section()) or (se_obj and se_obj:section_name())
                     if section then
-                        local special_cases = {
-                            dog             = "blind_dog",
-                            bird            = "crow",
-                            giant           = "pseudogiant",
-                            SM_KARLIK       = "karlik",
-                            SM_LURKER       = "lurker",
-                            SM_POLTER_G     = "poltergeist",
-                            SM_PYRO_G       = "pyrogeist",
-                            SM_PSEUDO_G     = "pseudogeist",
-                            SM_PSYSUCKER    = "psysucker",
-                        }
                         local text
                         if string.find(section, "rotan", 1, true) then
                             text = "rat"
@@ -292,13 +322,11 @@ function on_game_start()
         end
         axr_companions.cycle_companions_move_mode = function(...)
             if db.storage then
-                pcall(function()
-                    for id, s in pairs(db.storage) do
-                        if s and s.beh ~= nil and type(s.beh) ~= "table" then
-                            s.beh = {}
-                        end
+                for id, s in pairs(db.storage) do
+                    if s and s.beh ~= nil and type(s.beh) ~= "table" then
+                        s.beh = {}
                     end
-                end)
+                end
             end
             return pass_results(pcall(og_cycle, ...))
         end
@@ -324,13 +352,13 @@ function on_game_start()
     -- "item not found, id [(null)]" which crashes when any stalker/corpse with an
     -- unassigned or stripped character_profile is queried by UICharacterInfo (looting
     -- corpses, trade, talking, inventory) or offline/online specific_character resolution.
+    -- Uses static helper functions so zero closures are allocated per entity registration.
     -- =========================================================================
     local function get_safe_profile_for_se(se_obj)
         local comm = "stalker"
         if se_obj and se_obj.community then
-            pcall(function()
-                comm = se_obj:community()
-            end)
+            local ok, c = pcall(_se_community, se_obj)
+            if ok and c then comm = c end
         end
         if not comm or comm == "" or comm == "unknown" then
             comm = "stalker"
@@ -344,15 +372,13 @@ function on_game_start()
 
     local function sanitize_se_profile(se_obj)
         if not se_obj then return end
-        local cls = nil
-        pcall(function() cls = se_obj:clsid() end)
-        if not cls then return end
+        local ok_cls, cls = pcall(_se_clsid, se_obj)
+        if not (ok_cls and cls) then return end
         if (IsStalker and IsStalker(nil, cls)) or cls == clsid.stalker or cls == clsid.script_stalker then
-            local prof = nil
-            pcall(function() prof = se_obj:profile_name() end)
-            if (not prof) or prof == "" or prof == "(null)" or prof == "nil" then
+            local ok_prof, prof = pcall(_se_profile_name, se_obj)
+            if (not ok_prof) or (not prof) or prof == "" or prof == "(null)" or prof == "nil" then
                 local fallback = get_safe_profile_for_se(se_obj)
-                if pcall(function() se_obj:set_profile_name(fallback) end) then
+                if pcall(_se_set_profile_name, se_obj, fallback) then
                     printf("[Homestead Shield] Fixed missing character_profile on stalker id=%s sec=%s -> assigned '%s'", tostring(se_obj.id), tostring(se_obj:section_name()), tostring(fallback))
                 end
             end
@@ -361,16 +387,23 @@ function on_game_start()
 
     -- 1. Sweep all ALife stalkers on game load / level load to sanitize existing broken profiles
     local function sanitize_all_stalker_profiles()
-        pcall(function()
-            local sim = alife()
-            if not sim then return end
+        local sim = alife()
+        if not sim then return end
+        local registry = _G.server_objects_registry
+        if registry then
+            for _, se_obj in pairs(registry) do
+                if se_obj then
+                    sanitize_se_profile(se_obj)
+                end
+            end
+        else
             for id = 1, 65534 do
                 local se_obj = sim:object(id)
                 if se_obj then
                     sanitize_se_profile(se_obj)
                 end
             end
-        end)
+        end
     end
 
     if RegisterScriptCallback then
@@ -426,25 +459,58 @@ function on_game_start()
         RegisterScriptCallback("actor_on_net_destroy", engage_homestead_disconnect_grace)
     end
 
-    -- Add dedicated "Homestead" crafting category tab to Workshop Crafting UI
-    -- Force lazy-load of workshop_autoinject first so its top-level LoadRecipes definition runs before our wrapper
+    -- Add dedicated "Homestead" crafting category tab to Workshop Crafting UI (works on both G.A.M.M.A.
+    -- and Vanilla Anomaly where craft.ltx only defines [1]..[6] and [7] does not exist).
+    -- Force lazy-load of workshop_autoinject first if installed so its LoadRecipes wrapper runs before ours.
     local _ = workshop_autoinject
+    local homestead_extra_sections = {
+        workshop_item = true,
+        alarm_system = true,
+        alarm_system_pda = true,
+        pistol_turret = true,
+        turret_table = true,
+        display_counter = true,
+    }
+    local function is_homestead_craft_sec(sec)
+        if not sec then return false end
+        if homestead_extra_sections[sec] then return true end
+        return string.sub(sec, 1, 10) == "homestead_"
+    end
+
+    local function parse_craft_recipe_line(id, val, has_artificer)
+        if not (id and val and id ~= "title") then return nil end
+        local sec = string.sub(id, 3)
+        if not (sec and sec ~= "" and ini_sys and ini_sys:section_exist(sec)) then
+            return nil
+        end
+        local t = str_explode(val, ",")
+        if not (t and (#t == 6 or #t == 8 or #t == 10)) then
+            return nil
+        end
+        local r = {}
+        r.sec = sec
+        r.tool = tonumber(t[1]) or 1
+        r.rsp = t[2]
+        local k = 1
+        for i = 3, #t, 2 do
+            local itm = t[i]
+            local amt = tonumber(t[i + 1])
+            if itm and amt and ini_sys:section_exist(itm) then
+                if has_artificer and (amt > 1) and string.find(itm, "^prt_i_") then
+                    amt = amt - 1
+                end
+                r[k] = { itm, amt }
+                k = k + 1
+            else
+                return nil
+            end
+        end
+        return r
+    end
+
     if ui_workshop and ui_workshop.UIWorkshopCraft and ui_workshop.UIWorkshopCraft.LoadRecipes and not ui_workshop.UIWorkshopCraft._homestead_craft_tab_patched then
         ui_workshop.UIWorkshopCraft._homestead_craft_tab_patched = true
         local og_load_recipes = ui_workshop.UIWorkshopCraft.LoadRecipes
-        local homestead_extra_sections = {
-            workshop_item = true,
-            alarm_system = true,
-            alarm_system_pda = true,
-            pistol_turret = true,
-            turret_table = true,
-            display_counter = true,
-        }
-        local function is_homestead_craft_sec(sec)
-            if not sec then return false end
-            if homestead_extra_sections[sec] then return true end
-            return string.sub(sec, 1, 10) == "homestead_"
-        end
         ui_workshop.UIWorkshopCraft.LoadRecipes = function(self, ...)
             og_load_recipes(self, ...)
             if not (self and self.recipes and self.recipes_type and self.list_menu and ui_workshop.list_element) then
@@ -467,12 +533,71 @@ function on_game_start()
                     end
                 end
             end
+
+            -- Fallback for Vanilla Anomaly / non-GAMMA modpacks where craft.ltx has no [7] section
+            -- (so UIWorkshopCraft:LoadRecipes stopped at [6] and never read section [8]):
+            local ini_craft = itms_manager and itms_manager.ini_craft
+            if ini_craft and ini_craft:section_exist("8") then
+                local has_artificer = game_achievements and game_achievements.has_achievement and game_achievements.has_achievement("artificer_eagerness")
+                local n = ini_craft:line_count("8") or 0
+                for i = 0, n - 1 do
+                    local result, id, value = ini_craft:r_line_ex("8", i, "", "")
+                    if id and value then
+                        local sec = string.sub(id, 3)
+                        if is_homestead_craft_sec(sec) and not seen[sec] then
+                            local r = parse_craft_recipe_line(id, value, has_artificer)
+                            if r then
+                                seen[sec] = true
+                                hs_recipes[#hs_recipes + 1] = r
+                                if ui_workshop.workshop_craft_owner then
+                                    ui_workshop.workshop_craft_owner[sec] = true
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+
             if #hs_recipes > 0 then
                 local new_idx = #self.recipes_type + 1
                 self.recipes_type[new_idx] = "st_ui_craft_homestead"
                 self.recipes[new_idx] = hs_recipes
                 local _itm = ui_workshop.list_element(new_idx, "st_ui_craft_homestead")
                 self.list_menu:AddExistingItem(_itm)
+            end
+        end
+    end
+
+    -- Also ensure recipe guidebooks (item_recipe.UIRecipe:LoadRecipes) include section [8] on Vanilla Anomaly
+    -- when section [7] does not exist in craft.ltx.
+    if item_recipe and item_recipe.UIRecipe and item_recipe.UIRecipe.LoadRecipes and not item_recipe.UIRecipe._homestead_recipe_patched then
+        item_recipe.UIRecipe._homestead_recipe_patched = true
+        local og_recipe_load = item_recipe.UIRecipe.LoadRecipes
+        item_recipe.UIRecipe.LoadRecipes = function(self, ...)
+            og_recipe_load(self, ...)
+            local ini_craft = itms_manager and itms_manager.ini_craft
+            if not (self and self.recipes and self.section and ini_craft) then return end
+            if not ini_craft:section_exist("7") and ini_craft:section_exist("8") then
+                local seen = {}
+                for i = 1, #self.recipes do
+                    if self.recipes[i] and self.recipes[i].sec then
+                        seen[self.recipes[i].sec] = true
+                    end
+                end
+                local n = ini_craft:line_count("8") or 0
+                for i = 0, n - 1 do
+                    local result, id, value = ini_craft:r_line_ex("8", i, "", "")
+                    if id and value and id ~= "title" then
+                        local t = str_explode(value, ",")
+                        if t and t[2] == self.section then
+                            local r = parse_craft_recipe_line(id, value, false)
+                            if r and not seen[r.sec] then
+                                seen[r.sec] = true
+                                self.recipes[#self.recipes + 1] = r
+                            end
+                        end
+                    end
+                end
             end
         end
     end

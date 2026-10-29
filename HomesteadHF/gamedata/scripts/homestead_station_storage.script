@@ -29,10 +29,14 @@ function get_stash(station_id)
     if se_box and se_box:section_name() ~= "station_stash" then se_box = nil end -- a reused id
     if not se_box then
         local obj = get_object_by_id(station_id)
-        if not obj then return nil end
-        local pos = vec_set(obj:position())
+        local se_station = alife_object(station_id)
+        local src_pos = (obj and obj:position()) or (se_station and se_station.position)
+        local lvid = (obj and obj:level_vertex_id()) or (se_station and se_station.m_level_vertex_id)
+        local gvid = (obj and obj:game_vertex_id()) or (se_station and se_station.m_game_vertex_id)
+        if not (src_pos and lvid and gvid) then return nil end
+        local pos = vec_set(src_pos)
         pos.y = pos.y - 50
-        se_box = alife_create("station_stash", pos, obj:level_vertex_id(), obj:game_vertex_id())
+        se_box = alife_create("station_stash", pos, lvid, gvid)
         if not se_box then return nil end
         stashes[station_id] = se_box.id
         forget_camp_containers()

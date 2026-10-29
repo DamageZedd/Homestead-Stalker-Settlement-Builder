@@ -15,6 +15,12 @@ local msqrt = math.sqrt
 local sfind = string.find
 local tsort = table.sort
 
+local function _obj_id(obj) return obj:id() end
+local function _obj_section(obj) return obj:section() end
+local function _se_sec_name(se_obj) return se_obj:section_name() end
+local function _client_pos(obj) return obj:position() end
+local function _se_pos(obj) return obj.position end
+
 -- Monolith / Anomaly Engine Crash Guard: alife_storage_manager
 function patch_alife_storage_manager()
     if alife_storage_manager then
@@ -22,7 +28,7 @@ function patch_alife_storage_manager()
             local orig_get_game_object_state = alife_storage_manager.get_game_object_state
             alife_storage_manager.get_game_object_state = function(obj, create_if_dont_exist)
                 if not obj then return nil end
-                local ok, id = pcall(function() return obj:id() end)
+                local ok, id = pcall(_obj_id, obj)
                 if not (ok and id) then return nil end
                 local ok_call, res = pcall(orig_get_game_object_state, obj, create_if_dont_exist)
                 if ok_call then return res end
@@ -46,22 +52,21 @@ function patch_alife_storage_manager()
         local orig_se_save_var = _G.se_save_var
         _G.se_save_var = function(id, name, varname, val)
             if not id then return end
-            pcall(function()
-                local m_data = alife_storage_manager and alife_storage_manager.get_state and alife_storage_manager.get_state()
-                if m_data and m_data.se_object and not m_data.se_object[id] and val then
+            if val ~= nil and alife_storage_manager and alife_storage_manager.get_state then
+                local m_data = alife_storage_manager.get_state()
+                if m_data and m_data.se_object and not m_data.se_object[id] then
                     local se_obj = alife_object(id)
                     if se_obj then
                         m_data.se_object[id] = {}
                         local sname = name
-                        if not sname then
-                            if se_obj.section_name then
-                                pcall(function() sname = se_obj:section_name() .. "_" .. tostring(id) end)
-                            end
+                        if not sname and se_obj.section_name then
+                            local ok_s, sec = pcall(_se_sec_name, se_obj)
+                            if ok_s and sec then sname = sec .. "_" .. tostring(id) end
                         end
                         m_data.se_object[id].name = sname or ("obj_" .. tostring(id))
                     end
                 end
-            end)
+            end
             pcall(orig_se_save_var, id, name, varname, val)
         end
         _G._homestead_se_save_var_patched = true
@@ -161,16 +166,16 @@ function patch_watchdog_lag_protection()
     -- Also grant immunity when actor receives or registers any homestead or placeable item
     safe_register_callback("actor_on_item_take", function(obj)
         if obj and a_rax_wd and a_rax_wd.save_state then
-            local ok, sec = pcall(function() return obj:section() end)
-            if ok and sec and (string.find(sec, "homestead", 1, true) or string.find(sec, "placeable", 1, true)) then
+            local ok, sec = pcall(_obj_section, obj)
+            if ok and sec and (sfind(sec, "homestead", 1, true) or sfind(sec, "placeable", 1, true)) then
                 grant_watchdog_immunity()
             end
         end
     end)
     safe_register_callback("server_entity_on_register", function(se_obj)
         if se_obj and a_rax_wd and a_rax_wd.save_state then
-            local ok, sec = pcall(function() return se_obj:section_name() end)
-            if ok and sec and (string.find(sec, "homestead", 1, true) or string.find(sec, "placeable", 1, true)) then
+            local ok, sec = pcall(_se_sec_name, se_obj)
+            if ok and sec and (sfind(sec, "homestead", 1, true) or sfind(sec, "placeable", 1, true)) then
                 grant_watchdog_immunity()
             end
         end
@@ -178,46 +183,15 @@ function patch_watchdog_lag_protection()
 end
 patch_watchdog_lag_protection()
 
--- BarryBogs Detector Bone Hide Guard: prevents fatal crash in detec_bone_hide.script(20)
--- when spawning heavy items or transitioning inventory device states
+-- Do NOT replace third-party actor_on_update callbacks (detec_bone_hide, demonized_ledge_grabbing)
+-- or bind_stalker.actor_binder.update with wrappers defined in this file: Lua GC profilers attribute
+-- all allocations inside a wrapped callback to the wrapper's script file, and per-frame xpcall closures
+-- generate unnecessary garbage.
 function patch_detec_bone_hide_guard()
-    if detec_bone_hide and detec_bone_hide.actor_on_update and not detec_bone_hide._homestead_guarded then
-        detec_bone_hide._homestead_guarded = true
-        local orig_update = detec_bone_hide.actor_on_update
-        local safe_update = function(...)
-            local ok, res = pcall(orig_update, ...)
-            if ok then return res end
-        end
-        detec_bone_hide.actor_on_update = safe_update
-        if UnregisterScriptCallback and RegisterScriptCallback then
-            pcall(UnregisterScriptCallback, "actor_on_update", orig_update)
-            pcall(RegisterScriptCallback, "actor_on_update", safe_update)
-        end
-    end
 end
-patch_detec_bone_hide_guard()
-safe_register_callback("actor_on_first_update", patch_detec_bone_hide_guard)
 
--- Demonized Ledge Grabbing Guard: prevents transient luabind geometry_ray:get nil lookup
--- in demonized_ledge_grabbing.script(521) from aborting actor_on_update or crashing to desktop
 function patch_ledge_grabbing_guard()
-    if demonized_ledge_grabbing and demonized_ledge_grabbing.checkLedgeGrabbing and not demonized_ledge_grabbing._homestead_guarded then
-        demonized_ledge_grabbing._homestead_guarded = true
-        local orig_check = demonized_ledge_grabbing.checkLedgeGrabbing
-        local safe_check = function(...)
-            local ok, res = pcall(orig_check, ...)
-            if ok then return res end
-            homestead_guard_log("Guard", "demonized_ledge_grabbing", res)
-        end
-        demonized_ledge_grabbing.checkLedgeGrabbing = safe_check
-        if UnregisterScriptCallback and RegisterScriptCallback then
-            pcall(UnregisterScriptCallback, "actor_on_update", orig_check)
-            pcall(RegisterScriptCallback, "actor_on_update", safe_check)
-        end
-    end
 end
-patch_ledge_grabbing_guard()
-safe_register_callback("actor_on_first_update", patch_ledge_grabbing_guard)
 
 -- Logs a guarded error with its full traceback, once per key per 30 s so a per-frame error
 -- cannot flood the log.
@@ -237,47 +211,17 @@ local function guarded_call(tag, fn, ...)
     return ok, err
 end
 stalker_camp_builder.guarded_call = guarded_call
--- Task Manager Crash Guard: prevents fatal [C] __index crashes
--- during task_manager:update() when tasks evaluate inventory items or hold dangling CGameTask handles
+
+-- Task Manager Crash Guard: wrap CGeneralTask.check_task directly with a zero-allocation pcall
+-- instead of replacing CRandomTask.update or allocating closures per task on every frame.
 function patch_task_manager_guard()
-    if task_manager and task_manager.CRandomTask and not task_manager.CRandomTask._homestead_guarded then
-        task_manager.CRandomTask._homestead_guarded = true
-        local orig_update = task_manager.CRandomTask.update
-        task_manager.CRandomTask.update = function(self, ...)
-            if self.task_info then
-                for k, v in pairs(self.task_info) do
-                    local tsk = self.task_info[k]
-                    if tsk and tsk.check_task then
-                        local ok, err = xpcall(function() return tsk.check_task(tsk) end, debug.traceback)
-                        if not ok then
-                            -- Keep tsk.t: CGeneralTask:save_state writes nothing for a task without it, so
-                            -- clearing it dropped the task from the next save while the PDA still listed it.
-                            homestead_guard_log("Task Guard", "task:" .. tostring(k), err)
-                        end
-                    end
-                    if tsk and tsk.timeout and tsk.repeat_timeout and game and game.get_game_time then
-                        local ok_time, diff = pcall(function() return game.get_game_time():diffSec(tsk.timeout) end)
-                        if ok_time and diff and diff > tsk.repeat_timeout then
-                            if ui_options and ui_options.get and ui_options.get("alife/dynamic_news/nearby_activity_news") then
-                                pcall(function()
-                                    if dynamic_news_manager and dynamic_news_manager.get_dynamic_news then
-                                        dynamic_news_manager.get_dynamic_news():GossipTaskRepeatTimeout(k)
-                                    end
-                                end)
-                            end
-                            local has_eng_task = false
-                            if db.actor and db.actor.get_task then
-                                pcall(function() has_eng_task = db.actor:get_task(k, true) ~= nil end)
-                            end
-                            if not has_eng_task then
-                                self.task_info[k] = nil
-                            end
-                        end
-                    end
-                end
-            else
-                local ok, res = pcall(orig_update, self, ...)
-                if ok then return res end
+    if task_objects and task_objects.CGeneralTask and task_objects.CGeneralTask.check_task and not task_objects.CGeneralTask._homestead_guarded then
+        task_objects.CGeneralTask._homestead_guarded = true
+        local orig_check_task = task_objects.CGeneralTask.check_task
+        task_objects.CGeneralTask.check_task = function(self, ...)
+            local ok, err = pcall(orig_check_task, self, ...)
+            if not ok then
+                homestead_guard_log("Task Guard", "task:" .. tostring(self and self.id), err)
             end
         end
     end
@@ -285,24 +229,8 @@ end
 patch_task_manager_guard()
 safe_register_callback("actor_on_first_update", patch_task_manager_guard)
 
--- Actor Binder Guard: wraps bind_stalker.actor_binder.update in pcall
--- to prevent any unhandled engine update exceptions from deadlocking or crashing the process
 function patch_actor_binder_guard()
-    if bind_stalker and bind_stalker.actor_binder and not bind_stalker.actor_binder._homestead_guarded then
-        bind_stalker.actor_binder._homestead_guarded = true
-        local orig_update = bind_stalker.actor_binder.update
-        bind_stalker.actor_binder.update = function(self, delta)
-            local ok, res = xpcall(function() return orig_update(self, delta) end, debug.traceback)
-            if not ok then
-                homestead_guard_log("Guard", "actor_binder", res)
-                return
-            end
-            return res
-        end
-    end
 end
-patch_actor_binder_guard()
-safe_register_callback("actor_on_first_update", patch_actor_binder_guard)
 
 function patch_meat_spoiling_fridges()
     if not meat_spoiling then return end
@@ -518,12 +446,12 @@ end
 
 function safe_position(obj)
     if not obj then return nil end
-    local ok_client, pos_client = pcall(function() return obj:position() end)
-    if ok_client and pos_client and type(pos_client) == "userdata" then
+    local ok_client, pos_client = pcall(_client_pos, obj)
+    if ok_client and pos_client and type_(pos_client) == "userdata" then
         return pos_client
     end
-    local ok_se, pos_se = pcall(function() return obj.position end)
-    if ok_se and pos_se and type(pos_se) == "userdata" then
+    local ok_se, pos_se = pcall(_se_pos, obj)
+    if ok_se and pos_se and type_(pos_se) == "userdata" then
         return pos_se
     end
     return nil
@@ -1023,7 +951,7 @@ end
 local invalidate_mcm_cache = stalker_camp_builder.invalidate_mcm_cache
 
 local function get_mcm_setting(opt_name)
-    if not ui_mcm then return nil end
+    if not (ui_mcm and ui_mcm.get) then return nil end
     ensure_mcm_paths()
     local path = mcm_option_path[opt_name]
     if not path then return nil end
@@ -1033,12 +961,12 @@ local function get_mcm_setting(opt_name)
         if cached and now < cached.expires_tg then
             return cached.value
         end
-        local ok, value = pcall(function() return ui_mcm and ui_mcm.get(path) end)
+        local ok, value = pcall(ui_mcm.get, path)
         if not ok then return nil end
         mcm_value_cache[opt_name] = { value = value, expires_tg = now + MCM_CACHE_TTL_MS }
         return value
     end
-    local ok, value = pcall(function() return ui_mcm and ui_mcm.get(path) end)
+    local ok, value = pcall(ui_mcm.get, path)
     return ok and value or nil
 end
 
@@ -1552,6 +1480,14 @@ function find_best_container(hub_id, camp, preferred_types, fallback_box_id)
                 best_id = struct_id
                 break
             end
+        end
+    end
+
+    if not best_id and hub_id then
+        local hub_stash_id = sb.linked_stash_id(hub_id)
+            or (sb.ensure_hub_stash and sb.ensure_hub_stash(hub_id))
+        if hub_stash_id and is_valid_camp_box(hub_stash_id, hub_id, camp) then
+            best_id = hub_stash_id
         end
     end
 
@@ -2363,6 +2299,29 @@ end
 
 local settler_next_tick = {}
 -- npc_on_update helpers
+local RIVAL_PATROL_OFFSETS = {
+    { lx = 0.0,  lz = 3.5 },  -- Front entrance / barricade
+    { lx = -2.8, lz = 1.0 },  -- Left flank wall
+    { lx = 2.8,  lz = 1.0 },  -- Right flank wall
+    { lx = 0.6,  lz = -1.5 }, -- Camp hearth / bivouac
+    { lx = -1.8, lz = 2.6 },  -- Left perimeter cover
+    { lx = 1.8,  lz = 2.6 },  -- Right perimeter cover
+}
+local RIVAL_SHUFFLED_INDICES = { 1, 2, 3, 4, 5, 6 }
+local RIVAL_VALID_STATES = {
+    ["guard"] = true,
+    ["threat_na"] = true,
+    ["wait_na"] = true,
+    ["caution"] = true,
+    ["smoking_stand"] = true,
+    ["sit_knee"] = true,
+}
+local RIVAL_IDLES = { "guard", "threat_na", "wait_na", "caution", "smoking_stand", "sit_knee" }
+local _rival_chest_pos = vector()
+local _rival_test_p = vector()
+local _rival_look_pos = vector()
+local _rival_look_arg = { look_position = _rival_look_pos }
+local _rival_fast_set = { fast_set = true }
 
 local function run_rival_npc_patrol(npc, npc_id, rival_info)
     local mrandom = math.random
@@ -2390,9 +2349,9 @@ local function run_rival_npc_patrol(npc, npc_id, rival_info)
         stalker_camp_builder.camp_npc_released[npc_id] = true
     end
 
-    local chest_pos = vector():set(rival_info.position.x,
-                                   rival_info.position.y,
-                                   rival_info.position.z)
+    local chest_pos = _rival_chest_pos:set(rival_info.position.x,
+                                           rival_info.position.y,
+                                           rival_info.position.z)
     local tg = time_global()
 
     stalker_camp_builder.rival_npc_patrol = stalker_camp_builder.rival_npc_patrol or {}
@@ -2440,7 +2399,7 @@ local function run_rival_npc_patrol(npc, npc_id, rival_info)
         local nudge_ang = camp_rot + (mrandom(1, 4) * (math.pi * 0.5))
         local nudge_x = active_center_pos.x + 3.2 * math.cos(nudge_ang)
         local nudge_z = active_center_pos.z + 3.2 * math.sin(nudge_ang)
-        local nudge_lvid = level.vertex_id(vector():set(nudge_x, active_center_pos.y, nudge_z))
+        local nudge_lvid = level.vertex_id(_rival_test_p:set(nudge_x, active_center_pos.y, nudge_z))
         if is_level_vertex(nudge_lvid) and npc:accessible(nudge_lvid) then
             local nudge_vpos = level.vertex_position(nudge_lvid)
             if nudge_vpos and npc.set_npc_position then
@@ -2496,27 +2455,19 @@ local function run_rival_npc_patrol(npc, npc_id, rival_info)
             local camp_rot = is_reinforcing and (p_data.reinforce_camp and p_data.reinforce_camp.rotation or 0) or (rival_info.rotation or 0)
             local cos_r = math.cos(camp_rot)
             local sin_r = math.sin(camp_rot)
-            local patrol_offsets = {
-                { lx = 0.0,  lz = 3.5 },  -- Front entrance / barricade
-                { lx = -2.8, lz = 1.0 },  -- Left flank wall
-                { lx = 2.8,  lz = 1.0 },  -- Right flank wall
-                { lx = 0.6,  lz = -1.5 }, -- Camp hearth / bivouac
-                { lx = -1.8, lz = 2.6 },  -- Left perimeter cover
-                { lx = 1.8,  lz = 2.6 },  -- Right perimeter cover
-            }
 
             local found_lvid = nil
             local attempts = 0
-            local test_p = vector()
+            local test_p = _rival_test_p
 
-            local shuffled_indices = { 1, 2, 3, 4, 5, 6 }
-            for i = #shuffled_indices, 2, -1 do
+            local shuffled_indices = RIVAL_SHUFFLED_INDICES
+            for i = 6, 2, -1 do
                 local j = mrandom(i)
                 shuffled_indices[i], shuffled_indices[j] = shuffled_indices[j], shuffled_indices[i]
             end
 
-            for _, idx in ipairs(shuffled_indices) do
-                local off = patrol_offsets[idx]
+            for i = 1, 6 do
+                local off = RIVAL_PATROL_OFFSETS[shuffled_indices[i]]
                 local wx = active_center_pos.x + off.lx * cos_r - off.lz * sin_r
                 local wz = active_center_pos.z + off.lx * sin_r + off.lz * cos_r
                 test_p:set(wx, active_center_pos.y, wz)
@@ -2560,23 +2511,14 @@ local function run_rival_npc_patrol(npc, npc_id, rival_info)
         else
             -- At target: play alert, guard, and patrol idle animations looking outwards
             local cur_state = state_mgr.get_state(npc)
-            local valid_states = {
-                ["guard"] = true,
-                ["threat_na"] = true,
-                ["wait_na"] = true,
-                ["caution"] = true,
-                ["smoking_stand"] = true,
-                ["sit_knee"] = true,
-            }
-            if not valid_states[cur_state] then
-                local idles = { "guard", "threat_na", "wait_na", "caution", "smoking_stand", "sit_knee" }
-                local chosen_idle = idles[mrandom(#idles)]
-                local look_pos = vector():set(
+            if not RIVAL_VALID_STATES[cur_state] then
+                local chosen_idle = RIVAL_IDLES[mrandom(#RIVAL_IDLES)]
+                _rival_look_pos:set(
                     npc_pos.x + (npc_pos.x - active_center_pos.x) * 2.0,
                     npc_pos.y,
                     npc_pos.z + (npc_pos.z - active_center_pos.z) * 2.0
                 )
-                state_mgr.set_state(npc, chosen_idle, nil, nil, { look_position = look_pos }, { fast_set = true })
+                state_mgr.set_state(npc, chosen_idle, nil, nil, _rival_look_arg, _rival_fast_set)
             end
             return
         end
@@ -2589,7 +2531,7 @@ local function run_rival_npc_patrol(npc, npc_id, rival_info)
                 npc:set_movement_type(move.run)
                 npc:set_mental_state(anim.danger)
                 if state_mgr then
-                    state_mgr.set_state(npc, "rush", nil, nil, nil, { fast_set = true })
+                    state_mgr.set_state(npc, "rush", nil, nil, nil, _rival_fast_set)
                 end
             end)
         end
@@ -3422,6 +3364,10 @@ function hf_on_furniture_place(obj_id)
         return
     end
 
+    if stalker_camp_builder.invalidate_roof_cover_cache then
+        stalker_camp_builder.invalidate_roof_cover_cache()
+    end
+
     local hub_id, camp = get_active_camp_near(se_obj.position)
     if camp then
         local struct_type = resolve_structure_type(se_obj)
@@ -3463,8 +3409,15 @@ end
 
 function hf_on_before_furniture_release(obj_id)
     local pairs_ = pairs
+    if stalker_camp_builder.invalidate_roof_cover_cache then
+        stalker_camp_builder.invalidate_roof_cover_cache()
+    end
     local camp = stalker_camp_builder.active_camps[obj_id]
     if camp then
+        local se_hub = safe_alife_object(obj_id)
+        if stalker_camp_builder.release_legacy_camp_stash then
+            stalker_camp_builder.release_legacy_camp_stash(camp, se_hub and se_hub.position)
+        end
         if camp.zone_id then
             safe_deferred_release(camp.zone_id)
             camp.zone_id = nil
@@ -3539,6 +3492,10 @@ function server_object_on_unregister(se_obj)
         or (time_global and homestead_teardown_grace_until and time_global() < homestead_teardown_grace_until)
         or (time_global and stalker_camp_builder.homestead_teardown_grace_until and time_global() < stalker_camp_builder.homestead_teardown_grace_until)
     if in_teardown_grace then return end
+
+    if stalker_camp_builder.invalidate_roof_cover_cache then
+        stalker_camp_builder.invalidate_roof_cover_cache()
+    end
 
     for hub_id, camp in pairs(stalker_camp_builder.active_camps) do
         if camp.structures and camp.structures[obj_id] then
@@ -5416,17 +5373,21 @@ function server_entity_on_unregister(se_obj, type_name)
     local obj_id = se_obj.id
 
     if stalker_camp_builder.active_camps[obj_id] then
+        local camp = stalker_camp_builder.active_camps[obj_id]
+        if stalker_camp_builder.release_legacy_camp_stash then
+            stalker_camp_builder.release_legacy_camp_stash(camp, se_obj.position)
+        end
         pcall(function()
             if level and level.map_remove_object_spot then
                 level.map_remove_object_spot(obj_id, "ui_pda2_actor_sleep_location")
             end
         end)
-        if stalker_camp_builder.active_camps[obj_id].zone_id then
-            local zid = stalker_camp_builder.active_camps[obj_id].zone_id
+        if camp.zone_id then
+            local zid = camp.zone_id
             safe_deferred_release(zid)
         end
         invalidate_scan_camp_structures_cache(obj_id)
-        stalker_camp_builder.end_camp_raid(stalker_camp_builder.active_camps[obj_id])
+        stalker_camp_builder.end_camp_raid(camp)
         stalker_camp_builder.active_camps[obj_id] = nil
         pcall(function()
             if actor_menu and actor_menu.set_msg and game and game.translate_string then
@@ -5846,30 +5807,205 @@ function on_game_start()
         function stalker_camp_builder.is_settler(npc_id)
             if not npc_id then return false end
             if type(npc_id) == "userdata" then
-                npc_id = npc_id.id and ((type(npc_id.id) == "number") and npc_id.id or npc_id:id())
+                npc_id = (type(npc_id.id) == "number") and npc_id.id or (npc_id.id and npc_id:id())
             end
             if not npc_id then return false end
             local sb = stalker_camp_builder
-            if sb.settler_lookup and sb.settler_lookup[npc_id] then
-                return true
+            local lookup = sb.settler_lookup and sb.settler_lookup[npc_id]
+            if lookup then
+                return not lookup.is_rival and not lookup.is_refugee
             end
-            for hub_id, camp in pairs(sb.active_camps or {}) do
-                if camp.survivors and (camp.survivors[npc_id] or camp.survivors[tostring(npc_id)]) then
-                    return true
+            if sb.non_settler_cache and sb.non_settler_cache[npc_id] then
+                return false
+            end
+            local camps = sb.active_camps
+            if camps and next(camps) then
+                for hub_id, camp in pairs(camps) do
+                    if camp.survivors and (camp.survivors[npc_id] or camp.survivors[tostring(npc_id)]) then
+                        return true
+                    end
+                end
+            end
+            if sb.non_settler_cache then
+                sb.non_settler_cache[npc_id] = true
+            end
+            return false
+        end
+
+        local _cached_lvl_name = nil
+        local _cached_lvl_tg = -1
+        local function get_cached_level_name()
+            local tg = time_global and time_global() or 0
+            if not _cached_lvl_name or tg >= _cached_lvl_tg then
+                _cached_lvl_name = level and level.name and level.name() or nil
+                _cached_lvl_tg = tg + 2000
+            end
+            return _cached_lvl_name
+        end
+
+        function stalker_camp_builder.is_pos_in_active_camp(pos)
+            local camps = stalker_camp_builder.active_camps
+            if not pos or not camps or not next(camps) then return false end
+            local cur_lvl = get_cached_level_name()
+            local px, py, pz = pos.x, pos.y, pos.z
+            for hub_id, camp in pairs(camps) do
+                if camp and (not camp.level or camp.level == cur_lvl) then
+                    local cpos = camp.pos
+                    if not cpos then
+                        local hub_obj = safe_alife_object(hub_id)
+                        if hub_obj and hub_obj.position then
+                            cpos = { x = hub_obj.position.x, y = hub_obj.position.y, z = hub_obj.position.z }
+                            camp.pos = cpos
+                        end
+                    end
+                    if cpos and cpos.x then
+                        local radius = camp.radius or 45
+                        local dx = px - cpos.x
+                        local dy = py - cpos.y
+                        local dz = pz - cpos.z
+                        if (dx * dx + dy * dy + dz * dz) <= (radius * radius) then
+                            return true
+                        end
+                    end
                 end
             end
             return false
         end
 
-        function stalker_camp_builder.is_pos_in_active_camp(pos)
-            if not pos or not stalker_camp_builder.active_camps then return false end
-            local cur_lvl = level and level.name and level.name()
-            for hub_id, camp in pairs(stalker_camp_builder.active_camps) do
-                if camp and (not camp.level or camp.level == cur_lvl) then
-                    local hub_obj = alife_object(hub_id)
-                    if hub_obj and hub_obj.position then
-                        local radius = camp.radius or 45
-                        if pos:distance_to(hub_obj.position) <= radius then
+        local HOMESTEAD_ROOF_SECTIONS = {
+            ["placeable_hs_roof_flat"]    = "roof",
+            ["placeable_hs_roof_slope"]   = "roof",
+            ["placeable_hs_roof_hip"]     = "roof",
+            ["placeable_hs_roof_valley"]  = "roof",
+            ["placeable_hs_roof_pyramid"] = "roof",
+            ["placeable_hs_floor"]        = "floor",
+        }
+        local _roof_cover_cache = nil
+        local _roof_cover_cache_tg = -1
+        local _roof_cover_cache_lvl = nil
+
+        function stalker_camp_builder.invalidate_roof_cover_cache()
+            _roof_cover_cache_tg = -1
+        end
+
+        local function rebuild_roof_cover_cache(cur_lvl, tg)
+            local list = {}
+            local count = 0
+            local seen = {}
+            local sim = alife()
+            local gg = game_graph and game_graph()
+
+            -- 1. Check all structures registered to active camps on this level
+            local camps = stalker_camp_builder.active_camps
+            if camps then
+                for _, camp in pairs(camps) do
+                    if camp and (not camp.level or camp.level == cur_lvl) and camp.structures then
+                        for sid, _ in pairs(camp.structures) do
+                            seen[sid] = true
+                            local se_obj = safe_alife_object(sid)
+                            local sec = se_obj and se_obj.section_name and se_obj:section_name()
+                            local kind = sec and HOMESTEAD_ROOF_SECTIONS[sec]
+                            if kind and se_obj.position then
+                                count = count + 1
+                                list[count] = {
+                                    x = se_obj.position.x,
+                                    y = se_obj.position.y,
+                                    z = se_obj.position.z,
+                                    is_floor = (kind == "floor"),
+                                }
+                            end
+                        end
+                    end
+                end
+            end
+
+            -- 2. Also check any standalone placed Homestead roofs via hf_obj_manager / online db.storage
+            if db and db.storage then
+                for id, st in pairs(db.storage) do
+                    if not seen[id] then
+                        local obj = st and st.object
+                        if obj and obj.section then
+                            local ok_s, sec = pcall(obj.section, obj)
+                            local kind = ok_s and sec and HOMESTEAD_ROOF_SECTIONS[sec]
+                            if kind then
+                                local ok_p, opos = pcall(obj.position, obj)
+                                if ok_p and opos then
+                                    seen[id] = true
+                                    count = count + 1
+                                    list[count] = {
+                                        x = opos.x,
+                                        y = opos.y,
+                                        z = opos.z,
+                                        is_floor = (kind == "floor"),
+                                    }
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+
+            -- 3. Fallback scan of server objects on the current level if none were online yet
+            if count == 0 and sim and gg then
+                for i = 1, 65534 do
+                    if not seen[i] then
+                        local se_obj = sim:object(i)
+                        if se_obj and se_obj.position and se_obj.section_name then
+                            local sec = se_obj:section_name()
+                            local kind = sec and HOMESTEAD_ROOF_SECTIONS[sec]
+                            if kind then
+                                local gvid = se_obj.m_game_vertex_id
+                                if gvid and gg:valid_vertex_id(gvid) then
+                                    local obj_lvl = sim:level_name(gg:vertex(gvid):level_id())
+                                    if obj_lvl == cur_lvl then
+                                        count = count + 1
+                                        list[count] = {
+                                            x = se_obj.position.x,
+                                            y = se_obj.position.y,
+                                            z = se_obj.position.z,
+                                            is_floor = (kind == "floor"),
+                                        }
+                                    end
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+
+            _roof_cover_cache = list
+            _roof_cover_cache_lvl = cur_lvl
+            _roof_cover_cache_tg = tg + 2500
+            return list
+        end
+
+        -- Returns true when `pos` (player or NPC) is underneath a placed Homestead roof or upper-story floor tile.
+        -- Tile footprint is 4.70895m x 4.70895m (half-tile = 2.3545m; 2.65m includes eaves/snap tolerance).
+        function stalker_camp_builder.is_pos_under_homestead_roof(pos)
+            if not pos then return false end
+            local cur_lvl = get_cached_level_name()
+            local tg = time_global and time_global() or 0
+            local roofs = _roof_cover_cache
+            if not roofs or _roof_cover_cache_lvl ~= cur_lvl or tg >= _roof_cover_cache_tg then
+                roofs = rebuild_roof_cover_cache(cur_lvl, tg)
+            end
+            local n = roofs and #roofs or 0
+            if n == 0 then return false end
+
+            local px, py, pz = pos.x, pos.y, pos.z
+            local mabs = math.abs
+            for i = 1, n do
+                local r = roofs[i]
+                if mabs(px - r.x) <= 2.65 and mabs(pz - r.z) <= 2.65 then
+                    local dy = r.y - py
+                    if r.is_floor then
+                        -- Upper-story floor acting as a ceiling above the character
+                        if dy >= 1.2 and dy <= 9.5 then
+                            return true
+                        end
+                    else
+                        -- Roof piece overhead (or sloped roof placed directly on ground as a shelter)
+                        if dy >= -0.35 and dy <= 9.5 then
                             return true
                         end
                     end
@@ -5879,11 +6015,23 @@ function on_game_start()
         end
 
         function stalker_camp_builder.is_settler_at_pos(pos)
-            if not pos or not stalker_camp_builder.settler_lookup then return false end
-            for id, data in pairs(stalker_camp_builder.settler_lookup) do
-                local obj = level.object_by_id(id)
-                if obj and obj.position and pos:distance_to_sqr(obj:position()) < 16 then
-                    return true
+            local lookup = stalker_camp_builder.settler_lookup
+            if not pos or not lookup or not next(lookup) then return false end
+            local px, py, pz = pos.x, pos.y, pos.z
+            for id, data in pairs(lookup) do
+                if data and not data.is_rival and not data.is_refugee then
+                    local obj = level.object_by_id(id)
+                    if obj and obj.position then
+                        local opos = obj:position()
+                        if opos then
+                            local dx = px - opos.x
+                            local dy = py - opos.y
+                            local dz = pz - opos.z
+                            if (dx * dx + dy * dy + dz * dz) < 16 then
+                                return true
+                            end
+                        end
+                    end
                 end
             end
             return false
@@ -5909,6 +6057,9 @@ function on_game_start()
                 local orig_actor_has_weapon = xr_conditions.actor_has_weapon
                 xr_conditions.actor_has_weapon = function(actor, npc)
                     if not npc then return false end
+                    if not orig_actor_has_weapon(actor, npc) then
+                        return false
+                    end
                     local npc_id = (type_(npc.id) == "number") and npc.id or (npc.id and npc:id())
                     if npc_id and stalker_camp_builder.is_settler(npc_id) then
                         return false
@@ -5917,10 +6068,10 @@ function on_game_start()
                         return false
                     end
                     local sb = stalker_camp_builder
-                    if sb and sb.get_active_camp_near and sb.get_active_camp_near(npc:position(), 60) then
+                    if sb and sb.is_pos_in_active_camp and sb.is_pos_in_active_camp(npc:position()) then
                         return false
                     end
-                    return orig_actor_has_weapon(actor, npc)
+                    return true
                 end
             end
 

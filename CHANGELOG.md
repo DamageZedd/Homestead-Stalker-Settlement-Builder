@@ -1,5 +1,20 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## v1.3.2 — Roof Emission Cover, Lua GC Optimization, Vanilla Crafting Tab & Ghost Stash Fix
+
+### 🌩️ Roof Shelter Protection Against Emissions & Psi-Storms
+- **Homestead Roofs & Upper Floors Shelter the Player & NPCs**: standing underneath any placed Homestead roof piece (`placeable_hs_roof_flat`, `placeable_hs_roof_slope`, `placeable_hs_roof_hip`, `placeable_hs_roof_valley`, `placeable_hs_roof_pyramid`) or upper-story floor (`placeable_hs_floor`) now protects the player and NPCs from Emissions and Psi-Storms (`CSurgeManager.pos_in_cover`, `CPsiStormManager.pos_in_cover`, and `actor_status.scan_safe_zone`), lighting up the HUD shelter indicator and integrating cleanly with Dynamic Emission Cover.
+
+### ⚡ Lua Garbage & Frame-Time Optimization
+- **Zero-Allocation Hot Paths**: eliminated per-frame and per-tick Lua closure, table, and vector allocations across `actor_on_update` guards (`bind_stalker_ext`, `demonized_ledge_grabbing`, `detec_bone_hide`, `task_manager`, `_g.ResetTimeEvent`), `CSurgeManager`/`CPsiStormManager.pos_in_cover`, `xr_conditions.actor_has_weapon`, `is_pos_in_active_camp`, `is_settler`, `server_entity_on_register` (`sanitize_se_profile`), `safe_position`, `get_mcm_setting`, `safe_iterate_inventory_box`, `run_rival_npc_patrol`, and `process_stash_expeditions`.
+- **Fast Distance Pre-Filtering in Structure Scans**: optimized `scan_camp_structures` and `scan_multiple_camp_structures` to filter 65,534 ALife objects by pure float distance (`y_diff <= 12.0` and `dx*dx + dz*dz <= bdist_sq`) *before* invoking C++ Luabind methods (`section_name()`, `gg:vertex()`, `hf_furniture_types.get_type()`), drastically reducing Lua garbage generation and eliminating periodic GC freeze spikes.
+
+### 🛠️ Vanilla Anomaly / Non-GAMMA Crafting Tab Fix
+- **Dedicated Homestead Crafting Tab on Vanilla Anomaly**: fixed Vanilla Anomaly and non-GAMMA modpack compatibility where `craft.ltx` stops at category `[6]` (`[7]` does not exist) by switching DLTX headers in `mod_craft_homestead_hf.ltx`, `mod_craft_alarm_system.ltx`, and `mod_craft_gun_turret.ltx` from `![8]` to `@[8]` and updating `UIWorkshopCraft:LoadRecipes` and `UIRecipe:LoadRecipes` to load category `[8]` even when `[7]` is absent.
+
+### 📦 Ghost Camp Stash Cleanup on Hub Pickup
+- **Eliminated Invisible Camp Stash Left Behind on Pickup**: replaced the legacy ground-level `camp.camp_stash_id` (`inventory_box` spawned at the Workbench/Flag's exact coordinates) with the hub's underground `-50m` linked stash (`ensure_hub_stash`), and added automatic migration and cleanup (`release_legacy_camp_stash`) when opening storage, dismantling a camp, or picking up a Workbench or Settlement Flag so an invisible `inventory_box` is never left behind.
+
 ## v1.3.1 — Dedicated Crafting Tab, Crash Guards & Bug Fixes
 
 ### 🛠️ Workshop Crafting & Recipes

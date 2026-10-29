@@ -148,8 +148,8 @@ function stalker_camp_builder.camp_has_storage_room(camp, hub_id, weight)
         end
     end
 
-    -- Check workshop stash
-    local ws_id = hub_id and sb.linked_stash_id(hub_id)
+    -- Check workshop / hub stash
+    local ws_id = hub_id and (sb.linked_stash_id(hub_id) or (sb.ensure_hub_stash and sb.ensure_hub_stash(hub_id)))
     if ws_id then
         if not checked[ws_id] and stalker_camp_builder.is_valid_camp_box(ws_id, hub_id, camp) then
             checked[ws_id] = true
@@ -208,8 +208,15 @@ local function build_categorized_boxes(camp, hub_id, personal)
     local hub_obj = hub_id and stalker_camp_builder.safe_alife_object(hub_id)
     local hub_pos = hub_obj and hub_obj.position
 
-    -- the main chest and the hub's workbench stash are settlement storage
+    -- the main chest and the hub's workbench / flag stash are settlement storage
     if not personal then
+        local ws_id = hub_id and (sb.linked_stash_id(hub_id) or (sb.ensure_hub_stash and sb.ensure_hub_stash(hub_id)))
+        -- If an older save (v1.3.0/v1.3.1) spawned a ground-level inventory_box (camp.camp_stash_id),
+        -- migrate its contents into the hub's hidden underground stash and release the invisible box.
+        if camp and camp.camp_stash_id and sb.release_legacy_camp_stash then
+            sb.release_legacy_camp_stash(camp, hub_pos, ws_id)
+        end
+
         sb.sanitize_primary_chest(camp)
         if camp.primary_chest_id then
             if stalker_camp_builder.is_valid_camp_box(camp.primary_chest_id, hub_id, camp) then
@@ -223,7 +230,6 @@ local function build_categorized_boxes(camp, hub_id, personal)
             end
         end
 
-        local ws_id = hub_id and sb.linked_stash_id(hub_id)
         if ws_id then
             if not seen_boxes[ws_id] and stalker_camp_builder.is_valid_camp_box(ws_id, hub_id, camp) then
                 local meta = make_box_meta(ws_id)
@@ -325,15 +331,15 @@ local function build_categorized_boxes(camp, hub_id, personal)
         end
     end
 
-    if not personal and not any_box and hub_id and hub_obj and alife() then
-        local new_box = alife():create("inventory_box", hub_obj.position, hub_obj.m_level_vertex_id, hub_obj.m_game_vertex_id)
-        if new_box then
-            camp.structures = camp.structures or {}
-            camp.structures[new_box.id] = "stash"
-            camp.primary_chest_id = new_box.id
-            camp.camp_stash_id = new_box.id -- the camp's own box: settlement storage (is_valid_camp_box)
-            any_box = new_box.id
-            local meta = make_box_meta(new_box.id, "inventory_box")
+    -- Fallback: ensure the hub's own underground stash (workshop_stash or station_stash at pos.y - 50)
+    -- is created and used rather than spawning a ground-level inventory_box at hub_obj.position.
+    if not personal and not any_box and hub_id and sb.ensure_hub_stash then
+        local hub_stash = sb.ensure_hub_stash(hub_id)
+        if hub_stash and not seen_boxes[hub_stash] then
+            seen_boxes[hub_stash] = true
+            any_box = hub_stash
+            local meta = make_box_meta(hub_stash)
+            table.insert(tech_boxes, meta)
             table.insert(chest_boxes, meta)
             table.insert(all_boxes, meta)
         end
@@ -357,6 +363,7 @@ local function build_categorized_boxes(camp, hub_id, personal)
     }
     return res
 end
+
 
 local function get_camp_categorized_boxes(camp, hub_id)
     if camp and camp._cached_categorized_boxes and camp._cached_categorized_boxes.boxes_by_bucket then

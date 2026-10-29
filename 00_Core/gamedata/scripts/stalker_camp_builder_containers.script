@@ -1,9 +1,13 @@
 -- stalker_camp_builder_containers.script
 -- Homestead server-container / inventory-box iteration helpers (split out of stalker_camp_builder.script).
 -- Exposed on the main table: invalidate_server_container_cache, get_server_container_items,
--- iterate_server_container, safe_iterate_inventory_box, is_actual_container, linked_stash_id.
+-- iterate_server_container, safe_iterate_inventory_box, is_actual_container, linked_stash_id,
+-- ensure_hub_stash, release_legacy_camp_stash.
 
 local known_bad_inventory_boxes = {}
+
+local function _obj_id(o) return o:id() end
+local function _obj_clsid(o) return o:clsid() end
 
 -- the hidden stash that holds a piece's items: a Hideout Furniture workbench's workshop_stash or
 -- a Homestead work station's station_stash. nil for anything else.
@@ -13,6 +17,129 @@ function stalker_camp_builder.linked_stash_id(id)
     if not m_data then return nil end
     return (m_data.workshop_stashes and m_data.workshop_stashes[id])
         or (m_data.station_stashes and m_data.station_stashes[id])
+end
+
+-- Guarantees a settlement hub (Workbench or Settlement Flag) has its hidden underground stash
+-- (at pos.y - 50) created in alife_storage_manager state so a ground-level inventory_box is never needed.
+function stalker_camp_builder.ensure_hub_stash(hub_id)
+    if not hub_id then return nil end
+    local existing = stalker_camp_builder.linked_stash_id(hub_id)
+    if existing and alife_object(existing) then
+        return existing
+    end
+    local se_hub = alife_object(hub_id)
+    if not se_hub then return nil end
+    local sec = se_hub:section_name() or ""
+    if ini_sys and (ini_sys:r_bool_ex(sec, "homestead_hub", false) or ini_sys:r_string_ex(sec, "script_binding") == "homestead_station_storage.init") then
+        if homestead_station_storage and homestead_station_storage.get_stash then
+            return homestead_station_storage.get_stash(hub_id)
+        end
+    end
+    if sec == "placeable_workshop" then
+        if ui_furniture_workshop and ui_furniture_workshop.GetStash then
+            local sid = ui_furniture_workshop.GetStash(hub_id)
+            if sid and alife_object(sid) then return sid end
+        end
+        local m_data = alife_storage_manager and alife_storage_manager.get_state()
+        if m_data and se_hub.position and se_hub.m_level_vertex_id and se_hub.m_game_vertex_id then
+            m_data.workshop_stashes = m_data.workshop_stashes or {}
+            local pos = vector():set(se_hub.position.x, se_hub.position.y - 50, se_hub.position.z)
+            local se_stash = alife_create("workshop_stash", pos, se_hub.m_level_vertex_id, se_hub.m_game_vertex_id)
+            if se_stash then
+                m_data.workshop_stashes[hub_id] = se_stash.id
+                return se_stash.id
+            end
+        end
+    end
+    return nil
+end
+
+-- Transfers items out of any legacy ground-level camp_stash_id (or orphaned Homestead inventory_box at hub_pos)
+-- and releases the invisible inventory_box so it never remains behind when picking up a workbench or flag.
+function stalker_camp_builder.release_legacy_camp_stash(camp, hub_pos, dest_box_id)
+    local sim = alife()
+    if not sim then return end
+
+    local function drain_and_release_box(box_id)
+        if not box_id then return end
+        local se_box = sim:object(box_id)
+        if not se_box then return end
+        if se_box:section_name() ~= "inventory_box" then return end
+
+        local cl_box = level and level.object_by_id and level.object_by_id(box_id)
+        local cl_dest = dest_box_id and level and level.object_by_id and level.object_by_id(dest_box_id)
+        local target_cl = cl_dest or (db and db.actor)
+        if cl_box and cl_box.iterate_inventory_box and target_cl then
+            pcall(function()
+                cl_box:iterate_inventory_box(function(temp, item)
+                    if item then
+                        cl_box:transfer_item(item, target_cl)
+                    end
+                end, cl_box)
+            end)
+        else
+            local target_pid = dest_box_id or (db and db.actor and db.actor:id()) or 0
+            local dest_se = (target_pid > 0 and sim:object(target_pid)) or se_box
+            stalker_camp_builder.iterate_server_container(se_box, function(cid, se_item)
+                if se_item then
+                    local isec = se_item:section_name()
+                    if isec then
+                        alife_release(se_item)
+                        sim:create(isec, dest_se.position, dest_se.m_level_vertex_id, dest_se.m_game_vertex_id, target_pid)
+                    end
+                end
+            end)
+        end
+        pcall(alife_release, se_box)
+    end
+
+    if camp and camp.camp_stash_id then
+        local cid = camp.camp_stash_id
+        camp.camp_stash_id = nil
+        if camp.primary_chest_id == cid then
+            camp.primary_chest_id = dest_box_id
+        end
+        if camp.structures then
+            camp.structures[cid] = nil
+        end
+        drain_and_release_box(cid)
+    end
+
+    -- Also sweep for any orphaned raw "inventory_box" spawned right at hub_pos (within 1.0m)
+    -- that is not a map/treasure stash.
+    if not hub_pos and camp and camp.pos then
+        hub_pos = camp.pos
+    end
+    if hub_pos and hub_pos.x and hub_pos.y and hub_pos.z then
+        local caches = treasure_manager and treasure_manager.caches
+        local registry = _G.server_objects_registry
+        local function check_orphan(id, se)
+            if not (se and se.parent_id == 65535 and se.position) then return end
+            if se:section_name() ~= "inventory_box" then return end
+            if caches and caches[id] ~= nil then return end
+            if se.m_story_id and se.m_story_id ~= 4294967295 and se.m_story_id ~= -1 then return end
+            local dx = se.position.x - hub_pos.x
+            local dy = se.position.y - hub_pos.y
+            local dz = se.position.z - hub_pos.z
+            if (dx * dx + dy * dy + dz * dz) <= 1.0 then
+                if camp then
+                    if camp.primary_chest_id == id then camp.primary_chest_id = dest_box_id end
+                    if camp.structures then camp.structures[id] = nil end
+                end
+                drain_and_release_box(id)
+            end
+        end
+        if registry then
+            for id, se in pairs(registry) do
+                check_orphan(id, se)
+            end
+        else
+            for id = 1, 65534 do
+                local se = sim:object(id)
+                if se then check_orphan(id, se) end
+            end
+        end
+    end
 end
 
 -- iterate_server_container -- robustly iterate items in an ALife container
@@ -159,9 +286,11 @@ function stalker_camp_builder.safe_iterate_inventory_box(box_obj, callback)
         obj_id = box_obj
         box_obj = level and level.object_by_id and level.object_by_id(obj_id)
     else
-        pcall(function() obj_id = box_obj:id() end)
-        if not obj_id and type_(box_obj) == "userdata" and box_obj.id then
-            pcall(function() obj_id = box_obj.id end)
+        local ok_id, id_val = pcall(_obj_id, box_obj)
+        if ok_id and id_val then
+            obj_id = id_val
+        elseif type_(box_obj) == "userdata" and box_obj.id then
+            obj_id = box_obj.id
         end
     end
 
@@ -182,15 +311,13 @@ function stalker_camp_builder.safe_iterate_inventory_box(box_obj, callback)
 
     if box_obj and type_(box_obj) == "userdata" and box_obj.clsid then
         local is_native_box = false
-        pcall(function()
-            local c = box_obj:clsid()
-            if c == clsid.inventory_box or c == clsid.inventory_box_s then
-                is_native_box = true
-            end
-        end)
+        local ok_c, c = pcall(_obj_clsid, box_obj)
+        if ok_c and (c == clsid.inventory_box or c == clsid.inventory_box_s) then
+            is_native_box = true
+        end
 
         if is_native_box and box_obj.iterate_inventory_box then
-            local iter_ok = pcall(function() box_obj:iterate_inventory_box(callback) end)
+            local iter_ok = pcall(box_obj.iterate_inventory_box, box_obj, callback)
             if iter_ok then
                 return
             end
