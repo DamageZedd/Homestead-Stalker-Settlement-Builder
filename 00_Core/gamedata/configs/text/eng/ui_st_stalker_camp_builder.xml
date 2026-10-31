@@ -173,7 +173,7 @@
         <text>Rival Camp Occupancy Duration (game hours)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_setup_duration_hr_desc">
-        <text>How long (in game hours) a rival camp squad occupies a camp before abandoning it. After this duration, the squad departs and the camp becomes unoccupied. Default: 24 game hours.</text>
+        <text>How long rival garrisons hold their camps. Each stay is a random length in proportion to this value: 6 to 18 game hours at the default, or 8 to 24 when a tier 2 or 3 camp renews its stay. When a stay ends, the camp may move up a tier or hold on; otherwise its squad departs and the camp becomes unoccupied. Default: 24 game hours.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_notifications_header">
         <text>Notifications and Quality-of-Life</text>
