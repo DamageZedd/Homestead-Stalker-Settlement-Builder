@@ -19,6 +19,9 @@
 - **MCM Option to Clean All Built Content**: added an MCM toggle (`dismantle_removes_furniture`, under *Building*, default: OFF) allowing players to choose whether dismantling a settlement completely wipes the site or preserves placed structures.
 - **Safe Batched Teardown Queue**: when dismantling with cleanup enabled, all built furniture, building kit pieces, storage containers, container contents, and loose ground clutter within the camp boundary are safely and progressively released via a batched ALife queue (12 objects per 0.05s) with container child enumeration, preventing engine stutter or native X-Ray Monolith MT release recursion crashes.
 
+### 🛠️ Building Kit Stairs Collision & Floor Stability
+- **Fixed ODE Dynamic Collision Conflict on Snapped Stairs**: resolved physics instability where walking over floors with snapped stairs caused the floor to sink, jitter, and crush the player with collision damage. Placed stairs (`placeable_hs_stairs`) are now switched to door ignore dynamics (`set_door_ignore_dynamics`), allowing the player to climb them solidly while eliminating ODE dynamic contact constraints between the stair shell and underlying floors or foundations.
+
 ## v1.3.2 — Roof Emission Cover, Lua GC Optimization, Vanilla Crafting Tab & Ghost Stash Fix
 
 ### 🌩️ Roof Shelter Protection Against Emissions & Psi-Storms

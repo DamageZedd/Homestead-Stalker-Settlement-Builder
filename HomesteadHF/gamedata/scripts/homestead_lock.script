@@ -7,7 +7,7 @@
 -- use): it then only collides with the player, grenades and the level, none of which can move a fixed
 -- body, so it stays where it was placed. NPCs, dropped items and bodies pass through such pieces.
 --
--- Pieces people and things stand on (Homestead foundations, floors and stairs) stay solid, so NPCs, items
+-- Pieces people and things stand on (Homestead foundations and floors) stay solid, so NPCs, items
 -- and bodies don't fall through them: door mode on the walls, roofs and furniture around them already
 -- stops those from pushing them, and their collision is inset 5 mm so snapped neighbours don't overlap.
 --
@@ -24,7 +24,7 @@
 local MCM = "stalker_camp_builder/building/"
 local VAR = "hs_spot"          -- x, y, z, heading, pitch, bank the piece was frozen at
 local OLD_VAR = "hs_lock"      -- spot saved by an earlier version of this script, no longer used
-local SOLID = { foundation = true, floor = true, stairs = true }   -- homestead_snap types that stay solid
+local SOLID = { foundation = true, floor = true }   -- homestead_snap types that stay solid
 
 local MOVE_TOL = 0.001         -- metres a piece may be off its spot
 local TURN_TOL = 0.0005        -- radians a piece may be turned off its spot
