@@ -1085,7 +1085,7 @@ local scavenge_loot_table = {
     "bread", "energy_drink", "cigarettes", "matches", "bottle_metal"
 }
 
-function get_active_camp_near(pos, custom_dist, opt_level_name)
+function get_active_camp_near(pos, custom_dist, opt_level_name, max_y_diff)
     if not pos then return nil, nil end
     local max_dist = custom_dist or cfg.boundary_dist or 50
     local cur_lvl = opt_level_name or (level and level.name and level.name())
@@ -1111,7 +1111,7 @@ function get_active_camp_near(pos, custom_dist, opt_level_name)
 
             if same_lvl then
                 local y_diff = math.abs(hub_obj.position.y - pos.y)
-                if y_diff <= 15.0 then
+                if y_diff <= (max_y_diff or 15.0) then
                     local dist = hub_obj.position:distance_to(pos)
                     if dist <= max_dist then
                         return hub_id, camp
@@ -3387,7 +3387,8 @@ function hf_on_furniture_place(obj_id)
         stalker_camp_builder.invalidate_roof_cover_cache()
     end
 
-    local hub_id, camp = get_active_camp_near(se_obj.position)
+    -- the structure scan keeps furniture within 12 m of the hub's height (stalker_camp_builder_scan)
+    local hub_id, camp = get_active_camp_near(se_obj.position, nil, nil, 12.0)
     if camp then
         local struct_type = resolve_structure_type(se_obj)
         camp.structures[obj_id] = struct_type
