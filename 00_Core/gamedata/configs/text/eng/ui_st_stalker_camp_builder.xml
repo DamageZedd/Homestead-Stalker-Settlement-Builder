@@ -1243,6 +1243,51 @@
     <string id="st_pda_scavenger_in_transit">
         <text>Scavenger In-Transit...</text>
     </string>
+    <string id="st_pda_scavenger_transit_status">
+        <text>Scavenger in Transit: %s (%d%% - %s left)</text>
+    </string>
+    <string id="st_pda_recall_scavenger">
+        <text>Recall Scavenger (%s)</text>
+    </string>
+    <string id="st_pda_send_scavenger_none">
+        <text>Dispatch Scavenger (No scavengers available)</text>
+    </string>
+    <string id="st_pda_stash_badge_yellow">
+        <text>[Yellow Stash]</text>
+    </string>
+    <string id="st_pda_stash_badge_white">
+        <text>[White Stash]</text>
+    </string>
+    <string id="st_pda_scavenger_tier">
+        <text>[T%d]</text>
+    </string>
+    <string id="st_pda_scavenger_est">
+        <text>Est. %s</text>
+    </string>
+    <string id="st_pda_sweep_badge_mixed">
+        <text>[%d Yellow / %d White]</text>
+    </string>
+    <string id="st_pda_sweep_badge_yellow">
+        <text>[%d Yellow]</text>
+    </string>
+    <string id="st_pda_sweep_badge_white">
+        <text>[%d White]</text>
+    </string>
+    <string id="st_expedition_time_hm">
+        <text>%dh %02dm</text>
+    </string>
+    <string id="st_expedition_time_ms">
+        <text>%dm %02ds</text>
+    </string>
+    <string id="st_expedition_time_s">
+        <text>%ds</text>
+    </string>
+    <string id="st_expedition_real_min">
+        <text>%d min</text>
+    </string>
+    <string id="st_expedition_real_mins">
+        <text>%d mins</text>
+    </string>
     <string id="st_scavenger_already_dispatched">
         <text>A scavenger is already dispatched to this location.</text>
     </string>
@@ -1386,6 +1431,9 @@
     </string>
     <string id="st_scavenger_radio_75">
         <text>%s (Radio): 'On the return leg back to %s with the haul. Everything intact, watching my six...'</text>
+    </string>
+    <string id="st_scavenger_camp_gone">
+        <text>Camp</text>
     </string>
     <string id="st_scavenger_receipt_title">
         <text>EXPEDITION COMPLETED</text>
@@ -2088,6 +2136,18 @@
     <string id="st_event_settler_promoted">
         <text>%s has been promoted to %s %s!</text>
     </string>
+    <string id="st_settler_tier_novice">
+        <text>Novice</text>
+    </string>
+    <string id="st_settler_tier_skilled">
+        <text>Skilled</text>
+    </string>
+    <string id="st_settler_tier_expert">
+        <text>Expert</text>
+    </string>
+    <string id="st_settler_tier_master">
+        <text>Master</text>
+    </string>
     <string id="st_event_settler_recovered">
         <text>%s was critically wounded but recovered at camp!</text>
     </string>
@@ -2100,6 +2160,15 @@
     <string id="st_scavenger_expedition_departed">
         <text>EXPEDITION: %s departed from %s to %s%s (Est. Duration: %s).</text>
     </string>
+    <string id="st_scavenger_departed_yellow">
+        <text>[Yellow Rare]</text>
+    </string>
+    <string id="st_scavenger_departed_white">
+        <text>[White Common]</text>
+    </string>
+    <string id="st_scavenger_recall_camp_gone">
+        <text>base</text>
+    </string>
     <string id="st_trade_network_offline">
         <text>Trade network offline: Connection blocked by emission/psi-storm.</text>
     </string>
@@ -2109,6 +2178,39 @@ Target: %s (%s)
 Deposited Items (%d total):
 %s
 Experience: +%d XP (Total: %d XP - Tier %d)</text>
+    </string>
+    <string id="st_scavenger_receipt_camp_gone">
+        <text>Settlement Storage</text>
+    </string>
+    <string id="st_scavenger_receipt_sweep_mixed">
+        <text>%d Stashes in %s (%d Yellow Rare / %d White Common)</text>
+    </string>
+    <string id="st_scavenger_receipt_sweep_yellow">
+        <text>%d Yellow (Rare) Stashes in %s</text>
+    </string>
+    <string id="st_scavenger_receipt_sweep_white">
+        <text>%d White (Common) Stashes in %s</text>
+    </string>
+    <string id="st_scavenger_receipt_stash_yellow">
+        <text>Yellow (Rare) Stash in %s</text>
+    </string>
+    <string id="st_scavenger_receipt_stash_white">
+        <text>White (Common) Stash in %s</text>
+    </string>
+    <string id="st_scavenger_receipt_ambush_safe">
+        <text>Safe Expedition</text>
+    </string>
+    <string id="st_scavenger_receipt_ambush_won">
+        <text>Repelled Ambush (+Bonus Salvage)</text>
+    </string>
+    <string id="st_scavenger_receipt_ambush_fled">
+        <text>Evaded Enemy Ambush</text>
+    </string>
+    <string id="st_scavenger_receipt_no_items">
+        <text>(No items / storage full)</text>
+    </string>
+    <string id="st_scavenger_receipt_short">
+        <text>EXPEDITION REPORT: %s returned to %s! Deposited %d items.</text>
     </string>
     <string id="st_event_settler_killed">
         <text>Your settler '%s' has been killed.</text>
