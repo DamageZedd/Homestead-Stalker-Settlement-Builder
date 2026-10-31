@@ -1508,7 +1508,8 @@ function SettlementManagerPDA:OnSettlementSelected(keep_survivor)
             end
             local icon_sec = survivor.icon or (npc_obj and npc_obj.character_icon and npc_obj:character_icon()) or "ui\\ui_noise"
             local cur_tier = survivor.tier or 0
-            local tier_names = { [0] = "Novice", [1] = "Skilled", [2] = "Expert", [3] = "Master" }
+            local tier_names = { [0] = game.translate_string("st_settler_tier_novice"), [1] = game.translate_string("st_settler_tier_skilled"),
+                [2] = game.translate_string("st_settler_tier_expert"), [3] = game.translate_string("st_settler_tier_master") }
             local rank_str = sformat("Tier %d (%s)", cur_tier, tier_names[cur_tier] or "Novice")
             local s_item = SurvivorListItem(survivor_id, sname, status_str, icon_sec, rank_str, self.xml)
             if status_color and s_item.status_wnd then
@@ -1578,7 +1579,8 @@ function SettlementManagerPDA:OnSurvivorSelected()
     local xp = s_item.xp or 0
     -- the ranks award_survivor_xp promotes to: 10 XP per completed work cycle, tiers at 100, 250
     -- and 500. Expedition XP goes into the same count and promotes on the same scale.
-    local tier_names = { [0] = "Novice", [1] = "Skilled", [2] = "Expert", [3] = "Master" }
+    local tier_names = { [0] = game.translate_string("st_settler_tier_novice"), [1] = game.translate_string("st_settler_tier_skilled"),
+        [2] = game.translate_string("st_settler_tier_expert"), [3] = game.translate_string("st_settler_tier_master") }
     local tier_caps = { [0] = 100, [1] = 250, [2] = 500, [3] = 500 }
     local cur_cap = tier_caps[cur_tier] or 500
     local prev_cap = (cur_tier > 0) and (tier_caps[cur_tier - 1] or 0) or 0

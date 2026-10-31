@@ -2142,6 +2142,9 @@
     <string id="st_settler_tier_master">
         <text>Мастер</text>
     </string>
+    <string id="st_settler_title_idle">
+        <text>Поселенец</text>
+    </string>
     <string id="st_event_settler_recovered">
         <text>%s был тяжело ранен, но восстановился в лагере!</text>
     </string>
