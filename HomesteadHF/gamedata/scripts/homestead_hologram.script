@@ -154,6 +154,10 @@ end
 
 function on_game_start()
     if not hf_present() then return end
+    -- the shader ships for DX10/DX11 only (shaders\r3); on DX8/DX9 a missing shader is a fatal
+    -- error, so those keep HF's wireframe
+    local renderer = get_console_cmd(0, "renderer")
+    if renderer ~= "renderer_r3" and renderer ~= "renderer_r4" then return end
     if not (level and level.add_attachment and level.remove_attachment) then return end
     if not (placeable_furniture and placeable_furniture.start_placing_item and hf_bshape and hf_bshape.bshape_renderer) then
         return
