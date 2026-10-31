@@ -87,6 +87,8 @@ function stalker_camp_builder.scan_camp_structures(hub_id, force)
 
         local ok_sec, sec = pcall(_se_sec_name, se_obj)
         if not (ok_sec and sec) then return end
+        -- a furniture kit lying on the ground (the carried form names its placed piece)
+        if ini_sys:r_string_ex(sec, "placeable_section") then return end
         local s_sec_lower = sec:lower()
         local c_id = se_obj.clsid and se_obj:clsid()
         local is_real_box = (c_id == clsid.inventory_box or c_id == clsid.inventory_box_s or s_sec_lower:find("inventory_box", 1, true) or s_sec_lower:find("backpack", 1, true) or s_sec_lower:find("safe", 1, true) or s_sec_lower:find("stash", 1, true))
@@ -228,6 +230,8 @@ function stalker_camp_builder.scan_multiple_camp_structures(hub_ids, force)
 
         local ok_sec, sec = pcall(_se_sec_name, se_obj)
         if not (ok_sec and sec) then return end
+        -- a furniture kit lying on the ground (the carried form names its placed piece)
+        if ini_sys:r_string_ex(sec, "placeable_section") then return end
         local s_sec_lower = sec:lower()
         local c_id = se_obj.clsid and se_obj:clsid()
         local is_real_box = (c_id == clsid.inventory_box or c_id == clsid.inventory_box_s or s_sec_lower:find("inventory_box", 1, true) or s_sec_lower:find("backpack", 1, true) or s_sec_lower:find("safe", 1, true) or s_sec_lower:find("stash", 1, true))
