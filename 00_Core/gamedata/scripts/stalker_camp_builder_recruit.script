@@ -572,13 +572,6 @@ function stalker_camp_builder.teleport_settler_to_camp_level(npc_id, hub_id, for
     end
     pcall(function() sim:disable_info(npc_id, "npcx_is_companion") end)
 
-    local target_pos, target_lvid, target_gvid = sb.get_settler_job_target(npc_id, hub_id)
-    if not target_pos then
-        target_pos = hub_obj.position
-        target_lvid = hub_obj.m_level_vertex_id
-        target_gvid = hub_obj.m_game_vertex_id
-    end
-
     -- Determine camp level
     local gg = game_graph()
     local camp_level = camp.level
@@ -590,6 +583,19 @@ function stalker_camp_builder.teleport_settler_to_camp_level(npc_id, hub_id, for
 
     local current_level = level.name()
     local same_level = (camp_level == current_level)
+
+    -- the job spot is found on the loaded level's AI map (level.vertex_id), which is not the
+    -- camp's when the camp is elsewhere: there the hub's own server values hold, and the
+    -- level-entry recall puts the settler on the spot when the player arrives
+    local target_pos, target_lvid, target_gvid
+    if same_level then
+        target_pos, target_lvid, target_gvid = sb.get_settler_job_target(npc_id, hub_id)
+    end
+    if not target_pos then
+        target_pos = hub_obj.position
+        target_lvid = hub_obj.m_level_vertex_id
+        target_gvid = hub_obj.m_game_vertex_id
+    end
 
     -- Case 1: Online on current active level -> Instant full reposition & state reset
     if online_obj and same_level then
