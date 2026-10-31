@@ -2830,10 +2830,16 @@ function stalker_camp_builder.fast_travel_to_camp(hub_id, cost)
 
     cost = cost or 0
 
-    if actor_alao and actor_alao.best_enemy then
-        if actor_alao:best_enemy() ~= nil then
-            return false, "in_combat"
-        end
+    -- the engine answers best_enemy only for monsters and stalkers, never for the actor: ask what
+    -- the game's fast travel asks (Fair Fast Travel's own test where it is installed)
+    local in_combat
+    if game_fast_travel and game_fast_travel.actor_in_recent_combat then
+        in_combat = game_fast_travel.actor_in_recent_combat()
+    else
+        in_combat = xr_combat_ignore and not is_empty(xr_combat_ignore.fighting_with_actor_npcs)
+    end
+    if in_combat then
+        return false, "in_combat"
     end
 
     local current_level = level.name()
