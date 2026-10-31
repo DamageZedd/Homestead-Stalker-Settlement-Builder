@@ -1421,7 +1421,7 @@
         <text>Sweep All %s Stashes (%d Total): </text>
     </string>
     <string id="st_scavenger_sweep_departed">
-        <text>REGIONAL SWEEP: %s has departed from %s to sweep and plunder all %d marked stashes across %s (Est. Duration: %s hrs).</text>
+        <text>REGIONAL SWEEP: %s has departed from %s to sweep and plunder all %d marked stashes across %s (Est. Duration: %s).</text>
     </string>
     <string id="st_scavenger_radio_25">
         <text>%s (Radio): 'Crossing sector border towards %s. Keeping low and scanning for hostiles...'</text>
