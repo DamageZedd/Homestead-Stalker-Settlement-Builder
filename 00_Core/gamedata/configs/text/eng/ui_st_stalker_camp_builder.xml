@@ -565,6 +565,12 @@
     <string id="st_pda_camp_name">
         <text>Settlement</text>
     </string>
+    <string id="st_camp_label_unnamed">
+        <text>%s Settlement</text>
+    </string>
+    <string id="st_camp_label_unnamed_n">
+        <text>%s Settlement #%d</text>
+    </string>
     <string id="st_pda_camp_pop">
         <text>Population: %d / %d Beds</text>
     </string>

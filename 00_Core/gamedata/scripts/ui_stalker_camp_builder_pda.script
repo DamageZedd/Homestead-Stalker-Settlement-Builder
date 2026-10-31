@@ -876,7 +876,7 @@ function SettlementManagerPDA:UpdateTopStatusBar()
     local camp = s_item and stalker_camp_builder.active_camps[s_item.hub_id]
     if self.status_camp then
         if camp then
-            self.status_camp:SetText(sformat("HUB: %s", camp.name or "Settlement"))
+            self.status_camp:SetText(sformat("HUB: %s", stalker_camp_builder.get_camp_label(camp)))
             self.status_camp:SetTextColor(hs_theme.argb("heading"))
         else
             self.status_camp:SetText("HUB: NONE")
@@ -1000,11 +1000,7 @@ function SettlementManagerPDA:Reset(tab_name)
     local count = 0
     for hub_id, camp in pairs_(active_camps) do
         count = count + 1
-        local name = camp.name
-        if not name or name == "" then
-            local level_name = game.translate_string(camp.level or "unknown")
-            name = level_name .. " #" .. tostring(count)
-        end
+        local name = stalker_camp_builder.get_camp_label(camp)
         local num_survivors = 0
         if camp.survivors then
             for _ in pairs_(camp.survivors) do
@@ -1334,11 +1330,8 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
     local mmin = math.min
     local sformat = string.format
     local stats = stalker_camp_builder.get_camp_stats(camp, hub_obj)
-    local name = camp.name
+    local name = stalker_camp_builder.get_camp_label(camp)
     local level_name = game.translate_string(camp.level or "unknown")
-    if not name or name == "" then
-        name = level_name .. " Settlement"
-    end
 
     self.camp_name:SetText(name)
 
@@ -2227,13 +2220,7 @@ function SettlementManagerPDA:OnRenameClicked()
     local camp = stalker_camp_builder.active_camps[hub_id]
     if not camp then return end
 
-    local name = camp.name
-    if not name or name == "" then
-        local level_name = game.translate_string(camp.level or "unknown")
-        name = level_name .. " Settlement"
-    end
-
-    RENAME_CAMP_GUI = UIRenameCamp(self, hub_id, name)
+    RENAME_CAMP_GUI = UIRenameCamp(self, hub_id, stalker_camp_builder.get_camp_label(camp))
     RENAME_CAMP_GUI:ShowDialog(true)
 end
 
@@ -3085,7 +3072,7 @@ function SettlementManagerPDA:OnLocateSettlementMapClicked()
     if pda_menu and pda_menu.SetActiveSubdialog then
         pda_menu:SetActiveSubdialog("eptTasks")
     end
-    news_manager.send_tip(db.actor, string.format("%s: %s (%s)", game.translate_string("st_pda_located_map"), camp.name or "Settlement", game.translate_string(camp.level or "unknown")), nil, "general_stalker", 4000)
+    news_manager.send_tip(db.actor, string.format("%s: %s (%s)", game.translate_string("st_pda_located_map"), stalker_camp_builder.get_camp_label(camp), game.translate_string(camp.level or "unknown")), nil, "general_stalker", 4000)
 end
 
 function SettlementManagerPDA:OnLocateRivalMapClicked()
