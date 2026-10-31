@@ -586,12 +586,9 @@ function stalker_camp_builder.get_auto_sort_target_box(camp, hub_id, sec_or_item
         for stall_id, stype in pairs(camp.structures) do
             if stype == "market_stall" then
                 local ms_stash_id = homestead_market_stall and homestead_market_stall.get_stash and homestead_market_stall.get_stash(stall_id)
-                if ms_stash_id and alife_object(ms_stash_id) then
-                    local w_lim = 150
-                    local cur_w = (sb.get_container_weight_fast and sb.get_container_weight_fast(ms_stash_id)) or 0
-                    if (cur_w + estimated_item_weight) <= w_lim then
-                        return ms_stash_id
-                    end
+                -- weighed as the boxes above are: market_stash's capacity is 150 kg
+                if ms_stash_id and alife_object(ms_stash_id) and sb.box_has_room_for(ms_stash_id, item_weight, weight_cache) then
+                    return ms_stash_id
                 end
             end
         end
