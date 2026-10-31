@@ -261,19 +261,8 @@ function patch_meat_spoiling_fridges()
         end
     end
 
-    if meat_spoiling.get_meat_is_frozen_cell then
-        local orig_get_meat_is_frozen_cell = meat_spoiling.get_meat_is_frozen_cell
-        meat_spoiling.get_meat_is_frozen_cell = function(cell)
-            if orig_get_meat_is_frozen_cell and orig_get_meat_is_frozen_cell(cell) then return true end
-            local id = cell and cell.ID
-            if not id then return false end
-            local se_obj = alife_object(id)
-            if se_obj and meat_spoiling.get_meat_is_frozen and meat_spoiling.get_meat_is_frozen(se_obj) then
-                return true
-            end
-            return false
-        end
-    end
+    -- get_meat_is_frozen_cell stays as it is: it asks get_meat_is_frozen (above) about the meat
+    -- meat_spoiling tracks, and nothing else, so other items in a fridge get no frozen tint
 end
 safe_register_callback("actor_on_first_update", patch_meat_spoiling_fridges)
 
