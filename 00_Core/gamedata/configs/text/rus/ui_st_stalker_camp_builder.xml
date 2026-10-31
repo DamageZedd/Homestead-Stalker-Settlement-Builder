@@ -1240,6 +1240,51 @@
     <string id="st_pda_scavenger_in_transit">
         <text>Сборщик в пути...</text>
     </string>
+    <string id="st_pda_scavenger_transit_status">
+        <text>Сборщик в пути: %s (%d%% - осталось %s)</text>
+    </string>
+    <string id="st_pda_recall_scavenger">
+        <text>Отозвать сборщика (%s)</text>
+    </string>
+    <string id="st_pda_send_scavenger_none">
+        <text>Отправить сборщика (нет свободных сборщиков)</text>
+    </string>
+    <string id="st_pda_stash_badge_yellow">
+        <text>[Желтый тайник]</text>
+    </string>
+    <string id="st_pda_stash_badge_white">
+        <text>[Белый тайник]</text>
+    </string>
+    <string id="st_pda_scavenger_tier">
+        <text>[Ранг %d]</text>
+    </string>
+    <string id="st_pda_scavenger_est">
+        <text>около %s</text>
+    </string>
+    <string id="st_pda_sweep_badge_mixed">
+        <text>[желтых: %d / белых: %d]</text>
+    </string>
+    <string id="st_pda_sweep_badge_yellow">
+        <text>[желтых: %d]</text>
+    </string>
+    <string id="st_pda_sweep_badge_white">
+        <text>[белых: %d]</text>
+    </string>
+    <string id="st_expedition_time_hm">
+        <text>%d ч %02d мин</text>
+    </string>
+    <string id="st_expedition_time_ms">
+        <text>%d мин %02d сек</text>
+    </string>
+    <string id="st_expedition_time_s">
+        <text>%d сек</text>
+    </string>
+    <string id="st_expedition_real_min">
+        <text>%d мин</text>
+    </string>
+    <string id="st_expedition_real_mins">
+        <text>%d мин</text>
+    </string>
     <string id="st_scavenger_already_dispatched">
         <text>Сборщик уже отправлен к этой точке.</text>
     </string>
@@ -1364,7 +1409,7 @@
         <text>Невозможно завербовать %s (%s) в %s: эту территорию контролирует группировка «%s», которая уничтожит его на месте.</text>
     </string>
     <string id="st_pda_send_scavenger_prefix">
-        <text>Отправить разведчика: </text>
+        <text>Отправить сборщика: </text>
     </string>
     <string id="st_pda_sweep_stashes_prefix">
         <text>Зачистить все тайники в %s (Всего %d): </text>
@@ -1380,6 +1425,9 @@
     </string>
     <string id="st_scavenger_radio_75">
         <text>%s (Рация): 'Возвращаюсь на базу %s с добычей. Всё цело, держу ухо востро...'</text>
+    </string>
+    <string id="st_scavenger_camp_gone">
+        <text>поселения</text>
     </string>
     <string id="st_scavenger_receipt_title">
         <text>ЭКСПЕДИЦИЯ ЗАВЕРШЕНА</text>
@@ -2082,6 +2130,21 @@
     <string id="st_event_settler_promoted">
         <text>%s получил повышение: %s %s!</text>
     </string>
+    <string id="st_settler_tier_novice">
+        <text>Новичок</text>
+    </string>
+    <string id="st_settler_tier_skilled">
+        <text>Умелый</text>
+    </string>
+    <string id="st_settler_tier_expert">
+        <text>Эксперт</text>
+    </string>
+    <string id="st_settler_tier_master">
+        <text>Мастер</text>
+    </string>
+    <string id="st_settler_title_idle">
+        <text>Поселенец</text>
+    </string>
     <string id="st_event_settler_recovered">
         <text>%s был тяжело ранен, но восстановился в лагере!</text>
     </string>
@@ -2094,6 +2157,15 @@
     <string id="st_scavenger_expedition_departed">
         <text>ЭКСПЕДИЦИЯ: %s отправился из %s в %s%s (Примерное время: %s).</text>
     </string>
+    <string id="st_scavenger_departed_yellow">
+        <text>[Желтый, редкий]</text>
+    </string>
+    <string id="st_scavenger_departed_white">
+        <text>[Белый, обычный]</text>
+    </string>
+    <string id="st_scavenger_recall_camp_gone">
+        <text>поселение</text>
+    </string>
     <string id="st_trade_network_offline">
         <text>Торговая сеть недоступна: связь заблокирована выбросом/пси-штормом.</text>
     </string>
@@ -2103,6 +2175,39 @@
 Сдано предметов (всего %d):
 %s
 Опыт: +%d XP (Всего: %d XP - Ранг %d)</text>
+    </string>
+    <string id="st_scavenger_receipt_camp_gone">
+        <text>поселение</text>
+    </string>
+    <string id="st_scavenger_receipt_sweep_mixed">
+        <text>Тайники (%d шт.) в %s (желтых редких: %d / белых обычных: %d)</text>
+    </string>
+    <string id="st_scavenger_receipt_sweep_yellow">
+        <text>Желтые (редкие) тайники (%d шт.) в %s</text>
+    </string>
+    <string id="st_scavenger_receipt_sweep_white">
+        <text>Белые (обычные) тайники (%d шт.) в %s</text>
+    </string>
+    <string id="st_scavenger_receipt_stash_yellow">
+        <text>Желтый (редкий) тайник в %s</text>
+    </string>
+    <string id="st_scavenger_receipt_stash_white">
+        <text>Белый (обычный) тайник в %s</text>
+    </string>
+    <string id="st_scavenger_receipt_ambush_safe">
+        <text>Без происшествий</text>
+    </string>
+    <string id="st_scavenger_receipt_ambush_won">
+        <text>Засада отбита (+трофеи)</text>
+    </string>
+    <string id="st_scavenger_receipt_ambush_fled">
+        <text>Ушел от вражеской засады</text>
+    </string>
+    <string id="st_scavenger_receipt_no_items">
+        <text>(нет предметов / склад заполнен)</text>
+    </string>
+    <string id="st_scavenger_receipt_short">
+        <text>ОТЧЕТ ОБ ЭКСПЕДИЦИИ: %s вернулся в %s! Сдано предметов: %d.</text>
     </string>
     <string id="st_event_settler_killed">
         <text>Ваш поселенец '%s' погиб.</text>

@@ -5193,16 +5193,14 @@ function award_survivor_xp(survivor, job, amount)
     end
     if new_tier > old_tier then
         survivor.tier = new_tier
-        local tier_names = {"Novice", "Skilled", "Expert", "Master"}
+        local tier_names = {"st_settler_tier_novice", "st_settler_tier_skilled", "st_settler_tier_expert", "st_settler_tier_master"}
         if db.actor then
-            local job_display = {
-                scavenge = "Scavenger", cook = "Cook", repair = "Repairer",
-                craft = "Crafter", medic = "Medic", guard = "Guard",
-                electrician = "Electrician", woodcutter = "Woodcutter",
-                brewer = "Brewer", scrapper = "Scrapper", farmer = "Farmer", trader = "Trader", idle = "Settler"
-            }
-            local job_title = job_display[job] or job or ""
-            local msg = string.format(game.translate_string("st_event_settler_promoted"), survivor.name or "Survivor", tier_names[new_tier+1], job_title)
+            -- the job's title as the PDA shows it; an idle settler is a Settler, not an Idle
+            local title_id = job == "idle" and "st_settler_title_idle" or ("st_pda_settlement_job_" .. tostring(job))
+            local job_title = game.translate_string(title_id)
+            if job_title == title_id then job_title = job or "" end
+            local msg = string.format(game.translate_string("st_event_settler_promoted"), survivor.name or "Survivor",
+                game.translate_string(tier_names[new_tier+1]), job_title)
             camp_send_tip(db.actor, msg, nil, "general_stalker", 10000)
             if stalker_camp_builder.add_radio_feed_entry then
                 stalker_camp_builder.add_radio_feed_entry("settlement", msg)
