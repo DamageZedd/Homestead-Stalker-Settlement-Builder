@@ -1220,10 +1220,10 @@
         <text>Auto-Sort Stash</text>
     </string>
     <string id="st_auto_sort_success">
-        <text>AUTO-SORT COMPLETE: Transferred %d crafting &amp; survival items into camp specialized containers.</text>
+        <text>AUTO-SORT COMPLETE: Transferred %d items into camp containers.</text>
     </string>
     <string id="st_auto_sort_empty">
-        <text>No crafting materials, meats, or repair supplies found in backpack to sort.</text>
+        <text>Nothing to sort: weapons, armor, helmets, artifacts, devices, quest items and anything in a slot or on your belt stay in your backpack.</text>
     </string>
     <string id="st_auto_sort_skipped">
         <text>%d other items stayed in your backpack: no container for them has room.</text>
@@ -1232,10 +1232,10 @@
         <text>AUTO-SORT: no settlement container has room for your %d items.</text>
     </string>
     <string id="st_dialog_auto_sort_ask">
-        <text>Sort and deposit all my crafting supplies into camp storage.</text>
+        <text>Sort everything in my backpack into storage, except weapons, armor, helmets, artifacts, devices, quest items and anything in a slot or on my belt.</text>
     </string>
     <string id="st_dialog_auto_sort_done">
-        <text>All set! Meat is stored by the stove, ammo parts are in the workshop, and medical supplies are organized in the clinic.</text>
+        <text>All set! Food goes to the fridges first, everything else to your own boxes, then to the settlement's storage.</text>
     </string>
     <string id="st_pda_send_scavenger_stash">
         <text>Send Scavenger to Retrieve Stash</text>
