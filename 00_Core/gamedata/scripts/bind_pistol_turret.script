@@ -75,6 +75,7 @@ local SND_RELOAD_PATH = [[weapons\mp7\mp7_reload]]
 -- =========================
 local AIM_UPDATE_INTERVAL    = 0.05
 local HOSTILE_CACHE_REFRESH  = 2.0
+local HOSTILE_CACHE_RADIUS   = 40.0   -- the 20 m scan plus what a running mutant covers between refreshes
 local MAG_SYNC_INTERVAL      = 2.0
 local LOS_CHECK_COOLDOWN     = 0.10
 local CHANNEL_PUBLISH_INTERVAL = 0.20
@@ -723,14 +724,12 @@ end
 
 local function rebuild_hostile_cache(self)
     local t = {}
-    for id, v in pairs(db.storage) do
-        if type(id) == "number" and v and v.object then
-            local o = get_obj_by_id_safe(id)
-            if o and is_valid_target(o) then
-                t[#t + 1] = id
-            end
+    -- only the objects around the turret, not every online object in db.storage
+    level.iterate_nearest(self.object:position(), HOSTILE_CACHE_RADIUS, function(o)
+        if is_valid_target(o) then
+            t[#t + 1] = o:id()
         end
-    end
+    end)
     self.hostile_cache = t
     return t
 end
@@ -979,6 +978,23 @@ function pistol_turret_wrapper:update(delta)
         return
     end
 
+    -- ammo state, before the scans: an empty turret doesn't look for targets
+    if not turret_has_ammo(self) then
+        if not self.snd_out_of_ammo:playing() then
+            self.snd_out_of_ammo:play_at_pos(self.object, self.object:position(), 0, sound_object.s3d + sound_object.looped)
+            self.snd_out_of_ammo.volume = 0.2
+        end
+        if self.snd_move and self.snd_move:playing() then
+            self.snd_move:stop()
+        end
+        self.hostile_cache = nil   -- rebuilt on the first update after a reload
+        return
+    else
+        if self.snd_out_of_ammo and self.snd_out_of_ammo:playing() then
+            self.snd_out_of_ammo:stop()
+        end
+    end
+
     -- refresh hostile
     self.hostile_refresh_t = (self.hostile_refresh_t or 0) - dtscan
     if (not self.hostile_cache) or self.hostile_refresh_t <= 0 then
@@ -1019,22 +1035,6 @@ function pistol_turret_wrapper:update(delta)
                 self.aim_pos_cached = picked_obj and get_target_aim_pos(picked_obj) or nil
                 self.target_last_seen_t = 0
             end
-        end
-    end
-
-    -- ammo state
-    if not turret_has_ammo(self) then
-        if not self.snd_out_of_ammo:playing() then
-            self.snd_out_of_ammo:play_at_pos(self.object, self.object:position(), 0, sound_object.s3d + sound_object.looped)
-            self.snd_out_of_ammo.volume = 0.2
-        end
-        if self.snd_move and self.snd_move:playing() then
-            self.snd_move:stop()
-        end
-        return
-    else
-        if self.snd_out_of_ammo and self.snd_out_of_ammo:playing() then
-            self.snd_out_of_ammo:stop()
         end
     end
 

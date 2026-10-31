@@ -152,33 +152,34 @@ end
 function alarm_has_targets(alarm_obj, radius, rp)
     local pos = alarm_obj:position()
     local min_dot = 0.2
+    local found = false
 
-    for _, v in pairs(db.storage) do
-        if v and v.object then
-            local o = v.object
-            local cls = o:clsid()
-            local opos = o:position()
+    -- only the objects around the alarm, not every online object in db.storage; the engine
+    -- returns those whose bounding sphere reaches the radius, so the distance test stays
+    level.iterate_nearest(pos, radius, function(o)
+        local cls = o:clsid()
+        local opos = o:position()
 
-            if opos:distance_to(pos) <= radius then
-                local is_target = false
+        if opos:distance_to(pos) <= radius then
+            local is_target = false
 
-                if cls == clsid.script_stalker then
-                    is_target = is_enemy_stalker_to_actor(o)
-                elseif monster_classes[cls] then
-                    is_target = true
-                end
+            if cls == clsid.script_stalker then
+                is_target = is_enemy_stalker_to_actor(o)
+            elseif monster_classes[cls] then
+                is_target = true
+            end
 
-                if is_target and o:alive() then
-                    local tpos = get_target_center(o)
-                    if is_in_front_of_bone(alarm_obj, "bone_led", o, min_dot) and has_clear_los(alarm_obj, o, tpos, rp) then
-                        return true
-                    end
+            if is_target and o:alive() then
+                local tpos = get_target_center(o)
+                if is_in_front_of_bone(alarm_obj, "bone_led", o, min_dot) and has_clear_los(alarm_obj, o, tpos, rp) then
+                    found = true
+                    return true    -- stops the iteration
                 end
             end
         end
-    end
+    end)
 
-    return false
+    return found
 end
 
 --------------------------------------------------------------------------------
