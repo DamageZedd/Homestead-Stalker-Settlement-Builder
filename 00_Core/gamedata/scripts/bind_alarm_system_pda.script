@@ -139,39 +139,40 @@ function alarm_has_targets(alarm_obj, radius, rp)
     local pos = alarm_obj:position()
     local min_dot = 0.2
     local actor_id = db.actor and db.actor:id()
+    local found = false
 
-    for _, v in pairs(db.storage) do
-        if v and v.object then
-            local o = v.object
-            local cls = o:clsid()
-            local opos = o:position()
+    -- only the objects around the alarm, not every online object in db.storage; the engine
+    -- returns those whose bounding sphere reaches the radius, so the distance test stays
+    level.iterate_nearest(pos, radius, function(o)
+        local cls = o:clsid()
+        local opos = o:position()
 
-            if opos:distance_to(pos) <= radius then
-                local is_threat = false
-                if o:alive() and o:id() ~= actor_id then
-                    if monster_classes[cls] then
-                        is_threat = true
-                    elseif cls == clsid.script_stalker then
-                        if db.actor and o.relation then
-                            local rel = o:relation(db.actor)
-                            if rel == game_object.enemy then
-                                is_threat = true
-                            end
+        if opos:distance_to(pos) <= radius then
+            local is_threat = false
+            if o:alive() and o:id() ~= actor_id then
+                if monster_classes[cls] then
+                    is_threat = true
+                elseif cls == clsid.script_stalker then
+                    if db.actor and o.relation then
+                        local rel = o:relation(db.actor)
+                        if rel == game_object.enemy then
+                            is_threat = true
                         end
                     end
                 end
+            end
 
-                if is_threat then
-                    local tpos = get_target_center(o)
-                    if is_in_front_of_bone(alarm_obj, "bone_led", o, min_dot) and has_clear_los(alarm_obj, o, tpos, rp) then
-                        return true
-                    end
+            if is_threat then
+                local tpos = get_target_center(o)
+                if is_in_front_of_bone(alarm_obj, "bone_led", o, min_dot) and has_clear_los(alarm_obj, o, tpos, rp) then
+                    found = true
+                    return true    -- stops the iteration
                 end
             end
         end
-    end
+    end)
 
-    return false
+    return found
 end
 
 --------------------------------------------------------------------------------
