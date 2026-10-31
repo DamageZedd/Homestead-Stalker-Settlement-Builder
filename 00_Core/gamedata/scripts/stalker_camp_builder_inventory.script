@@ -652,6 +652,8 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
                 local in_bench = wb_only[cid] and cl_item
                 if in_bench and (s:find("wpn_") or s:find("helm_") or s:find("armor_") or s:find("outfit")) then
                     local c_val = cond or 1.0
+                    -- G.A.M.M.A. pins a gun's condition (gun_condition_pinned, jobs): only its parts count
+                    if sb.gun_condition_pinned and sb.gun_condition_pinned(cl_item) then c_val = 1.0 end
                     local worn_parts = false
                     if item_id and sb.gun_parts_worn then
                         pcall(function() worn_parts = sb.gun_parts_worn(item_id, sec) end)

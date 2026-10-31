@@ -866,6 +866,16 @@ end
 -- get_camp_inventory_snapshot (main script) calls it for the technician's paused check
 stalker_camp_builder.gun_parts_worn = gun_parts_worn
 
+-- G.A.M.M.A.'s Guns Have No Condition (grok_gun_condition_fixed) sets a gun to 0.83 on every shot
+-- and raises any gun the player takes to 0.83: there a gun's condition says nothing about its
+-- wear, and only its parts count. Knives keep a real condition.
+local function gun_condition_pinned(cl_item)
+    if grok_gun_condition_fixed == nil or not cl_item then return false end
+    local ok, gun = pcall(function() return IsWeapon(cl_item) and not IsMelee(cl_item) end)
+    return ok and gun == true
+end
+stalker_camp_builder.gun_condition_pinned = gun_condition_pinned
+
 -- process_gear_repair -- repair one or more damaged items in exchange for food
 function stalker_camp_builder.process_gear_repair(npc_id, box_id, camp, survivor, fallback_box_id)
     local ipairs_ = ipairs
@@ -971,8 +981,8 @@ function stalker_camp_builder.process_gear_repair(npc_id, box_id, camp, survivor
                     is_gear = true
                 end
                 -- an offline item's condition can't be written (server items export none); a gun's
-                -- wear can be in its parts alone
-                if is_gear and cl_item and (cond < 0.95 or gun_parts_worn(item_id, sec)) then
+                -- wear can be in its parts alone, and with its condition pinned it is only there
+                if is_gear and cl_item and ((cond < 0.95 and not gun_condition_pinned(cl_item)) or gun_parts_worn(item_id, sec)) then
                     repair_item_id = item_id
                     repair_item_cond = cond
                     item_name = ui_item.get_sec_name(sec)
@@ -1215,7 +1225,8 @@ function stalker_camp_builder.camp_has_repairable_gear(hub_id, camp)
         sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, box_id, cl_item)
             -- only online gear counts: process_gear_repair can't repair the rest
             local in_bench = wb_only[box_id] and cl_item
-            check_item(sec, in_bench and cond or 1.0, in_bench and item_id or nil)  -- DANZY EDIT: damaged gear only counts inside a workbench
+            -- a pinned gun's condition doesn't count, only its parts (gun_condition_pinned)
+            check_item(sec, (in_bench and not gun_condition_pinned(cl_item)) and cond or 1.0, in_bench and item_id or nil)  -- DANZY EDIT: damaged gear only counts inside a workbench
             if has_damaged and has_fee then return true end
         end)
     end
