@@ -976,11 +976,13 @@ function stalker_camp_builder.recruit_npc_to_camp(actor, npc, hub_id)
     local restored_tier = 0
     local restored_job_start_realtime = time_global()
     local prev_record = nil
+    local prev_hub_id = nil
 
     for search_hub_id, search_camp in pairs(sb.active_camps) do
         if search_camp.survivors and search_camp.survivors[npc_id] then
             local s = search_camp.survivors[npc_id]
             prev_record = s
+            prev_hub_id = search_hub_id
             if s.paused_job then
                 restored_job = s.paused_job
                 restored_xp = s.paused_xp or 0
@@ -1029,11 +1031,16 @@ function stalker_camp_builder.recruit_npc_to_camp(actor, npc, hub_id)
         end
         s.medic_order = prev_record.medic_order
         s.craft_order = prev_record.craft_order
+        s.cook_mode = prev_record.cook_mode
         s.woodcutter_mode = prev_record.woodcutter_mode
         s.farmer_mode = prev_record.farmer_mode
         s.has_axe = prev_record.has_axe
         s.has_drugkit = prev_record.has_drugkit
         s.has_tools = prev_record.has_tools
+        -- a post is a spot in its own camp: it holds only for the same camp
+        if prev_hub_id == hub_id then
+            s.assigned_pos = prev_record.assigned_pos
+        end
     end
     sb.settler_lookup[npc_id] = {
         hub_id = hub_id,
