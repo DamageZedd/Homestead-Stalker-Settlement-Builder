@@ -911,19 +911,17 @@ function stalker_camp_builder.process_gear_repair(npc_id, box_id, camp, survivor
 
     -- DANZY EDIT: technicians only repair gear placed in a workbench, so loot in
     -- your stashes keeps its found condition.
-    -- A Workshop keeps its gear in a hidden workshop_stash, the box camp_iterate_inventory
-    -- reports, so the set holds that stash's id
-    local m_data = alife_storage_manager and alife_storage_manager.get_state()
-    local ws = m_data and m_data.workshop_stashes or {}
+    -- A Workshop keeps its gear in a hidden workshop_stash, the Repair Bench and a Settlement Flag
+    -- in a station_stash: the box camp_iterate_inventory reports, so the set holds that stash's id
     local wb_set = {}
     local has_wb = false
     local has_repair_bench = false
     for sid, stype in pairs(camp and camp.structures or {}) do
         if stype == "repair_bench" then has_repair_bench = true end
-        if stype == "workbench" or stype == "repair_bench" then wb_set[ws[sid] or sid] = true; has_wb = true end
+        if stype == "workbench" or stype == "repair_bench" then wb_set[sb.linked_stash_id(sid) or sid] = true; has_wb = true end
     end
-    -- the settlement's own Workshop (the hub) counts as a workbench too
-    if hub_id then wb_set[(ws and ws[hub_id]) or hub_id] = true; has_wb = true end
+    -- the settlement's own hub (a Workshop or a Settlement Flag) counts as a workbench too
+    if hub_id then wb_set[sb.linked_stash_id(hub_id) or hub_id] = true; has_wb = true end
     if not has_wb then
         if survivor then survivor.shortfall_reason = "No Workbench" end
         return false
@@ -1202,13 +1200,13 @@ function stalker_camp_builder.camp_has_repairable_gear(hub_id, camp)
         end
     end
 
-    -- a Workshop's gear is in its workshop_stash, the box id the callback below gets
-    local m_data = alife_storage_manager and alife_storage_manager.get_state()
-    local ws = m_data and m_data.workshop_stashes or {}
+    -- a Workshop's gear is in its workshop_stash, the Repair Bench's and a Settlement Flag's in a
+    -- station_stash: the box id the callback below gets
     local wb_only = {}
-    if hub_id and ws[hub_id] then wb_only[ws[hub_id]] = true end
+    local hub_stash = hub_id and sb.linked_stash_id(hub_id)
+    if hub_stash then wb_only[hub_stash] = true end
     for sid, stype in pairs(camp.structures or {}) do
-        if stype == "workbench" or stype == "repair_bench" then wb_only[ws[sid] or sid] = true end
+        if stype == "workbench" or stype == "repair_bench" then wb_only[sb.linked_stash_id(sid) or sid] = true end
     end
     if hub_id then wb_only[hub_id] = true end
     if sb.camp_iterate_inventory then
@@ -3046,14 +3044,13 @@ function stalker_camp_builder.process_scrapper_job(npc_id, hub_id, camp, survivo
 
     local salvaged_gear_name = nil
     if survivor and survivor.has_tools and sb.camp_iterate_inventory then
-        -- gear left at a workbench waits for the technician (process_gear_repair works there)
-        local m_data = alife_storage_manager and alife_storage_manager.get_state and alife_storage_manager.get_state()
-        local ws = m_data and m_data.workshop_stashes or {}
+        -- gear left at a workbench waits for the technician (process_gear_repair works there), in
+        -- the bench's hidden stash: a workshop_stash, or a station_stash (Repair Bench, Settlement Flag)
         local at_bench = {}
         for sid, stype in pairs(camp and camp.structures or {}) do
-            if stype == "workbench" or stype == "repair_bench" then at_bench[sid] = true; at_bench[ws[sid] or sid] = true end
+            if stype == "workbench" or stype == "repair_bench" then at_bench[sid] = true; at_bench[sb.linked_stash_id(sid) or sid] = true end
         end
-        if hub_id then at_bench[hub_id] = true; at_bench[ws[hub_id] or hub_id] = true end
+        if hub_id then at_bench[hub_id] = true; at_bench[sb.linked_stash_id(hub_id) or hub_id] = true end
         local junk_id = nil
         local junk_sec = nil
         sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
