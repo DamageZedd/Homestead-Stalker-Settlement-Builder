@@ -1462,6 +1462,60 @@
     <string id="st_pda_radio_scan">
         <text>—канировать эфир</text>
     </string>
+    <string id="st_radio_scan_online">
+        <text>“рансивер Homestead на св€зи. Ќастроен на общую сеть частот «оны: 148.500 ћ√ц.</text>
+    </string>
+    <string id="st_radio_scan_garrison">
+        <text>“–јЌ—»¬≈– [%s | %s]: √арнизон на св€зи. Ќаселение: %d, –ейтинг защиты: %d, ћораль: %d%%.</text>
+    </string>
+    <string id="st_radio_scan_scavenge">
+        <text>Ё —ѕ≈ƒ»÷»я: %s ищет хабар в поле (÷ель: %s).</text>
+    </string>
+    <string id="st_radio_scan_scavenge_target">
+        <text>руины «оны</text>
+    </string>
+    <string id="st_radio_scan_craft">
+        <text>ћј—“≈–— јя: %s снар€жает патроны и следит за инструментом верстака.</text>
+    </string>
+    <string id="st_radio_scan_repair">
+        <text>–≈ћќЌ“: %s осматривает оружейную поселени€ и чинит снар€жение.</text>
+    </string>
+    <string id="st_radio_scan_medic">
+        <text>ћ≈ƒѕ”Ќ “: %s следит за медикаментами лагер€ и оказывает первую помощь.</text>
+    </string>
+    <string id="st_radio_scan_cook">
+        <text> ”’Ќя: %s готовит гор€чие пайки и еду на костре.</text>
+    </string>
+    <string id="st_radio_scan_guard">
+        <text>ќ’–јЌј: %s несет караул на периметре лагер€.</text>
+    </string>
+    <string id="st_radio_scan_woodcutter">
+        <text>Ћ≈—ќ«ј√ќ“ќ¬ ј: %s заготавливает дрова и следит за угольной печью.</text>
+    </string>
+    <string id="st_radio_scan_brewer">
+        <text>¬»Ќќ ”–Ќя: %s гонит самогон и медицинский спирт.</text>
+    </string>
+    <string id="st_radio_scan_farmer">
+        <text>‘≈–ћј: %s ухаживает за картофельными гр€дками и зерновым полем.</text>
+    </string>
+    <string id="st_radio_scan_trader">
+        <text>Ћј¬ ј: %s продает товары проход€щим сталкерам.</text>
+    </string>
+    <string id="st_radio_scan_scrapper">
+        <text>”“»Ћ»«ј÷»я: %s разбирает собранный хлам на полезные детали.</text>
+    </string>
+    <string id="st_radio_scan_electrician">
+        <text>ЁЋ≈ “–ќ—≈“№: %s обслуживает освещение поселени€ и запас аккумул€торов.</text>
+    </string>
+    <string id="st_radio_scan_mutant_nest">
+        <text>–ј«¬≈ƒƒјЌЌџ≈: Ћогово мутантов на объекте %s (%s).</text>
+    </string>
+    <string id="st_radio_scan_hostile_outpost">
+        <text>–ј«¬≈ƒƒјЌЌџ≈: ƒействующий враждебный аванпост на объекте %s (%s), его удерживают силы группировки %s.</text>
+    </string>
+    <string id="st_radio_scan_no_camps">
+        <text>—канирование эфира «оны завершено: активных поселений не обнаружено. ”становите ‘лаг поселени€, чтобы запустить телеметрию.</text>
+    </string>
     <string id="st_job_idle_btn">
         <text>ќтдых</text>
     </string>
