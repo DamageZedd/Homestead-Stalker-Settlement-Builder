@@ -133,7 +133,7 @@ function stalker_camp_builder.seed_initial_settlement_telemetry(force_refresh)
             time_str = time_str,
             category = "general",
             scan = true,
-            text = "Homestead Transceiver Online. Synced to 148.500 MHz Zone-wide frequency network."
+            text = game.translate_string("st_radio_scan_online")
         })
     end
 
@@ -141,7 +141,7 @@ function stalker_camp_builder.seed_initial_settlement_telemetry(force_refresh)
     local camp_count = 0
     for hid, c in pairs_(active_camps) do
         camp_count = camp_count + 1
-        local c_name = c.name or "Settlement"
+        local c_name = stalker_camp_builder.get_camp_label(c)
         local c_lvl = game.translate_string(c.level or "unknown")
         local survivors = c.survivors or {}
         local pop = 0
@@ -159,7 +159,7 @@ function stalker_camp_builder.seed_initial_settlement_telemetry(force_refresh)
             time_str = time_str,
             category = "work",
             scan = true,
-            text = sformat("TRANSCEIVER [%s | %s]: Garrison online. Pop: %d, Defense Rating: %d, Morale: %d%%.", c_name, c_lvl, pop, def, mor)
+            text = sformat(game.translate_string("st_radio_scan_garrison"), c_name, c_lvl, pop, def, mor)
         })
 
         for _, surv in pairs_(survivors) do
@@ -170,84 +170,84 @@ function stalker_camp_builder.seed_initial_settlement_telemetry(force_refresh)
                     time_str = time_str,
                     category = "expedition",
                     scan = true,
-                    text = sformat("EXPEDITION: %s is currently deployed on field scavenging sweep (Target: %s).", s_name, surv.scavenge_target or "Zone Ruins")
+                    text = sformat(game.translate_string("st_radio_scan_scavenge"), s_name, surv.scavenge_target or game.translate_string("st_radio_scan_scavenge_target"))
                 })
             elseif s_job == "craft" then
                 table.insert(g_logs, 1, {
                     time_str = time_str,
                     category = "work",
                     scan = true,
-                    text = sformat("WORKSHOP: %s is crafting ammunition and managing workbench tooling.", s_name)
+                    text = sformat(game.translate_string("st_radio_scan_craft"), s_name)
                 })
             elseif s_job == "repair" then
                 table.insert(g_logs, 1, {
                     time_str = time_str,
                     category = "work",
                     scan = true,
-                    text = sformat("MAINTENANCE: %s is inspecting settlement armory and condition repairs.", s_name)
+                    text = sformat(game.translate_string("st_radio_scan_repair"), s_name)
                 })
             elseif s_job == "medic" then
                 table.insert(g_logs, 1, {
                     time_str = time_str,
                     category = "work",
                     scan = true,
-                    text = sformat("INFIRMARY: %s is monitoring camp medical supplies and triage care.", s_name)
+                    text = sformat(game.translate_string("st_radio_scan_medic"), s_name)
                 })
             elseif s_job == "cook" then
                 table.insert(g_logs, 1, {
                     time_str = time_str,
                     category = "work",
                     scan = true,
-                    text = sformat("KITCHEN: %s is preparing hot rations and campfire meals.", s_name)
+                    text = sformat(game.translate_string("st_radio_scan_cook"), s_name)
                 })
             elseif s_job == "guard" then
                 table.insert(g_logs, 1, {
                     time_str = time_str,
                     category = "combat",
                     scan = true,
-                    text = sformat("SECURITY: %s is stationed on camp perimeter guard watch.", s_name)
+                    text = sformat(game.translate_string("st_radio_scan_guard"), s_name)
                 })
             elseif s_job == "woodcutter" then
                 table.insert(g_logs, 1, {
                     time_str = time_str,
                     category = "work",
                     scan = true,
-                    text = sformat("TIMBER: %s is harvesting firewood and managing the charcoal kiln.", s_name)
+                    text = sformat(game.translate_string("st_radio_scan_woodcutter"), s_name)
                 })
             elseif s_job == "brewer" then
                 table.insert(g_logs, 1, {
                     time_str = time_str,
                     category = "work",
                     scan = true,
-                    text = sformat("BREWERY: %s is distilling spirits and fermenting medical alcohol.", s_name)
+                    text = sformat(game.translate_string("st_radio_scan_brewer"), s_name)
                 })
             elseif s_job == "farmer" then
                 table.insert(g_logs, 1, {
                     time_str = time_str,
                     category = "work",
                     scan = true,
-                    text = sformat("FARM: %s is tending the potato beds and the grain plot.", s_name)
+                    text = sformat(game.translate_string("st_radio_scan_farmer"), s_name)
                 })
             elseif s_job == "trader" then
                 table.insert(g_logs, 1, {
                     time_str = time_str,
                     category = "work",
                     scan = true,
-                    text = sformat("MARKET: %s is selling stall goods to passing stalkers.", s_name)
+                    text = sformat(game.translate_string("st_radio_scan_trader"), s_name)
                 })
             elseif s_job == "scrapper" then
                 table.insert(g_logs, 1, {
                     time_str = time_str,
                     category = "work",
                     scan = true,
-                    text = sformat("SALVAGE: %s is breaking down field scrap into usable parts.", s_name)
+                    text = sformat(game.translate_string("st_radio_scan_scrapper"), s_name)
                 })
             elseif s_job == "electrician" then
                 table.insert(g_logs, 1, {
                     time_str = time_str,
                     category = "work",
                     scan = true,
-                    text = sformat("POWER GRID: %s is maintaining settlement illumination and battery stores.", s_name)
+                    text = sformat(game.translate_string("st_radio_scan_electrician"), s_name)
                 })
             end
         end
@@ -262,11 +262,11 @@ function stalker_camp_builder.seed_initial_settlement_telemetry(force_refresh)
         local fac = rcamp.faction
         local text
         if rcamp.status == "mutant_nest" or fac == "monster" then
-            text = sformat("INTEL RECON: Mutant nest at %s (%s).", r_name, r_lvl)
+            text = sformat(game.translate_string("st_radio_scan_mutant_nest"), r_name, r_lvl)
         elseif fac and rcamp.status ~= "unoccupied" and not rcamp.cleared then
             local actor_comm = db.actor and db.actor:character_community() or "stalker"
             if relation_registry.community_relation(fac, actor_comm) <= -1000 then
-                text = sformat("INTEL RECON: Active hostile outpost at %s (%s) operated by %s forces.", r_name, r_lvl, game.translate_string(fac):upper())
+                text = sformat(game.translate_string("st_radio_scan_hostile_outpost"), r_name, r_lvl, game.translate_string(fac):upper())
             end
         end
         if text then
@@ -284,7 +284,7 @@ function stalker_camp_builder.seed_initial_settlement_telemetry(force_refresh)
             time_str = time_str,
             category = "general",
             scan = true,
-            text = "Zone Radio Scan Complete: No active settlement hubs detected. Place a workbench to initialize telemetry."
+            text = game.translate_string("st_radio_scan_no_camps")
         })
     end
     for i = 1, #g_logs - kept do
