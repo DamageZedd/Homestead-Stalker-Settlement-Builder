@@ -5870,7 +5870,8 @@ function on_game_start()
             return _cached_lvl_name
         end
 
-        function stalker_camp_builder.is_pos_in_active_camp(pos)
+        -- max_dist: how near a hub counts (45 m when left out, as the emission cover asks)
+        function stalker_camp_builder.is_pos_in_active_camp(pos, max_dist)
             local camps = stalker_camp_builder.active_camps
             if not pos or not camps or not next(camps) then return false end
             local cur_lvl = get_cached_level_name()
@@ -5886,7 +5887,7 @@ function on_game_start()
                         end
                     end
                     if cpos and cpos.x then
-                        local radius = camp.radius or 45
+                        local radius = max_dist or camp.radius or 45
                         local dx = px - cpos.x
                         local dy = py - cpos.y
                         local dz = pz - cpos.z
@@ -6127,7 +6128,7 @@ function on_game_start()
                         return false
                     end
                     local sb = stalker_camp_builder
-                    if sb and sb.is_pos_in_active_camp and sb.is_pos_in_active_camp(npc:position()) then
+                    if sb and sb.is_pos_in_active_camp and sb.is_pos_in_active_camp(npc:position(), 60) then
                         return false
                     end
                     return true
