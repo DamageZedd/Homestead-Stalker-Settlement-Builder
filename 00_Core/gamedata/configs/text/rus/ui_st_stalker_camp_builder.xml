@@ -565,6 +565,12 @@
     <string id="st_pda_camp_name">
         <text>Поселение</text>
     </string>
+    <string id="st_camp_label_unnamed">
+        <text>Лагерь «%s»</text>
+    </string>
+    <string id="st_camp_label_unnamed_n">
+        <text>Лагерь «%s» №%d</text>
+    </string>
     <string id="st_pda_camp_pop">
         <text>Население: %d / %d Спальных мест</text>
     </string>

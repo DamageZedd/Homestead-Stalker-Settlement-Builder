@@ -1520,7 +1520,7 @@ function get_camp_label(camp)
     if not name or name == "" then
         -- the level's name, as the PDA's Overview header shows it ("Cordon Settlement"), not its id;
         -- with another unnamed camp on that level, a number in hub id order tells them apart
-        name = game.translate_string(camp.level or "unknown") .. " Settlement"
+        local level_name = game.translate_string(camp.level or "unknown")
         local n, shared = 1, false
         for hub_id, c in pairs(stalker_camp_builder.active_camps) do
             if c ~= camp and c.level == camp.level and (not c.name or c.name == "") then
@@ -1529,7 +1529,9 @@ function get_camp_label(camp)
             end
         end
         if shared then
-            name = name .. " #" .. n
+            name = sformat(game.translate_string("st_camp_label_unnamed_n"), level_name, n)
+        else
+            name = sformat(game.translate_string("st_camp_label_unnamed"), level_name)
         end
     end
     return name
