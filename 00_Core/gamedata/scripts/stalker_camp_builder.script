@@ -4468,7 +4468,14 @@ local function verify_and_heal_settlers()
         local hub_pos = hub_obj and hub_obj.position or nil
         local stale = {}
 
+        -- restore_missing_settler moves a survivor to a new key, and a key added while pairs walks
+        -- the table can make the walk skip others: walk the entries as they were
+        local entries = {}
         for npc_id, survivor in pairs(camp.survivors) do
+            entries[#entries + 1] = { npc_id = npc_id, survivor = survivor }
+        end
+        for _, entry in ipairs(entries) do
+            local npc_id, survivor = entry.npc_id, entry.survivor
             local id_num = tonumber(npc_id) or npc_id
             -- an id that holds no stalker (an item took it) counts as missing. No section check:
             -- restore_missing_settler uses sim_default_stalker_0 when the section is gone
