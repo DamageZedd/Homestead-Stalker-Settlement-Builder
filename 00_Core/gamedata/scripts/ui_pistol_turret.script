@@ -255,7 +255,7 @@ function UIPistolTurret:Update()
         channel = wrapper:get_channel()
     end
     self.ammo_amount:SetText(
-        gc("st_ammo_amount") .. ": " .. tostring(mag_count) .. "/40\n - " .. gc("st_turret_channel") .. ": " .. channel_to_text(channel)
+        gc("st_ammo_amount") .. ": " .. tostring(mag_count) .. "/40\\n - " .. gc("st_turret_channel") .. ": " .. channel_to_text(channel)
     )
 end
 
