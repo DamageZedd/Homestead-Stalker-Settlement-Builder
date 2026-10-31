@@ -6219,6 +6219,14 @@ function on_game_start()
         end
     end)
     init_hf_pickup_hook()
+    -- outpost pieces stay: Take All on an empty stash box (Hideout Furniture's remove_stash) and
+    -- DotMarks' Pick up release the box, which ends the outpost, and hand out a Blue Box for its chest
+    safe_register_callback("actor_on_stash_remove", function(data)
+        local is_outpost_piece = stalker_camp_builder.is_rival_camp_object
+        if data and data.stash_id and is_outpost_piece and is_outpost_piece(data.stash_id) then
+            data.cancel = true
+        end
+    end)
 
     safe_register_callback("game_object_on_net_spawn", function(obj)
         local pairs_ = pairs
