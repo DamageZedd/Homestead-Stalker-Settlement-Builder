@@ -182,6 +182,13 @@ function trigger_random_camp_event(hub_id, camp, hub_obj)
             artifact_condition = 0.01,
             progress_sec = 0
         })
+        -- the harvester reads its artifact's own condition on every update and writes it over
+        -- artifact_condition: damage the artifact (0 is a cleared slot, and object 0 the player)
+        local art_id = tonumber(h_data.artifact_item_id)
+        local art = art_id and art_id > 0 and level.object_by_id(art_id)
+        if art then
+            art:set_condition(0.01)
+        end
         local obj = level.object_by_id(harv_id)
         local binder = obj and obj:binded_object()
         local wrapper = binder and binder.wrapper
