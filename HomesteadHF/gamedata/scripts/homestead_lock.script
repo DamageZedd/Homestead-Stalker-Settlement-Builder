@@ -92,7 +92,7 @@ local function keeps_rotation(spot)
 end
 
 local function report_put_back()
-    printf("homestead_lock: put %d piece(s) back on their spots", put_back_count)
+    printf("homestead_lock: put %s piece(s) back on their spots", put_back_count)
     put_back_count = 0
     return true
 end

@@ -1637,7 +1637,7 @@ function stalker_camp_builder.update_rival_camps()
 
         local roll = mrandom(100)
         if sb.cfg.debug_logging then
-            printf("[Homestead] Rival spawn attempt: camps=%d chance=%d roll=%d", total_rival_camps, spawn_chance, roll)
+            printf("[Homestead] Rival spawn attempt: camps=%s chance=%s roll=%s", total_rival_camps, spawn_chance, roll)
         end
 
         if roll <= spawn_chance then
