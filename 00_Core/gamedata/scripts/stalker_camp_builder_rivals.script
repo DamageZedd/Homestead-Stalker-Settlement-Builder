@@ -896,6 +896,13 @@ local function squad_has_living_member(sb, sim, squad)
     return false
 end
 
+-- a garrison's stay before its time is up: lo_hr to hi_hr game hours at the default 24 h of MCM "Rival
+-- Camp Occupancy Duration", scaled by the slider otherwise (cfg holds it in seconds)
+local function roll_occupancy(lo_hr, hi_hr)
+    local d = stalker_camp_builder.cfg.rival_camp_setup_duration or 86400
+    return mrandom(mfloor(d * lo_hr / 24), mfloor(d * hi_hr / 24))
+end
+
 local function resolve_rival_camp_time_up(sb, camp, squad, sim, actor, same_level, current_sec)
     camp.tier = camp.tier or 1
     local roll = mrandom(100)
@@ -912,20 +919,20 @@ local function resolve_rival_camp_time_up(sb, camp, squad, sim, actor, same_leve
         if roll <= 70 and sb.cfg.rival_camp_progression ~= false then
             sb.upgrade_rival_camp_tier(camp, 2)
             camp.setup_sec = current_sec
-            camp.setup_duration = mrandom(21600, 64800) -- 6 to 18 in-game hours
+            camp.setup_duration = roll_occupancy(6, 18)
             did_upgrade = true
         end
     elseif camp.tier == 2 then
         if roll <= 85 and sb.cfg.rival_camp_progression ~= false then
             sb.upgrade_rival_camp_tier(camp, 3)
             camp.setup_sec = current_sec
-            camp.setup_duration = mrandom(28800, 86400) -- 8 to 24 in-game hours
+            camp.setup_duration = roll_occupancy(8, 24)
             did_upgrade = true
         end
     elseif camp.tier >= 3 then
         if roll <= 90 then
             camp.setup_sec = current_sec
-            camp.setup_duration = mrandom(28800, 86400) -- 8 to 24 in-game hours
+            camp.setup_duration = roll_occupancy(8, 24)
             did_hold = true
             -- offline too: the supplies go into the chest's server object
             local box_obj = level.object_by_id(camp.chest_id) or alife_object(camp.chest_id)
@@ -1124,7 +1131,7 @@ local function resolve_pending_rival_skirmish(sb, camp, actor, sim, level_name, 
                 camp.status = nil -- Cleared mutant nest, back to active outpost!
                 camp.faction = enemy_fac
                 camp.setup_sec = current_sec
-                camp.setup_duration = mrandom(21600, 64800)
+                camp.setup_duration = roll_occupancy(6, 18)
                 camp.skirmish_cooldown_until = current_sec + 21600
 
                 local squad_pos = v_scratch_pos:set(camp.position.x, camp.position.y, camp.position.z)
@@ -1415,7 +1422,7 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                 camp.pending_skirmish = nil
                 camp.pending_skirmish_resolve_time = nil
                 camp.setup_sec = current_sec
-                camp.setup_duration = mrandom(21600, 64800) -- 6 to 18 game hours
+                camp.setup_duration = roll_occupancy(6, 18)
                 camp.skirmish_cooldown_until = current_sec + 21600
 
                 local actor_comm = (actor and actor.character_community) and actor:character_community() or "stalker"
@@ -2437,7 +2444,7 @@ function stalker_camp_builder.spawn_single_rival_camp(target_level, specific_fac
                             ground_snapped_v2 = (target_level == level_name),
                             ground_snapped_v4 = (target_level == level_name),
                             setup_sec = current_sec,
-                            setup_duration = mrandom(21600, 64800),
+                            setup_duration = roll_occupancy(6, 18),
                             skirmish_cooldown_until = current_sec + 21600,
                             tier = 1
                         }
@@ -3059,7 +3066,7 @@ function stalker_camp_builder.transform_to_mutant_nest(camp, mutant_type)
     camp.pending_skirmish_resolve_time = nil
     -- the pack's stay starts now; the lost garrison's timer doesn't carry over
     camp.setup_sec = sb.game_sec()
-    camp.setup_duration = mrandom(21600, 64800) -- 6 to 18 in-game hours
+    camp.setup_duration = roll_occupancy(6, 18)
 
     local squad_pos = vector():set(camp.position.x, camp.position.y, camp.position.z)
     local mutant_squad = sb.create_squad_at_pos(mutant_type, squad_pos, camp.level_vertex_id, camp.game_vertex_id)
