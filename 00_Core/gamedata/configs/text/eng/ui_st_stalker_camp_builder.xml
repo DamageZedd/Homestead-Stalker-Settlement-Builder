@@ -1468,6 +1468,60 @@
     <string id="st_pda_radio_scan">
         <text>Scan Zone</text>
     </string>
+    <string id="st_radio_scan_online">
+        <text>Homestead Transceiver Online. Synced to 148.500 MHz Zone-wide frequency network.</text>
+    </string>
+    <string id="st_radio_scan_garrison">
+        <text>TRANSCEIVER [%s | %s]: Garrison online. Pop: %d, Defense Rating: %d, Morale: %d%%.</text>
+    </string>
+    <string id="st_radio_scan_scavenge">
+        <text>EXPEDITION: %s is currently deployed on field scavenging sweep (Target: %s).</text>
+    </string>
+    <string id="st_radio_scan_scavenge_target">
+        <text>Zone Ruins</text>
+    </string>
+    <string id="st_radio_scan_craft">
+        <text>WORKSHOP: %s is crafting ammunition and managing workbench tooling.</text>
+    </string>
+    <string id="st_radio_scan_repair">
+        <text>MAINTENANCE: %s is inspecting settlement armory and condition repairs.</text>
+    </string>
+    <string id="st_radio_scan_medic">
+        <text>INFIRMARY: %s is monitoring camp medical supplies and triage care.</text>
+    </string>
+    <string id="st_radio_scan_cook">
+        <text>KITCHEN: %s is preparing hot rations and campfire meals.</text>
+    </string>
+    <string id="st_radio_scan_guard">
+        <text>SECURITY: %s is stationed on camp perimeter guard watch.</text>
+    </string>
+    <string id="st_radio_scan_woodcutter">
+        <text>TIMBER: %s is harvesting firewood and managing the charcoal kiln.</text>
+    </string>
+    <string id="st_radio_scan_brewer">
+        <text>BREWERY: %s is distilling spirits and fermenting medical alcohol.</text>
+    </string>
+    <string id="st_radio_scan_farmer">
+        <text>FARM: %s is tending the potato beds and the grain plot.</text>
+    </string>
+    <string id="st_radio_scan_trader">
+        <text>MARKET: %s is selling stall goods to passing stalkers.</text>
+    </string>
+    <string id="st_radio_scan_scrapper">
+        <text>SALVAGE: %s is breaking down field scrap into usable parts.</text>
+    </string>
+    <string id="st_radio_scan_electrician">
+        <text>POWER GRID: %s is maintaining settlement illumination and battery stores.</text>
+    </string>
+    <string id="st_radio_scan_mutant_nest">
+        <text>INTEL RECON: Mutant nest at %s (%s).</text>
+    </string>
+    <string id="st_radio_scan_hostile_outpost">
+        <text>INTEL RECON: Active hostile outpost at %s (%s) operated by %s forces.</text>
+    </string>
+    <string id="st_radio_scan_no_camps">
+        <text>Zone Radio Scan Complete: No active settlement hubs detected. Plant a Settlement Flag to initialize telemetry.</text>
+    </string>
     <string id="st_job_idle_btn">
         <text>Idle</text>
     </string>
