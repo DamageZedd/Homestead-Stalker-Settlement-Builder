@@ -804,6 +804,7 @@ local defaults = {
     settlement_map_spot_style = 0,    -- 0: Tactical Base (Homestead), 1: PAW Stalker Pin, 2: Classic Green Dot
     outpost_map_spot_style = 0,       -- 0: Faction Badges & Insignias, 1: Tactical Outposts, 2: PAW Pushpins, 3: Classic Dots
     enable_surplus_cap = true,        -- Anti-flooding surplus governor: pauses crafters/cooks/medics when camp stores are abundant.
+    dismantle_removes_furniture = false, -- When true, dismantling removes all furniture, building pieces, containers and loose ground clutter.
 
     trader_loot_table = {
         "ammo_9x18_fmj", "ammo_9x18_fmj", "ammo_9x19_fmj", "ammo_9x19_fmj",
@@ -914,6 +915,7 @@ local mcm_option_path = {
     uninstall_purge_rival_furniture = "stalker_camp_builder/qol_debug/uninstall_purge_rival_furniture",
     purge_rival_furniture = "stalker_camp_builder/qol_debug/uninstall_purge_rival_furniture",
     debug_logging = "stalker_camp_builder/qol_debug/debug_logging",
+    dismantle_removes_furniture = "stalker_camp_builder/building/dismantle_removes_furniture",
 }
 
 local mcm_paths_initialized = false

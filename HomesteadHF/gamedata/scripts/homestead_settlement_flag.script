@@ -63,6 +63,8 @@ function flag_wrapper:pickup()
         pcall(sb.release_legacy_camp_stash, camp, hub_pos)
     end
     if hub_id and sb and sb.active_camps and sb.active_camps[hub_id] and sb.dismantle_camp then
+        local camp = sb.active_camps[hub_id]
+        if camp then camp._picked_up_by_player = true end
         pcall(sb.dismantle_camp, hub_id)
     end
     return homestead_station_storage.station_wrapper.pickup(self)

@@ -2,6 +2,15 @@
 
 ## v1.3.2 — Roof Emission Cover, Lua GC Optimization, Vanilla Crafting Tab & Ghost Stash Fix
 
+### 🛡️ Production Overflow & Storage Full Protection
+- **Market Stall Overflow Routing**: routed worker surplus and overflow into the Market Stall (`market_stash`) if placed when all settlement storage containers are at capacity, allowing the camp Trader to sell surplus goods to passing stalkers for RU instead of halting work.
+- **Eliminated Ground Dropping on Full Storage**: removed the legacy ground-spawning fallback from `deposit_item_to_camp`, completely eliminating the hazardous accumulation of dropped items and physics clutter at the camp hub over long unattended periods (protecting against the 65,534 ALife ID cap).
+- **Proactive Job Input & Storage Verification**: all automated jobs (Scavenger, Hunter, Crafter, Cook, Medic, Electrician, Woodcutter, Brewer, Scrapper, Water Purifier) now verify container space before consuming recipe components (meat, bandages, ethanol, gunpowder, wood, filters), halting cleanly with `"Storage Full"` status in the PDA when containers cannot accept output.
+
+### 🧹 Settlement Dismantling Content Cleanup Option
+- **MCM Option to Clean All Built Content**: added an MCM toggle (`dismantle_removes_furniture`, under *Building*, default: OFF) allowing players to choose whether dismantling a settlement completely wipes the site or preserves placed structures.
+- **Safe Batched Teardown Queue**: when dismantling with cleanup enabled, all built furniture, building kit pieces, storage containers, container contents, and loose ground clutter within the camp boundary are safely and progressively released via a batched ALife queue (12 objects per 0.05s) with container child enumeration, preventing engine stutter or native X-Ray Monolith MT release recursion crashes.
+
 ### 🌩️ Roof Shelter Protection Against Emissions & Psi-Storms
 - **Homestead Roofs & Upper Floors Shelter the Player & NPCs**: standing underneath any placed Homestead roof piece (`placeable_hs_roof_flat`, `placeable_hs_roof_slope`, `placeable_hs_roof_hip`, `placeable_hs_roof_valley`, `placeable_hs_roof_pyramid`) or upper-story floor (`placeable_hs_floor`) now protects the player and NPCs from Emissions and Psi-Storms (`CSurgeManager.pos_in_cover`, `CPsiStormManager.pos_in_cover`, and `actor_status.scan_safe_zone`), lighting up the HUD shelter indicator and integrating cleanly with Dynamic Emission Cover.
 

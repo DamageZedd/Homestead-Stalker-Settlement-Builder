@@ -17,10 +17,18 @@ function get_stash(stall_id)
     if se_box and se_box:section_name() ~= "market_stash" then se_box = nil end -- a reused id
     if not se_box then
         local obj = get_object_by_id(stall_id)
-        if not obj then return nil end
-        local pos = vec_set(obj:position())
-        pos.y = pos.y - 50
-        se_box = alife_create("market_stash", pos, obj:level_vertex_id(), obj:game_vertex_id())
+        local se_stall = alife_object(stall_id)
+        if not obj and not se_stall then return nil end
+        local o_pos = obj and obj:position() or (se_stall and se_stall.position)
+        if not o_pos then return nil end
+        local pos = vector():set(o_pos.x, o_pos.y - 50, o_pos.z)
+        local lvid = obj and obj:level_vertex_id() or se_stall.m_level_vertex_id
+        local gvid = obj and obj:game_vertex_id() or se_stall.m_game_vertex_id
+        if alife_create then
+            se_box = alife_create("market_stash", pos, lvid, gvid)
+        else
+            se_box = alife():create("market_stash", pos, lvid, gvid)
+        end
         if not se_box then return nil end
     end
     stashes[stall_id] = se_box.id

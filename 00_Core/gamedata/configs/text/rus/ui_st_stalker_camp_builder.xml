@@ -265,6 +265,9 @@
     <string id="st_dismantle_camp_done">
         <text>Лагерь разобран. Верстаки и ящики для хранения остаются на месте.</text>
     </string>
+    <string id="st_dismantle_camp_cleaned_done">
+        <text>Лагерь расформирован. Все постройки, контейнеры и предметы на земле удалены.</text>
+    </string>
     <string id="st_rename_survivor">
         <text>Переименовать выжившего</text>
     </string>
@@ -2482,6 +2485,12 @@
     </string>
     <string id="ui_mcm_stalker_camp_builder_lock_furniture_desc">
         <text>Мебель и детали построек, поставленные через Hideout Furniture, нельзя сдвинуть: со стенами, крышами и мебелью сталкиваются только игрок, гранаты и уровень, поэтому соседние детали и NPC больше их не толкают, а NPC, выброшенные предметы и тела проходят сквозь них. Фундаменты, полы и лестницы остаются твёрдыми для всех. По умолчанию: вкл.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_dismantle_removes_furniture">
+        <text>Удалять все постройки при роспуске</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_dismantle_removes_furniture_desc">
+        <text>Если включено, при роспуске поселения (через КПК или флаг) полностью удаляются все установленные постройки, мебель, контейнеры, их содержимое и мусор на земле в радиусе лагеря. Если выключено (по умолчанию), постройки остаются в мире.</text>
     </string>
     <string id="st_homestead_ground_uneven">
         <text>Земля здесь слишком неровная для фундамента</text>

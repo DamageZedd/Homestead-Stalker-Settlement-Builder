@@ -2447,6 +2447,185 @@ function stalker_camp_builder.reassign_freed_settler_to_smart(npc_id)
     end
 end
 
+-- ============================================================================
+-- queue_dismantle_structure_cleanup -- clean removal of furniture & clutter
+-- ============================================================================
+function stalker_camp_builder.queue_dismantle_structure_cleanup(hub_id, camp, hub_obj)
+    local sb = stalker_camp_builder
+    local sim = alife()
+    if not (sim and hub_obj and hub_obj.m_game_vertex_id) then return end
+
+    local gg = game_graph()
+    local hub_vertex = gg and gg:vertex(hub_obj.m_game_vertex_id)
+    local hub_level_id = hub_vertex and hub_vertex:level_id()
+    local hub_pos = hub_obj.position
+    if not (hub_pos and hub_level_id) then return end
+
+    local hx, hy, hz = hub_pos.x, hub_pos.y, hub_pos.z
+    local bdist = (camp and camp.radius) or (sb.cfg and sb.cfg.boundary_dist) or 50
+    local bdist_sq = bdist * bdist
+    local outposts = (sb.outpost_piece_ids and sb.outpost_piece_ids(true)) or {}
+
+    local m_data = alife_storage_manager and alife_storage_manager.get_state and alife_storage_manager.get_state()
+    local ws_stashes = (m_data and m_data.workshop_stashes) or {}
+    local st_stashes = (m_data and m_data.station_stashes) or {}
+    local mk_stashes = (m_data and m_data.market_stashes) or {}
+
+    local containers_set = {}
+    local structures_set = {}
+
+    -- 1. Gather all camp structures and linked stashes
+    for sid, _ in pairs((camp and camp.structures) or {}) do
+        structures_set[sid] = true
+        containers_set[sid] = true
+        local linked = ws_stashes[sid] or st_stashes[sid] or mk_stashes[sid]
+        if linked then
+            structures_set[linked] = true
+            containers_set[linked] = true
+            if ws_stashes[sid] then ws_stashes[sid] = nil end
+            if st_stashes[sid] then st_stashes[sid] = nil end
+            if mk_stashes[sid] then mk_stashes[sid] = nil end
+        end
+    end
+
+    -- 2. Hub container and its linked stashes (unless manually picked up into player inventory)
+    if camp and not camp._picked_up_by_player then
+        structures_set[hub_id] = true
+        containers_set[hub_id] = true
+        local hub_linked = (sb.linked_stash_id and sb.linked_stash_id(hub_id)) or ws_stashes[hub_id] or st_stashes[hub_id]
+        if hub_linked then
+            structures_set[hub_linked] = true
+            containers_set[hub_linked] = true
+            if ws_stashes[hub_id] then ws_stashes[hub_id] = nil end
+            if st_stashes[hub_id] then st_stashes[hub_id] = nil end
+        end
+        if camp.camp_stash_id then
+            structures_set[camp.camp_stash_id] = true
+            containers_set[camp.camp_stash_id] = true
+        end
+    end
+
+    local hf_get_type = hf_furniture_types and hf_furniture_types.get_type
+    local ini = ini_sys or sys_ini
+
+    -- Test if an ALife object qualifies as ground clutter / loose item to clean up
+    local function is_safe_deletable_item(id, se_obj)
+        if not se_obj or id == 0 or id == 65535 or id == hub_id or outposts[id] then return false end
+        local cls = se_obj.clsid and se_obj:clsid()
+        if not cls then return false end
+
+        -- Strictly protect living entities, companions, anomalies, restrictors, story objects
+        if IsStalker(nil, cls) or IsMonster(nil, cls) then return false end
+        if cls == clsid.actor or cls == clsid.smart_terrain or cls == clsid.online_offline_group_s then return false end
+        if cls == clsid.script_zone or cls == clsid.level_changer or cls == clsid.space_restrictor then return false end
+        if IsAnomaly and IsAnomaly(nil, cls) then return false end
+        if get_object_story_id and get_object_story_id(id) then return false end
+        if sb.settler_lookup and sb.settler_lookup[id] then return false end
+
+        local sec = se_obj:section_name()
+        if not sec then return false end
+
+        -- Real inventory boxes and placeable furniture
+        if cls == clsid.inventory_box or cls == clsid.inventory_box_s or sec:find("inventory_box", 1, true) then
+            return true
+        end
+        if sec:find("placeable_", 1, true) or sec:find("hg_", 1, true) or sec:find("turret", 1, true) or sec:find("alarm", 1, true) then
+            return true
+        end
+        if hf_get_type and hf_get_type(se_obj) then
+            return true
+        end
+        -- Standard inventory items (weapons, outfits, ammo, mutant meat/parts, food, junk, clutter)
+        if ini and (ini:line_exist(sec, "inv_grid_width") or ini:line_exist(sec, "inv_weight")) then
+            return true
+        end
+        return false
+    end
+
+    local child_items_list = {}
+    local ground_clutter_list = {}
+
+    local function evaluate_obj(id, se_obj)
+        if not se_obj then return end
+        local pid = se_obj.parent_id
+        if pid and containers_set[pid] then
+            child_items_list[#child_items_list + 1] = id
+            return
+        end
+        if pid == 65535 and not structures_set[id] then
+            local spos = se_obj.position
+            if spos and math.abs(spos.y - hy) <= 15.0 then
+                local dx = spos.x - hx
+                local dz = spos.z - hz
+                if (dx * dx + dz * dz) <= bdist_sq then
+                    local v = gg:vertex(se_obj.m_game_vertex_id)
+                    if v and v:level_id() == hub_level_id then
+                        if is_safe_deletable_item(id, se_obj) then
+                            ground_clutter_list[#ground_clutter_list + 1] = id
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    local registry = _G.server_objects_registry
+    if registry then
+        for id, se_obj in pairs(registry) do
+            evaluate_obj(id, se_obj)
+        end
+    else
+        for id = 1, 65534 do
+            local se_obj = sim:object(id)
+            if se_obj then evaluate_obj(id, se_obj) end
+        end
+    end
+
+    -- Construct deletion queue: container items first, then ground clutter, then structures & hub
+    local release_queue = {}
+    for _, id in ipairs(child_items_list) do
+        release_queue[#release_queue + 1] = id
+    end
+    for _, id in ipairs(ground_clutter_list) do
+        release_queue[#release_queue + 1] = id
+    end
+    for sid in pairs(structures_set) do
+        if sid ~= hub_id then
+            release_queue[#release_queue + 1] = sid
+        end
+    end
+    if structures_set[hub_id] then
+        release_queue[#release_queue + 1] = hub_id
+    end
+
+    if #release_queue == 0 then return end
+
+    local q_idx = 1
+    local total_q = #release_queue
+    local batch_size = 12
+    local event_id = "homestead_dismantle_clean_" .. tostring(hub_id)
+    CreateTimeEvent(event_id, "clean_tick", 0.05, function()
+        local s = alife()
+        if not s then return true end
+        local processed = 0
+        while q_idx <= total_q and processed < batch_size do
+            local oid = release_queue[q_idx]
+            q_idx = q_idx + 1
+            processed = processed + 1
+            if oid then
+                local se = s:object(oid)
+                if se then
+                    pcall(alife_release, se)
+                end
+            end
+        end
+        if q_idx > total_q then
+            return true
+        end
+        return false
+    end)
+end
+
 function stalker_camp_builder.dismantle_camp(hub_id)
     local sb = stalker_camp_builder
     local camp = sb.active_camps[hub_id]
@@ -2494,6 +2673,20 @@ function stalker_camp_builder.dismantle_camp(hub_id)
         pcall(sb.release_legacy_camp_stash, camp, hub_obj and hub_obj.position)
     end
 
+    local remove_furniture = false
+    if sb.cfg and sb.cfg.dismantle_removes_furniture ~= nil then
+        remove_furniture = sb.cfg.dismantle_removes_furniture
+    elseif sb.defaults and sb.defaults.dismantle_removes_furniture ~= nil then
+        remove_furniture = sb.defaults.dismantle_removes_furniture
+    end
+
+    if remove_furniture then
+        if sb.scan_camp_structures then
+            pcall(sb.scan_camp_structures, hub_id, true)
+        end
+        sb.queue_dismantle_structure_cleanup(hub_id, camp, hub_obj)
+    end
+
     -- Clear settlement registry
     if sb.release_camp_trader then
         sb.release_camp_trader(camp)
@@ -2522,12 +2715,9 @@ function stalker_camp_builder.dismantle_camp(hub_id)
         end
     end
 
-    -- NOTE: To prevent catastrophic player loot loss, physical workbenches,
-    -- storage boxes, and chests are NEVER deleted during settlement dismantling!
-    -- They remain intact as regular Hideout Furniture objects.
-
     if db.actor then
-        actor_menu.set_msg(1, game.translate_string("st_dismantle_camp_done"), 5)
+        local msg_key = remove_furniture and "st_dismantle_camp_cleaned_done" or "st_dismantle_camp_done"
+        actor_menu.set_msg(1, game.translate_string(msg_key), 5)
     end
     -- the Market Stall's takings are the player's: pay out the till as the Trader's dialog does,
     -- after the message above (set_msg shows one message at a time)

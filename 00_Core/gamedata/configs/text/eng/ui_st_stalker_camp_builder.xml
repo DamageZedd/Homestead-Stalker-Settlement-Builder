@@ -265,6 +265,9 @@
     <string id="st_dismantle_camp_done">
         <text>Settlement disbanded. Workbenches and storage containers remain intact.</text>
     </string>
+    <string id="st_dismantle_camp_cleaned_done">
+        <text>Settlement disbanded. All built structures, containers, and ground clutter removed.</text>
+    </string>
     <string id="st_rename_survivor">
         <text>Rename Survivor</text>
     </string>
@@ -2479,6 +2482,12 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_lock_furniture_desc">
         <text>Furniture and building pieces placed with Hideout Furniture cannot be pushed: walls, roofs and furniture only collide with you, grenades and the level, so neighbouring pieces and NPCs no longer shove them out of place, and NPCs, dropped items and bodies pass through them. Foundations, floors and stairs stay solid for everyone. Default: ON.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_dismantle_removes_furniture">
+        <text>Dismantle Cleans Up All Settlement Content</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_dismantle_removes_furniture_desc">
+        <text>When enabled, dismantling a settlement (via PDA or flag) completely removes all placed furniture, building kit pieces, storage containers, their contents, and loose ground clutter within the camp radius. When disabled (default), all structures and containers remain intact in the world.</text>
     </string>
     <string id="st_homestead_ground_uneven">
         <text>Ground too uneven for a foundation here</text>
