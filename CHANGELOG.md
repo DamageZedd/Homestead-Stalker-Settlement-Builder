@@ -1,6 +1,6 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
-## v1.3.2 — Roof Emission Cover, Lua GC Optimization, Vanilla Crafting Tab & Ghost Stash Fix
+## v1.3.3 — Storage Overflow Protection, Settlement Teardown Options & Hub Independence
 
 ### 🚩 Settlement Flag Hub & Workbench Decoupling
 - **Settlement Hub Independence**: decoupled settlement founding from Hideout Furniture workbenches so players can freely place workbenches in personal hideouts, rooms, and safehouses without inadvertently creating full Homestead settlement zones. Only planting a **Settlement Flag** founds a settlement by default, matching the v1.3.0 design.
@@ -18,6 +18,8 @@
 ### 🧹 Settlement Dismantling Content Cleanup Option
 - **MCM Option to Clean All Built Content**: added an MCM toggle (`dismantle_removes_furniture`, under *Building*, default: OFF) allowing players to choose whether dismantling a settlement completely wipes the site or preserves placed structures.
 - **Safe Batched Teardown Queue**: when dismantling with cleanup enabled, all built furniture, building kit pieces, storage containers, container contents, and loose ground clutter within the camp boundary are safely and progressively released via a batched ALife queue (12 objects per 0.05s) with container child enumeration, preventing engine stutter or native X-Ray Monolith MT release recursion crashes.
+
+## v1.3.2 — Roof Emission Cover, Lua GC Optimization, Vanilla Crafting Tab & Ghost Stash Fix
 
 ### 🌩️ Roof Shelter Protection Against Emissions & Psi-Storms
 - **Homestead Roofs & Upper Floors Shelter the Player & NPCs**: standing underneath any placed Homestead roof piece (`placeable_hs_roof_flat`, `placeable_hs_roof_slope`, `placeable_hs_roof_hip`, `placeable_hs_roof_valley`, `placeable_hs_roof_pyramid`) or upper-story floor (`placeable_hs_floor`) now protects the player and NPCs from Emissions and Psi-Storms (`CSurgeManager.pos_in_cover`, `CPsiStormManager.pos_in_cover`, and `actor_status.scan_safe_zone`), lighting up the HUD shelter indicator and integrating cleanly with Dynamic Emission Cover.

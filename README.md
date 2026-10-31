@@ -7,7 +7,7 @@
 
 *Build camps. Recruit survivors. Automate production. Hold the line.*
 
-![Version](https://img.shields.io/badge/version-v1.3.2-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-v1.3.3-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
 
 **[GAMMA Discord Thread](https://discord.com/channels/912320241713958912/1515669053606334504/1542893750408315030)** · **[Full Changelog](CHANGELOG.md)** · **[ModDB](https://www.moddb.com/mods/stalker-anomaly/addons/homestead-stalker-settlement-builder)** · **[Latest Release](https://github.com/DamageZedd/Homestead-Stalker-Settlement-Builder/releases/latest)**
 
@@ -19,6 +19,22 @@
 Homestead is a comprehensive settlement management and tactical camp-building mod for S.T.A.L.K.E.R. Anomaly. Build functioning camps, recruit survivors, automate production, repel hostile raids, and watch the Zone come alive as rival factions fight over territory around you.
 
 Plant a Settlement Flag to establish a 50-meter settlement boundary. Construct beds, stoves, stashes, defensive barricades, water pumps, alarm sirens, automated pistol turrets, power generators, and decorative furniture. Recruit stalkers or shelter refugees, assign them specialized jobs, manage morale and resources, and control everything remotely through a full 5-tab PDA interface and extensive MCM.
+
+---
+
+## 🆕 New in v1.3.3
+
+### 🚩 Settlement Flag Hub & Workbench Decoupling
+Decoupled settlement founding from Hideout Furniture workbenches so workbenches can be placed freely in personal hideouts, rooms, and safehouses without inadvertently creating a settlement zone. Only planting a **Settlement Flag** founds a settlement by default, matching the v1.3.0 headline design (with an MCM toggle under *General Settings* to restore the legacy v1.2 auto-founding behavior). Hub pickups and dismantling now cleanly purge all map markers, container links, and registrations.
+
+### 🛡️ Production Overflow & Storage Full Protection
+Routed automated worker surplus and overflow into the camp Market Stall when settlement storage is full, allowing the camp Trader to sell surplus goods for RU. Eliminated the legacy ground-spawning fallback from camp storage to prevent item and physics clutter buildup, protecting long unattended settlements against the 65,534 ALife ID cap. Automated jobs now check storage headroom before consuming recipe components.
+
+### 🧹 Settlement Dismantling Content Cleanup Option
+Added an MCM toggle (`dismantle_removes_furniture`, under *Building*, default: OFF) allowing players to choose whether dismantling a settlement completely wipes the site or preserves placed structures. When enabled, all built furniture, building kit pieces, storage containers, container contents, and loose ground clutter within the camp boundary are safely and progressively released via a batched ALife queue.
+
+### 🔤 Missing Vanilla Crafting Category Localization
+Added missing `st_ui_craft_furniture` and `st_craft_furniture` strings across English and Russian text configs, preventing raw unparsed string tokens from displaying in the crafting category list on Vanilla Anomaly and non-GAMMA modpacks.
 
 ---
 
