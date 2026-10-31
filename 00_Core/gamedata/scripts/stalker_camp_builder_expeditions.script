@@ -178,7 +178,7 @@ function stalker_camp_builder.recall_scavenger_expedition(stash_id)
 
     local actor = db.actor
     if actor then
-        local msg = string.format(game.translate_string("st_camp_recall_expedition"), exp.survivor_name or "Scavenger", camp and camp.name or "base")
+        local msg = string.format(game.translate_string("st_camp_recall_expedition"), exp.survivor_name or "Scavenger", camp and sb.get_camp_label(camp) or game.translate_string("st_scavenger_recall_camp_gone"))
         news_manager.send_tip(actor, msg, nil, "general_stalker", 8000)
     end
     return true
@@ -223,7 +223,7 @@ function stalker_camp_builder.get_available_scavengers()
                         camp = camp,
                         survivor = surv,
                         name = surv.name or "Settler",
-                        camp_name = camp.name or "Settlement",
+                        camp_name = sb.get_camp_label(camp),
                         tier = surv.tier or 0
                     }
                     if is_scav then
@@ -1050,7 +1050,7 @@ end
 
 function stalker_camp_builder.format_expedition_time(game_sec)
     local mfloor = math.floor
-    if not game_sec or game_sec <= 0 then return "0m" end
+    if not game_sec or game_sec <= 0 then return string.format(game.translate_string("st_expedition_time_s"), 0) end
     local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
     if tf <= 0 then tf = 10 end
 
@@ -1061,20 +1061,20 @@ function stalker_camp_builder.format_expedition_time(game_sec)
     if real_mins >= 60 then
         local real_hrs = mfloor(real_mins / 60)
         local rm = real_mins % 60
-        return string.format("%dh %02dm", real_hrs, rm)
+        return string.format(game.translate_string("st_expedition_time_hm"), real_hrs, rm)
     elseif real_mins > 0 then
-        return string.format("%dm %02ds", real_mins, real_rem_s)
+        return string.format(game.translate_string("st_expedition_time_ms"), real_mins, real_rem_s)
     else
-        return string.format("%ds", real_rem_s)
+        return string.format(game.translate_string("st_expedition_time_s"), real_rem_s)
     end
 end
 
 function stalker_camp_builder.format_expedition_real_mins(game_sec)
-    if not game_sec or game_sec <= 0 then return "1 min" end
+    if not game_sec or game_sec <= 0 then return string.format(game.translate_string("st_expedition_real_min"), 1) end
     local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
     if tf <= 0 then tf = 10 end
     local real_mins = math.ceil(game_sec / (tf * 60))
-    return string.format("%d min%s", real_mins, real_mins == 1 and "" or "s")
+    return string.format(game.translate_string(real_mins == 1 and "st_expedition_real_min" or "st_expedition_real_mins"), real_mins)
 end
 
 stalker_camp_builder.current_spot_scavengers = {}
@@ -1108,10 +1108,10 @@ function stalker_camp_builder.map_spot_menu_add_property(property_ui, id, level_
             local rem_sec = math.max(0, exp.duration - elapsed)
             local time_str = sb.format_expedition_time(rem_sec)
 
-            local status_str = sformat("Scavenger in Transit: %s (%d%% - %s left)", exp.survivor_name, pct, time_str)
+            local status_str = sformat(game.translate_string("st_pda_scavenger_transit_status"), exp.survivor_name, pct, time_str)
             property_ui:AddItem(status_str)
 
-            local recall_str = sformat("Recall Scavenger (%s)", exp.survivor_name)
+            local recall_str = sformat(game.translate_string("st_pda_recall_scavenger"), exp.survivor_name)
             property_ui:AddItem(recall_str)
             sb.current_spot_scavengers[recall_str] = { action = "recall", stash_id = primary_id or id, npc_id = exp.npc_id, hub_id = exp.hub_id }
             return
@@ -1119,7 +1119,7 @@ function stalker_camp_builder.map_spot_menu_add_property(property_ui, id, level_
 
         local available = sb.get_available_scavengers()
         if #available == 0 then
-            property_ui:AddItem("Dispatch Scavenger (No scavengers available)")
+            property_ui:AddItem(game.translate_string("st_pda_send_scavenger_none"))
             return
         end
 
@@ -1127,15 +1127,17 @@ function stalker_camp_builder.map_spot_menu_add_property(property_ui, id, level_
         local lvl_disp = game.translate_string(target_lvl)
         local all_stashes = (sb.get_level_marked_stashes and sb.get_level_marked_stashes(target_lvl)) or {}
         local is_yellow = sb.is_stash_yellow(id, target_lvl)
-        local type_badge = is_yellow and " [Yellow Stash]" or " [White Stash]"
+        -- the string table drops the spaces at a text's ends: the spaces between the parts are added here
+        local type_badge = " " .. game.translate_string(is_yellow and "st_pda_stash_badge_yellow" or "st_pda_stash_badge_white")
+        local est_fmt = game.translate_string("st_pda_scavenger_est")
 
         local send_prefix = game.translate_string("st_pda_send_scavenger_prefix") or "Dispatch Scavenger: "
         for _, sc in ipairs_(available) do
             local est_sec = sb.calculate_single_stash_duration(sc.hub_id, id, target_lvl, sc.survivor)
-            local est_str = sb.format_expedition_real_mins(est_sec)
+            local est_str = sformat(est_fmt, sb.format_expedition_real_mins(est_sec))
 
-            local tier_str = (sc.tier and sc.tier > 0) and (" [T" .. sc.tier .. "]") or ""
-            local menu_str = sformat("%s%s (%s%s - Est. %s)%s", send_prefix, sc.name, sc.camp_name, tier_str, est_str, type_badge)
+            local tier_str = (sc.tier and sc.tier > 0) and (" " .. sformat(game.translate_string("st_pda_scavenger_tier"), sc.tier)) or ""
+            local menu_str = sformat("%s %s (%s%s - %s)%s", send_prefix, sc.name, sc.camp_name, tier_str, est_str, type_badge)
             property_ui:AddItem(menu_str)
             sb.current_spot_scavengers[menu_str] = { action = "dispatch", stash_id = id, npc_id = sc.npc_id, hub_id = sc.hub_id, target_level = target_lvl, duration = est_sec, is_yellow = is_yellow }
         end
@@ -1152,18 +1154,19 @@ function stalker_camp_builder.map_spot_menu_add_property(property_ui, id, level_
             local w_count = count - y_count
             local sweep_badge = ""
             if y_count > 0 and w_count > 0 then
-                sweep_badge = sformat(" [%d Yellow / %d White]", y_count, w_count)
+                sweep_badge = " " .. sformat(game.translate_string("st_pda_sweep_badge_mixed"), y_count, w_count)
             elseif y_count > 0 then
-                sweep_badge = sformat(" [%d Yellow]", y_count)
+                sweep_badge = " " .. sformat(game.translate_string("st_pda_sweep_badge_yellow"), y_count)
             else
-                sweep_badge = sformat(" [%d White]", w_count)
+                sweep_badge = " " .. sformat(game.translate_string("st_pda_sweep_badge_white"), w_count)
             end
+            local sweep_prefix = sformat(game.translate_string("st_pda_sweep_stashes_prefix"), lvl_disp, count)
 
             for _, sc in ipairs_(available) do
                 local est_sec = sb.calculate_regional_sweep_duration(sc.hub_id, all_stashes, target_lvl, sc.survivor)
-                local est_str = sb.format_expedition_real_mins(est_sec)
+                local est_str = sformat(est_fmt, sb.format_expedition_real_mins(est_sec))
 
-                local sweep_str = sformat("Sweep All %s Stashes (%d Stashes%s): %s (Est. %s)", lvl_disp, count, sweep_badge, sc.name, est_str)
+                local sweep_str = sformat("%s %s (%s)%s", sweep_prefix, sc.name, est_str, sweep_badge)
                 property_ui:AddItem(sweep_str)
                 sb.current_spot_scavengers[sweep_str] = { action = "sweep", stash_id = id, all_stashes = all_stashes, npc_id = sc.npc_id, hub_id = sc.hub_id, target_level = target_lvl, duration = est_sec, stash_types = sweep_types }
             end
@@ -1346,8 +1349,8 @@ function stalker_camp_builder.dispatch_scavenger_to_stash(stash_id, target_level
     local real_est = sb.format_expedition_real_mins(final_duration_sec)
 
     local disp_lvl = game.translate_string(target_level)
-    local type_str = is_yellow and " [Yellow Rare]" or " [White Common]"
-    local msg = string.format(game.translate_string("st_scavenger_expedition_departed"), best_surv.name or "Scavenger", best_camp.name or "Camp", disp_lvl, type_str, real_est)
+    local type_str = " " .. game.translate_string(is_yellow and "st_scavenger_departed_yellow" or "st_scavenger_departed_white")
+    local msg = string.format(game.translate_string("st_scavenger_expedition_departed"), best_surv.name or "Scavenger", sb.get_camp_label(best_camp), disp_lvl, type_str, real_est)
     camp_send_tip(actor, msg, nil, "general_stalker", 10000, best_hub_id, "expedition", true)
 
     teleport_scavenger_on_departure(best_surv.npc_id, stash_id, target_level)
@@ -1436,7 +1439,7 @@ function stalker_camp_builder.dispatch_scavenger_regional_sweep(all_stashes, tar
     local real_est = sb.format_expedition_real_mins(final_duration_sec)
 
     local disp_lvl = game.translate_string(target_level)
-    local msg = string.format(game.translate_string("st_scavenger_sweep_departed"), best_surv.name or "Scavenger", best_camp.name or "Camp", count, disp_lvl, real_est)
+    local msg = string.format(game.translate_string("st_scavenger_sweep_departed"), best_surv.name or "Scavenger", sb.get_camp_label(best_camp), count, disp_lvl, real_est)
     camp_send_tip(actor, msg, nil, "general_stalker", 11000, best_hub_id, "expedition", true)
 
     teleport_scavenger_on_departure(best_surv.npc_id, primary_stash_id, target_level)
@@ -1665,7 +1668,7 @@ local function roll_expedition_ambush(actor, exp)
     local name = exp.survivor_name or "Scavenger"
 
     if math.random(100) > chance then
-        return {}, 25, "Safe Expedition"
+        return {}, 25, game.translate_string("st_scavenger_receipt_ambush_safe")
     end
 
     if (exp.survivor_tier or 0) >= 2 or math.random(100) <= 60 then
@@ -1676,7 +1679,7 @@ local function roll_expedition_ambush(actor, exp)
         end
         return {"ammo_5.45x39_fmj", "mutant_part_dog_tail", "bandage",
                 "conserva", "prt_i_scrap"},
-               45, "Repelled Ambush (+Bonus Salvage)"
+               45, game.translate_string("st_scavenger_receipt_ambush_won")
     end
 
     if actor then
@@ -1684,7 +1687,7 @@ local function roll_expedition_ambush(actor, exp)
             sformat(game.translate_string("st_scavenger_ambush_fled"), name),
             nil, "red_danger", 10000, exp.hub_id, "combat", true)
     end
-    return {}, 15, "Evaded Enemy Ambush"
+    return {}, 15, game.translate_string("st_scavenger_receipt_ambush_fled")
 end
 
 local function deposit_expedition_haul(exp, camp, bonus_loot)
@@ -1756,9 +1759,10 @@ local function award_expedition_xp(surv, xp_earned)
     end
     if new_tier > old_tier then
         surv.tier = new_tier
-        local tier_names = {"Novice", "Skilled", "Expert", "Master"}
+        local tier_names = {"st_settler_tier_novice", "st_settler_tier_skilled", "st_settler_tier_expert", "st_settler_tier_master"}
         if db.actor then
-            local msg = string.format(game.translate_string("st_event_settler_promoted"), surv.name or "Survivor", tier_names[new_tier+1], "Scavenger")
+            local msg = string.format(game.translate_string("st_event_settler_promoted"), surv.name or "Survivor",
+                game.translate_string(tier_names[new_tier+1]), game.translate_string("st_pda_settlement_job_scavenge"))
             camp_send_tip(db.actor, msg, nil, "general_stalker", 10000)
             if add_radio_feed_entry then
                 add_radio_feed_entry("settlement", msg)
@@ -1784,7 +1788,7 @@ local function format_expedition_receipt(exp, camp, stash_id, ambush_note,
     end
     local items_list_str = (#item_lines > 0)
         and table.concat(item_lines, "\n")
-        or " - (No items / storage full)"
+        or (" - " .. game.translate_string("st_scavenger_receipt_no_items"))
 
     local disp_lvl = game.translate_string(exp.target_level or "unknown")
     local stash_desc
@@ -1798,24 +1802,24 @@ local function format_expedition_receipt(exp, camp, stash_id, ambush_note,
             end
         end
         if yellow_cnt > 0 and white_cnt > 0 then
-            stash_desc = sformat("%d Stashes in %s (%d Yellow Rare / %d White Common)",
+            stash_desc = sformat(game.translate_string("st_scavenger_receipt_sweep_mixed"),
                 #stashes, disp_lvl, yellow_cnt, white_cnt)
         elseif yellow_cnt > 0 then
-            stash_desc = sformat("%d Yellow (Rare) Stashes in %s", #stashes, disp_lvl)
+            stash_desc = sformat(game.translate_string("st_scavenger_receipt_sweep_yellow"), #stashes, disp_lvl)
         else
-            stash_desc = sformat("%d White (Common) Stashes in %s", #stashes, disp_lvl)
+            stash_desc = sformat(game.translate_string("st_scavenger_receipt_sweep_white"), #stashes, disp_lvl)
         end
     else
         local is_yellow = exp.target_is_yellow
             or (exp.stash_types and exp.stash_types[stashes[1]])
         if is_yellow then
-            stash_desc = sformat("Yellow (Rare) Stash in %s", disp_lvl)
+            stash_desc = sformat(game.translate_string("st_scavenger_receipt_stash_yellow"), disp_lvl)
         else
-            stash_desc = sformat("White (Common) Stash in %s", disp_lvl)
+            stash_desc = sformat(game.translate_string("st_scavenger_receipt_stash_white"), disp_lvl)
         end
     end
 
-    local camp_label = camp and camp.name or "Settlement Storage"
+    local camp_label = camp and stalker_camp_builder.get_camp_label(camp) or game.translate_string("st_scavenger_receipt_camp_gone")
     local r_items = tonumber(items_recovered) or 0
     local r_xp_earned = tonumber(xp_earned) or 0
     local r_total_xp = tonumber(total_xp) or 0
@@ -1834,7 +1838,7 @@ local function format_expedition_receipt(exp, camp, stash_id, ambush_note,
         r_cur_tier)
     if ok and res then return res end
 
-    return string.format("EXPEDITION REPORT: %s returned to %s! Deposited %d items.",
+    return string.format(game.translate_string("st_scavenger_receipt_short"),
         exp.survivor_name or "Scavenger", camp_label, r_items)
 end
 
@@ -1928,7 +1932,7 @@ function stalker_camp_builder.process_stash_expeditions()
 
         local target_lvl_name = game.translate_string(exp.target_level or "unknown")
         local home_camp = sb.active_camps and sb.active_camps[exp.hub_id]
-        local camp_name = (home_camp and home_camp.name) or "Camp"
+        local camp_name = (home_camp and sb.get_camp_label(home_camp)) or game.translate_string("st_scavenger_camp_gone")
 
         emit_expedition_chatter(actor, exp, progress, target_lvl_name, camp_name)
         loot_due_stashes(exp, stash_id, progress)
