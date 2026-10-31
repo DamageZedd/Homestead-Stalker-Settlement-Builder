@@ -3223,8 +3223,28 @@ function stalker_camp_builder.open_technician_workbench(actor, npc)
         target_hub_id = sb.get_active_camp_near(db.actor:position())
     end
     if target_hub_id and ui_furniture_workshop and ui_furniture_workshop.start_dialog then
+        -- Hideout Furniture's menu is a Workshop's: its Use Workshop and Access Stash give the piece
+        -- a workshop_stash, which linked_stash_id puts before a Settlement Flag's own storage
+        local bench_id = nil
+        local se_hub = alife_object(target_hub_id)
+        if se_hub and se_hub:section_name() == "placeable_workshop" then
+            bench_id = target_hub_id
+        else
+            local camp = sb.active_camps and sb.active_camps[target_hub_id]
+            for id in pairs(camp and camp.structures or {}) do
+                local se = alife_object(id)
+                if se and se:section_name() == "placeable_workshop" then
+                    bench_id = id
+                    break
+                end
+            end
+        end
+        if not bench_id then
+            actor_menu.set_msg(1, game.translate_string("st_camp_tech_no_workbench"), 4)
+            return
+        end
         CreateTimeEvent("homestead_tech_wb", "open", 0.1, function()
-            ui_furniture_workshop.start_dialog(target_hub_id)
+            ui_furniture_workshop.start_dialog(bench_id)
             return true
         end)
     end

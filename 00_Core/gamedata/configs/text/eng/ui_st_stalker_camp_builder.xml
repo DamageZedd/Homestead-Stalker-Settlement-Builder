@@ -1198,6 +1198,9 @@
     <string id="st_camp_tech_use_workbench">
         <text>I'd like to use the settlement workbench myself.</text>
     </string>
+    <string id="st_camp_tech_no_workbench">
+        <text>This settlement has no Workshop. Place one inside the camp to work at it yourself.</text>
+    </string>
     <string id="st_camp_tech_trade_ask">
         <text>Show me your spare parts, gun oils, and cleaning kits.</text>
     </string>
