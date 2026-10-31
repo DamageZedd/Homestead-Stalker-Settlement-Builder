@@ -41,6 +41,7 @@ local TRACK_PITCH_STEPS_PER_SEC = 7.0
 
 local TRACK_LOS_INTERVAL      = 0.15  -- how often we check LOS while tracking
 local TRACK_LOS_FORGET_TIME   = 0.60  -- how long target can be unseen before dropping it
+local SCAN_LOS_TARGETS        = 3     -- how many of the best-scored targets a scan checks for LOS
 
 local BULLET_SPEED      = 400
 local BULLET_POWER      = 0.25
@@ -734,9 +735,10 @@ local function rebuild_hostile_cache(self)
     return t
 end
 
+-- The cached hostiles within max_radius, best score (least turning, then nearest) first.
 local function find_best_target_cached(self, turret_obj, max_radius)
     local list = self.hostile_cache
-    if not list then return nil, max_radius or 999999 end
+    if not list then return {} end
 
     local tpos = turret_obj:position()
     local max_r = max_radius or 999999
@@ -745,9 +747,7 @@ local function find_best_target_cached(self, turret_obj, max_radius)
     local cur_yaw   = self.cur_yaw_step   or 0
     local cur_pitch = self.cur_pitch_step or 0
 
-    local best_id = nil
-    local best_score = 1e9
-    local best_dist = max_r
+    local found, score_of = {}, {}
 
     for i = 1, #list do
         local id = list[i]
@@ -773,16 +773,14 @@ local function find_best_target_cached(self, turret_obj, max_radius)
 
                 local score = (yaw_err * 3.0) + (pitch_err * 1.5) + (dist * 0.05)
 
-                if score < best_score then
-                    best_score = score
-                    best_id = id
-                    best_dist = dist
-                end
+                found[#found + 1] = id
+                score_of[id] = score
             end
         end
     end
 
-    return best_id, best_dist
+    table.sort(found, function(a, b) return score_of[a] < score_of[b] end)
+    return found
 end
 
 --------------------------------------------------------------------------------
@@ -1007,17 +1005,20 @@ function pistol_turret_wrapper:update(delta)
     if self.scan_t <= 0 then
         self.scan_t = 0.4
 
-        local best_id = find_best_target_cached(self, self.object, 20)
+        local candidates = find_best_target_cached(self, self.object, 20)
         local picked_id = nil
 
-        if best_id then
-            local picked_obj = get_obj_by_id_safe(best_id)
+        -- the best-scored hostile can be behind cover (often the one just lost, which the turret
+        -- still faces): take the first of the best few that is in sight
+        for i = 1, math.min(#candidates, SCAN_LOS_TARGETS) do
+            local picked_obj = get_obj_by_id_safe(candidates[i])
             if picked_obj then
                 local aim_pos = get_target_aim_pos(picked_obj)
                 if turret_target_visible(self, picked_obj, aim_pos) then
-                    picked_id = best_id
+                    picked_id = candidates[i]
                     self.aim_pos_cached = aim_pos
                     self.target_last_seen_t = 0
+                    break
                 end
             end
         end
