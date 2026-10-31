@@ -5653,6 +5653,10 @@ function stalker_camp_builder.is_held_squad(squad)
     for _, camp in pairs(camps) do
         if camp_holds_squad(camp, id) then return true end
     end
+    -- an outpost's garrison, reinforcements and heat pack are on its rival_camps entry
+    for _, camp in pairs(stalker_camp_builder.rival_camps or {}) do
+        if camp_holds_squad(camp, id) then return true end
+    end
     return false
 end
 
