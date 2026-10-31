@@ -96,6 +96,12 @@
 	<string id="st_homestead_station_stash_busy">
 		<text>Хранилище станции ещё не загружено. Попробуйте ещё раз через мгновение.</text>
 	</string>
+	<string id="st_ui_craft_furniture">
+		<text>Мебель для убежища</text>
+	</string>
+	<string id="st_craft_furniture">
+		<text>Мебель для убежища</text>
+	</string>
 </string_table>
 
 

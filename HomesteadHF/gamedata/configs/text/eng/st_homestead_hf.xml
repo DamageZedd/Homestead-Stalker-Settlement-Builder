@@ -96,6 +96,12 @@
 	<string id="st_homestead_station_stash_busy">
 		<text>The station's storage is not loaded yet. Try again in a moment.</text>
 	</string>
+	<string id="st_ui_craft_furniture">
+		<text>Hideout Furniture</text>
+	</string>
+	<string id="st_craft_furniture">
+		<text>Hideout Furniture</text>
+	</string>
 </string_table>
 
 

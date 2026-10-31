@@ -313,6 +313,12 @@
     <string id="ui_mcm_stalker_camp_builder_hub_min_dist_desc">
         <text>Minimum required distance between different Settlement Camp Hubs to prevent overlap.</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_allow_workshop_hub">
+        <text>Workbench Establishes Settlement</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_allow_workshop_hub_desc">
+        <text>When enabled, placing a Hideout Furniture workbench in the wild establishes a new settlement hub (legacy v1.2 behavior). When disabled (default), only planting a Settlement Flag founds a settlement, allowing workbenches to be placed anywhere as normal crafting stations.</text>
+    </string>
     <string id="ui_mcm_stalker_camp_builder_jobs_header">
         <text>Survivor Jobs &amp; Scavenging Balance</text>
     </string>
@@ -2500,5 +2506,11 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     </string>
     <string id="st_ui_craft_homestead">
         <text>Homestead</text>
+    </string>
+    <string id="st_ui_craft_furniture">
+        <text>Hideout Furniture</text>
+    </string>
+    <string id="st_craft_furniture">
+        <text>Hideout Furniture</text>
     </string>
 </string_table>

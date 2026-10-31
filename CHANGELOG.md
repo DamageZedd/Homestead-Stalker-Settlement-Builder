@@ -2,6 +2,14 @@
 
 ## v1.3.2 — Roof Emission Cover, Lua GC Optimization, Vanilla Crafting Tab & Ghost Stash Fix
 
+### 🚩 Settlement Flag Hub & Workbench Decoupling
+- **Settlement Hub Independence**: decoupled settlement founding from Hideout Furniture workbenches so players can freely place workbenches in personal hideouts, rooms, and safehouses without inadvertently creating full Homestead settlement zones. Only planting a **Settlement Flag** founds a settlement by default, matching the v1.3.0 design.
+- **MCM Toggle for Legacy Workbench Hubs**: added an MCM option (`allow_workshop_hub`, under *General Settings*, default: OFF) allowing players who prefer the legacy v1.2 behavior to re-enable establishing new settlements by placing workbenches in the wild.
+- **Robust Teardown on Hub Pickup**: updated `hf_on_before_furniture_release` and `dismantle_camp` to cleanly purge all PDA map markers, active settlement registrations, settler jobs, and container links even if the physical hub object has already been released or picked up by the player.
+
+### 🔤 Missing Vanilla Crafting Category Localization
+- **Localized Crafting Tab Tokens**: added missing `st_ui_craft_furniture` and `st_craft_furniture` strings ("Hideout Furniture" / "Мебель для убежища") across both English and Russian text configs (`ui_st_stalker_camp_builder.xml` and `st_homestead_hf.xml`), preventing raw unparsed string tokens from displaying in the crafting category list on Vanilla Anomaly and non-GAMMA modpacks.
+
 ### 🛡️ Production Overflow & Storage Full Protection
 - **Market Stall Overflow Routing**: routed worker surplus and overflow into the Market Stall (`market_stash`) if placed when all settlement storage containers are at capacity, allowing the camp Trader to sell surplus goods to passing stalkers for RU instead of halting work.
 - **Eliminated Ground Dropping on Full Storage**: removed the legacy ground-spawning fallback from `deposit_item_to_camp`, completely eliminating the hazardous accumulation of dropped items and physics clutter at the camp hub over long unattended periods (protecting against the 65,534 ALife ID cap).

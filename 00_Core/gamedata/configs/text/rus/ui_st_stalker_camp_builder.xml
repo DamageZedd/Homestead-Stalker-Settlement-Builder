@@ -313,6 +313,12 @@
     <string id="ui_mcm_stalker_camp_builder_hub_min_dist_desc">
         <text>Минимально необходимое расстояние между центрами разных поселений для предотвращения их наложения друг на друга.</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_allow_workshop_hub">
+        <text>Верстак создает поселение</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_allow_workshop_hub_desc">
+        <text>Если включено, установка верстака Hideout Furniture вне поселения создает новое поселение (поведение v1.2). Если отключено (по умолчанию), только установка Флага поселения создает поселение, позволяя свободно размещать верстаки в качестве обычных станций крафта.</text>
+    </string>
     <string id="ui_mcm_stalker_camp_builder_jobs_header">
         <text>Работы выживших и баланс собирательства</text>
     </string>
@@ -2503,6 +2509,12 @@
     </string>
     <string id="st_ui_craft_homestead">
         <text>Поселение</text>
+    </string>
+    <string id="st_ui_craft_furniture">
+        <text>Мебель для убежища</text>
+    </string>
+    <string id="st_craft_furniture">
+        <text>Мебель для убежища</text>
     </string>
 </string_table>
 

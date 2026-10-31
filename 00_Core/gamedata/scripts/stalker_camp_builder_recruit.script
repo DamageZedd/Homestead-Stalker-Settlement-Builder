@@ -2453,12 +2453,15 @@ end
 function stalker_camp_builder.queue_dismantle_structure_cleanup(hub_id, camp, hub_obj)
     local sb = stalker_camp_builder
     local sim = alife()
-    if not (sim and hub_obj and hub_obj.m_game_vertex_id) then return end
+    if not sim then return end
+
+    local hub_gvi = (hub_obj and hub_obj.m_game_vertex_id) or (camp and camp.gvi)
+    if not hub_gvi then return end
 
     local gg = game_graph()
-    local hub_vertex = gg and gg:vertex(hub_obj.m_game_vertex_id)
+    local hub_vertex = gg and gg:vertex(hub_gvi)
     local hub_level_id = hub_vertex and hub_vertex:level_id()
-    local hub_pos = hub_obj.position
+    local hub_pos = (hub_obj and hub_obj.position) or (camp and camp.pos and vector():set(camp.pos.x, camp.pos.y, camp.pos.z))
     if not (hub_pos and hub_level_id) then return end
 
     local hx, hy, hz = hub_pos.x, hub_pos.y, hub_pos.z
@@ -2631,7 +2634,6 @@ function stalker_camp_builder.dismantle_camp(hub_id)
     local camp = sb.active_camps[hub_id]
     if not camp then return false, "no_camp" end
     local hub_obj = alife_object(hub_id)
-    if not hub_obj then return false, "no_hub" end
 
     -- printf(string.format("[Homestead] Dismantling camp %d (%s)", hub_id, tostring(camp.name)))
 
@@ -2669,8 +2671,9 @@ function stalker_camp_builder.dismantle_camp(hub_id)
 
     -- Release any legacy ground-level camp_stash_id (or orphaned Homestead inventory_box at the hub)
     -- after transferring its contents to the player so no invisible stash remains behind.
+    local hub_pos = (hub_obj and hub_obj.position) or (camp.pos and vector():set(camp.pos.x, camp.pos.y, camp.pos.z))
     if sb.release_legacy_camp_stash then
-        pcall(sb.release_legacy_camp_stash, camp, hub_obj and hub_obj.position)
+        pcall(sb.release_legacy_camp_stash, camp, hub_pos)
     end
 
     local remove_furniture = false

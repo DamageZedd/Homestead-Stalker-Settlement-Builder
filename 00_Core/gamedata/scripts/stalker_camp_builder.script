@@ -773,6 +773,7 @@ local defaults = {
     scavenge_max_items = 2,       -- Max items returned by scavenger (balanced)
 
     hub_min_dist = 100,           -- Minimum distance between camp hubs
+    allow_workshop_hub = false,   -- When true, placing a Hideout Furniture workbench in the wild establishes a settlement (legacy v1.2). When false, only the Settlement Flag establishes settlements.
     boundary_dist = 50,           -- Boundary radius of camp (furniture placement limit)
     boundary_warn = 45,           -- Proximity warn distance for boundary placement
     player_spawn_safety = 150,    -- Minimum distance from player for rival squads to spawn
@@ -834,6 +835,7 @@ local mcm_option_path = {
     boundary_dist = "stalker_camp_builder/general/boundary_dist",
     npc_leash_radius = "stalker_camp_builder/general/npc_leash_radius",
     hub_min_dist = "stalker_camp_builder/general/hub_min_dist",
+    allow_workshop_hub = "stalker_camp_builder/general/allow_workshop_hub",
     defense_cap = "stalker_camp_builder/general/defense_cap",
     max_survivors_player_camp = "stalker_camp_builder/general/max_survivors_player_camp",
     base_recruit_chance = "stalker_camp_builder/general/base_recruit_chance",
@@ -3253,7 +3255,8 @@ function hf_on_furniture_place(obj_id)
     local sec = se_obj:section_name()
     -- a hub: the Hideout Furniture Workshop, or a HomesteadHF Settlement Flag (homestead_hub)
     local is_flag = ini_sys:r_bool_ex(sec, "homestead_hub", false)
-    if sec == "placeable_workshop" or is_flag then
+    local is_workshop = (sec == "placeable_workshop")
+    if is_workshop or is_flag then
         local inside_camp_id = nil
         local too_close_hub_id = nil
 
@@ -3297,10 +3300,25 @@ function hf_on_furniture_place(obj_id)
             return
         end
 
+        -- Placed in the wild (outside any existing camp boundary):
+        -- In v1.3+, the Settlement Flag is the settlement hub. A placed workbench only founds a
+        -- settlement if allow_workshop_hub is explicitly enabled in MCM (legacy v1.2 behavior).
+        -- Otherwise it functions as a regular standalone Hideout Furniture workbench.
+        local allow_wb_hub = false
+        if cfg and cfg.allow_workshop_hub ~= nil then
+            allow_wb_hub = cfg.allow_workshop_hub
+        elseif defaults and defaults.allow_workshop_hub ~= nil then
+            allow_wb_hub = defaults.allow_workshop_hub
+        end
+
+        if is_workshop and not allow_wb_hub then
+            return
+        end
+
         if too_close_hub_id then
             actor_menu.set_msg(1, game.translate_string("st_hub_too_close"), 3)
             alife_release(se_obj)
-            local inv_sec = ini_sys:r_string_ex(sec, "item_section") or "itm_workshop"
+            local inv_sec = ini_sys:r_string_ex(sec, "item_section") or (is_flag and "homestead_settlement_flag" or "itm_workshop")
             if db.actor then
                 alife():create(inv_sec, db.actor:position(), db.actor:level_vertex_id(), db.actor:game_vertex_id(), db.actor:id())
             else
@@ -3415,6 +3433,10 @@ function hf_on_before_furniture_release(obj_id)
     end
     local camp = stalker_camp_builder.active_camps[obj_id]
     if camp then
+        if stalker_camp_builder.dismantle_camp then
+            stalker_camp_builder.dismantle_camp(obj_id)
+            return
+        end
         local se_hub = safe_alife_object(obj_id)
         if stalker_camp_builder.release_legacy_camp_stash then
             stalker_camp_builder.release_legacy_camp_stash(camp, se_hub and se_hub.position)
@@ -3428,6 +3450,9 @@ function hf_on_before_furniture_release(obj_id)
         pcall(function()
             if level and level.map_remove_object_spot then
                 level.map_remove_object_spot(obj_id, "ui_pda2_actor_sleep_location")
+            end
+            if stalker_camp_builder.remove_all_camp_map_spots then
+                stalker_camp_builder.remove_all_camp_map_spots(obj_id)
             end
         end)
         invalidate_scan_camp_structures_cache(obj_id)
