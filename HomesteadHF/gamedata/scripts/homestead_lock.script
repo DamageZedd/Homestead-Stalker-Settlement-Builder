@@ -116,11 +116,34 @@ local function put_back(obj, spot)
     CreateTimeEvent("homestead_lock", "put_back", 1, report_put_back)
 end
 
+-- The radial menu's Freeze / Unfreeze: an unfrozen piece falls and collides like any other object, and
+-- is kept wherever it is frozen again. Wrapped on each piece's own wrapper: a binder class that
+-- subclasses hf_binder_wrapper (stations, flags, the stall, gadgets) got its own copy of set_frozen
+-- when it was declared, before on_game_start could replace hf_binder_wrapper's.
+local function hook_set_frozen(id)
+    local wrapper = bind_hf_base.get_wrapper(id)
+    local set_frozen = wrapper and wrapper.set_frozen
+    if not set_frozen or wrapper.hs_lock_hooked then return end
+    wrapper.hs_lock_hooked = true
+    wrapper.set_frozen = function(self, frozen)
+        set_frozen(self, frozen)
+        local obj = self.object
+        if obj and enabled then
+            local ok, err = pcall(function()
+                if self.is_frozen then save_spot(obj:id(), obj) else clear_spot(obj:id()) end
+                set_static(obj, self.is_frozen)
+            end)
+            if not ok then report(err) end
+        end
+    end
+end
+
 -- Runs after HF has frozen a piece that just came online.
 local function on_piece_frozen(id)
     local obj = level.object_by_id(id)
     if not obj then return end
     online[id] = true
+    hook_set_frozen(id)
     if se_load_var(id, nil, OLD_VAR) then
         se_save_var(id, nil, OLD_VAR, nil)
     end
@@ -171,25 +194,6 @@ local function hook_freeze(module)
     end
 end
 
--- The radial menu's Freeze / Unfreeze: an unfrozen piece falls and collides like any other object, and
--- is kept wherever it is frozen again.
-local function hook_set_frozen()
-    local wrapper_class = bind_hf_base.hf_binder_wrapper
-    local set_frozen = wrapper_class and wrapper_class.set_frozen
-    if not set_frozen then return end
-    wrapper_class.set_frozen = function(self, frozen)
-        set_frozen(self, frozen)
-        local obj = self.object
-        if obj and enabled then
-            local ok, err = pcall(function()
-                if self.is_frozen then save_spot(obj:id(), obj) else clear_spot(obj:id()) end
-                set_static(obj, self.is_frozen)
-            end)
-            if not ok then report(err) end
-        end
-    end
-end
-
 function on_game_start()
     local fs = getFS()
     if not fs:exist("$game_scripts$", "bind_hf_base.script") then return end
@@ -198,6 +202,5 @@ function on_game_start()
     if fs:exist("$game_scripts$", "bind_hf_static.script") then
         hook_freeze(bind_hf_static)
     end
-    hook_set_frozen()
     RegisterScriptCallback("on_option_change", load_settings)
 end
