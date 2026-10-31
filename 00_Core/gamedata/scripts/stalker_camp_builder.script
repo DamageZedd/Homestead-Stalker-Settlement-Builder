@@ -2012,7 +2012,7 @@ local function process_uninstall_prep()
         camp_send_tip(actor, ok and msg or fmt, nil, "general_stalker", 8000, nil, "general")
     end
     if cfg.debug_logging then
-        printf("[Homestead] Uninstall prep: purged %d rival decorations/structures.", released)
+        printf("[Homestead] Uninstall prep: purged %s rival decorations/structures.", released)
     end
     return released
 end
