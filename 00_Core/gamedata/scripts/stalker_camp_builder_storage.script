@@ -701,7 +701,7 @@ function stalker_camp_builder.start_pending_cond_timer()
     CreateTimeEvent("homestead_pend_cond", "tick", 2, sb.pending_cond_tick)
 end
 
-function stalker_camp_builder.deposit_item_to_camp(hub_id, camp, sec, is_yellow, map_tier, custom_cond, custom_parts, uses)
+function stalker_camp_builder.deposit_item_to_camp(hub_id, camp, sec, is_yellow, map_tier, custom_cond, custom_parts, uses, drop_at_hub)
       local sim = alife()
     local mrandom = math.random
     local type_ = type
@@ -728,7 +728,10 @@ function stalker_camp_builder.deposit_item_to_camp(hub_id, camp, sec, is_yellow,
     local target_box_id = sb.get_auto_sort_target_box(camp, hub_id, sec, false, item_w, weights)
     local box_se = target_box_id and alife_object(target_box_id)
 
-    if not box_se then
+    -- an expedition's haul has already been taken out of its stashes: with no room it waits on
+    -- the ground at the hub instead of being lost
+    local ground_se = not box_se and drop_at_hub and sb.safe_alife_object(hub_id)
+    if not box_se and not ground_se then
         return nil
     end
 
@@ -796,7 +799,9 @@ function stalker_camp_builder.deposit_item_to_camp(hub_id, camp, sec, is_yellow,
         end)
     end
 
-    if not se_item or not (se_item.id and alife_object(se_item.id)) then
+    if ground_se then
+        se_item = alife_create(sec, ground_se.position, ground_se.m_level_vertex_id, ground_se.m_game_vertex_id)
+    elseif not se_item or not (se_item.id and alife_object(se_item.id)) then
         pcall(function()
             if alife_create then
                 se_item = alife_create(sec, box_se.position, box_se.m_level_vertex_id, box_se.m_game_vertex_id, target_box_id)
@@ -935,7 +940,7 @@ function stalker_camp_builder.deposit_item_to_camp(hub_id, camp, sec, is_yellow,
         weights[target_box_id] = weights[target_box_id] + item_w
     end
 
-    return target_box_id
+    return target_box_id or se_item.id
 end
 
 function stalker_camp_builder.smart_dump_to_camp_storage(target_hub_id)
