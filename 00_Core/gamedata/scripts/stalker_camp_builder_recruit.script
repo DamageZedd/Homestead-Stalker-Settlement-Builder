@@ -1359,6 +1359,12 @@ function stalker_camp_builder.set_survivor_position(npc_id, lvid, pos, dir)
     end
     if not target_camp then return false, "not_found" end
 
+    -- the post is the player's spot on this level: a camp on another level can't use it, even when
+    -- its hub's coordinates (in that level's frame) are close by
+    if target_camp.level and target_camp.level ~= "unknown" and target_camp.level ~= level.name() then
+        return false, "too_far"
+    end
+
     local hub_obj = alife_object(target_hub_id)
     if hub_obj and hub_obj.position then
         local dx = pos.x - hub_obj.position.x
