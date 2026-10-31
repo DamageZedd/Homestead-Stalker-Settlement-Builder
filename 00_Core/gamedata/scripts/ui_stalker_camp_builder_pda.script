@@ -1181,7 +1181,8 @@ function SettlementManagerPDA:OnRivalSelected()
         garrison_count = 0
     elseif rcamp.status == "mutant_nest" or faction_key == "monster" then
         faction_name = "Mutants"
-        local squad = alife_object(rcamp.squad_id)
+        -- nil after the garrison is released, until the next rival tick updates the camp
+        local squad = rcamp.squad_id and alife_object(rcamp.squad_id)
         if squad then
             garrison_count = pcall(function() return squad:npc_count() end) and squad:npc_count() or 0
         end
@@ -1193,7 +1194,7 @@ function SettlementManagerPDA:OnRivalSelected()
             self.rival_camp_status:SetTextColor(hs_theme.argb("good"))
         end
     elseif not rcamp.cleared then
-        local squad = alife_object(rcamp.squad_id)
+        local squad = rcamp.squad_id and alife_object(rcamp.squad_id)
         if squad then
             garrison_count = pcall(function() return squad:npc_count() end) and squad:npc_count() or 0
             local comm = squad.get_squad_community and squad:get_squad_community() or squad.player_id
@@ -1214,7 +1215,7 @@ function SettlementManagerPDA:OnRivalSelected()
         end
     else
         local friendly_faction = nil
-        local squad = alife_object(rcamp.squad_id)
+        local squad = rcamp.squad_id and alife_object(rcamp.squad_id)
         if squad then
             garrison_count = pcall(function() return squad:npc_count() end) and squad:npc_count() or 0
             local comm = squad.get_squad_community and squad:get_squad_community() or squad.player_id
