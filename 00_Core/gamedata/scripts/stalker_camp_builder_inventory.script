@@ -455,13 +455,14 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
         end
     end
 
-    local m_data = alife_storage_manager and alife_storage_manager.get_state and alife_storage_manager.get_state()
-    local ws = m_data and m_data.workshop_stashes or {}
+    -- gear at a workbench is in its hidden stash (a workshop_stash, or the station_stash of the
+    -- Repair Bench or a Settlement Flag), the box id camp_iterate_inventory reports
     local wb_only = {}
-    if hub_id and ws[hub_id] then wb_only[ws[hub_id]] = true end
+    local hub_stash = hub_id and sb.linked_stash_id(hub_id)
+    if hub_stash then wb_only[hub_stash] = true end
     for sid, stype in pairs(camp.structures or {}) do
         if stype == "workbench" or stype == "repair_bench" then
-            wb_only[ws[sid] or sid] = true
+            wb_only[sb.linked_stash_id(sid) or sid] = true
         end
     end
     if hub_id then wb_only[hub_id] = true end
