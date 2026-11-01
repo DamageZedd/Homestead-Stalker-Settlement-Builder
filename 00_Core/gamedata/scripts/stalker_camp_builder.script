@@ -1538,7 +1538,8 @@ function get_recruitable_camps(npc_or_comm)
     for hub_id, camp in pairs(stalker_camp_builder.active_camps) do
         local hub_obj = alife_object(hub_id)
         if hub_obj then
-            local capacity = get_camp_bed_capacity(camp)
+            -- the survivor cap holds independent of beds, as in recruit_npc_to_camp
+            local capacity = mmin(get_camp_bed_capacity(camp), cfg.max_survivors_player_camp or 12)
             local survivor_count = 0
             for k, v in pairs(camp.survivors) do
                 survivor_count = survivor_count + 1
