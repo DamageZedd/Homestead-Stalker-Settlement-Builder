@@ -484,22 +484,12 @@ function stalker_camp_builder.set_camp_settler_relations(hub_id, npc_id, is_join
     for other_id, _ in pairs(camp.survivors) do
         if other_id ~= npc_id then
             if is_joining then
-                if relation_registry and relation_registry.set_npcs_relation then
-                    relation_registry.set_npcs_relation(npc_id, other_id, "friend")
-                    relation_registry.set_npcs_relation(other_id, npc_id, "friend")
-                end
                 local other_obj = level.object_by_id(other_id)
                 if npc_obj and other_obj then
                     npc_obj:force_set_goodwill(1000, other_obj)
                     other_obj:force_set_goodwill(1000, npc_obj)
                 end
                 -- printf(string.format("[Homestead] settler relations: set npc %d <-> npc %d to friend in camp %d", npc_id, other_id, hub_id))
-            else
-                if relation_registry and relation_registry.set_npcs_relation then
-                    relation_registry.set_npcs_relation(npc_id, other_id, nil)
-                    relation_registry.set_npcs_relation(other_id, npc_id, nil)
-                end
-                -- printf(string.format("[Homestead] settler relations: reset npc %d <-> npc %d (removal) in camp %d", npc_id, other_id, hub_id))
             end
         end
     end
@@ -814,9 +804,9 @@ function stalker_camp_builder.heal_corrupted_scripted_targets()
             -- squad.scripted_target` only guards against `false`/`nil`
             -- (since `false and X` short-circuits without evaluating X),
             -- but `true and squad.scripted_target` still evaluates the
-            -- index and crashes on a boolean. Explicitly checking
-            -- type(squad) == "table" first is the only fully safe guard.
-            if type(squad) == "table" and squad.scripted_target then
+            -- index and crashes on a boolean. Real squads are userdata,
+            -- so the type check accepts userdata and tables, not booleans.
+            if (type(squad) == "userdata" or type(squad) == "table") and squad.scripted_target then
                 local ok_count, cnt = pcall(function() return squad:npc_count() end)
                 if ok_count and cnt then
                     local is_corrupted = false
@@ -892,11 +882,11 @@ function stalker_camp_builder.recall_all_settlers(target_hub_id)
 
             for _, entry in ipairs(to_recall) do
                 local cur_id = entry.npc_id
-                local se_npc = alife_object(cur_id)
-                if not se_npc and sb.restore_missing_settler then
-                    cur_id = sb.restore_missing_settler(hub_id, cur_id, entry.survivor) or cur_id
+                -- an id now held by another NPC is a missing settler: restore it, never move that NPC
+                if not sb.survivor_record_matches(cur_id, entry.survivor) and sb.restore_missing_settler then
+                    cur_id = sb.restore_missing_settler(hub_id, cur_id, entry.survivor)
                 end
-                local ok = sb.teleport_settler_to_camp_level(cur_id, hub_id, true)
+                local ok = cur_id and sb.teleport_settler_to_camp_level(cur_id, hub_id, true)
                 if ok then count = count + 1 end
             end
         end
@@ -2247,11 +2237,22 @@ function stalker_camp_builder.is_camp_settler(actor, npc)
     local npc_id = type(npc) == "number" and npc or (npc.id and (type(npc.id) == "function" and npc:id() or npc.id))
     if not npc_id then return false end
     for hub_id, camp in pairs(sb.active_camps) do
-        if camp.survivors and (camp.survivors[npc_id] or camp.survivors[tostring(npc_id)]) then
+        local survivor = camp.survivors and (camp.survivors[npc_id] or camp.survivors[tostring(npc_id)])
+        -- no object at the id: nothing else holds it, so the record still stands for the settler
+        if survivor and (not alife_object(npc_id) or sb.survivor_record_matches(npc_id, survivor)) then
             return true
         end
     end
     return false
+end
+
+-- A settler's id can be reused by another NPC after the settler despawned, and the record can still
+-- hold it until the next load: the record only belongs to the id while the object there has its section
+function stalker_camp_builder.survivor_record_matches(npc_id, survivor)
+    local se_obj = alife_object(npc_id)
+    if not se_obj then return false end
+    if survivor.section and se_obj:section_name() ~= survivor.section then return false end
+    return true
 end
 
 -- NOTE: is_camp_trader is defined later (merged caravan + settler trader check) -- do not define here
