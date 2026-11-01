@@ -2541,8 +2541,8 @@ local function refresh_settler_goodwill(npc, npc_id, my_camp, now_tg)
     camp_npc_furniture_cache[npc_id] = cache or {}
     camp_npc_furniture_cache[npc_id].relation_refresh_tg = now_tg
 
-    for other_id in pairs(my_camp.survivors) do
-        if other_id ~= npc_id then
+    for other_id, other in pairs(my_camp.survivors) do
+        if other_id ~= npc_id and other.released_id ~= other_id then
             local other_obj = level.object_by_id(other_id)
             if other_obj and other_obj.alive and other_obj:alive() then
                 npc:force_set_goodwill(1000, other_obj)
@@ -2614,7 +2614,7 @@ function npc_on_update(npc)
     if not lookup then
         local found = false
         for hub_id, camp in pairs_(sb.active_camps) do
-            if camp.survivors and camp.survivors[npc_id] then
+            if camp.survivors and camp.survivors[npc_id] and camp.survivors[npc_id].released_id ~= npc_id then
                 sb.settler_lookup[npc_id] = {
                     hub_id   = hub_id,
                     camp     = camp,
@@ -4461,14 +4461,26 @@ local function verify_and_heal_settlers()
         local hub_pos = hub_obj and hub_obj.position or nil
         local stale = {}
 
+        -- restore_missing_settler moves a survivor to a new key, and a key added while pairs walks
+        -- the table can make the walk skip others: walk the entries as they were
+        local entries = {}
         for npc_id, survivor in pairs(camp.survivors) do
+            entries[#entries + 1] = { npc_id = npc_id, survivor = survivor }
+        end
+        for _, entry in ipairs(entries) do
+            local npc_id, survivor = entry.npc_id, entry.survivor
             local id_num = tonumber(npc_id) or npc_id
             -- an id that holds no stalker (an item took it) counts as missing. No section check:
-            -- restore_missing_settler uses sim_default_stalker_0 when the section is gone
-            local se = stalker_camp_builder.survivor_se(id_num)
+            -- restore_missing_settler uses sim_default_stalker_0 when the section is gone.
+            -- A settler released without dying is missing too, whatever holds the id now
+            local released = survivor.released_id == id_num
+            survivor.released_id = nil
+            local se = not released and stalker_camp_builder.survivor_se(id_num) or nil
             if not se and stalker_camp_builder.restore_missing_settler then
-                id_num = stalker_camp_builder.restore_missing_settler(hub_id, id_num, survivor) or id_num
-                se = alife_object(id_num)
+                local new_id = stalker_camp_builder.restore_missing_settler(hub_id, id_num, survivor)
+                id_num = new_id or id_num
+                -- only the re-created settler: the old id may hold another object
+                se = new_id and alife_object(new_id)
             end
             if not se then
                 stale[#stale + 1] = npc_id
@@ -5422,6 +5434,9 @@ function server_entity_on_unregister(se_obj, type_name)
         end
         if camp.survivors and camp.survivors[obj_id] then
             stalker_camp_builder.settler_lookup[obj_id] = nil
+            -- released without dying (another mod's despawner): the record stays until the next
+            -- load re-creates the settler, and the NPC that gets this id meanwhile is someone else
+            camp.survivors[obj_id].released_id = obj_id
         end
     end
 
@@ -5551,7 +5566,7 @@ function npc_on_death_callback(npc, who)
         stalker_camp_builder.refugee_ids[npc_id] = nil
     end
     for hub_id, camp in pairs(stalker_camp_builder.active_camps) do
-        if camp.survivors and camp.survivors[npc_id] then
+        if camp.survivors and camp.survivors[npc_id] and camp.survivors[npc_id].released_id ~= npc_id then
             local survivor = camp.survivors[npc_id]
             local name = survivor.name or "unknown"
             local job  = survivor.job  or "unknown"
@@ -6256,15 +6271,15 @@ function on_game_start()
             end)
         end
         for hub_id, camp in pairs_(stalker_camp_builder.active_camps) do
-            if camp.survivors and camp.survivors[id] then
+            if camp.survivors and camp.survivors[id] and camp.survivors[id].released_id ~= id then
                 stalker_camp_builder.settler_lookup[id] = {
                     hub_id = hub_id,
                     camp = camp,
                     survivor = camp.survivors[id],
                 }
 
-                for other_id, _ in pairs_(camp.survivors) do
-                    if other_id ~= id then
+                for other_id, other in pairs_(camp.survivors) do
+                    if other_id ~= id and other.released_id ~= other_id then
                         local other_obj = level.object_by_id(other_id)
                         if other_obj then
                             obj:force_set_goodwill(1000, other_obj)
