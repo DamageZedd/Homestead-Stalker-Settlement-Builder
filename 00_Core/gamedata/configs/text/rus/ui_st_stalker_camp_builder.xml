@@ -1201,6 +1201,9 @@
     <string id="st_camp_tech_use_workbench">
         <text>я хочу сам воспользоватьс€ верстаком поселени€.</text>
     </string>
+    <string id="st_camp_tech_no_workbench">
+        <text>¬ этом поселении нет ћастерской. ”становите ее в лагере, чтобы работать за ней самому.</text>
+    </string>
     <string id="st_camp_tech_trade_ask">
         <text>ѕокажи запчасти, оружейные смазки и наборы дл€ чистки.</text>
     </string>
