@@ -483,7 +483,7 @@ function stalker_camp_builder.get_item_sort_route(sec)
 end
 
 -- AUTO-SORT TARGET ROUTING & CENTRALIZED DEPOSIT SYSTEM (v1.3.0)
-function stalker_camp_builder.get_auto_sort_target_box(camp, hub_id, sec_or_item, is_player_dump, item_weight, weight_cache)
+function stalker_camp_builder.get_auto_sort_target_box(camp, hub_id, sec_or_item, is_player_dump, item_weight, weight_cache, no_stall)
     local pairs_ = pairs
     local ipairs_ = ipairs
     local type_ = type
@@ -584,7 +584,8 @@ function stalker_camp_builder.get_auto_sort_target_box(camp, hub_id, sec_or_item
 
     -- Surplus overflow fallback: If all camp storage is full, route non-player job output
     -- into the Market Stall (if placed) so the Trader can sell surplus to passing stalkers for RU.
-    if not is_player_dump and camp and camp.structures then
+    -- An expedition's haul is the player's, so no_stall keeps it out of the stall.
+    if not is_player_dump and not no_stall and camp and camp.structures then
         for stall_id, stype in pairs(camp.structures) do
             if stype == "market_stall" then
                 local ms_stash_id = homestead_market_stall and homestead_market_stall.get_stash and homestead_market_stall.get_stash(stall_id)
@@ -724,7 +725,7 @@ function stalker_camp_builder.deposit_item_to_camp(hub_id, camp, sec, is_yellow,
         sb._deposit_weights = {}
     end
     local weights = sb._deposit_weights
-    local target_box_id = sb.get_auto_sort_target_box(camp, hub_id, sec, false, item_w, weights)
+    local target_box_id = sb.get_auto_sort_target_box(camp, hub_id, sec, false, item_w, weights, drop_at_hub)
     local box_se = target_box_id and alife_object(target_box_id)
 
     -- an expedition's haul has already been taken out of its stashes: with no room it waits on

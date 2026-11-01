@@ -4323,6 +4323,11 @@ local function clean_orphaned_camps(current_level)
         end
     end
     for _, hub_id in ipairs(to_remove) do
+        local camp = stalker_camp_builder.active_camps[hub_id]
+        -- the settlers and expeditions are freed as dismantle_camp frees them, with no message or payout
+        if camp and stalker_camp_builder.release_camp_residents then
+            pcall(stalker_camp_builder.release_camp_residents, hub_id, camp)
+        end
         level.map_remove_object_spot(hub_id, "ui_pda2_actor_sleep_location")
         stalker_camp_builder.end_camp_raid(stalker_camp_builder.active_camps[hub_id])
         stalker_camp_builder.active_camps[hub_id] = nil
