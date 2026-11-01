@@ -2549,6 +2549,45 @@
     <string id="ui_mcm_stalker_camp_builder_realtime_job_trader_interval_min_desc">
         <text>Реальное время между продажами торговца в лавке.</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_cut_enabled">
+        <text>Доля поселенца от работы</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_cut_enabled_desc">
+        <text>Каждый выполненный цикл работы пополняет сбережения поселенца, которые хранятся в записи Хоумстеда. Если работе некуда девать результат, поселенец продолжает копить, а не встаёт, до предела сбережений.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_cut_per_cycle">
+        <text>Сбережения за цикл работы (RU)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_cut_per_cycle_desc">
+        <text>RU, которые поселенец откладывает за выполненный цикл работы, до множителя уровня (опытные и мастера получают больше).</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_savings_cap">
+        <text>Предел сбережений (RU)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_savings_cap_desc">
+        <text>Наибольшая сумма, которую поселенец может накопить. Когда предел достигнут, работа снова встаёт при полном поселении.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_spending_enabled">
+        <text>Покупка снаряжения после повышения</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_spending_enabled_desc">
+        <text>Повысившийся поселенец с накоплениями покупает лучшее оружие из снаряжения своей группировки вместе с патронами. Его собственные нужды идут первыми.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_standing_enabled">
+        <text>Повышения поднимают ранг и репутацию</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_standing_enabled_desc">
+        <text>Повышение поднимает ранг и репутацию поселенца. Изменения ждут в записи, пока поселенец не окажется в игре.</text>
+    </string>
+    <string id="st_homestead_settler_bought_weapon">
+        <text>%s купил(а) %s на свои сбережения.</text>
+    </string>
+    <string id="st_guide_s8b_header">
+        <text>СБЕРЕЖЕНИЯ И РЕПУТАЦИЯ ПОСЕЛЕНЦЕВ</text>
+    </string>
+    <string id="st_guide_s8b_body">
+        <text>%c[255,238,196,112]>> ДОЛЯ ПОСЕЛЕНЦА%c[default]\n \n  - %c[255,144,238,144] Сбережения:%c[default] Каждый выполненный цикл работы добавляет RU в сбережения поселенца, больше у опытных и мастеров. Сбережения хранятся в записи Хоумстеда и растут, пока вас нет.\n  - %c[255,238,196,112] Полное хранилище:%c[default] Работа без места для результата продолжает копить до предела (настраивается в MCM), а не встаёт.\n  - %c[255,100,200,255] Снаряжение:%c[default] После повышения поселенец с накоплениями покупает лучшее оружие своей группировки вместе с патронами. Его собственные нужды идут первыми.\n  - %c[255,144,238,144] Репутация:%c[default] Повышения поднимают ранг и репутацию. Изменение ждёт в записи, пока поселенец не окажется в игре.</text>
+    </string>
     <string id="ui_mcm_stalker_camp_builder_trader_price_percent">
         <text>Цена торговца (% от базовой)</text>
     </string>
