@@ -75,7 +75,7 @@ function stalker_camp_builder.restore_missing_settler(hub_id, npc_id, survivor)
         local new_id = new_se.id
         -- the engine can hand out the id of another missing settler's record: keep that record
         if new_id ~= npc_id and camp.survivors[new_id] then
-            safe_alife_release(new_se)
+            stalker_camp_builder.safe_alife_release(new_se)
             return nil
         end
         camp.survivors[npc_id] = nil
