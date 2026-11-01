@@ -252,6 +252,11 @@ function spawn_camp_raid(hub_id, camp, hub_obj)
 
     local sb = stalker_camp_builder
     local actor_comm = actor and character_community(actor) or "stalker"
+    -- a disguise changes character_community (gameplay_disguise): pick by the player's own faction
+    local true_fac = actor and get_actor_true_community and get_actor_true_community()
+    if true_fac then
+        actor_comm = "actor_" .. true_fac
+    end
     -- the player's community is "actor_<faction>"; the fallback below compares faction names
     local actor_fac = actor_comm:gsub("^actor_", "")
 
