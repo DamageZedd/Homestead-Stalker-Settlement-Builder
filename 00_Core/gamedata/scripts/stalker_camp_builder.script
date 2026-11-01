@@ -770,8 +770,8 @@ local defaults = {
     defense_cap = 150,            -- Hard cap on defense rating (prevents trivialization via gadgets)
     npc_leash_radius = 10,        -- How far idle camp NPCs can wander from the hub (job NPCs use boundary_dist to reach furniture)
     rival_camp_slope_tolerance = 2.5,
-    rival_camp_spawn_dist_min = 25,
-    rival_camp_spawn_dist_max = 250,
+    rival_camp_spawn_dist_min = 20,
+    rival_camp_spawn_dist_max = 35,
     rival_camp_setup_duration = 86400,
 
     verbose_notifications = true,   -- When false, suppress routine job-completion toasts (keeps raid/danger toasts).

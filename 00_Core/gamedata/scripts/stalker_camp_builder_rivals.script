@@ -1599,6 +1599,9 @@ function stalker_camp_builder.update_rival_camps()
     end
 
     local base_interval_hours = sb.cfg.rival_camp_spawn_interval_hours or 3
+    -- the sliders scale the fixed 1-3 and 8+ brackets; their defaults (3 hours, 33%) keep the original values
+    local interval_scale = base_interval_hours / 3
+    local chance_scale = (sb.cfg.rival_camp_spawn_chance or 33) / 33
     local spawn_interval_game_sec = sb.next_rival_spawn_interval_sec
     -- picked with the interval below and kept for the attempt it belongs to
     local spawn_chance = sb.next_rival_spawn_chance or sb.cfg.rival_camp_spawn_chance or 33
@@ -1611,11 +1614,11 @@ function stalker_camp_builder.update_rival_camps()
             spawn_interval_game_sec = 1
             spawn_chance = 100
         elseif total_rival_camps <= 3 then
-            spawn_interval_game_sec = mrandom(5400, 7200)
-            spawn_chance = 50
+            spawn_interval_game_sec = mfloor(mrandom(5400, 7200) * interval_scale)
+            spawn_chance = math.min(50 * chance_scale, 100)
         elseif total_rival_camps >= 8 then
-            spawn_interval_game_sec = mrandom(14400, 21600)
-            spawn_chance = 25
+            spawn_interval_game_sec = mfloor(mrandom(14400, 21600) * interval_scale)
+            spawn_chance = math.min(25 * chance_scale, 100)
         else
             local min_s = mfloor(base_interval_hours * 2400)
             local max_s = mfloor(base_interval_hours * 5400)
@@ -2249,8 +2252,9 @@ function stalker_camp_builder.spawn_single_rival_camp(target_level, specific_fac
                 local attempts = 0
                 local lvid, gvid
                 local valid_pos = false
-                local min_dist = sb.cfg.rival_camp_spawn_dist_min or 25
-                local max_dist = sb.cfg.rival_camp_spawn_dist_max or 250
+                local min_dist = sb.cfg.rival_camp_spawn_dist_min or 20
+                -- a Max below Min would make mrandom fail, so Min wins
+                local max_dist = math.max(sb.cfg.rival_camp_spawn_dist_max or 35, min_dist)
                 local min_spacing_sqr = ((sb.cfg.rival_camp_min_spacing or 35) ^ 2)
 
                 while attempts < 25 and not valid_pos do
@@ -2291,7 +2295,7 @@ function stalker_camp_builder.spawn_single_rival_camp(target_level, specific_fac
                             end
                         end
                     else
-                        local dist = mrandom(20, 35)
+                        local dist = mrandom(min_dist, max_dist)
                         pos:set(
                             smart.position.x + dist * mcos(angle),
                             smart.position.y,

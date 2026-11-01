@@ -155,19 +155,19 @@
         <text>Rival Camp Slope Tolerance (meters)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_slope_tolerance_desc">
-        <text>Max height difference allowed between a rival camp chest and the ground 5m around it. Rejects positions on steep hillsides where decorations would clip into terrain or float. Set higher (5-8m) to allow camps on moderately sloped terrain, lower (1-2m) for strict flat-ground only. Default: 2.5m.</text>
+        <text>Limits the slope under tier 2 and 3 furniture added to rival camps on the player's level: a piece is skipped when the ground around it differs in height by more than this. Set higher (5-8m) to allow furniture on moderately sloped ground, lower (1-2m) for flat ground only. Default: 2.5m.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_spawn_dist_min">
         <text>Rival Camp Spawn Distance Min (meters)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_spawn_dist_min_desc">
-        <text>Minimum distance from a smart terrain where rival camps can spawn. Wider ranges give the slope check more candidates to find flat ground. Default: 25m.</text>
+        <text>Minimum distance from a smart terrain where a rival camp on another level can spawn. Each new camp rolls a distance between Min and Max. Default: 20m.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_spawn_dist_max">
         <text>Rival Camp Spawn Distance Max (meters)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_spawn_dist_max_desc">
-        <text>Maximum distance from a smart terrain where rival camps can spawn. Must be greater than Min. Default: 250m.</text>
+        <text>Maximum distance from a smart terrain where a rival camp on another level can spawn. If it is lower than Min, Min is used instead. Default: 35m.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_setup_duration_hr">
         <text>Rival Camp Occupancy Duration (game hours)</text>
@@ -503,13 +503,13 @@
         <text>Spawn Attempt Interval (Game Hours)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_spawn_interval_hours_desc">
-        <text>How many in-game hours must pass between rival camp establishment attempts. Default: 3 hours.</text>
+        <text>Scales the wait between rival camp establishment attempts, once at least one rival camp exists. Lower values make attempts more frequent. Default: 3 hours.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_spawn_chance">
         <text>Spawn Attempt Chance (%)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_spawn_chance_desc">
-        <text>Probability that a rival faction establishes a new camp when the interval timer expires. Default: 33%.</text>
+        <text>Scales the chance that a rival faction establishes a new camp when the interval timer expires, once at least one rival camp exists. Higher values make attempts succeed more often. Default: 33%.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_progression">
         <text>Camp Tier Progression</text>
@@ -521,7 +521,7 @@
         <text>Radio Distress Calls (SOS)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_distress_calls_desc">
-        <text>Friendly and neutral rival outposts broadcast emergency radio calls when under attack. Responding and defending them rewards money and faction goodwill.</text>
+        <text>Friendly and neutral rival outposts broadcast emergency radio calls when under attack. Responding and defending them pays a money reward.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_convoys">
         <text>Dynamic Supply Convoys</text>
@@ -539,7 +539,7 @@
         <text>Faction Retaliation Raids</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_retaliation_raids_desc">
-        <text>Eliminating hostile rival camps has a chance to provoke the defeated faction into deploying a dedicated retaliation hit squad.</text>
+        <text>Eliminating a hostile rival camp starts a 2 to 4 hour timer. When it runs out, the defeated faction sets up a new outpost on a random level and a retaliatory expedition is reported. No squad is sent after you.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_hospitality">
         <text>Friendly Camp Hospitality</text>
@@ -1989,7 +1989,7 @@
         <text>In-game hours required for a Tier 1 rival camp to upgrade into a fortified Tier 2 outpost with barricades and better loot. Default: 4 hours.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_tier3_hours_desc">
-        <text>In-game hours required for a Tier 2 rival camp to upgrade into a heavily fortified Tier 3 stronghold with turrets and elite squads. Default: 8 hours.</text>
+        <text>In-game hours required for a Tier 2 rival camp to upgrade into a fortified Tier 3 stronghold. The upgrade adds a rear wall, cover, a cot, a crate, loot and one more squad. No turrets. Default: 8 hours.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_convoy_interval_hours_desc">
         <text>In-game hours between dynamic supply convoy dispatches sent to reinforce advanced rival outposts. Default: 6 hours.</text>
