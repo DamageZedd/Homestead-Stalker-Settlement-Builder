@@ -48,7 +48,7 @@ local BULLET_POWER      = 0.25
 local BULLET_IMPULSE    = 50.0
 local BULLET_MAX_DIST   = 100.0
 local BULLET_AIR_RES    = 0.2
-local HIT_TYPE          = 1
+local HIT_TYPE          = hit.fire_wound
 local MAG_SIZE          = 40
 
 local FIRE_RPS          = 6.0
