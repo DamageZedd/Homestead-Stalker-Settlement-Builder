@@ -395,16 +395,20 @@ function stalker_camp_builder.setup_rival_squad_positions(squad, camp, sim_overr
                 end
             end
 
-            -- Immediately register into settler_lookup as rival
-            sb.settler_lookup[k.id] = {
-                hub_id = nil,
-                camp = nil,
-                survivor = nil,
-                is_rival = true,
-                rival_camp = camp,
-            }
-            if sb.non_settler_cache then
-                sb.non_settler_cache[k.id] = nil
+            -- Immediately register into settler_lookup as rival, if online: an offline member is
+            -- registered when it comes online (game_object_on_net_spawn, npc_on_update), and only
+            -- net_destroy drops an entry, which a member killed offline never gets
+            if level.object_by_id(k.id) then
+                sb.settler_lookup[k.id] = {
+                    hub_id = nil,
+                    camp = nil,
+                    survivor = nil,
+                    is_rival = true,
+                    rival_camp = camp,
+                }
+                if sb.non_settler_cache then
+                    sb.non_settler_cache[k.id] = nil
+                end
             end
         end
     end
