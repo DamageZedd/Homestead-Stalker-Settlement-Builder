@@ -1799,10 +1799,11 @@ function SettlementManagerPDA:OnSurvivorSelected()
             if not s_item.shortfall_reason then
                 local desc = game.translate_string("st_homestead_job_cook_desc")
                 desc = desc ~= "st_homestead_job_cook_desc" and desc or "Prepares meals and rations for the settlement."
-                -- Auto makes tier 3 only for a Master cook or with MCM Cook Output Tier 3: say so on the card
+                -- Auto makes tier 3 only for a Master cook or with MCM Cook Output Tier 3: the card says so
+                -- in place of the description, which the 16 px line can't hold along with it
                 local tier_note = game.translate_string("st_homestead_job_cook_auto_tier")
                 if (s_item.cook_mode or "auto") == "auto" and tier_note ~= "st_homestead_job_cook_auto_tier" then
-                    desc = desc .. "\\n" .. tier_note
+                    desc = tier_note
                 end
                 self.survivor_pos_txt:SetText(desc)
             end

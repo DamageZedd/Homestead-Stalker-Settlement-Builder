@@ -2673,8 +2673,10 @@ end
 -- that is gone can leave its id to another object, so the id alone doesn't show the hub is there.
 function stalker_camp_builder.is_camp_hub_object(se_obj, camp)
     local p = se_obj and se_obj.position
+    if not p then return false end
+    -- camp.pos is filled in later for an older camp, so a camp without it can't be checked
     local cp = camp and camp.pos
-    if not (p and cp) then return false end
+    if not cp then return true end
     local dx, dy, dz = p.x - cp.x, p.y - cp.y, p.z - cp.z
     return dx * dx + dy * dy + dz * dz <= 1.0
 end

@@ -2104,7 +2104,7 @@
         <text>Готовит еду и пайки для поселения.</text>
     </string>
     <string id="st_homestead_job_cook_auto_tier">
-        <text>Авто делает Деликатес (уровень 3) только у повара-мастера или при «Уровне результатов повара» 3 в MCM.</text>
+        <text>Авто: ранг 3 только у мастера или при MCM-ранге 3.</text>
     </string>
     <string id="st_job_electrician_all_powered">
         <text>%s не нашел ламп, требующих обслуживания.</text>
