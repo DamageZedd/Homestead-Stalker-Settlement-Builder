@@ -19,14 +19,14 @@ local PROSPER_LOADOUTS = {
     ecolog   = { "wpn_val", "wpn_vintorez", "wpn_svu" },
 }
 
--- rank and reputation a settler gains when promoted to each tier (1 Skilled, 2 Expert, 3 Master)
+-- rank and reputation a settler gains when promoted to each tier (1 Skilled, 2 Expert, 3 Master);
+-- rank is in points (the recruit roll reads it against 12000), reputation in the engine's own units
 local PROSPER_STANDING = {
-    [1] = { rank = 50,  rep = 10 },
-    [2] = { rank = 100, rep = 20 },
-    [3] = { rank = 200, rep = 40 },
+    [1] = { rank = 1500, rep = 10 },
+    [2] = { rank = 3000, rep = 20 },
+    [3] = { rank = 6000, rep = 40 },
 }
 
-local PROSPER_RANK_MAX = 1000
 local PROSPER_BUY_AMMO = 2
 
 local function prosper_cut_on()
@@ -34,7 +34,7 @@ local function prosper_cut_on()
 end
 
 local function prosper_savings_cap()
-    return sb.cfg.settler_savings_cap or 300
+    return sb.cfg.settler_savings_cap or 20000
 end
 
 -- credit a settler's cut, clamped so the real-time economy cannot run away
@@ -54,11 +54,13 @@ function sb.prosper_on_work(survivor, job)
     sb.prosper_credit(survivor, mfloor(per_cycle * sb.get_survivor_tier_mult(survivor)))
 end
 
--- a job with no room for its output keeps earning its cut, instead of pausing, until the savings cap;
--- returns how many whole cycles the job's clock may move on without running the job
+-- a job with no room for its output keeps earning its cut, instead of pausing, until the savings cap
+function sb.prosper_overflow_allowed(survivor)
+    return survivor ~= nil and prosper_cut_on() and (survivor.savings or 0) < prosper_savings_cap()
+end
+
+-- how many whole cycles are due for a job that is saving instead of running; at most 2 per tick
 function sb.prosper_overflow_cycles(survivor, elapsed, interval)
-    if not (survivor and prosper_cut_on()) then return 0 end
-    if (survivor.savings or 0) >= prosper_savings_cap() then return 0 end
     if not (interval and interval > 0) or elapsed < interval then return 0 end
     return mmin(2, mfloor(elapsed / interval))
 end
@@ -89,7 +91,7 @@ function sb.prosper_apply_standing(obj, survivor)
     local ok = pcall(function()
         for _, step in ipairs(queue) do
             if step.rank ~= 0 then
-                obj:set_character_rank(mmin(PROSPER_RANK_MAX, obj:character_rank() + step.rank))
+                obj:set_character_rank(obj:character_rank() + step.rank)
             end
             if step.rep ~= 0 then
                 obj:change_character_reputation(step.rep)
@@ -147,17 +149,17 @@ function sb.prosper_try_buy(npc_id, survivor)
     end
     if not best_sec then return false end
 
-    survivor.savings = savings - best_total
-    survivor.bought_tier = tier
+    -- the savings are spent only once the items are on their way; alife_create_item is asynchronous,
+    -- so the settler may not switch to the new weapon until a later tick
     local ok = pcall(function()
         alife_create_item(best_sec, npc)
         for _ = 1, PROSPER_BUY_AMMO do
             alife_create_item(best_ammo, npc)
         end
-        local item = npc:object(best_sec)
-        if item then npc:make_item_active(item) end
     end)
     if not ok then return false end
+    survivor.savings = savings - best_total
+    survivor.bought_tier = tier
 
     if db.actor then
         local s_name = survivor.name or npc:character_name() or "Settler"
@@ -167,9 +169,15 @@ function sb.prosper_try_buy(npc_id, survivor)
     return true
 end
 
--- once per equipment check: the queued standing when the NPC is online, then a purchase
+-- once per equipment check: queue standing for any tier not yet queued (expeditions included),
+-- then apply it when the NPC is online, then a purchase
 function sb.prosper_tick(hub_id, camp, survivor, npc_id)
     if not (survivor and npc_id) then return end
+    local tier = survivor.tier or 0
+    for t = (survivor.standing_tier or 0) + 1, tier do
+        sb.prosper_on_promotion(survivor, t)
+    end
+    if tier > (survivor.standing_tier or 0) then survivor.standing_tier = tier end
     if sb.is_companion and sb.is_companion(npc_id) then return end
     if survivor.on_expedition then return end
     local obj = level.object_by_id(npc_id)

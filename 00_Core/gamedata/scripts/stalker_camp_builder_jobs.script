@@ -3882,17 +3882,19 @@ function stalker_camp_builder.update_camp_jobs()
 
                     local is_paused, reason_short, reason_detail = sb.get_job_paused_status and sb.get_job_paused_status(survivor, camp, hub_id, 10000, camp_snap)
                     -- the settler's cut keeps a job with no room for its output earning, instead of pausing it
-                    local cut_cycles = 0
-                    if is_paused and reason_short == "Storage Full" then
-                        cut_cycles = sb.prosper_overflow_cycles(survivor, effective_elapsed, effective_interval)
-                    end
-                    if cut_cycles > 0 then
-                        sb.prosper_overflow_credit(survivor, cut_cycles)
+                    local cut_on = is_paused and reason_short == "Storage Full" and sb.prosper_overflow_allowed and sb.prosper_overflow_allowed(survivor)
+                    if cut_on then
+                        -- the clock keeps running from where the last tick left it; the cycles it has
+                        -- earned are paid and taken off the clock, and the job itself does not run
                         survivor.paused_elapsed = nil
                         survivor.shortfall_reason = nil
-                        local cut_sec = cut_cycles * effective_interval
-                        survivor.job_start_time = (survivor.job_start_time or current_sec) + (cut_sec * tf)
-                        survivor.job_start_realtime = tg - math.max(0, (effective_elapsed - cut_sec) * 1000)
+                        local cut_cycles = sb.prosper_overflow_cycles(survivor, effective_elapsed, effective_interval)
+                        if cut_cycles > 0 then
+                            sb.prosper_overflow_credit(survivor, cut_cycles)
+                            local cut_sec = cut_cycles * effective_interval
+                            survivor.job_start_time = (survivor.job_start_time or current_sec) + (cut_sec * tf)
+                            survivor.job_start_realtime = tg - math.max(0, (effective_elapsed - cut_sec) * 1000)
+                        end
                     elseif is_paused then
                         if not survivor.paused_elapsed then
                             survivor.paused_elapsed = mmin(effective_interval - 1, effective_elapsed)
@@ -4077,7 +4079,7 @@ function stalker_camp_builder.update_camp_jobs()
                                     survivor.paused_elapsed = nil
                                     survivor.shortfall_reason = nil
                                     sb.award_survivor_xp(survivor, job)
-                                    sb.prosper_on_work(survivor, job)
+                                    sb.guarded_call("prosper_on_work", sb.prosper_on_work, survivor, job)
                                 end
                             end)
                             total_cycles_run_this_tick = total_cycles_run_this_tick + 1
