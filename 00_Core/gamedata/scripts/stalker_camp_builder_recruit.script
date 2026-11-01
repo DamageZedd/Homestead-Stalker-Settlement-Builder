@@ -2496,17 +2496,36 @@ function stalker_camp_builder.queue_dismantle_structure_cleanup(hub_id, camp, hu
     local containers_set = {}
     local structures_set = {}
 
+    -- The camp's own pieces, by is_valid_camp_box's test: what was placed with Hideout Furniture
+    -- (furniture, Homestead's building pieces, stations, gadgets) and Homestead's storage. The scan
+    -- also lists any other box inside the boundary (a level stash, the player's backpack stash,
+    -- another mod's box): those stay, with what is in them.
+    local hf_get_type = hf_furniture_types and hf_furniture_types.get_type
+    local function is_camp_piece(se_obj)
+        local sec = se_obj and se_obj:section_name()
+        if not sec then return false end
+        if sec:find("placeable_", 1, true) then return true end
+        if sb.is_settlement_storage and sb.is_settlement_storage(sec) then return true end
+        if hf_get_type then
+            local ok, t = pcall(hf_get_type, se_obj)
+            return ok and t ~= nil
+        end
+        return false
+    end
+
     -- 1. Gather all camp structures and linked stashes
     for sid, _ in pairs((camp and camp.structures) or {}) do
-        structures_set[sid] = true
-        containers_set[sid] = true
-        local linked = ws_stashes[sid] or st_stashes[sid] or mk_stashes[sid]
-        if linked then
-            structures_set[linked] = true
-            containers_set[linked] = true
-            if ws_stashes[sid] then ws_stashes[sid] = nil end
-            if st_stashes[sid] then st_stashes[sid] = nil end
-            if mk_stashes[sid] then mk_stashes[sid] = nil end
+        if is_camp_piece(sim:object(sid)) then
+            structures_set[sid] = true
+            containers_set[sid] = true
+            local linked = ws_stashes[sid] or st_stashes[sid] or mk_stashes[sid]
+            if linked then
+                structures_set[linked] = true
+                containers_set[linked] = true
+                if ws_stashes[sid] then ws_stashes[sid] = nil end
+                if st_stashes[sid] then st_stashes[sid] = nil end
+                if mk_stashes[sid] then mk_stashes[sid] = nil end
+            end
         end
     end
 
@@ -2527,7 +2546,6 @@ function stalker_camp_builder.queue_dismantle_structure_cleanup(hub_id, camp, hu
         end
     end
 
-    local hf_get_type = hf_furniture_types and hf_furniture_types.get_type
     local ini = ini_sys or sys_ini
 
     -- Test if an ALife object qualifies as ground clutter / loose item to clean up
@@ -2547,9 +2565,9 @@ function stalker_camp_builder.queue_dismantle_structure_cleanup(hub_id, camp, hu
         local sec = se_obj:section_name()
         if not sec then return false end
 
-        -- Real inventory boxes and placeable furniture
+        -- a box only when it is one of the camp's pieces (is_camp_piece), then placeable furniture
         if cls == clsid.inventory_box or cls == clsid.inventory_box_s or sec:find("inventory_box", 1, true) then
-            return true
+            return is_camp_piece(se_obj)
         end
         if sec:find("placeable_", 1, true) or sec:find("hg_", 1, true) or sec:find("turret", 1, true) or sec:find("alarm", 1, true) then
             return true
