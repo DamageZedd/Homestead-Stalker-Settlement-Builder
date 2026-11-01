@@ -1,0 +1,178 @@
+-- stalker_camp_builder_prosper.script
+-- Settlers who prosper from the homestead (issue #378): a settler's cut of their work, kept on
+-- the Homestead record; buying a better weapon from their faction's loadout with that cut; and
+-- rank and reputation changes queued on the record until the NPC is online.
+-- Every behaviour is behind an MCM option (jobs / general sections).
+
+local sb = stalker_camp_builder
+local mmin = math.min
+local mmax = math.max
+local mfloor = math.floor
+
+-- weapons a settler of each faction may buy, cheapest first; a settler sees the first tier+2 of them
+local PROSPER_LOADOUTS = {
+    stalker  = { "wpn_ak74u", "wpn_val", "wpn_lr300", "wpn_svu" },
+    bandit   = { "wpn_ak74u", "wpn_bizon", "wpn_val" },
+    military = { "wpn_sig550", "wpn_fn2000", "wpn_svd", "wpn_abakan" },
+    dolg     = { "wpn_lr300", "wpn_groza", "wpn_svd" },
+    freedom  = { "wpn_groza", "wpn_vintorez", "wpn_abakan" },
+    ecolog   = { "wpn_val", "wpn_vintorez", "wpn_svu" },
+}
+
+-- rank and reputation a settler gains when promoted to each tier (1 Skilled, 2 Expert, 3 Master)
+local PROSPER_STANDING = {
+    [1] = { rank = 50,  rep = 10 },
+    [2] = { rank = 100, rep = 20 },
+    [3] = { rank = 200, rep = 40 },
+}
+
+local PROSPER_RANK_MAX = 1000
+local PROSPER_BUY_AMMO = 2
+
+local function prosper_cut_on()
+    return sb.cfg.settler_cut_enabled ~= false
+end
+
+local function prosper_savings_cap()
+    return sb.cfg.settler_savings_cap or 300
+end
+
+-- credit a settler's cut, clamped so the real-time economy cannot run away
+function sb.prosper_credit(survivor, amount)
+    if not (survivor and amount and amount > 0 and prosper_cut_on()) then return 0 end
+    local have = survivor.savings or 0
+    local add = mmin(amount, mmax(0, prosper_savings_cap() - have))
+    if add <= 0 then return 0 end
+    survivor.savings = have + add
+    return add
+end
+
+-- a completed work cycle pays the settler's cut, scaled by tier
+function sb.prosper_on_work(survivor, job)
+    if not (survivor and prosper_cut_on()) or job == "guard" then return end
+    local per_cycle = sb.cfg.settler_cut_per_cycle or 2
+    sb.prosper_credit(survivor, mfloor(per_cycle * sb.get_survivor_tier_mult(survivor)))
+end
+
+-- a job with no room for its output keeps earning its cut, instead of pausing, until the savings cap;
+-- returns how many whole cycles the job's clock may move on without running the job
+function sb.prosper_overflow_cycles(survivor, elapsed, interval)
+    if not (survivor and prosper_cut_on()) then return 0 end
+    if (survivor.savings or 0) >= prosper_savings_cap() then return 0 end
+    if not (interval and interval > 0) or elapsed < interval then return 0 end
+    return mmin(2, mfloor(elapsed / interval))
+end
+
+function sb.prosper_overflow_credit(survivor, cycles)
+    for _ = 1, cycles do
+        sb.prosper_on_work(survivor)
+    end
+end
+
+-- queue a rank and reputation change on the record; applied when the NPC is online
+function sb.prosper_queue_standing(survivor, rank, rep)
+    if not (survivor and (rank or rep) and sb.cfg.settler_standing_enabled ~= false) then return end
+    survivor.standing_queue = survivor.standing_queue or {}
+    survivor.standing_queue[#survivor.standing_queue + 1] = { rank = rank or 0, rep = rep or 0 }
+end
+
+function sb.prosper_on_promotion(survivor, tier)
+    local step = PROSPER_STANDING[tier]
+    if step then sb.prosper_queue_standing(survivor, step.rank, step.rep) end
+end
+
+-- apply the queued standing to a game object that is online; a failed apply stays queued
+function sb.prosper_apply_standing(obj, survivor)
+    local queue = survivor and survivor.standing_queue
+    if not (obj and queue and #queue > 0 and sb.cfg.settler_standing_enabled ~= false) then return end
+    if not (obj.alive and obj:alive()) then return end
+    local ok = pcall(function()
+        for _, step in ipairs(queue) do
+            if step.rank ~= 0 then
+                obj:set_character_rank(mmin(PROSPER_RANK_MAX, obj:character_rank() + step.rank))
+            end
+            if step.rep ~= 0 then
+                obj:change_character_reputation(step.rep)
+            end
+        end
+    end)
+    if ok then survivor.standing_queue = nil end
+end
+
+local function prosper_is_firearm(sec)
+    local ac = ini_sys:r_string_ex(sec, "ammo_class")
+    return ac ~= nil and ac ~= "" and not sec:find("grenade")
+end
+
+local function prosper_ammo_for(sec)
+    local ac = ini_sys:r_string_ex(sec, "ammo_class")
+    if not (ac and str_explode) then return nil end
+    local list = str_explode(ac, ",")
+    local ammo = list and list[1]
+    if ammo and ini_sys:section_exists(ammo) then return ammo end
+    return nil
+end
+
+-- buy a better weapon from the faction's loadout with the settler's savings, once per promotion;
+-- the ammo for it comes with it, so the settler's own needs are met first
+function sb.prosper_try_buy(npc_id, survivor)
+    if sb.cfg.settler_spending_enabled == false then return false end
+    if not survivor then return false end
+    local tier = survivor.tier or 0
+    if tier <= (survivor.bought_tier or 0) then return false end
+    local npc = level.object_by_id(npc_id)
+    if not (npc and npc:alive() and alife_create_item) then return false end
+    local loadout = PROSPER_LOADOUTS[npc:character_community()]
+    if not loadout then return false end
+
+    local current = npc:best_weapon()
+    local current_cost = 0
+    if current and prosper_is_firearm(current:section()) then
+        current_cost = (ini_sys:r_float_ex(current:section(), "cost") or 1000) * (current:condition() or 1.0)
+    end
+
+    local savings = survivor.savings or 0
+    local best_sec, best_ammo, best_total, best_cost = nil, nil, nil, nil
+    for i = 1, mmin(#loadout, tier + 2) do
+        local sec = loadout[i]
+        if ini_sys:section_exists(sec) and prosper_is_firearm(sec) then
+            local cost = ini_sys:r_float_ex(sec, "cost") or 0
+            local ammo = prosper_ammo_for(sec)
+            local ammo_cost = ammo and (ini_sys:r_float_ex(ammo, "cost") or 0) or 0
+            local total = cost + ammo_cost * PROSPER_BUY_AMMO
+            if ammo and cost > current_cost * 1.25 and total <= savings and (not best_cost or cost > best_cost) then
+                best_sec, best_ammo, best_total, best_cost = sec, ammo, total, cost
+            end
+        end
+    end
+    if not best_sec then return false end
+
+    survivor.savings = savings - best_total
+    survivor.bought_tier = tier
+    local ok = pcall(function()
+        alife_create_item(best_sec, npc)
+        for _ = 1, PROSPER_BUY_AMMO do
+            alife_create_item(best_ammo, npc)
+        end
+        local item = npc:object(best_sec)
+        if item then npc:make_item_active(item) end
+    end)
+    if not ok then return false end
+
+    if db.actor then
+        local s_name = survivor.name or npc:character_name() or "Settler"
+        local wpn_name = game.translate_string(ini_sys:r_string_ex(best_sec, "inv_name") or best_sec)
+        sb.camp_send_tip(db.actor, string.format(game.translate_string("st_homestead_settler_bought_weapon"), s_name, wpn_name), nil, "general_stalker", 7000)
+    end
+    return true
+end
+
+-- once per equipment check: the queued standing when the NPC is online, then a purchase
+function sb.prosper_tick(hub_id, camp, survivor, npc_id)
+    if not (survivor and npc_id) then return end
+    if sb.is_companion and sb.is_companion(npc_id) then return end
+    if survivor.on_expedition then return end
+    local obj = level.object_by_id(npc_id)
+    if obj then sb.prosper_apply_standing(obj, survivor) end
+    sb.prosper_try_buy(npc_id, survivor)
+end
