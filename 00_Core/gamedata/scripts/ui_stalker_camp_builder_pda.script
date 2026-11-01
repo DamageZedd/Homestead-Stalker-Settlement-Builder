@@ -688,6 +688,7 @@ function SettlementManagerPDA:InitControls()
         { header = "st_guide_s6_header",        body = "st_guide_s6_body"        },  -- 7. Rival Wilderness Camps
         { header = "st_guide_s7_header",        body = "st_guide_s7_body"        },  -- 8. Settlement Radio Feed
         { header = "st_guide_s8_header",        body = "st_guide_s8_body"        },  -- 9. Specializations & Morale
+        { header = "st_guide_s8b_header",       body = "st_guide_s8b_body"       },  -- 9b. Settlers' Savings & Standing
         { header = "st_guide_s9_header",        body = "st_guide_s9_body"        },  -- 10. MCM Configuration
         { header = "st_guide_s10_header",       body = "st_guide_s10_body"       },  -- 11. Quick Start Guide
     }

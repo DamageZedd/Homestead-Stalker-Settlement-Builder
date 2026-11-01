@@ -794,6 +794,11 @@ local defaults = {
     settlement_map_spot_style = 0,    -- 0: Tactical Base (Homestead), 1: PAW Stalker Pin, 2: Classic Green Dot
     outpost_map_spot_style = 0,       -- 0: Faction Badges & Insignias, 1: Tactical Outposts, 2: PAW Pushpins, 3: Classic Dots
     enable_surplus_cap = true,        -- Anti-flooding surplus governor: pauses crafters/cooks/medics when camp stores are abundant.
+    settler_cut_enabled = true,       -- Settlers keep a cut of their work (savings on the Homestead record).
+    settler_cut_per_cycle = 60,       -- Savings a settler earns per completed work cycle, before the tier multiplier.
+    settler_savings_cap = 20000,      -- Most RU a settler may save; a full job pauses once it is reached.
+    settler_spending_enabled = true,  -- Settlers buy a better weapon from their faction's loadout after a promotion.
+    settler_standing_enabled = true,  -- Promotions raise the settler's rank and reputation once the NPC is online.
     dismantle_removes_furniture = false, -- When true, dismantling removes all furniture, building pieces, containers and loose ground clutter.
 
     trader_loot_table = {
@@ -6292,6 +6297,7 @@ function on_game_start()
                     pcall(function() obj:set_character_community(survivor.pending_community, 0, 0) end)
                     survivor.pending_community = nil
                 end
+                if stalker_camp_builder.prosper_apply_standing then stalker_camp_builder.prosper_apply_standing(obj, survivor) end
                 break
             end
         end

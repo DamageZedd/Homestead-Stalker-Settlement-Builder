@@ -2549,6 +2549,50 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="ui_mcm_stalker_camp_builder_realtime_job_trader_interval_min_desc">
         <text>Real-time minutes between the Trader's sales runs at the Market Stall.</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_cut_enabled">
+        <text>Settler's Cut from Work</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_cut_enabled_desc">
+        <text>Each completed work cycle adds to the settler's savings, kept on the Homestead record. A settler whose job has no room for its output keeps saving instead of pausing, until the savings cap.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_cut_per_cycle">
+        <text>Savings per Work Cycle (RU)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_cut_per_cycle_desc">
+        <text>RU a settler saves per completed work cycle, before the tier multiplier (Skilled, Expert and Master earn more).</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_savings_cap">
+        <text>Savings Cap (RU)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_savings_cap_desc">
+        <text>The most RU a settler may save. Once reached, the settler's job pauses on a full settlement again.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_spending_enabled">
+        <text>Settlers Buy Gear After Promotion</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_spending_enabled_desc">
+        <text>A settler who is promoted and has the savings buys a better weapon from their faction's loadout, with ammo. Their own needs come first.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_standing_enabled">
+        <text>Promotions Raise Rank and Reputation</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_standing_enabled_desc">
+        <text>A promotion raises the settler's rank and reputation. Changes wait on the record until the settler is online.</text>
+    </string>
+    <string id="st_homestead_settler_bought_weapon">
+        <text>%s bought a %s from their own savings.</text>
+    </string>
+    <string id="st_guide_s8b_header">
+        <text>SETTLERS' SAVINGS &amp; STANDING</text>
+    </string>
+    <string id="st_guide_s8b_body">
+        <text>%c[255,238,196,112]>> SETTLER'S CUT%c[default]
+ 
+  - %c[255,144,238,144] Savings:%c[default] Each completed work cycle adds RU to the settler's savings, more at Expert and Master. The savings are kept on the Homestead record and grow while you are away.
+  - %c[255,238,196,112] Full storage:%c[default] A job with no room for its output keeps saving until the savings cap (MCM), instead of pausing.
+  - %c[255,100,200,255] Gear:%c[default] After a promotion a settler with the savings buys a better weapon from their faction, with ammo. Their own needs come first.
+  - %c[255,144,238,144] Standing:%c[default] Promotions raise rank and reputation. The change waits on the record until the settler is online.</text>
+    </string>
     <string id="ui_mcm_stalker_camp_builder_trader_price_percent">
         <text>Trader Price (% of base price)</text>
     </string>
