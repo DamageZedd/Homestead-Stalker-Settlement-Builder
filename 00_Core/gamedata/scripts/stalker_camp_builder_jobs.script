@@ -3907,11 +3907,14 @@ function stalker_camp_builder.update_camp_jobs()
                                 local is_catchup = (cycle_idx > 1)
                                 local ok_cycle, dispatch_err = pcall(function()
                                 local did_work = false
+                                -- a retry after storage was full is no new trip: no ambush roll, so no tip
+                                local full_retry = survivor.full_pause
+                                survivor.full_pause = nil
 
                                 if job == "scavenge" then
                                     local roll = math.random(100)
                                     local ambush_chance = (sb.cfg and (sb.cfg.scavenge_ambush_chance or sb.cfg.scavenger_ambush_chance)) or 20
-                                    if roll <= ambush_chance then
+                                    if not full_retry and roll <= ambush_chance then
                                         did_work = false
                                         if survivor then survivor.shortfall_reason = "Ambushed" end
                                         if not is_catchup then
@@ -3940,6 +3943,7 @@ function stalker_camp_builder.update_camp_jobs()
                                                 end
                                             else
                                                 did_work = false
+                                                if survivor then survivor.full_pause = true end
                                                 if survivor and not survivor.shortfall_reason then
                                                     survivor.shortfall_reason = "Storage Full"
                                                 end
@@ -3955,7 +3959,7 @@ function stalker_camp_builder.update_camp_jobs()
                                 elseif job == "hunter" then
                                     local roll = math.random(100)
                                     local ambush_chance = (sb.cfg and sb.cfg.hunter_ambush_chance) or 20
-                                    if roll <= ambush_chance then
+                                    if not full_retry and roll <= ambush_chance then
                                         did_work = false
                                         if survivor then survivor.shortfall_reason = "Ambushed" end
                                         local ambush_msg = string.format(game.translate_string("st_job_hunter_ambushed"), survivor.name)
@@ -4009,6 +4013,7 @@ function stalker_camp_builder.update_camp_jobs()
                                                 end
                                             else
                                                 did_work = false
+                                                if survivor then survivor.full_pause = true end
                                                 if survivor and not survivor.shortfall_reason then
                                                     survivor.shortfall_reason = "Storage Full"
                                                 end
@@ -4098,10 +4103,12 @@ function stalker_camp_builder.update_camp_jobs()
 
                             if not last_did_work then
                                 -- an ambush, or an electrician with nothing to service, spends the cycle;
-                                -- a job short of supplies looks again in 30 s
+                                -- a job short of supplies looks again in 30 s, and one whose loot won't fit
+                                -- in camp storage backs off to 2 min
                                 local spent = survivor.shortfall_reason == "Ambushed"
                                     or survivor.shortfall_reason == "Grid Fully Powered"
-                                survivor.paused_elapsed = spent and 0 or math.max(0, effective_interval - 30)
+                                local retry_wait = survivor.full_pause and 120 or 30
+                                survivor.paused_elapsed = spent and 0 or math.max(0, effective_interval - retry_wait)
                                 survivor.job_start_realtime = tg - (survivor.paused_elapsed * 1000)
                                 survivor.job_start_time = current_sec - (survivor.paused_elapsed * tf)
                                 if not survivor.shortfall_reason then

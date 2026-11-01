@@ -2532,8 +2532,11 @@ function stalker_camp_builder.queue_dismantle_structure_cleanup(hub_id, camp, hu
 
     -- 2. Hub container and its linked stashes (unless manually picked up into player inventory)
     if camp and not camp._picked_up_by_player then
-        structures_set[hub_id] = true
-        containers_set[hub_id] = true
+        -- a hub that is gone can leave its id to another object: only the hub still at the camp's spot
+        if hub_obj then
+            structures_set[hub_id] = true
+            containers_set[hub_id] = true
+        end
         local hub_linked = (sb.linked_stash_id and sb.linked_stash_id(hub_id)) or ws_stashes[hub_id] or st_stashes[hub_id]
         if hub_linked then
             structures_set[hub_linked] = true
@@ -2667,14 +2670,23 @@ function stalker_camp_builder.queue_dismantle_structure_cleanup(hub_id, camp, hu
     end)
 end
 
-function stalker_camp_builder.dismantle_camp(hub_id)
+-- True while the object with this id is the camp's hub, standing where the camp was founded. A hub
+-- that is gone can leave its id to another object, so the id alone doesn't show the hub is there.
+function stalker_camp_builder.is_camp_hub_object(se_obj, camp)
+    local p = se_obj and se_obj.position
+    if not p then return false end
+    -- camp.pos is filled in later for an older camp, so a camp without it can't be checked
+    local cp = camp and camp.pos
+    if not cp then return true end
+    local dx, dy, dz = p.x - cp.x, p.y - cp.y, p.z - cp.z
+    return dx * dx + dy * dy + dz * dz <= 1.0
+end
+
+-- Ends the camp's scavenger expeditions and frees its settlers from the settlement. Only the
+-- residents: no message and no Market Stall payout. dismantle_camp and clean_orphaned_camps (a camp
+-- whose hub is gone) both need it.
+function stalker_camp_builder.release_camp_residents(hub_id, camp)
     local sb = stalker_camp_builder
-    local camp = sb.active_camps[hub_id]
-    if not camp then return false, "no_camp" end
-    local hub_obj = alife_object(hub_id)
-
-    -- printf(string.format("[Homestead] Dismantling camp %d (%s)", hub_id, tostring(camp.name)))
-
     -- End scavengers' expeditions while the camp still exists, as banish_npc does: the haul so far
     -- goes into the camp's storage. Left running, an expedition outlives the camp, loses its haul
     -- and puts the freed stalker back on the settler beh scheme.
@@ -2704,6 +2716,18 @@ function stalker_camp_builder.dismantle_camp(hub_id)
             end
         end
     end
+end
+
+function stalker_camp_builder.dismantle_camp(hub_id)
+    local sb = stalker_camp_builder
+    local camp = sb.active_camps[hub_id]
+    if not camp then return false, "no_camp" end
+    local hub_obj = alife_object(hub_id)
+    if not sb.is_camp_hub_object(hub_obj, camp) then hub_obj = nil end
+
+    -- printf(string.format("[Homestead] Dismantling camp %d (%s)", hub_id, tostring(camp.name)))
+
+    sb.release_camp_residents(hub_id, camp)
 
     local zone_id = camp.zone_id
 
@@ -2722,7 +2746,7 @@ function stalker_camp_builder.dismantle_camp(hub_id)
     end
 
     if remove_furniture then
-        if sb.scan_camp_structures then
+        if hub_obj and sb.scan_camp_structures then
             pcall(sb.scan_camp_structures, hub_id, true)
         end
         sb.queue_dismantle_structure_cleanup(hub_id, camp, hub_obj)
