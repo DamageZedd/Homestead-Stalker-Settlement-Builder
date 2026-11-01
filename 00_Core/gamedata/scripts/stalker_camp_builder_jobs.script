@@ -2907,8 +2907,9 @@ local function trader_item_state(id, se_item, is_ammo)
     if ok and data then return data.condition, data.ammo_left end
 end
 
--- what the settler pays for one stall item: the item's base price (cost) scaled by condition for
--- gear and by the rounds left in an ammo box. 0 means he will not buy it.
+-- what the settler pays for one stall item: the item's base price (cost) scaled as base trade
+-- scales it (utils_item.get_item_cost): by the uses left in a multi-use item, by the rounds left
+-- in an ammo box, and by condition for anything else. 0 means he will not buy it.
 local function trader_item_price(sec, id, se_item)
     if not sec then return 0 end
     local ini = ini_sys or sys_ini or system_ini()
@@ -2917,15 +2918,23 @@ local function trader_item_price(sec, id, se_item)
     if cost <= 0 then return 0 end
     if ini:r_bool_ex(sec, "quest_item", false) then return 0 end
     local price = cost
+    local uses = ini:r_float_ex(sec, "max_uses") or 1
+    if uses > 1 then
+        -- only the game object has the uses left (server items have none, and utils_stpk reads
+        -- none): a multi-use item waits until the stall is online
+        local obj = level.object_by_id(id)
+        if not obj then return 0 end
+        return price * math.min(obj:get_remaining_uses(), uses) / uses
+    end
     local box = ini:r_float_ex(sec, "box_size")
     local is_ammo = box and box > 0
-    local is_gear = sec:find("^wpn_") or sec:find("outfit") or sec:find("^helm_") or sec:find("^armor_")
-    if is_ammo or is_gear then
-        local cond, left = trader_item_state(id, se_item, is_ammo)
-        -- what he can't inspect waits for a later cycle
-        if not cond or (is_ammo and not left) then return 0 end
-        if is_ammo then price = price * math.min(left, box) / box end
-        if is_gear then price = price * math.max(cond, 0.1) end
+    local cond, left = trader_item_state(id, se_item, is_ammo)
+    -- what he can't inspect waits for a later cycle
+    if not cond or (is_ammo and not left) then return 0 end
+    if is_ammo then
+        price = price * math.min(left, box) / box
+    else
+        price = price * math.max(cond, 0.1)
     end
     return price
 end
