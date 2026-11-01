@@ -1960,7 +1960,9 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
                         end
                     end
 
-                    if camp.squad_id then
+                    -- the guards are placed around the chest only when it is snapped offline: an online
+                    -- chest keeps its place until it next spawns, and online guards would jump in view
+                    if needs_snap and camp.squad_id and not level.object_by_id(camp.chest_id) then
                         local squad = sim:object(camp.squad_id)
                         if squad and is_valid_camp_squad(camp, squad) then
                             sb.setup_rival_squad_positions(squad, camp, sim)
