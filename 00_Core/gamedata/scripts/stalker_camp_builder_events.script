@@ -90,7 +90,11 @@ function trigger_random_camp_event(hub_id, camp, hub_obj)
         local lvi = spawn_lvid or hub_obj.m_level_vertex_id
         local se_refugee = alife():create("stalker_regular", pos, lvi, hub_obj.m_game_vertex_id)
         if se_refugee then
-            stalker_camp_builder.refugee_ids[se_refugee.id] = { arrived_sec = stalker_camp_builder.game_sec() }
+            -- stalker_regular is a Loner, an enemy of several factions the player and the settlers
+            -- can belong to: once online, the refugee takes the camp's faction (refugee_on_net_spawn)
+            local comm = stalker_camp_builder.get_camp_dominant_faction and stalker_camp_builder.get_camp_dominant_faction(camp)
+                or get_actor_true_community and get_actor_true_community()
+            stalker_camp_builder.refugee_ids[se_refugee.id] = { arrived_sec = stalker_camp_builder.game_sec(), pending_community = comm }
             stalker_camp_builder.camp_send_tip(db.actor, game.translate_string("st_event_refugees_arrived"), nil, "general_stalker", 12000)
         end
     elseif chosen_event == "migration" then
@@ -535,3 +539,19 @@ stalker_camp_builder.process_camp_raids = process_camp_raids
 stalker_camp_builder.trigger_random_camp_event = trigger_random_camp_event
 stalker_camp_builder.spawn_camp_raid = spawn_camp_raid
 stalker_camp_builder.check_completed_raids = check_completed_raids
+
+-- gives a refugee the faction the refugees event picked, and a friendly relation to the player, the
+-- first time it is online; the server object keeps the community from then on
+local function refugee_on_net_spawn(npc)
+    local info = npc and stalker_camp_builder.refugee_ids[npc:id()]
+    if not (type(info) == "table" and info.pending_community and db.actor) then return end
+    pcall(function()
+        npc:set_character_community(info.pending_community, 0, 0)
+        npc:set_relation(game_object.friend, db.actor)
+    end)
+    info.pending_community = nil
+end
+
+function on_game_start()
+    RegisterScriptCallback("npc_on_net_spawn", refugee_on_net_spawn)
+end
