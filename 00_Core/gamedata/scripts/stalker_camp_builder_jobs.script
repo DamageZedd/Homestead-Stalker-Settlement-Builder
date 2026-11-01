@@ -1290,7 +1290,8 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         return true
     end
 
-    local is_producing_job = (job == "cook" or job == "craft" or job == "medic" or job == "hunter" or job == "scrapper" or job == "woodcutter" or job == "brewer" or job == "farmer" or job == "scavenge")
+    -- a scavenger out on an expedition has no cycle to hold: the haul comes home when it ends
+    local is_producing_job = (job == "cook" or job == "craft" or job == "medic" or job == "hunter" or job == "scrapper" or job == "woodcutter" or job == "brewer" or job == "farmer" or (job == "scavenge" and not survivor.on_expedition))
     if is_producing_job then
         local test_sec = "prt_i_scrap"
         local test_w = 0.5
