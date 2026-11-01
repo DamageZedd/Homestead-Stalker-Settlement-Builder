@@ -1057,6 +1057,15 @@ setmetatable(cfg, {
                 -- the slider is moved, and ui_mcm.get returns it as it is
                 local val = get_mcm_setting("craft_output_multiplier")
                 return val and mmin(3, val) or defaults.craft_output_multiplier
+            elseif key == "rival_camp_spawn_dist_min" or key == "rival_camp_spawn_dist_max" then
+                -- nothing used these before 429a9f0, and MCM saves every option when its menu is
+                -- accepted: a saved 25/250 is the old defaults, kept, so today's defaults apply
+                local min = get_mcm_setting("rival_camp_spawn_dist_min")
+                local max = get_mcm_setting("rival_camp_spawn_dist_max")
+                if not (min == 25 and max == 250) then
+                    local val = get_mcm_setting(key)
+                    if val ~= nil then return val end
+                end
             elseif key == "scavenge_ambush_chance" or key == "scavenger_ambush_chance" then
                 local val = get_mcm_setting("scavenger_ambush_chance")
                 if val ~= nil then return val end
