@@ -67,6 +67,15 @@ local function clear_spot(id)
     end
 end
 
+-- A released piece's id goes to a later object, which would inherit its spot: placeables are physic
+-- objects, which have no Lua server class, so axr_main never clears their se vars.
+local function forget_piece(se_obj)
+    local id = se_obj and se_obj.id
+    if not id then return end
+    online[id] = nil
+    clear_spot(id)
+end
+
 -- Rows i, j, k of the engine's Fmatrix:setHPB. Spots are compared as rotations, because the same
 -- rotation can have a different heading/pitch/bank (heading +-pi, a piece tipped onto its side).
 local function hpb_axes(h, p, b)
@@ -203,4 +212,5 @@ function on_game_start()
         hook_freeze(bind_hf_static)
     end
     RegisterScriptCallback("on_option_change", load_settings)
+    RegisterScriptCallback("server_object_on_unregister", forget_piece)
 end
