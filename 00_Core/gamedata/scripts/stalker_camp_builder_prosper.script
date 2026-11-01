@@ -13,7 +13,7 @@ local mfloor = math.floor
 local PROSPER_LOADOUTS = {
     stalker  = { "wpn_ak74u", "wpn_val", "wpn_lr300", "wpn_svu" },
     bandit   = { "wpn_ak74u", "wpn_bizon", "wpn_val" },
-    military = { "wpn_sig550", "wpn_fn2000", "wpn_svd", "wpn_abakan" },
+    army     = { "wpn_sig550", "wpn_fn2000", "wpn_svd", "wpn_abakan" },
     dolg     = { "wpn_lr300", "wpn_groza", "wpn_svd" },
     freedom  = { "wpn_groza", "wpn_vintorez", "wpn_abakan" },
     ecolog   = { "wpn_val", "wpn_vintorez", "wpn_svu" },
@@ -111,7 +111,7 @@ local function prosper_ammo_for(sec)
     if not (ac and str_explode) then return nil end
     local list = str_explode(ac, ",")
     local ammo = list and list[1]
-    if ammo and ini_sys:section_exists(ammo) then return ammo end
+    if ammo and ini_sys:section_exist(ammo) then return ammo end
     return nil
 end
 
@@ -137,7 +137,7 @@ function sb.prosper_try_buy(npc_id, survivor)
     local best_sec, best_ammo, best_total, best_cost = nil, nil, nil, nil
     for i = 1, mmin(#loadout, tier + 2) do
         local sec = loadout[i]
-        if ini_sys:section_exists(sec) and prosper_is_firearm(sec) then
+        if ini_sys:section_exist(sec) and prosper_is_firearm(sec) then
             local cost = ini_sys:r_float_ex(sec, "cost") or 0
             local ammo = prosper_ammo_for(sec)
             local ammo_cost = ammo and (ini_sys:r_float_ex(ammo, "cost") or 0) or 0
