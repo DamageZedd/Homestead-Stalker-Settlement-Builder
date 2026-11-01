@@ -418,6 +418,8 @@ local route_by_kind = {
     i_kit = "tech", i_tool = "tech", i_repair = "tech", i_upgrade = "tech", upgrade_kit = "tech",
 }
 
+-- no "tea" or "water" in the food names: every homestead_ section contains "tea", and the Water
+-- Purifier kit "water". tea and water_drink are kind i_drink, which route_by_kind sends to food.
 local function route_by_name(sec, sec_l)
     local is_mutant_part = sec_l:find("mutant_part_") ~= nil
     local is_edible_mutant_meat = is_mutant_part and (sec_l:find("_meat") or sec_l:find("boar_chop") or sec_l:find("snork_hand"))
@@ -425,8 +427,8 @@ local function route_by_name(sec, sec_l)
     if is_edible_mutant_meat or (not is_mutant_part and (sec_l:find("meat_") or sec_l:find("tushonka") or sec_l:find("conserva")
        or sec_l:find("bread") or sec_l:find("kolbasa") or sec_l:find("cheese") or sec_l:find("nuts") or sec_l:find("chocolate")
        or sec_l:find("salmon") or sec_l:find("sardina") or sec_l:find("beans") or sec_l:find("chili") or sec_l:find("snack")
-       or sec_l:find("water") or sec_l:find("mineral_water") or sec_l:find("flask") or sec_l:find("vodka") or sec_l:find("beer")
-       or sec_l:find("energy_drink") or sec_l:find("tea") or sec_l:find("drink_") or sec_l:find("bottle_") or sec_l:find("ration")
+       or sec_l:find("mineral_water") or sec_l:find("flask") or sec_l:find("vodka") or sec_l:find("beer")
+       or sec_l:find("energy_drink") or sec_l:find("drink_") or sec_l:find("bottle_") or sec_l:find("ration")
        or sec_l:find("mre") or sec_l:find("cereal") or sec_l:find("tomato") or sec_l:find("corn") or sec_l:find("sausage"))) then
         return "food"
     elseif sec_l:find("charcoal") or sec_l:find("firewood") or sec_l:find("matches") or sec_l:find("kerosene")
