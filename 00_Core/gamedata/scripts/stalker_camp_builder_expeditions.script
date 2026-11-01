@@ -148,7 +148,7 @@ function stalker_camp_builder.recall_scavenger_expedition(stash_id)
         for _, itm in ipairs(exp.haul or {}) do
             local count = (spec_mult > 1.0 and math.random() < (spec_mult - 1.0)) and 2 or 1
             for c = 1, count do
-                pcall(sb.deposit_item_to_camp, exp.hub_id, camp, itm.sec, itm.is_yellow, itm.map_tier, itm.cond, itm.parts, itm.uses)
+                pcall(sb.deposit_item_to_camp, exp.hub_id, camp, itm.sec, itm.is_yellow, itm.map_tier, itm.cond, itm.parts, itm.uses, true)
             end
         end
     end
@@ -1722,7 +1722,7 @@ local function deposit_expedition_haul(exp, camp, bonus_loot)
             local dep_box = nil
             pcall(function()
                 dep_box = sb.deposit_item_to_camp(exp.hub_id, camp, itm.sec,
-                    itm.is_yellow, itm.map_tier, itm.cond, itm.parts, itm.uses)
+                    itm.is_yellow, itm.map_tier, itm.cond, itm.parts, itm.uses, true)
             end)
             if dep_box then
                 items_recovered = items_recovered + 1
