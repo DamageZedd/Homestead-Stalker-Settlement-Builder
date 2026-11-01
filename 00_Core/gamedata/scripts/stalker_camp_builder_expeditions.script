@@ -851,6 +851,13 @@ local function loot_and_clear_stash(s_id, exp)
 
     local stash_items = {}
 
+    -- treasure_manager reads false as a box free for a new stash and nil as a box outside its
+    -- pool: a box from the pool goes back to false, as the player's own looting leaves it
+    local looted_state = nil
+    if treasure_manager and treasure_manager.caches and treasure_manager.caches[s_id] ~= nil then
+        looted_state = false
+    end
+
     if treasure_manager and treasure_manager.caches and type(treasure_manager.caches[s_id]) == "string" then
         local raw_str = treasure_manager.caches[s_id]
         local parts = str_explode and str_explode(raw_str, ",")
@@ -865,7 +872,7 @@ local function loot_and_clear_stash(s_id, exp)
                 end
             end
         end
-        treasure_manager.caches[s_id] = nil
+        treasure_manager.caches[s_id] = looted_state
     end
 
     if se_stash and sim and sim.get_children then
@@ -927,7 +934,7 @@ local function loot_and_clear_stash(s_id, exp)
                         end
                     end
                 end
-                treasure_manager.caches[s_id] = nil
+                treasure_manager.caches[s_id] = looted_state
             end
         end
         if #stash_items == 0 then
@@ -952,7 +959,7 @@ local function loot_and_clear_stash(s_id, exp)
 
     pcall(function()
         if treasure_manager and treasure_manager.caches then
-            treasure_manager.caches[s_id] = nil
+            treasure_manager.caches[s_id] = looted_state
         end
         if level and level.map_remove_object_spot then
             level.map_remove_object_spot(s_id, "treasure")
