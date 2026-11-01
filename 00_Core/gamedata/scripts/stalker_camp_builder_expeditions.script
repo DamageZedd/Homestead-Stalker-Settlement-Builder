@@ -73,9 +73,16 @@ function stalker_camp_builder.restore_missing_settler(hub_id, npc_id, survivor)
     local ok, new_se = pcall(function() return sim:create(sec, pos, lvid, gvid) end)
     if ok and new_se then
         local new_id = new_se.id
+        -- the engine can hand out the id of another missing settler's record: keep that record
+        if new_id ~= npc_id and camp.survivors[new_id] then
+            safe_alife_release(new_se)
+            return nil
+        end
         camp.survivors[npc_id] = nil
         stalker_camp_builder.settler_lookup[npc_id] = nil
 
+        -- the section the object was made with, so survivor_record_matches sees it as this settler
+        survivor.section = sec
         camp.survivors[new_id] = survivor
         stalker_camp_builder.settler_lookup[new_id] = {
             hub_id = hub_id,

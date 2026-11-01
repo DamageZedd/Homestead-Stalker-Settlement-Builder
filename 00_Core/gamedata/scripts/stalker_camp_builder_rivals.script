@@ -517,7 +517,7 @@ function stalker_camp_builder.find_nearby_squad_for_repopulation(camp)
     local sim = alife()
     if not (SIMBOARD and SIMBOARD.squads) then return nil end
     for id, squad in pairs(SIMBOARD.squads) do
-        if squad and type(squad) == "table" and squad.position then
+        if squad and (type(squad) == "userdata" or type(squad) == "table") and squad.position then
             local dist_ok, dist = pcall(function() return squad.position:distance_to(camp_pos) end)
             if dist_ok and dist <= 35 then
                 if squad.id ~= 0 and not (axr_companions and axr_companions.companion_squads and axr_companions.companion_squads[squad.id]) then
@@ -709,7 +709,7 @@ function stalker_camp_builder.find_wiping_squad(camp)
     local sim = alife()
     if not (SIMBOARD and SIMBOARD.squads) then return nil end
     for id, squad in pairs(SIMBOARD.squads) do
-        if squad and type(squad) == "table" and squad.position and squad.id ~= 0 and squad.id ~= camp.squad_id then
+        if squad and (type(squad) == "userdata" or type(squad) == "table") and squad.position and squad.id ~= 0 and squad.id ~= camp.squad_id then
             local dist_ok, dist = pcall(function() return squad.position:distance_to(camp_pos) end)
             if dist_ok and dist <= 45 then
                 if not (axr_companions and axr_companions.companion_squads and axr_companions.companion_squads[squad.id]) then

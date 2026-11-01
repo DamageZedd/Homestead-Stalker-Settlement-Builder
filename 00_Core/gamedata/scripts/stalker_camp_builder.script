@@ -4329,22 +4329,6 @@ local function clean_orphaned_camps(current_level)
     end
 end
 
-local function reestablish_settler_relations()
-    if not (relation_registry and relation_registry.set_npcs_relation) then return end
-    for _, camp in pairs(stalker_camp_builder.active_camps) do
-        if camp.survivors then
-            local ids = {}
-            for npc_id in pairs(camp.survivors) do ids[#ids + 1] = npc_id end
-            for i = 1, #ids do
-                for j = i + 1, #ids do
-                    relation_registry.set_npcs_relation(ids[i], ids[j], "friend")
-                    relation_registry.set_npcs_relation(ids[j], ids[i], "friend")
-                end
-            end
-        end
-    end
-end
-
 local function migrate_ctime_fields()
     local function convert_if_needed(v)
         if v and type(v) ~= "number" then return get_time_sec(v) end
@@ -4730,7 +4714,6 @@ function actor_on_first_update()
     rebase_all_survivor_jobs(cur_tg, cur_gsec, tf)
 
     clean_orphaned_camps(current_level)
-    reestablish_settler_relations()
 
     if hf_furniture_types then
         hf_furniture_types.add_type("camp_hub", function(obj_id) end)

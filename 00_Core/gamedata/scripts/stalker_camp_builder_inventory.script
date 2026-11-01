@@ -261,7 +261,8 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                     local cond = (seen and seen.sec == sec and seen.cond) or se_item.condition or 1.0
                     local ini = ini_sys or sys_ini or system_ini()
                     local max_u = (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or 1
-                    local uses = (seen and seen.sec == sec and seen.uses) or max_u
+                    -- server items export no uses: an item with no record counts as one use, not all of them
+                    local uses = (seen and seen.sec == sec and seen.uses) or 1
 
                     if camp and camp.stored_items then
                         local same_sec = seen and seen.sec == sec
@@ -307,7 +308,8 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                             local cond = (seen and seen.sec == sec and seen.cond) or se_item.condition or 1.0
                             local ini = ini_sys or sys_ini or system_ini()
                             local max_u = (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or 1
-                            local uses = (seen and seen.sec == sec and seen.uses) or max_u
+                            -- server items export no uses: an item with no record counts as one use, not all of them
+                            local uses = (seen and seen.sec == sec and seen.uses) or 1
                             camp.stored_items[child_id] = {
                                 sec = sec,
                                 cond = cond,
@@ -341,8 +343,8 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                     local sec = se_item:section_name()
                     local cond = se_item.condition or 1.0
                     local ini = ini_sys or sys_ini or system_ini()
-                    local max_u = (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or 1
-                    local uses = max_u
+                    -- server items export no uses: an item with no record counts as one use, not all of them
+                    local uses = 1
                     local stop = callback(child_id, sec, cond, uses, se_item, cid, nil)
                     if stop == true then
                         stopped = true
