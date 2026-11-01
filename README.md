@@ -288,7 +288,7 @@ Build real houses, Fallout 4 style. The new HomesteadHF building pieces and the 
 
 Rival camps progress through three tiers and react to the world:
 
-- Post-emission scrambles, retaliatory expeditions that rebuild defeated camps, supply convoys
+- Post-emission scrambles, retaliatory expeditions that set up new camps after a defeat, supply convoys
 - Psy-zombification and mutant nest conversions
 - Territorial turf wars and SOS distress signals
 - Friendly camp hospitality buffs

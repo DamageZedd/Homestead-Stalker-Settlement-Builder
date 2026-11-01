@@ -2262,7 +2262,7 @@ function stalker_camp_builder.spawn_single_rival_camp(target_level, specific_fac
                     local angle = mrandom() * math.pi * 2
 
                     if target_level == level_name then
-                        local dist = mrandom(25, math.min(max_dist, 55))
+                        local dist = mrandom(min_dist, max_dist)
                         pos:set(
                             smart.position.x + dist * mcos(angle),
                             smart.position.y,
