@@ -191,6 +191,13 @@ Build real houses, Fallout 4 style. The new HomesteadHF building pieces and the 
 
 - **Placement hologram**: while placing any Hideout Furniture or Homestead item you see a translucent copy of the model, green where it fits and red where it is blocked. It can be turned off in MCM → Homestead → Building.
 
+<table>
+<tr>
+<td width="50%" align="center"><img src="docs/images/hologram_valid.jpg?v=1" alt="Placement hologram, green"><br><b>GREEN: IT FITS</b><br><sub>press F to place it</sub></td>
+<td width="50%" align="center"><img src="docs/images/hologram_blocked.jpg?v=1" alt="Placement hologram, red"><br><b>RED: BLOCKED</b><br><sub>something is in the way, move it</sub></td>
+</tr>
+</table>
+
 ## 🧑‍🤝‍🧑 Survivors & Recruitment
 
 - Recruit any friendly/neutral stalker via dialogue
