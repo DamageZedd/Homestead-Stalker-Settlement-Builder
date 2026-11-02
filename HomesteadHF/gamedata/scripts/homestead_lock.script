@@ -162,17 +162,17 @@ end
 
 -- A piece HF's freeze hook never reported (freeze_obj returned false while the shell was not ready,
 -- a rival camp piece, a piece frozen before this script loaded) would stay a plain dynamic body that
--- NPCs shove into floors. Look for such pieces around the player: any HF-bound piece whose wrapper says
--- it is frozen is fixed and put in door mode like the rest. A piece the player unfroze through HF's
+-- NPCs shove into floors. Look for such pieces around the player: any HF-bound or placeable_* piece (Even More
+-- Hideout Furniture, Hideout Gadgets) whose wrapper says it is frozen, or that has none, is fixed and put in door mode like the rest. A piece the player unfroze through HF's
 -- radial menu is left alone.
 local function sweep_piece(o)
     local id = o:id()
     if online[id] then return end
     local sec = o:section()
     local bind = ini_sys:r_string_ex(sec, "script_binding") or ""
-    if not string.find(bind, "bind_hf", 1, true) then return end
+    if not (string.find(bind, "bind_hf", 1, true) or string.sub(sec, 1, 10) == "placeable_") then return end
     local wrapper = bind_hf_base.get_wrapper(id)
-    if not wrapper or wrapper.is_frozen == false then return end
+    if wrapper and wrapper.is_frozen == false then return end
     local ps = o:get_physics_shell()
     if not ps then return end
     ps:freeze()
