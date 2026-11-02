@@ -17,6 +17,12 @@ local PROSPER_LOADOUTS = {
     dolg     = { "wpn_lr300", "wpn_groza", "wpn_svd" },
     freedom  = { "wpn_groza", "wpn_vintorez", "wpn_abakan" },
     ecolog   = { "wpn_val", "wpn_vintorez", "wpn_svu" },
+    csky     = { "wpn_ak74", "wpn_g36", "wpn_sig550", "wpn_svu" },
+    killer   = { "wpn_mp5", "wpn_ak74", "wpn_g36", "wpn_svd" },
+    monolith = { "wpn_ak74", "wpn_l85", "wpn_abakan", "wpn_svd" },
+    renegade = { "wpn_bizon", "wpn_ak74u", "wpn_lr300" },
+    greh     = { "wpn_ak74", "wpn_lr300", "wpn_abakan", "wpn_svu" },
+    isg      = { "wpn_g36", "wpn_fn2000", "wpn_sig550", "wpn_svd" },
 }
 
 -- rank and reputation a settler gains when promoted to each tier (1 Skilled, 2 Expert, 3 Master);
