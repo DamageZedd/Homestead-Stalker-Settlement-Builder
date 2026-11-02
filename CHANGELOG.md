@@ -1,5 +1,11 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## Unreleased
+
+### Settler record fixes (audit F1, F2)
+- **Invincible respawn keeps the record until it succeeds**: `respawn_settler` clears `camp.respawning` only after the new settler holds the record, so a missing hub or a failed create no longer loses the settler's job, tier, XP and savings.
+- **Heal skips a camp with no hub**: `verify_and_heal_settlers` leaves every settler record of a camp whose hub is unavailable alone and logs it once, instead of deleting them as stale.
+
 ## v1.3.3 — Storage Overflow Protection, Settlement Teardown Options & Hub Independence
 
 ### 🚩 Settlement Flag Hub & Workbench Decoupling
