@@ -358,7 +358,7 @@ def convert(text):
 
     out = ['<div style="max-width: 940px; margin: 0 auto; padding: 22px; background-color: #14130f; '
            'background-image: linear-gradient(180deg, #1c1a14 0%, #14130f 40%, #12110d 100%); color: #d9d2bc; '
-           'font-family: Arial, sans-serif; font-size: 14px; line-height: 1.7; overflow-wrap: anywhere;">']
+           'font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; overflow-wrap: anywhere;">']
     out.append(render_header(pre))
     for title, body in sections:
         if title.lower().startswith("🆕") or "new in" in title.lower():
@@ -368,13 +368,43 @@ def convert(text):
         out.append(f'<div style="{CARD_WARN}"><p><strong>{span("#f08a5d", inline(first_line).replace("<strong>", "").replace("</strong>", ""), " letter-spacing: 1px;")}</strong></p>'
                    f'<p>{inline(" ".join(others))}</p></div>')
     if intro:
-        out.append(f'<div style="{CARD}">' + "<p><br></p>".join(f"<p>{inline(p[0])}</p>" for p in intro) + "</div>")
+        out.append(f'<div style="{CARD}">' + "".join(f"<p>{inline(p[0])}</p>" for p in intro) + "</div>")
     for title, body in sections:
         if "new in" in title.lower():
             continue
         out.append(render_section(title, body))
     out.append("</div>")
-    return "\n".join(out) + "\n"
+    return tighten("\n".join(out)) + "\n"
+
+
+# ModDB turns every newline in the description into a <br> and keeps the browser's default block
+# margins, which opens big gaps. So the output is one line (newlines kept only inside <pre>, as <br>)
+# and the block tags carry small explicit margins.
+TIGHT = [
+    ("<p>", '<p style="margin: 0 0 8px 0;">'),
+    ("<ul>", '<ul style="margin: 4px 0 8px 0; padding-left: 22px;">'),
+    ("<ol>", '<ol style="margin: 4px 0 8px 0; padding-left: 22px;">'),
+    ("<li>", '<li style="margin: 0 0 3px 0;">'),
+    ("<h2>", '<h2 style="margin: 0 0 10px 0;">'),
+    ("<hr>", '<hr style="margin: 12px 0;">'),
+    ("<blockquote>", '<blockquote style="margin: 4px 0 8px 0;">'),
+]
+
+
+def tighten(s):
+    # ModDB escapes the description's ampersands itself, so a written-out &amp; shows up literally
+    s = s.replace("&amp;", "&")
+    parts = re.split(r"(<pre\b.*?</pre>)", s, flags=re.S)
+    for i, part in enumerate(parts):
+        if i % 2:
+            parts[i] = part.replace("\n", "<br>")
+            continue
+        part = part.replace("<p><br></p>", "").replace("<p><br>", "<p>").replace("<br>\n", "<br>")
+        part = re.sub(r"\n+", "", part)
+        for old, new in TIGHT:
+            part = part.replace(old, new)
+        parts[i] = part
+    return "".join(parts)
 
 
 def main():
