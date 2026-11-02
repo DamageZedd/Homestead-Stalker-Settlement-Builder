@@ -3,7 +3,8 @@
 ## Unreleased
 
 ### Models: game textures instead of atlases
-- **Settlement Flags** (14 models): removed all 14 large atlas files (~150MB+ total). All faction flag banners now reference game textures alongside a tiny 87KB patch sheet (homestead_hf\\settlement_flags.dds) covering all 12 playable factions plus Zombied, with non-banner structural materials mapped to plain-Anomaly textures.
+- **Settlement Flags** (14 models): removed all 14 large atlas files (~150MB+ total). All 14 faction flag banners now reference game textures alongside a high-resolution 2048x2048 patch sheet (`homestead_hf\settlement_flags.dds`, 2.66MB) providing crisp 512x512 embroidered faction patches with organic drop-shadows on authentic weathered military canvas (`prop\prop_brezent`), covering all 12 playable factions, Zombied, and base unaligned flag, with all non-banner structural materials mapped to plain-Anomaly textures.
+
 - **Pantry and Salvage Table** now use plain-Anomaly textures per material (no custom atlas); their atlas `.dds` files are removed. The Salvage Table vise wheel uses `mtl\mtl_red_painted` instead of the GAMMA-only `mtl_ventil_pod_01`. The Pantry keeps the existing `homestead_hf\farm_potato` texture for its potatoes.
 - **Wood Station** is on plain-Anomaly textures too: vanilla saw, and a larger vanilla axe leaning against the stump with its blade edge sunk 2.5 cm into the top.
 - **Building kit** (`hs_*`): the wood keeps `wood_plank6_bar_b` and `wood_board_01`, the same textures the Even More Hideout Furniture walls use. The two GAMMA-only concrete textures (`crete_beton_5`, `crete_old_beton`) on the foundation became the plain-Anomaly `grnd\grnd_concrete_2`, and the roofs' GAMMA-only `mtl_walls8` became `roof\roof_metal_01`.
