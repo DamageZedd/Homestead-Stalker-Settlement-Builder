@@ -98,7 +98,8 @@ function stalker_camp_builder.restore_missing_settler(hub_id, npc_id, survivor)
         if survivor.name then
             pcall(function() new_se:set_character_name(survivor.name) end)
         end
-        survivor.pending_community = survivor.comm or survivor.community
+        local pc = survivor.comm or survivor.community
+        survivor.pending_community = pc and stalker_camp_builder.save_safe_faction and stalker_camp_builder.save_safe_faction(pc, new_id) or pc
         return new_id
     end
     return nil
