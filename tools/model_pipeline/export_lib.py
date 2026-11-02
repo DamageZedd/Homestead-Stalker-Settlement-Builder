@@ -134,7 +134,8 @@ def export(arm, folder, name):
     # the addon resets a brand-new material's shaders to 'default' once it first sees it: set them again
     for c in arm.children:
         for m in c.data.materials:
-            if not m.xray.eshader or m.xray.eshader == "default" or m.name.startswith("homestead_hf"):
+            # homestead_hf textures get models\model, except one set to an alpha-test shader (the flag patch)
+            if not m.xray.eshader or m.xray.eshader == "default" or (m.name.startswith("homestead_hf") and "aref" not in m.xray.eshader):
                 m.xray.eshader = "models\\model"
             m.xray.cshader = "default"; m.xray.gamemtl = "default_object"
     bpy.ops.object.select_all(action='DESELECT')

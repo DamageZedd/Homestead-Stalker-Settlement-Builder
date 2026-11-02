@@ -1,41 +1,63 @@
 -- homestead_settlement_flag.script
--- The Settlement Flag: a camp hub that flies the player's faction colours.
--- The crafted homestead_settlement_flag becomes homestead_settlement_flag_<faction> as soon as it
--- is in the player's inventory (their true faction, so a disguise doesn't change it). Placing a flag
--- founds a settlement (homestead_hub, see stalker_camp_builder.hf_on_furniture_place); the flag
--- holds the camp's main storage like a work station, and picking it up dismantles the settlement.
+-- One model, like Wearable Devices' bracer: the banner carries a separate patch mesh whose texture
+-- this script swaps for the player's faction's patch (a live set_shader, as the bracer does), and
+-- swaps again whenever the player's faction changes. Leading a Factions of the Zone faction shows
+-- that faction's own patch art, the one its bracer patch shows. Placing a flag founds a settlement
+-- (homestead_hub, see stalker_camp_builder.hf_on_furniture_place); the flag holds the camp's main
+-- storage like a work station, and picking it up dismantles the settlement.
 
-local FLAG = "homestead_settlement_flag"
+local PATCH_PREFIX = "homestead_hf\\flag_patch_"   -- the model's patch textures, one per faction
+local PATCH_SHADER = "models\\model_aref"          -- alpha-tested, so the patch keeps its outline
+local FOTZ_PATCH   = "fotz_own_patch"              -- Factions of the Zone's patch item (fotz_patch.SECTION)
+local CHECK_MS     = 1000
+local MAX_TRIES    = 30                            -- give up on an engine without set_shader
 
+local FACTIONS = {
+    stalker = true, bandit = true, csky = true, dolg = true, freedom = true, killer = true,
+    army = true, ecolog = true, monolith = true, greh = true, renegade = true, isg = true, zombied = true,
+}
+
+local function lower_path(t)
+    return t and string.lower((string.gsub(t, "/", "\\")))
+end
+
+-- the patch art of the Factions of the Zone faction the player leads, or nil: the texture its
+-- patch item gives Wearable Devices' bracer (wd_bracer_patch), so replacing that art replaces this
+local function fotz_texture()
+    local ok, leading = pcall(function() return fotz_faction ~= nil and fotz_faction.F ~= nil end)
+    if not (ok and leading) then return nil end
+    local sec = FOTZ_PATCH
+    local ok_sec, name = pcall(function() return fotz_patch and fotz_patch.SECTION end)
+    if ok_sec and type(name) == "string" then sec = name end
+    if not ini_sys:section_exist(sec) then return nil end
+    local tex = ini_sys:r_string_ex(sec, "wd_bracer_patch")
+    return (tex and tex ~= "") and tex or nil
+end
+
+-- the player's true faction (a disguise doesn't change it), or one a faction mod provides
 local function actor_faction()
-    local comm = get_actor_true_community and get_actor_true_community()
+    local sb = stalker_camp_builder
+    local comm = sb and sb.get_player_faction and sb.get_player_faction()
+    if not comm then comm = get_actor_true_community and get_actor_true_community() end
     if not comm and db.actor then comm = db.actor:character_community() end
     comm = comm and comm:gsub("^actor_", "") or "stalker"
-    if not ini_sys:section_exist(FLAG .. "_" .. comm) then comm = "stalker" end
-    return comm
+    return FACTIONS[comm] and comm or "stalker"
 end
 
--- swap a flag of another faction (or the crafted one) for the player's faction's flag
-local function swap_flag(id, want)
-    local se = alife_object(id)
-    if se and db.actor and se.parent_id == db.actor:id() and se:section_name() ~= want then
-        alife_release(se)
-        alife_create_item(want, db.actor)
+local function wanted_texture()
+    return fotz_texture() or (PATCH_PREFIX .. actor_faction())
+end
+
+-- the visual ids of the model's patch meshes: whichever still wear one of its patch textures
+local function find_patch_ids(obj)
+    local ok, shaders = pcall(obj.get_shaders, obj)
+    if not ok or type(shaders) ~= "table" or shaders.error then return nil end
+    local ids = {}
+    for id, mat in pairs(shaders) do
+        local tex = type(id) == "number" and type(mat) == "table" and lower_path(mat.texture)
+        if tex and tex:sub(1, #PATCH_PREFIX) == PATCH_PREFIX then ids[#ids + 1] = id end
     end
-    return true
-end
-
-local function actor_on_item_take(obj)
-    local sec = obj and obj:section()
-    if not (sec and sec:sub(1, #FLAG) == FLAG) then return end
-    local want = FLAG .. "_" .. actor_faction()
-    if sec == want then return end
-    local id = obj:id()
-    CreateTimeEvent("homestead_flag", "swap_" .. id, 0, swap_flag, id, want)
-end
-
-function on_game_start()
-    RegisterScriptCallback("actor_on_item_take", actor_on_item_take)
+    return #ids > 0 and ids or nil
 end
 
 function init(obj)
@@ -46,6 +68,37 @@ class "flag_wrapper" (homestead_station_storage.station_wrapper)
 
 function flag_wrapper:__init(obj)
     super(obj)
+    self.next_patch_check = 0
+    self.patch_tries = 0
+    self.patch_tex = nil
+    self.patch_ids = nil
+end
+
+-- put the patch the player's faction wants on the banner; a flag that has just spawned retries
+-- until its model is ready
+function flag_wrapper:sync_patch()
+    local obj = self.object
+    local tex = wanted_texture()
+    if not obj or self.patch_tex == tex then return end
+    self.patch_ids = self.patch_ids or find_patch_ids(obj)
+    if not self.patch_ids then
+        self.patch_tries = self.patch_tries + 1
+        return
+    end
+    for _, id in ipairs(self.patch_ids) do
+        pcall(obj.set_shader, obj, id, PATCH_SHADER, tex)
+    end
+    self.patch_tex = tex
+    printf("[homestead-flag] banner patch %s", tex)
+end
+
+function flag_wrapper:update(delta)
+    homestead_station_storage.station_wrapper.update(self, delta)
+    if self.patch_tries >= MAX_TRIES then return end
+    local now = time_global()
+    if now < self.next_patch_check then return end
+    self.next_patch_check = now + CHECK_MS
+    self:sync_patch()
 end
 
 -- picking the flag up takes the settlement down with it, like picking up a Workshop hub

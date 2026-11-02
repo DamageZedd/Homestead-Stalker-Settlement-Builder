@@ -37,7 +37,7 @@ Expected exceptions (last run: 158 paths, 9 reported):
 | `act/act_stalker_soldier_1`, `act_stalker_soldier_4`, `act_stalker_head_antigas_2` | Vanilla stalker textures from `textures_actors.db*`, which the extractor cannot unpack. Used by the quartermaster locker's stalker meshes. |
 | `ui/ui_con_checker_interface` | Vanilla UI texture (in the UI db), used by the salvage table. |
 | `homestead_hf/hunter_pelts` | Deliberate custom 2048x2048 pelt sheet (2.7 MB) kept at the author's request. |
-| `homestead_hf/settlement_flags` | Shared custom faction-patch sheet for the 14 flags. |
+| `homestead_hf/flag_patch_*` | The 13 faction patches the single settlement flag swaps between at run time (`build_flag_patches.py`). Only the loner one is baked into the model; the rest are applied by `homestead_settlement_flag.script`. |
 | `dynamics/homestead_hf/farm_potato` | Existing custom potato texture. |
 | `new_axe/axe_new_base` | Texture of the separate `wpn_axe.ogf` weapon model, not a furniture piece. |
 | `wood/wood_plank6_bar_b` | Not in plain Anomaly; used by the building kit (`hs_*.ogf`) for Hideout Furniture-compatible wall planks. Requires that texture to be present in the install. |
