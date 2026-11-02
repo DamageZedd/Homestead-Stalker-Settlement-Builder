@@ -5,6 +5,10 @@
 ### 🪑 Furniture Snapping
 - **Furniture no longer sinks into floors**: snapping placed Homestead furniture by its placement box, which is lifted 10 cm so it clears level ground, so the model ended up up to 10 cm inside the floor. Each Homestead furniture section now carries `homestead_snap_base` (where its mesh really starts) and the snap rests that on the surface. Furniture on a foundation also stands on the paved top (0.425 m) instead of 0.4 m. Already placed furniture is not moved; pick it up and place it again to re-snap.
 
+### 🔒 Furniture stays static
+- **Placed furniture is always locked**: the *Lock Placed Furniture* MCM option is removed; every frozen Hideout Furniture, Even More Hideout Furniture and Hideout Gadgets piece is put in door mode (the same state the building-kit walls and roofs use) and kept at its saved spot, so NPCs no longer push furniture into floors and make them slide.
+- **Missed pieces are caught**: a piece that Hideout Furniture's freeze hook never reported (rival camp furniture, pieces whose shell was not ready, or pieces frozen before the lock loaded) is now found within 80 m of the player every 2 s, fixed and locked. Pieces unfrozen through the radial menu stay free until frozen again.
+
 ## v1.3.4 — Settler Prosperity, Rival Camp Sliders & a Big Bug-Fix Pass
 
 ### 💰 Settler Savings, Spending & Standing
