@@ -1,5 +1,12 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## Unreleased
+
+### 💧 Water Purifier
+- **Can be picked up again**: the purifier's collision box was exported with an all-zero rotation (the same fault v1.2.7 fixed on the workstations), so the crosshair could never hit it and Hideout Furniture's hold-Use menu with Pick Up never appeared. It now has two real collision boxes (the concrete pad, and the frame, drum and pipes above it).
+- **Twice the size**: the model, collision boxes, placement box (`bounding_box_size` / `bounding_box_origin`), snap base and the settlers' stand-spot (derived from the placement box) are all 2x. It stands about 2.35 m tall.
+- **No storage**: the purifier is no longer a container. Its 300 kg station stash, the use-to-open action and its camp storage bucket are removed, so the sorter, auto-sort and storage totals no longer see it; it still counts as a water pump. A purifier already holding items in an older save hands them to the player's inventory (with a message) the first time it loads, then drops its stash.
+
 ## v1.3.4 — Settler Prosperity, Rival Camp Sliders & a Big Bug-Fix Pass
 
 ### 🪑 Furniture Snapping

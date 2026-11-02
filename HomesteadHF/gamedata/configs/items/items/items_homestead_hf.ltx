@@ -423,14 +423,12 @@ inv_weight                              = 40.0
 placeable_type                          = prop
 base_rotation                           = 0
 fixed_bones                             = link
-script_binding                          = homestead_station_storage.init
-ui_on_simple_interaction                = homestead_station_storage.use_station
-; its 300 kg stash: which camp storage the sorter treats it as
-homestead_storage_buckets               = pantry
+; no storage: the binder only retires the stash that purifiers placed in older saves still hold
+script_binding                          = homestead_station_storage.init_purifier
 item_section                            = homestead_water_purifier
 
-; width, depth, height / origin x, y (up), z: measured from the above-ground mesh bounds, 3 cm inset per side, 10 cm lifted
-bounding_box_size                       = 0.668000, 0.780000, 1.046000
-bounding_box_origin                     = -0.014000, 0.623000, 0.000000
+; width, depth, height / origin x, y (up), z: measured from the above-ground mesh bounds (mesh scaled 2x), 3 cm inset per side, 10 cm lifted
+bounding_box_size                       = 1.396000, 1.620000, 2.192000
+bounding_box_origin                     = -0.028000, 1.196000, 0.000000
 ; mesh base relative to the pivot: furniture snapped onto a floor rests this on the surface (the box above is lifted 10 cm)
-homestead_snap_base                     = -0.030
+homestead_snap_base                     = -0.060

@@ -128,3 +128,67 @@ function station_wrapper:pickup()
     end
     return bind_hf_base.hf_binder_wrapper.pickup(self)
 end
+
+-- The Water Purifier has no storage any more. One placed in an older save still has its station_stash:
+-- the first time it comes online the stash is emptied into the player's inventory (the same hand-back
+-- as picking a station up, so nothing is lost or dropped where it can fall through the map), released,
+-- and forgotten, so camp storage, the sorter and the settlers stop seeing it.
+local function retire_stash(station_id)
+    local ok, done = pcall(function()
+        local stashes = state()
+        local box_id = stashes[station_id]
+        if not box_id then return true end
+        local se_box = alife_object(box_id)
+        if se_box and se_box:section_name() == "station_stash" then
+            local box = level.object_by_id(box_id)
+            if not box then
+                -- an offline box would release what is in it: bring it online and try again
+                alife():set_switch_online(box_id, true)
+                alife():set_switch_offline(box_id, false)
+                return false
+            end
+            local moved = 0
+            box:iterate_inventory_box(function(temp, item)
+                box:transfer_item(item, db.actor)
+                moved = moved + 1
+            end, box)
+            alife_release(se_box)
+            if moved > 0 then
+                actor_menu.set_msg(1, game.translate_string("st_homestead_purifier_storage_moved"), 6)
+            end
+        end
+        stashes[station_id] = nil
+        forget_camp_containers()
+        return true
+    end)
+    if not ok then
+        printf("homestead_station_storage: retire_stash failed: %s", tostring(done))
+        return true
+    end
+    return done
+end
+
+class "purifier_wrapper" (station_wrapper)
+
+function purifier_wrapper:__init(obj)
+    super(obj)
+end
+
+function purifier_wrapper:net_spawn()
+    bind_hf_base.hf_binder_wrapper.net_spawn(self)
+    local id = self.object:id()
+    if state()[id] then
+        CreateTimeEvent("homestead_station", "retire_" .. id, 1, retire_stash, id)
+    end
+end
+
+function purifier_wrapper:net_destroy()
+    if self.object then
+        RemoveTimeEvent("homestead_station", "retire_" .. self.object:id())
+    end
+    bind_hf_base.hf_binder_wrapper.net_destroy(self)
+end
+
+function init_purifier(obj)
+    obj:bind_object(purifier_wrapper(obj).binder)
+end
