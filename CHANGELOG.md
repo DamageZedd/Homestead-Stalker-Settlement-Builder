@@ -1,5 +1,9 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## Unreleased
+
+- **Settlers stand in front of their furniture**: the spot a settler works at is now placed in front of the piece's usable face (its yaw and `bounding_box_size`), outside its footprint, on walkable ground and clear of the camp's other pieces, instead of the nearest of eight world-axis offsets that could sit beside or inside the piece. Applies to all work furniture, existing saved furniture included (no re-place needed); if no valid spot exists the old one is kept.
+
 ## v1.3.4 — Settler Prosperity, Rival Camp Sliders & a Big Bug-Fix Pass
 
 ### 💰 Settler Savings, Spending & Standing
