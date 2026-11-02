@@ -34,9 +34,7 @@ def build_sheet():
     # Master sheet
     sheet = Image.new("RGBA", (2048, 2048), (50, 50, 45, 255))
     
-    p_size = int(512 * 0.74) # ~378px
-    offset_x = (512 - p_size) // 2
-    offset_y = (512 - p_size) // 2
+    target_dim = 490  # fills banner (~96% fill), perfectly centered with 11px margin for drop-shadow
     
     for fid, col, row, patch_file in FACTIONS:
         print(f"  Compositing [{col}, {row}]: {fid}...")
@@ -45,7 +43,7 @@ def build_sheet():
         if fid == 'zombied':
             # Use generated zombied patch with alpha
             patch_p = r"C:\Users\hocke\.gemini\antigravity\brain\1250b0a1-f73b-4096-b1f7-9997a7d13804\patch_zombied_512_rgba.png"
-            patch_im = Image.open(patch_p)
+            patch_im = Image.open(patch_p).convert("RGBA")
         elif fid == 'base':
             # Base unaligned flag: use loner patch slightly desaturated/neutral, or loner patch
             patch_p = os.path.join(WD_PATCH_DIR, "patch_loners.dds")
@@ -54,12 +52,25 @@ def build_sheet():
             patch_p = os.path.join(WD_PATCH_DIR, patch_file)
             patch_im = Image.open(patch_p).convert("RGBA")
             
-        patch_resized = patch_im.resize((p_size, p_size), Image.Resampling.LANCZOS)
+        # Tightly crop to non-transparent patch emblem
+        alpha_raw = patch_im.split()[3]
+        bbox = alpha_raw.point(lambda p: 255 if p > 10 else 0).getbbox()
+        cropped = patch_im.crop(bbox)
+        cw, ch = cropped.size
+        
+        # Scale so the patch fills the banner (max dimension = target_dim)
+        scale = target_dim / max(cw, ch)
+        nw, nh = int(round(cw * scale)), int(round(ch * scale))
+        patch_resized = cropped.resize((nw, nh), Image.Resampling.LANCZOS)
         alpha = patch_resized.split()[3]
         
-        # Drop shadow
+        # Center horizontally and vertically within 512x512 tile
+        offset_x = (512 - nw) // 2
+        offset_y = (512 - nh) // 2
+        
+        # Soft organic drop shadow behind patch embroidery
         shadow = Image.new("RGBA", (512, 512), (0, 0, 0, 0))
-        shadow.paste((0, 0, 0, 150), (offset_x, offset_y + 3), alpha)
+        shadow.paste((0, 0, 0, 160), (offset_x, offset_y + 3), alpha)
         shadow = shadow.filter(ImageFilter.GaussianBlur(4))
         
         canvas.alpha_composite(shadow)
