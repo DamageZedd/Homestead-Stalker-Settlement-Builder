@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Models: game textures instead of atlases
+- **Pantry and Salvage Table** now use plain-Anomaly textures per material (no custom atlas); their atlas `.dds` files are removed. The Salvage Table vise wheel uses `mtl\mtl_red_painted` instead of the GAMMA-only `mtl_ventil_pod_01`. The Pantry keeps the existing `homestead_hf\farm_potato` texture for its potatoes.
+- **Building kit** (`hs_*`) no longer needs GAMMA-only textures: `crete_beton_5` and `crete_old_beton` use `roof\roof_golima`, `mtl_walls8` uses `roof\roof_metal_01`, `wood_plank6_bar_b` uses `wood\wood_plank6_bar`.
+- **Pipeline**: `reuse_rig` puts any vertex without a bone weight on `link`, so models with joined-in vanilla parts export.
+
 ### 💧 Water Purifier
 - **Can be picked up again**: the purifier's collision box was exported with an all-zero rotation (the same fault v1.2.7 fixed on the workstations), so the crosshair could never hit it and Hideout Furniture's hold-Use menu with Pick Up never appeared. It now has two real collision boxes (the concrete pad, and the frame, drum and pipes above it).
 - **Twice the size**: the model, collision boxes, placement box (`bounding_box_size` / `bounding_box_origin`), snap base and the settlers' stand-spot (derived from the placement box) are all 2x. It stands about 2.35 m tall.
