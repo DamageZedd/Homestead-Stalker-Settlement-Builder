@@ -771,6 +771,19 @@ end
 function stalker_camp_builder.heal_corrupted_scripted_targets()
     local sb = stalker_camp_builder
     local healed = 0
+    -- other mods' squads (xcvb's Guards Spawner), the base game's (utils_obj) and our own convoys
+    -- and heat packs hold a smart terrain as their target too, often with one member: of those,
+    -- only a squad whose member is one of our settlers is ours to clear
+    local function is_settler_squad(squad)
+        for k in squad:squad_members() do
+            for _, camp in pairs(sb.active_camps or {}) do
+                if camp.survivors and (camp.survivors[k.id] or camp.survivors[tostring(k.id)]) then
+                    return true
+                end
+            end
+        end
+        return false
+    end
 
     -- ------------------------------------------------------------------------
     -- v1: only scanned squads belonging to settlers CURRENTLY tracked in
@@ -811,7 +824,10 @@ function stalker_camp_builder.heal_corrupted_scripted_targets()
                 if ok_count and cnt then
                     local is_corrupted = false
                     if squad.scripted_target ~= "actor" and cnt <= 1 then
-                        is_corrupted = true
+                        -- with its one member, only a settler's squad
+                        local ok_ours, ours = true, true
+                        if cnt == 1 then ok_ours, ours = pcall(is_settler_squad, squad) end
+                        is_corrupted = ok_ours and ours == true
                     elseif squad.scripted_target == "actor" and cnt == 0 then
                         is_corrupted = true
                     end
