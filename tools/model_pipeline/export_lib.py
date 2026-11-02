@@ -77,9 +77,12 @@ def reuse_rig(mesh, name, shipped_dir):
     for c in list(arm.children):
         bpy.data.objects.remove(c, do_unlink=True)
     mesh.parent = arm
-    if not any(g.name in arm.data.bones for g in mesh.vertex_groups):
+    # every vertex needs a bone: vertices with no weight on any of the rig's bones (e.g. joined-in vanilla accents) go to 'link'
+    bone_idx = {g.index for g in mesh.vertex_groups if g.name in arm.data.bones}
+    loose = [v.index for v in mesh.data.vertices if not any(g.group in bone_idx and g.weight > 0 for g in v.groups)]
+    if loose:
         vg = mesh.vertex_groups.get("link") or mesh.vertex_groups.new(name="link")
-        vg.add(list(range(len(mesh.data.vertices))), 1.0, 'REPLACE')
+        vg.add(loose, 1.0, 'REPLACE')
     mod = mesh.modifiers.get("Armature") or mesh.modifiers.new("Armature", 'ARMATURE')
     mod.object = arm
     return arm

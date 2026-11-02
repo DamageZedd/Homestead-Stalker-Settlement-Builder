@@ -150,7 +150,11 @@ tube("clamped_pipe", [
 disc("pipe_collar", 0.022, 0.018, VISE_M @ T(0.12, JAW_Y, JAW_Z, 0, 90, 0), "metal_plate", seg=12)
 
 # Brass valve handwheel assembly mounted onto the end of the pipe stem (0.32x scale)
-accent(r"dynamics\workshop_room\ventil_01", VISE_M @ T(0.135, JAW_Y, JAW_Z, 0, 90, 0), scale=0.32)
+_wheel = accent(r"dynamics\workshop_room\ventil_01", VISE_M @ T(0.135, JAW_Y, JAW_Z, 0, 90, 0), scale=0.32)
+# the wheel's own texture (mtl\mtl_ventil_pod_01) is GAMMA-only: repaint it with the plain-Anomaly red paint
+_red = make_mat("mtl\\mtl_red_painted")
+for _o in _wheel:
+    _o.data.materials.clear(); _o.data.materials.append(_red)
 
 # ---------------------------------------------------------------- 6. Tools Hanging on the Backboard
 # Tool 1: Machinist hammer hanging horizontally on two pegs at upper center (flat against backboard)
