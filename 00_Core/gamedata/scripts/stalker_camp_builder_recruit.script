@@ -1049,6 +1049,11 @@ function stalker_camp_builder.recruit_npc_to_camp(actor, npc, hub_id)
         s.has_axe = prev_record.has_axe
         s.has_drugkit = prev_record.has_drugkit
         s.has_tools = prev_record.has_tools
+        -- the same NPC: their savings, and the rank, reputation and weapon they already have
+        s.savings = prev_record.savings
+        s.standing_tier = prev_record.standing_tier
+        s.standing_queue = prev_record.standing_queue
+        s.bought_tier = prev_record.bought_tier
         -- a post is a spot in its own camp: it holds only for the same camp
         if prev_hub_id == hub_id then
             s.assigned_pos = prev_record.assigned_pos
