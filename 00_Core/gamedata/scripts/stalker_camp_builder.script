@@ -4465,7 +4465,11 @@ end
 local function verify_and_heal_settlers()
     for hub_id, camp in pairs(stalker_camp_builder.active_camps) do
         local hub_obj = alife_object(hub_id)
-        local hub_pos = hub_obj and hub_obj.position or nil
+        if not hub_obj then
+            -- no hub to restore a settler at: keep every record until the hub is back
+            homestead_guard_log("Heal", "heal_no_hub:" .. tostring(hub_id), "hub unavailable, settler records kept")
+        else
+        local hub_pos = hub_obj.position
         local stale = {}
 
         -- restore_missing_settler moves a survivor to a new key, and a key added while pairs walks
@@ -4515,6 +4519,7 @@ local function verify_and_heal_settlers()
         -- an Invincible settler who died just before the save: the respawn's time event is gone
         for dead_id in pairs(camp.respawning or {}) do
             stalker_camp_builder.respawn_settler(hub_id, dead_id)
+        end
         end
     end
 end
@@ -5541,7 +5546,6 @@ function stalker_camp_builder.respawn_settler(hub_id, dead_id)
     local camp = stalker_camp_builder.active_camps[hub_id]
     local entry = camp and camp.respawning and camp.respawning[dead_id]
     if not entry then return end
-    camp.respawning[dead_id] = nil
     local survivor = entry.survivor
     local hub_obj = alife_object(hub_id)
     local sim = alife()
@@ -5554,6 +5558,8 @@ function stalker_camp_builder.respawn_settler(hub_id, dead_id)
     -- a new NPC, without the old one's rank, reputation or weapon: prosper_tick gives them again
     survivor.standing_tier, survivor.standing_queue, survivor.bought_tier = nil, nil, nil
     camp.survivors[new_id] = survivor
+    -- the record is kept in camp.respawning until the new settler holds it
+    camp.respawning[dead_id] = nil
     stalker_camp_builder.settler_lookup[new_id] = {
         hub_id = hub_id,
         camp = camp,
