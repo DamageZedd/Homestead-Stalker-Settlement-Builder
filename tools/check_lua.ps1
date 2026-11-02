@@ -38,7 +38,7 @@ if ($ver -notmatch 'Lua 5\.1') { Write-Host "WARNING: $ver is not Lua 5.1; resul
 
 $root = (Resolve-Path $Path).Path
 $files = if ((Get-Item $root).PSIsContainer) {
-    Get-ChildItem $root -Recurse -File | Where-Object { $_.Extension -in '.script', '.lua' }
+    Get-ChildItem $root -Recurse -File | Where-Object { $_.Extension -in '.script', '.lua' -and $_.FullName -notmatch '[\/]\.(git|claude)[\/]' }
 } else { Get-Item $root }
 
 $bad = 0; $warn = 0; $n = 0
