@@ -220,7 +220,8 @@ function sb.prosper_tick(hub_id, camp, survivor, npc_id)
     if survivor.on_expedition then return end
     local obj = level.object_by_id(npc_id)
     if obj then sb.prosper_apply_standing(obj, survivor) end
-    sb.prosper_try_buy(npc_id, survivor)
+    if sb.prosper_try_buy(npc_id, survivor) then return end
+    sb.guarded_call("prosper_try_move_on", sb.prosper_try_move_on, hub_id, camp, survivor, npc_id)
 end
 
 -- the faction without the "actor_" prefix the player's own faction carries
