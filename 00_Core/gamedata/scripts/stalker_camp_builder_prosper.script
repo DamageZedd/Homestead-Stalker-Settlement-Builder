@@ -35,6 +35,37 @@ local PROSPER_STANDING = {
 
 local PROSPER_BUY_AMMO = 2
 
+-- callbacks for other mods (issue #380); arguments are noted at each send site
+local PROSPER_CALLBACKS = {
+    "homestead_on_settler_promoted",     -- npc_id, survivor, new_tier
+    "homestead_on_settler_killed",       -- npc_id, survivor, killer_id (or nil)
+    "homestead_on_raid_defended",        -- hub_id, raiders_killed, guards_lost
+    "homestead_on_expedition_returned",  -- npc_id, survivor, haul table
+    "homestead_on_before_settler_leave", -- npc_id, survivor, flags table (set flags.keep = true to keep them)
+}
+for _, name in ipairs(PROSPER_CALLBACKS) do
+    AddScriptCallback(name)
+end
+
+-- send one of the callbacks; a failing listener must not break Homestead's own flow
+function sb.send_settler_callback(name, ...)
+    if not SendScriptCallback then return end
+    pcall(SendScriptCallback, name, ...)
+end
+
+-- the NPC id a settler record belongs to, for events that only carry the record
+function sb.settler_id_of_record(survivor)
+    if not survivor then return nil end
+    for id, info in pairs(sb.settler_lookup or {}) do
+        if info.survivor == survivor then return id end
+    end
+    return nil
+end
+
+local function prosper_move_on_on()
+    return sb.cfg.settler_move_on_enabled == true
+end
+
 local function prosper_cut_on()
     return sb.cfg.settler_cut_enabled ~= false
 end
@@ -131,7 +162,7 @@ function sb.prosper_try_buy(npc_id, survivor)
     local npc = level.object_by_id(npc_id)
     if not (npc and npc:alive() and alife_create_item) then return false end
     -- the record's own faction: another mod may change the NPC's live one
-    local loadout = PROSPER_LOADOUTS[survivor.community or npc:character_community()]
+    local loadout = PROSPER_LOADOUTS[(string.gsub(survivor.community or npc:character_community() or "", "^actor_", ""))]
     if not loadout then return false end
 
     local current = npc:best_weapon()
