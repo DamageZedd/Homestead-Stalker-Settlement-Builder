@@ -799,6 +799,10 @@ local defaults = {
     settler_savings_cap = 20000,      -- Most RU a settler may save; a full job pauses once it is reached.
     settler_spending_enabled = true,  -- Settlers buy a better weapon from their faction's loadout after a promotion.
     settler_standing_enabled = true,  -- Promotions raise the settler's rank and reputation once the NPC is online.
+    settler_move_on_enabled = false,  -- A Master with savings and top gear may leave to rejoin their faction as a veteran.
+    settler_move_on_chance = 10,      -- Percent chance, per equipment check, that a settler who qualifies moves on.
+    settler_move_on_savings = 5000,   -- Savings a settler needs before they may move on.
+    settler_move_on_goodwill = 100,   -- Goodwill the settler's faction gains with the player when they move on.
     dismantle_removes_furniture = false, -- When true, dismantling removes all furniture, building pieces, containers and loose ground clutter.
 
     trader_loot_table = {
@@ -5200,6 +5204,10 @@ function award_survivor_xp(survivor, job, amount)
     end
     if new_tier > old_tier then
         survivor.tier = new_tier
+        if stalker_camp_builder.send_settler_callback then
+            stalker_camp_builder.send_settler_callback("homestead_on_settler_promoted",
+                stalker_camp_builder.settler_id_of_record(survivor), survivor, new_tier)
+        end
         local tier_names = {"st_settler_tier_novice", "st_settler_tier_skilled", "st_settler_tier_expert", "st_settler_tier_master"}
         if db.actor then
             -- the job's title as the PDA shows it; an idle settler is a Settler, not an Idle
@@ -5574,6 +5582,9 @@ function npc_on_death_callback(npc, who)
             local survivor = camp.survivors[npc_id]
             local name = survivor.name or "unknown"
             local job  = survivor.job  or "unknown"
+            if stalker_camp_builder.send_settler_callback then
+                stalker_camp_builder.send_settler_callback("homestead_on_settler_killed", npc_id, survivor, who and who:id() or nil)
+            end
 
             if cfg.settler_invincible then
                 local sec = npc:section()

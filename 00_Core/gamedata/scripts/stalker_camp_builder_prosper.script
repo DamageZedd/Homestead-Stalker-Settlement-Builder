@@ -130,7 +130,8 @@ function sb.prosper_try_buy(npc_id, survivor)
     if tier <= (survivor.bought_tier or 0) then return false end
     local npc = level.object_by_id(npc_id)
     if not (npc and npc:alive() and alife_create_item) then return false end
-    local loadout = PROSPER_LOADOUTS[npc:character_community()]
+    -- the record's own faction: another mod may change the NPC's live one
+    local loadout = PROSPER_LOADOUTS[survivor.community or npc:character_community()]
     if not loadout then return false end
 
     local current = npc:best_weapon()
@@ -189,4 +190,62 @@ function sb.prosper_tick(hub_id, camp, survivor, npc_id)
     local obj = level.object_by_id(npc_id)
     if obj then sb.prosper_apply_standing(obj, survivor) end
     sb.prosper_try_buy(npc_id, survivor)
+end
+
+-- the faction without the "actor_" prefix the player's own faction carries
+local function prosper_clean_community(comm)
+    if type(comm) ~= "string" then return nil end
+    return (string.gsub(comm, "^actor_", ""))
+end
+
+-- Change a settler's faction (issue #380): updates the record, and the NPC now if it is online or at
+-- net spawn otherwise (pending_community). Returns true when a settler record was found.
+function sb.set_settler_community(npc_id, comm)
+    if not (npc_id and type(comm) == "string" and comm ~= "") then return false end
+    local info = sb.settler_lookup and (sb.settler_lookup[npc_id] or sb.settler_lookup[tonumber(npc_id)])
+    local survivor = info and info.survivor
+    if not survivor then return false end
+    survivor.community = comm
+    survivor.comm = comm
+    survivor.pending_community = comm
+    local obj = level.object_by_id(tonumber(npc_id))
+    if obj and obj:alive() then
+        if pcall(function() obj:set_character_community(comm, 0, 0) end) then
+            survivor.pending_community = nil
+        end
+    end
+    return true
+end
+
+-- a settler who has done well may move on and rejoin their faction as a veteran: the slot frees up,
+-- the faction's goodwill with the player rises, and the player gets word of it
+function sb.prosper_try_move_on(hub_id, camp, survivor, npc_id)
+    if not (prosper_move_on_on() and survivor and camp and npc_id) then return false end
+    if (survivor.tier or 0) < 3 or (survivor.bought_tier or 0) < 3 then return false end
+    if (survivor.savings or 0) < (sb.cfg.settler_move_on_savings or 5000) then return false end
+    local job = survivor.job
+    if job == "companion" or survivor.is_companion or survivor.on_expedition then return false end
+    if camp.active_raid or job == "guard" or job == "trader" then return false end
+    if sb.is_companion and sb.is_companion(npc_id) then return false end
+    local obj = level.object_by_id(npc_id)
+    if not (obj and obj:alive()) then return false end
+    if math.random(100) > (sb.cfg.settler_move_on_chance or 10) then return false end
+
+    local flags = { keep = false }
+    sb.send_settler_callback("homestead_on_before_settler_leave", npc_id, survivor, flags)
+    if flags.keep then return false end
+
+    local name = survivor.name or "Settler"
+    local comm = prosper_clean_community(survivor.community) or prosper_clean_community(obj:character_community())
+    if not pcall(sb.dismiss_survivor, db.actor, npc_id) then return false end
+
+    if db.actor and comm then
+        pcall(function()
+            relation_registry.change_community_goodwill(comm, db.actor:id(), sb.cfg.settler_move_on_goodwill or 100)
+        end)
+        local msg = string.format(game.translate_string("st_homestead_settler_moved_on"), name, comm)
+        sb.camp_send_tip(db.actor, msg, nil, "general_stalker", 10000)
+        if sb.add_radio_feed_entry then sb.add_radio_feed_entry("settlement", msg) end
+    end
+    return true
 end
