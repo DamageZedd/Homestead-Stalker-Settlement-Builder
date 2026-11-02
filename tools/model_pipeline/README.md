@@ -21,6 +21,19 @@ The shipped models themselves are the `.ogf` files under
 `HomesteadHF/gamedata/meshes/dynamics/`. The scripts were only import-checked
 in Blender after this change, not re-run end to end.
 
+## README hero images
+
+`render_hero.py` renders the `docs/images/hero_*.jpg` pictures from the shipped models, with their
+real textures, in a headless Blender that has the XRay addon enabled:
+
+```
+blender -b -P tools/model_pipeline/render_hero.py -- jobs.json
+```
+
+`jobs.json` is a list of `{"model": "hunter_station", "out": "hero_hunter_station.png"}` (optionally
+`"patch": "homestead_hf\\flag_patch_dolg"` to show another banner patch on the settlement flag, and
+`"size"`). The renders are 1600x900 on the same flat background; convert them to JPG afterwards.
+
 ## Checking textures
 
 ```

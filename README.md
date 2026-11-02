@@ -45,20 +45,20 @@ Every job has its own placeable workstation. Settlers walk to it, work at it and
 
 <table>
 <tr>
-<td width="50%" align="center"><img src="https://media.moddb.com/images/members/5/4662/4661404/profile/image-1792927705493.png" alt="Moonshine Distiller"><br><b>MOONSHINE DISTILLER</b><br><sub>Brewer</sub></td>
-<td width="50%" align="center"><img src="https://media.moddb.com/images/members/5/4662/4661404/profile/image-1792927700918.png" alt="Ammunition Crafting Bench"><br><b>AMMUNITION CRAFTING BENCH</b><br><sub>Crafter</sub></td>
+<td width="50%" align="center"><img src="docs/images/hero_distiller.jpg" alt="Moonshine Distiller"><br><b>MOONSHINE DISTILLER</b><br><sub>Brewer</sub></td>
+<td width="50%" align="center"><img src="docs/images/hero_ammo_bench.jpg" alt="Ammunition Crafting Bench"><br><b>AMMUNITION CRAFTING BENCH</b><br><sub>Crafter</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="https://media.moddb.com/images/members/5/4662/4661404/profile/image-1792927696964.png" alt="Woodcutter Station"><br><b>WOODCUTTER STATION</b><br><sub>Woodcutter</sub></td>
-<td align="center"><img src="https://media.moddb.com/images/members/5/4662/4661404/profile/image-1792927689258.png" alt="Electrician Generator Bench"><br><b>ELECTRICIAN GENERATOR BENCH</b><br><sub>Electrician</sub></td>
+<td align="center"><img src="docs/images/hero_wood_station.jpg" alt="Woodcutter Station"><br><b>WOODCUTTER STATION</b><br><sub>Woodcutter</sub></td>
+<td align="center"><img src="docs/images/hero_generator_station.jpg" alt="Electrician Generator Bench"><br><b>ELECTRICIAN GENERATOR BENCH</b><br><sub>Electrician</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="https://media.moddb.com/images/members/5/4662/4661404/profile/image-1792927683996.png" alt="Gunsmith and Armor Repair Bench"><br><b>GUNSMITH &amp; ARMOR REPAIR BENCH</b><br><sub>Repairer / Scrapper</sub></td>
-<td align="center"><img src="https://media.moddb.com/images/members/5/4662/4661404/profile/hero_hunter_station.png" alt="Hunter Butchering Station"><br><b>HUNTER BUTCHERING STATION</b><br><sub>Hunter</sub></td>
+<td align="center"><img src="docs/images/hero_repair_bench.jpg" alt="Gunsmith and Armor Repair Bench"><br><b>GUNSMITH &amp; ARMOR REPAIR BENCH</b><br><sub>Repairer / Scrapper</sub></td>
+<td align="center"><img src="docs/images/hero_hunter_station.jpg" alt="Hunter Butchering Station"><br><b>HUNTER BUTCHERING STATION</b><br><sub>Hunter</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="https://media.moddb.com/images/members/5/4662/4661404/profile/hero_farmer_station.png" alt="Farmer Station"><br><b>FARMER STATION</b> 🆕<br><sub>Farmer</sub></td>
-<td align="center"><img src="https://media.moddb.com/images/members/5/4662/4661404/profile/hero_market_stall.png" alt="Market Stall"><br><b>MARKET STALL</b> 🆕<br><sub>Trader</sub></td>
+<td align="center"><img src="docs/images/hero_farmer_station.jpg" alt="Farmer Station"><br><b>FARMER STATION</b> 🆕<br><sub>Farmer</sub></td>
+<td align="center"><img src="docs/images/hero_market_stall.jpg" alt="Market Stall"><br><b>MARKET STALL</b> 🆕<br><sub>Trader</sub></td>
 </tr>
 <tr>
 <td align="center"><img src="docs/images/hero_field_kitchen.jpg" alt="Field Kitchen"><br><b>FIELD KITCHEN</b><br><sub>Cook · counts as a stove · 300 kg of food &amp; drink storage</sub></td>
@@ -76,7 +76,7 @@ A gravity-fed **water purifier** on a concrete pad: an intake pipe comes up out 
 <p align="center"><img src="docs/images/hero_water_purifier.jpg" alt="Water Purifier" width="70%"><br><b>WATER PURIFIER</b></p>
 
 ### 🏴 Settlement Flag
-A pole and banner that marks the ground as yours. Placing it founds a settlement and makes it the camp hub. It flies the colours of your faction. It is also the camp's main storage (300 kg). Picking it up dismantles the settlement.
+A pole and banner that marks the ground as yours. Placing it founds a settlement and makes it the camp hub. Its banner shows your faction's patch and changes by itself if your faction does; a custom faction from Factions of the Zone shows its own emblem. It is also the camp's main storage (300 kg). Picking it up dismantles the settlement.
 
 <p align="center"><img src="docs/images/hero_settlement_flag.jpg" alt="Settlement Flag" width="70%"><br><b>SETTLEMENT FLAG</b></p>
 
