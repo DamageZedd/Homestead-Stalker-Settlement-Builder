@@ -2074,6 +2074,161 @@ function stalker_camp_builder.is_camp_decor(camp, id, se_obj)
     return stalker_camp_builder.is_rival_decor(se_obj)
 end
 
+-- Rival camp furniture placement. Every piece (initial layout and tier upgrades) goes through
+-- place_rival_decor_piece: its footprint (bounding_box_size, turned by its yaw) is tested against
+-- the chest and every piece already standing at the camp, earlier tiers included. A piece that
+-- overlaps is nudged outward and, failing that, skipped; the camp holds at most RIVAL_DECOR_CAP pieces.
+local RIVAL_DECOR_CAP = 24
+local rival_decor_dims_cache = {}
+
+local function rival_decor_dims(sec)
+    local c = rival_decor_dims_cache[sec]
+    if c then return c[1], c[2], c[3] end
+    local hw, hd, ht = 0.4, 0.4, 0.8
+    local ok, raw = pcall(function() return ini_sys:r_string_ex(sec, "bounding_box_size") end)
+    if ok and raw then
+        local bx, by, bz = tostring(raw):match("([%d%.]+)%s*,%s*([%d%.]+)%s*,%s*([%d%.]+)")
+        bx, by, bz = tonumber(bx), tonumber(by), tonumber(bz)
+        if bx and bz and bx > 0 and bz > 0 then
+            hw, hd = bx * 0.5, bz * 0.5
+            if by and by > 0 then ht = by end
+        end
+    end
+    -- touching edges (the tier 3 walls meet the tier 1 wall's ends) are not an overlap
+    hw = math.max(0.1, math.min(hw, 3.0) - 0.1)
+    hd = math.max(0.1, math.min(hd, 3.0) - 0.1)
+    rival_decor_dims_cache[sec] = { hw, hd, ht }
+    return hw, hd, ht
+end
+
+-- footprint of a piece centred on x,z turned by yaw: local x = (cos, -sin), local z = (sin, cos)
+local function rival_decor_box(x, z, yaw, hw, hd)
+    return { x = x, z = z, hw = hw, hd = hd, c = math.cos(yaw), s = math.sin(yaw), r = math.sqrt(hw * hw + hd * hd) }
+end
+
+local function rival_decor_boxes_overlap(a, b)
+    local dx, dz = b.x - a.x, b.z - a.z
+    local rr = a.r + b.r
+    if dx * dx + dz * dz > rr * rr then return false end
+    local abs = math.abs
+    for _, box in ipairs({ a, b }) do
+        for k = 1, 2 do
+            local ax, az
+            if k == 1 then ax, az = box.c, -box.s else ax, az = box.s, box.c end
+            local ra = a.hw * abs(a.c * ax - a.s * az) + a.hd * abs(a.s * ax + a.c * az)
+            local rb = b.hw * abs(b.c * ax - b.s * az) + b.hd * abs(b.s * ax + b.c * az)
+            if abs(dx * ax + dz * az) > ra + rb then return false end
+        end
+    end
+    return true
+end
+
+-- rival_decor_clear -- whether the box overlaps none of the placed footprints
+local function rival_decor_clear(placed, box)
+    for _, other in ipairs(placed) do
+        if rival_decor_boxes_overlap(box, other) then return false end
+    end
+    return true
+end
+
+-- rival_decor_collect -- footprints of the chest and of the camp's standing furniture, so an
+-- upgrade (or a camp saved before footprints were checked) is tested against what is already there
+local function rival_decor_collect(camp, sim)
+    local placed = {}
+    local pos = camp.position
+    if pos then
+        placed[#placed + 1] = rival_decor_box(pos.x, pos.z, 0, 0.3, 0.25)
+    end
+    local count = 0
+    for _, id in ipairs(camp.decorations or {}) do
+        local ok, se = pcall(alife_object, id)
+        if ok and se and stalker_camp_builder.is_camp_decor(camp, id, se) then
+            local dpos = se.position
+            local ang = se.angle
+            local sec = se:section_name()
+            if dpos and sec and sec ~= "" then
+                local hw, hd = rival_decor_dims(sec)
+                placed[#placed + 1] = rival_decor_box(dpos.x, dpos.z, ang and ang.y or 0, hw, hd)
+                count = count + 1
+            end
+        end
+    end
+    return placed, count
+end
+
+local RIVAL_DECOR_NUDGES = { 0.0, 0.5, 1.0, 1.5 }
+
+-- place_rival_decor_piece -- spawn one piece of ctx's camp unless it would overlap another piece.
+-- ctx: sim, cx, cy, cz, rot, lvid, gvid, same_level, placed (footprints), count, tops (section -> tabletop).
+-- elem.on = a section whose placed piece this one stands on (the radio on its table). Returns the
+-- server object, or nil when the piece was skipped.
+local function place_rival_decor_piece(ctx, elem)
+    local sec = elem.section
+    if not sec or sec == "" or not ini_sys:section_exist(sec) then return nil end
+    if ctx.count >= RIVAL_DECOR_CAP then return nil end
+
+    local sb = stalker_camp_builder
+    local tolerance = sb.cfg.rival_camp_slope_tolerance or 2.5
+    local clearance = 0.03
+    local hw, hd, ht = rival_decor_dims(sec)
+    local yaw = ctx.rot + (elem.yaw or 0)
+    local cos_r, sin_r = math.cos(ctx.rot), math.sin(ctx.rot)
+
+    local base_x = ctx.cx + elem.lx * cos_r - elem.lz * sin_r
+    local base_z = ctx.cz + elem.lx * sin_r + elem.lz * cos_r
+    local wx, wy, wz = base_x, ctx.cy, base_z
+    local dec_lvid = ctx.lvid
+    local found = false
+
+    local top = elem.on and ctx.tops and ctx.tops[elem.on]
+    if top then
+        wx, wy, wz = top.x, top.y + top.h, top.z
+        found = true
+    else
+        -- radial offsets from the camp centre; the nominal spot first
+        local len = math.sqrt(elem.lx * elem.lx + elem.lz * elem.lz)
+        local ox, oz = 0, 1
+        if len > 0.01 then ox, oz = elem.lx / len, elem.lz / len end
+        for _, push in ipairs(RIVAL_DECOR_NUDGES) do
+            local px = base_x + (ox * cos_r - oz * sin_r) * push
+            local pz = base_z + (ox * sin_r + oz * cos_r) * push
+            local box = rival_decor_box(px, pz, yaw, hw, hd)
+            if rival_decor_clear(ctx.placed, box) then
+                local py = ctx.cy
+                local ok_ground = true
+                if ctx.same_level then
+                    local found_lvid, dvpos, surface_y = find_ground_anchor(px, pz, ctx.cy, ctx.cy)
+                    local final_y = surface_y or (dvpos and dvpos.y) or ctx.cy
+                    if final_y and math.abs(final_y - ctx.cy) <= (tolerance + 1.2) then
+                        py = final_y + clearance
+                        dec_lvid = found_lvid or ctx.lvid
+                    else
+                        ok_ground = false
+                    end
+                end
+                if ok_ground then
+                    wx, wy, wz = px, py, pz
+                    found = true
+                    break
+                end
+            end
+        end
+    end
+    if not found then return nil end
+
+    local dpos = vector():set(wx, wy, wz)
+    local se_dec = ctx.sim:create(sec, dpos, dec_lvid, ctx.gvid)
+    if not se_dec then return nil end
+    se_dec.angle = vector():set(0, yaw, 0)
+    ctx.count = ctx.count + 1
+    if not top then
+        ctx.placed[#ctx.placed + 1] = rival_decor_box(wx, wz, yaw, hw, hd)
+    end
+    ctx.tops = ctx.tops or {}
+    ctx.tops[sec] = { x = wx, y = wy, z = wz, h = ht }
+    return se_dec
+end
+
 local function spawn_rival_camp_defenses_and_decor(camp_pos, lvid, gvid, target_level, occupant_faction)
     if not rival_decor_enabled() then return {}, mrandom() * math.pi * 2, {} end
     local sb = stalker_camp_builder
@@ -2109,63 +2264,23 @@ local function spawn_rival_camp_defenses_and_decor(camp_pos, lvid, gvid, target_
         { section = theme.crate,        lx = 1.8,  lz = -2.0, yaw = -math.pi * 0.15 },  -- Large supply crate
         { section = theme.ammo,         lx = 2.1,  lz = -1.0, yaw = 0.0 },              -- Ammo crate
         { section = theme.table,        lx = -0.8, lz = -1.8, yaw = 0.0 },              -- Tactical planning table
-        { section = theme.radio,        lx = -0.8, lz = -1.8, yaw = 0.0 },              -- Field radio
+        { section = theme.radio,        lx = -0.8, lz = -1.8, yaw = 0.0, on = theme.table },              -- Field radio
         { section = theme.lamp,         lx = 0.0,  lz = 1.2,  yaw = 0.0 },              -- Camp lighting
     }
 
     local decor_ids = {}
     local decor_sections = {}
-    local spawned_positions = {}
-    local MIN_DIST_SQ = 0.7 * 0.7
-    local tolerance = sb.cfg.rival_camp_slope_tolerance or 2.5
-    local clearance = 0.03
-
-    local dpos = vector()
-    local d_angle = vector()
+    local ctx = {
+        sim = sim, cx = camp_pos.x, cy = camp_pos.y, cz = camp_pos.z, rot = camp_rot,
+        lvid = lvid, gvid = gvid, same_level = is_same_level, count = 0, tops = {},
+        placed = { rival_decor_box(camp_pos.x, camp_pos.z, 0, 0.3, 0.25) },
+    }
 
     for _, elem in ipairs(elements) do
-        local sec = elem.section
-        if sec and sec ~= "" and ini_sys:section_exist(sec) then
-            local wx = camp_pos.x + elem.lx * cos_r - elem.lz * sin_r
-            local wz = camp_pos.z + elem.lx * sin_r + elem.lz * cos_r
-            local wy = camp_pos.y
-            local dec_lvid = lvid
-            local valid = true
-
-            if is_same_level then
-                local found_lvid, dvpos, surface_y = find_ground_anchor(wx, wz, camp_pos.y, camp_pos.y)
-                local final_y = surface_y or (dvpos and dvpos.y) or camp_pos.y
-                if final_y and math.abs(final_y - camp_pos.y) <= (tolerance + 1.2) then
-                    wy = final_y + clearance
-                    dec_lvid = found_lvid or lvid
-                else
-                    valid = false
-                end
-            end
-
-            if valid then
-                for _, sp in ipairs(spawned_positions) do
-                    local dx = wx - sp.x
-                    local dz = wz - sp.z
-                    if (dx * dx + dz * dz) < MIN_DIST_SQ and sec ~= theme.radio and sec ~= theme.lamp then
-                        valid = false
-                        break
-                    end
-                end
-            end
-
-            if valid then
-                dpos:set(wx, wy, wz)
-                local se_dec = sim:create(sec, dpos, dec_lvid, gvid)
-                if se_dec then
-                    local total_yaw = camp_rot + (elem.yaw or 0)
-                    d_angle:set(0, total_yaw, 0)
-                    se_dec.angle = d_angle
-                    decor_ids[#decor_ids + 1] = se_dec.id
-                    decor_sections[se_dec.id] = sec
-                    spawned_positions[#spawned_positions + 1] = { x = wx, y = wy, z = wz }
-                end
-            end
+        local ok, se_dec = pcall(place_rival_decor_piece, ctx, elem)
+        if ok and se_dec then
+            decor_ids[#decor_ids + 1] = se_dec.id
+            decor_sections[se_dec.id] = elem.section
         end
     end
 
@@ -2596,6 +2711,8 @@ function stalker_camp_builder.upgrade_rival_camp_tier(camp, new_tier)
     local sim = alife()
     if not sim or not camp or not camp.chest_id then return end
 
+    -- an upgrade already applied is not stacked on the camp again
+    if (camp.tier or 1) >= new_tier then return end
     camp.tier = new_tier
     local chest_pos = vector():set(camp.position.x, camp.position.y, camp.position.z)
     local lvid = camp.level_vertex_id
@@ -2620,43 +2737,18 @@ function stalker_camp_builder.upgrade_rival_camp_tier(camp, new_tier)
             { section = theme.ammo,          lx = -1.8, lz = -1.2, yaw = 0.0 },
         }
 
-        local dpos = vector()
-        local d_angle = vector()
-        local tolerance = sb.cfg.rival_camp_slope_tolerance or 2.5
-        local clearance = 0.03
-
         if rival_decor_enabled() then
+            local placed, count = rival_decor_collect(camp, sim)
+            local ctx = {
+                sim = sim, cx = chest_pos.x, cy = chest_pos.y, cz = chest_pos.z, rot = camp_rot,
+                lvid = lvid, gvid = gvid, same_level = same_level, placed = placed, count = count, tops = {},
+            }
             for _, elem in ipairs(t2_elements) do
-                local sec = elem.section
-                if sec and ini_sys:section_exist(sec) then
-                    local wx = chest_pos.x + elem.lx * cos_r - elem.lz * sin_r
-                    local wz = chest_pos.z + elem.lx * sin_r + elem.lz * cos_r
-                    local wy = chest_pos.y
-                    local dec_lvid = lvid
-                    local valid = true
-
-                    if same_level then
-                        local found_lvid, dvpos, d_surface_y = find_ground_anchor(wx, wz, chest_pos.y, chest_pos.y)
-                        local final_y = d_surface_y or (dvpos and dvpos.y) or chest_pos.y
-                        if final_y and math.abs(final_y - chest_pos.y) <= (tolerance + 1.2) then
-                            wy = final_y + clearance
-                            dec_lvid = found_lvid or lvid
-                        else
-                            valid = false
-                        end
-                    end
-
-                    if valid then
-                        dpos:set(wx, wy, wz)
-                        local se_dec = sim:create(sec, dpos, dec_lvid, gvid)
-                        if se_dec then
-                            d_angle:set(0, camp_rot + (elem.yaw or 0), 0)
-                            se_dec.angle = d_angle
-                            camp.decorations[#camp.decorations + 1] = se_dec.id
-                            if not camp.decor_sections then camp.decor_sections = {} end
-                            camp.decor_sections[se_dec.id] = sec
-                        end
-                    end
+                local ok, se_dec = pcall(place_rival_decor_piece, ctx, elem)
+                if ok and se_dec then
+                    camp.decorations[#camp.decorations + 1] = se_dec.id
+                    if not camp.decor_sections then camp.decor_sections = {} end
+                    camp.decor_sections[se_dec.id] = elem.section
                 end
             end
         end
@@ -2705,43 +2797,18 @@ function stalker_camp_builder.upgrade_rival_camp_tier(camp, new_tier)
             { section = theme.crate,         lx = 0.8,  lz = -2.2, yaw = 0.0 },
         }
 
-        local dpos = vector()
-        local d_angle = vector()
-        local tolerance = sb.cfg.rival_camp_slope_tolerance or 2.5
-        local clearance = 0.03
-
         if rival_decor_enabled() then
+            local placed, count = rival_decor_collect(camp, sim)
+            local ctx = {
+                sim = sim, cx = chest_pos.x, cy = chest_pos.y, cz = chest_pos.z, rot = camp_rot,
+                lvid = lvid, gvid = gvid, same_level = same_level, placed = placed, count = count, tops = {},
+            }
             for _, elem in ipairs(t3_elements) do
-                local sec = elem.section
-                if sec and ini_sys:section_exist(sec) then
-                    local wx = chest_pos.x + elem.lx * cos_r - elem.lz * sin_r
-                    local wz = chest_pos.z + elem.lx * sin_r + elem.lz * cos_r
-                    local wy = chest_pos.y
-                    local dlvid = lvid
-                    local valid = true
-
-                    if same_level then
-                        local dlvid_f, dvpos_f, d_surface_y_f = find_ground_anchor(wx, wz, chest_pos.y, chest_pos.y)
-                        local final_y = d_surface_y_f or (dvpos_f and dvpos_f.y) or chest_pos.y
-                        if final_y and math.abs(final_y - chest_pos.y) <= (tolerance + 1.2) then
-                            wy = final_y + clearance
-                            dlvid = dlvid_f or lvid
-                        else
-                            valid = false
-                        end
-                    end
-
-                    if valid then
-                        dpos:set(wx, wy, wz)
-                        local se_dec = sim:create(sec, dpos, dlvid, gvid)
-                        if se_dec then
-                            d_angle:set(0, camp_rot + (elem.yaw or 0), 0)
-                            se_dec.angle = d_angle
-                            camp.decorations[#camp.decorations + 1] = se_dec.id
-                            if not camp.decor_sections then camp.decor_sections = {} end
-                            camp.decor_sections[se_dec.id] = sec
-                        end
-                    end
+                local ok, se_dec = pcall(place_rival_decor_piece, ctx, elem)
+                if ok and se_dec then
+                    camp.decorations[#camp.decorations + 1] = se_dec.id
+                    if not camp.decor_sections then camp.decor_sections = {} end
+                    camp.decor_sections[se_dec.id] = elem.section
                 end
             end
         end
