@@ -1,5 +1,11 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## Unreleased
+
+### Save and load safety
+- **Per-field saving**: `save_state` now writes each large field (camps, outposts, refugees, expeditions, convoys) on its own. A field that cannot be written is logged and left out, instead of dropping every field after it. The save format is unchanged; a save with a failed field also lists it in an extra key that older versions ignore.
+- **Safer loading**: `load_state` keeps the camps, outposts, refugees, expeditions and convoys it already has for a field the save could not write, skips camp and settler entries that are not tables instead of raising, and both save and load handlers are wrapped in `guarded_call`.
+
 ## v1.3.3 — Storage Overflow Protection, Settlement Teardown Options & Hub Independence
 
 ### 🚩 Settlement Flag Hub & Workbench Decoupling

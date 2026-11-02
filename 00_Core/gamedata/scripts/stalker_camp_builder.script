@@ -3605,23 +3605,34 @@ function camp_has_repairable_gear(hub_id, camp)
 end
 
 function save_state(m_data)
+    -- one pcall per field: a failing field is logged and left out, not the fields after it
+    local failed = {}
+    local function put(key, fn)
+        local ok, err = pcall(function() m_data[key] = fn() end)
+        if not ok then
+            failed[#failed + 1] = key
+            homestead_guard_log("guard", "save_state:" .. key, err)
+        end
+    end
     pcall(function()
         m_data.stalker_camp_builder_version = SAVE_STATE_VERSION
-        m_data.stalker_camp_builder_active_camps = pack_table_vectors(stalker_camp_builder.active_camps)
-        m_data.stalker_camp_builder_rival_camps = pack_table_vectors(stalker_camp_builder.rival_camps)
+        put("stalker_camp_builder_active_camps", function() return pack_table_vectors(stalker_camp_builder.active_camps) end)
+        put("stalker_camp_builder_rival_camps", function() return pack_table_vectors(stalker_camp_builder.rival_camps) end)
         local get_event_timers = stalker_camp_builder.get_event_timers
         local raid_sec, event_sec
         if get_event_timers then raid_sec, event_sec = get_event_timers() end
         m_data.stalker_camp_builder_last_raid_time = raid_sec
         m_data.stalker_camp_builder_last_event_time = event_sec
-        m_data.stalker_camp_builder_refugee_ids = pack_table_vectors(stalker_camp_builder.refugee_ids)
+        put("stalker_camp_builder_refugee_ids", function() return pack_table_vectors(stalker_camp_builder.refugee_ids) end)
         m_data.stalker_camp_builder_dismantled_levels = stalker_camp_builder.dismantled_levels
         m_data.stalker_camp_builder_last_rival_spawn_sec = stalker_camp_builder.last_rival_spawn_attempt_sec
         m_data.stalker_camp_builder_radio_logs = stalker_camp_builder.radio_logs or {}
-        m_data.stalker_camp_builder_active_stash_expeditions = pack_table_vectors(stalker_camp_builder.active_stash_expeditions or {})
-        m_data.stalker_camp_builder_active_convoys = pack_table_vectors(stalker_camp_builder.active_convoys or {})
+        put("stalker_camp_builder_active_stash_expeditions", function() return pack_table_vectors(stalker_camp_builder.active_stash_expeditions or {}) end)
+        put("stalker_camp_builder_active_convoys", function() return pack_table_vectors(stalker_camp_builder.active_convoys or {}) end)
         m_data.stalker_camp_builder_hospitality_end_sec = stalker_camp_builder.hospitality_buff_end_sec
         m_data.stalker_camp_builder_faction_retaliation_timers = stalker_camp_builder.faction_retaliation_timers or {}
+        -- the names of the fields that failed above, so load_state keeps what it has for them
+        if #failed > 0 then m_data.stalker_camp_builder_save_failed = failed end
     end)
 end
 
@@ -3645,8 +3656,17 @@ function load_state(m_data)
     local type_ = type
     local sformat = string.format
     local save_version = m_data.stalker_camp_builder_version or 0
+    -- fields save_state could not write: the save has no value for them, so what is loaded stays
+    local save_failed = {}
+    if type_(m_data.stalker_camp_builder_save_failed) == "table" then
+        for _, key in pairs_(m_data.stalker_camp_builder_save_failed) do save_failed[key] = true end
+        homestead_guard_log("guard", "load_state:save_failed", "this save was written without some fields, kept as loaded")
+    end
 
-    stalker_camp_builder.active_camps = keys_to_numbers(unpack_table_vectors(m_data.stalker_camp_builder_active_camps or {}))
+    if not save_failed.stalker_camp_builder_active_camps then
+        stalker_camp_builder.active_camps = keys_to_numbers(unpack_table_vectors(m_data.stalker_camp_builder_active_camps or {}))
+    end
+    stalker_camp_builder.active_camps = stalker_camp_builder.active_camps or {}
     stalker_camp_builder.invalidate_server_container_cache()
     stalker_camp_builder.reset_scan_camp_structures_cache()
     stalker_camp_builder.camp_box_id_cache = {}
@@ -3663,6 +3683,8 @@ function load_state(m_data)
 
     -- time_global() stamps count from game launch: after a restart they lie in the future
     for hub_id, camp in pairs_(stalker_camp_builder.active_camps) do
+      -- normalize_camps drops a camp or survivor that is not a table, further down
+      if type_(camp) == "table" then
         camp._cached_storage_metrics_tg = nil
         camp._last_periodic_scan = nil
         camp._inv_snapshot = nil
@@ -3673,16 +3695,22 @@ function load_state(m_data)
         camp._cached_categorized_boxes = nil
         camp._cached_chest_supplies_tg = nil
         camp._stored_items_complete = nil
-        if camp.survivors then
+        if type_(camp.survivors) == "table" then
             for nid, surv in pairs_(camp.survivors) do
-                surv.job_start_realtime = nil
-                surv.temp_target_lvid = nil
-                surv.temp_target_time = nil
-                surv._cached_paused_tg = nil
+                if type_(surv) == "table" then
+                    surv.job_start_realtime = nil
+                    surv.temp_target_lvid = nil
+                    surv.temp_target_time = nil
+                    surv._cached_paused_tg = nil
+                end
             end
         end
+      end
     end
-    stalker_camp_builder.rival_camps = keys_to_numbers(unpack_table_vectors(m_data.stalker_camp_builder_rival_camps or {}))
+    if not save_failed.stalker_camp_builder_rival_camps then
+        stalker_camp_builder.rival_camps = keys_to_numbers(unpack_table_vectors(m_data.stalker_camp_builder_rival_camps or {}))
+    end
+    stalker_camp_builder.rival_camps = stalker_camp_builder.rival_camps or {}
     local raw_raid = m_data.stalker_camp_builder_last_raid_time
     local raw_event = m_data.stalker_camp_builder_last_event_time
     if stalker_camp_builder.set_event_timers then
@@ -3690,7 +3718,10 @@ function load_state(m_data)
             (type_(raw_raid) == "number") and raw_raid or nil,
             (type_(raw_event) == "number") and raw_event or nil)
     end
-    stalker_camp_builder.refugee_ids = keys_to_numbers(unpack_table_vectors(m_data.stalker_camp_builder_refugee_ids or {}))
+    if not save_failed.stalker_camp_builder_refugee_ids then
+        stalker_camp_builder.refugee_ids = keys_to_numbers(unpack_table_vectors(m_data.stalker_camp_builder_refugee_ids or {}))
+    end
+    stalker_camp_builder.refugee_ids = stalker_camp_builder.refugee_ids or {}
         local raw_radio = m_data.stalker_camp_builder_radio_logs or {}
     stalker_camp_builder.radio_logs = {}
     for k, v in pairs(raw_radio) do
@@ -3734,8 +3765,12 @@ function load_state(m_data)
     end
     stalker_camp_builder.dismantled_levels = keys_to_numbers(m_data.stalker_camp_builder_dismantled_levels or {})
     stalker_camp_builder.last_rival_spawn_attempt_sec = m_data.stalker_camp_builder_last_rival_spawn_sec or 0
-    stalker_camp_builder.active_stash_expeditions = keys_to_numbers(unpack_table_vectors(m_data.stalker_camp_builder_active_stash_expeditions or {}))
-    stalker_camp_builder.active_convoys = keys_to_numbers(unpack_table_vectors(m_data.stalker_camp_builder_active_convoys or {}))
+    if not save_failed.stalker_camp_builder_active_stash_expeditions then
+        stalker_camp_builder.active_stash_expeditions = keys_to_numbers(unpack_table_vectors(m_data.stalker_camp_builder_active_stash_expeditions or {}))
+    end
+    if not save_failed.stalker_camp_builder_active_convoys then
+        stalker_camp_builder.active_convoys = keys_to_numbers(unpack_table_vectors(m_data.stalker_camp_builder_active_convoys or {}))
+    end
     local raw_hosp = m_data.stalker_camp_builder_hospitality_end_sec
     stalker_camp_builder.hospitality_buff_end_sec = (type_(raw_hosp) == "number") and raw_hosp or nil
     stalker_camp_builder.faction_retaliation_timers = m_data.stalker_camp_builder_faction_retaliation_timers or {}
@@ -6194,8 +6229,8 @@ function on_game_start()
     end
 
     safe_register_callback("dotmarks_on_manual_interact_release", on_dotmarks_manual_interact_release)
-    safe_register_callback("save_state", save_state)
-    safe_register_callback("load_state", load_state)
+    safe_register_callback("save_state", function(m_data) guarded_call("save_state", save_state, m_data) end)
+    safe_register_callback("load_state", function(m_data) guarded_call("load_state", load_state, m_data) end)
     safe_register_callback("actor_on_first_update", actor_on_first_update)
     safe_register_callback("actor_on_update", actor_on_update)
     safe_register_callback("npc_on_update", npc_on_update)
