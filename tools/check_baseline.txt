@@ -1,0 +1,1 @@
+# Known pre-existing findings from tools/check.ps1. Format: CATEGORY|file|detail. Regenerate: tools\check.ps1 -UpdateBaseline
