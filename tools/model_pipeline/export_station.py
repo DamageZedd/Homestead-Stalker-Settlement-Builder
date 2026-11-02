@@ -30,6 +30,11 @@ def export_station(cfg, shipped=SHIPPED, out=OUT):
     assert not unresolved, unresolved
     if cfg.get("uv_scale"):
         rt['scale_uv'](ob, cfg["uv_scale"])
+    if cfg.get("saw"):                       # wood station: vanilla saw instead of the custom one
+        sw = {}; acc = {}
+        exec(open(os.path.join(WS, r"models\wood_station_saw.py")).read(), sw)
+        exec(open(os.path.join(WS, r"models\accent_lib.py")).read(), acc)
+        ob = sw['swap_saw'](ob, acc)
     if cfg.get("extra"):
         cfg["extra"](ob)
     ob.data.uv_layers[0].name = "Texture"
@@ -45,6 +50,6 @@ STATIONS = {
     "distiller": dict(name="distiller", blend=PRE + r"\distiller_multibone.blend", mesh="wpn_homestead_distiller_visual"),
     "wood_station": dict(name="wood_station", blend=PRE + r"\wood_station_multibone.blend", mesh="wood_station",
                          overrides={"trees_bark_sosna_01": "lfo\\lfo_trees\\bark\\trees_atp_pine_bark", "axe_new_base": "prop\\prop_spade",
-                                    "ston_brick": "briks\\briks_br3", "mat_charcoal": "mtl\\mtl_barrel_big_rust"}),
+                                    "ston_brick": "briks\\briks_br3", "mat_charcoal": "mtl\\mtl_barrel_big_rust"}, saw=True),
     "market_stall": dict(name="market_stall", blend=PRE + r"\market_stall.blend", mesh="market_stall_visual"),
 }

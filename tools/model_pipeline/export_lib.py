@@ -6,7 +6,7 @@
 #   rig(mesh, name, boxes, mass) -> armature: 'link' root bone (first box, mass, objects\large_furniture)
 #        plus rigid 'shape_N' child bones for further boxes; boxes are (centre, half sizes, Blender rotation matrix)
 #   export(arm, folder, name)
-import bpy, os
+import bpy, os, re
 from mathutils import Matrix, Vector
 
 S_Z = Matrix.Scale(-1, 4, (0, 0, 1))
@@ -59,7 +59,7 @@ def make_export_vanilla(src_name, name):
         for n in imgs:
             if n is not main:
                 m.node_tree.nodes.remove(n)
-        main.name = main.label = m.name
+        main.name = main.label = re.sub(r"\.(\d{3}|aref)$", "", m.name)   # '.aref'/'.001' tell two shader variants of one texture apart
         m.xray.cshader = "default"; m.xray.gamemtl = "default_object"
         if not m.xray.eshader or m.xray.eshader == "default":
             m.xray.eshader = "models\\model"

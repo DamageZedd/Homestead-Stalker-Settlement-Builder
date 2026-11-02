@@ -63,6 +63,7 @@ def retarget(ob, overrides=None, tex_root=r"C:\Users\hocke\AppData\Local\Temp\cl
             f = os.path.join(tex_root, path + ".dds")
             if os.path.exists(f): ti.image = bpy.data.images.load(f, check_existing=True)
             nt.links.new(ti.outputs['Color'], bs.inputs['Base Color']); nt.links.new(bs.outputs['BSDF'], out.inputs['Surface'])
+            bs.inputs['Roughness'].default_value = 0.8      # viewport only
             mat.xray.eshader = "models\model"; mat.xray.cshader = "default"; mat.xray.gamemtl = "default_object"
         me.materials.append(mat)
     for p, i in zip(me.polygons, newidx):
