@@ -94,7 +94,7 @@ function trigger_random_camp_event(hub_id, camp, hub_obj)
             -- can belong to: once online, the refugee takes the camp's faction (refugee_on_net_spawn)
             local comm = stalker_camp_builder.get_camp_dominant_faction and stalker_camp_builder.get_camp_dominant_faction(camp)
                 or get_actor_true_community and get_actor_true_community()
-            stalker_camp_builder.refugee_ids[se_refugee.id] = { arrived_sec = stalker_camp_builder.game_sec(), pending_community = comm }
+            stalker_camp_builder.refugee_ids[se_refugee.id] = { arrived_sec = stalker_camp_builder.game_sec(), pending_community = stalker_camp_builder.save_safe_faction and stalker_camp_builder.save_safe_faction(comm) or comm }
             stalker_camp_builder.camp_send_tip(db.actor, game.translate_string("st_event_refugees_arrived"), nil, "general_stalker", 12000)
         end
     elseif chosen_event == "migration" then
@@ -159,7 +159,7 @@ function trigger_random_camp_event(hub_id, camp, hub_obj)
             camp.active_trader_id = se_trader.id
             camp.trader_spawn_time = stalker_camp_builder.game_sec()
             camp.trader_needs_stock = true
-            camp.trader_community = comm
+            camp.trader_community = stalker_camp_builder.save_safe_faction and stalker_camp_builder.save_safe_faction(comm) or comm
 
             CreateTimeEvent("homestead_trader_init", "init_" .. tostring(se_trader.id), 0.1, function()
                 local trader_cl = level.object_by_id(se_trader.id)
@@ -257,7 +257,7 @@ function spawn_camp_raid(hub_id, camp, hub_obj)
     local sb = stalker_camp_builder
     local actor_comm = actor and character_community(actor) or "stalker"
     -- a disguise changes character_community (gameplay_disguise): pick by the player's own faction
-    local true_fac = actor and get_actor_true_community and get_actor_true_community()
+    local true_fac = actor and stalker_camp_builder.get_player_faction and stalker_camp_builder.get_player_faction()
     if true_fac then
         actor_comm = "actor_" .. true_fac
     end

@@ -2843,6 +2843,34 @@ function stalker_camp_builder.get_specialization_label(camp)
 end
 
 -- ============================================================================
+-- Faction provider hook (#379). Another mod (Factions of the Zone) can give the
+-- player a custom faction by setting stalker_camp_builder.faction_provider to a
+-- table; every field is optional and a missing provider changes nothing:
+--   get_player_faction()            -> faction name for the player, or nil
+--   save_safe_faction(comm, npc_id) -> the faction to keep in a Homestead save
+--                                      for a settler (its real, vanilla one)
+-- Homestead only stores what save_safe_faction returns, so the save never holds
+-- the provider's faction id.
+-- ============================================================================
+function stalker_camp_builder.get_player_faction()
+    local p = stalker_camp_builder.faction_provider
+    if type(p) == "table" and type(p.get_player_faction) == "function" then
+        local ok, fac = pcall(p.get_player_faction)
+        if ok and type(fac) == "string" and fac ~= "" then return fac end
+    end
+    return get_actor_true_community and get_actor_true_community() or nil
+end
+
+function stalker_camp_builder.save_safe_faction(comm, npc_id)
+    local p = stalker_camp_builder.faction_provider
+    if comm and type(p) == "table" and type(p.save_safe_faction) == "function" then
+        local ok, fac = pcall(p.save_safe_faction, comm, npc_id)
+        if ok and type(fac) == "string" and fac ~= "" then return fac end
+    end
+    return comm
+end
+
+-- ============================================================================
 -- get_camp_dominant_faction -- pick the most common community among the
 -- camp's settlers. Used by the jobs module to spawn the caravan trader as
 -- the camp's dominant faction (Fix #5).
@@ -2865,6 +2893,7 @@ function stalker_camp_builder.get_camp_dominant_faction(camp)
             end
         end
         if comm then
+            comm = stalker_camp_builder.save_safe_faction(comm, npc_id)
             survivor.community = comm
             counts[comm] = (counts[comm] or 0) + 1
         end
@@ -3047,7 +3076,7 @@ function stalker_camp_builder.summon_caravan(hub_id)
         camp.active_trader_id = se_trader.id
         camp.trader_spawn_time = current_sec
         camp.trader_needs_stock = true
-        camp.trader_community = comm
+        camp.trader_community = stalker_camp_builder.save_safe_faction(comm)
         camp.last_caravan_summon_sec = current_sec
 
         CreateTimeEvent("homestead_trader_init", "init_" .. tostring(se_trader.id), 0.1, function()
