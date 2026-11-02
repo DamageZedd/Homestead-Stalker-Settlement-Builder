@@ -1,6 +1,6 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
-## Unreleased
+## v1.3.4 — Settler Prosperity, Rival Camp Sliders & a Big Bug-Fix Pass
 
 ### 🪑 Furniture Snapping
 - **Furniture no longer sinks into floors**: snapping placed Homestead furniture by its placement box, which is lifted 10 cm so it clears level ground, so the model ended up up to 10 cm inside the floor. Each Homestead furniture section now carries `homestead_snap_base` (where its mesh really starts) and the snap rests that on the surface. Furniture on a foundation also stands on the paved top (0.425 m) instead of 0.4 m. Already placed furniture is not moved; pick it up and place it again to re-snap.
@@ -12,8 +12,6 @@
 ### 🧍 Settler Stations
 - **Settlers stand in front of their furniture**: the spot a settler works at is now placed in front of the piece's usable face (its yaw and `bounding_box_size`), outside its footprint, on walkable ground and clear of the camp's other pieces, instead of the nearest of eight world-axis offsets that could sit beside or inside the piece. Applies to all work furniture, existing saved furniture included (no re-place needed); if no valid spot exists the old one is kept.
 - **Front worked out per piece**: a piece's front is the side Hideout Furniture turns toward the player when it is placed (local -z, turned by the section's `base_rotation`), using the engine's own axis convention; the footprint also uses `bounding_box_origin`. Rival camp furniture footprints use the same axes (they were mirrored).
-
-## v1.3.4 — Settler Prosperity, Rival Camp Sliders & a Big Bug-Fix Pass
 
 ### 💰 Settler Savings, Spending & Standing
 - **Settler's cut**: settlers who work now earn a cut that builds up as savings; production overflow pays the cut instead of pausing the job on "Storage Full". MCM: `settler_cut_enabled`, `settler_cut_per_cycle`, `settler_savings_cap`.
