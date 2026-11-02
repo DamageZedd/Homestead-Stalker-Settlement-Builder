@@ -46,6 +46,9 @@ local SIDES = { {1, 0}, {-1, 0}, {0, 1}, {0, -1} }
 
 -- top surface above the pivot, per target class
 local TOP = { foundation = FOUND_TOP, floor = SLAB, stairs = STOREY }
+-- what furniture stands on: the foundation mesh top is paved 0.405 - 0.425 m, above the 0.4 m
+-- collision slab that building pieces measure from
+local FURN_TOP = { foundation = 0.425, floor = SLAB, stairs = STOREY }
 
 local settings = { enabled = true, key = DIK_keys.DIK_G, rotate_key = DIK_keys.DIK_R, radius = 2.5, grid = 0.25, fit = true }
 
@@ -112,7 +115,9 @@ local function get_info(section)
     return info
 end
 
--- the 8 local corners of the HF bbox of a section, as HF builds it
+-- the 8 local corners of the HF bbox of a section, as HF builds it, and the height of its mesh
+-- base above the pivot. The Homestead boxes are lifted 10 cm so they clear level ground, so the
+-- box bottom is not where the model ends: homestead_snap_base says where (default: the box bottom).
 local function get_corners(section)
     local size = str_explode(ini_sys:r_string_ex(section, "bounding_box_size", "0.5,0.5,0.5"), ",")
     local orig = str_explode(ini_sys:r_string_ex(section, "bounding_box_origin", "0,0.25,0"), ",")
@@ -124,7 +129,8 @@ local function get_corners(section)
             corners[#corners + 1] = { x = ox + sx * w, z = oz + sz * l }
         end
     end
-    return corners, oy - h / 2
+    local base = tonumber(ini_sys:r_string_ex(section, "homestead_snap_base", "")) or (oy - h / 2)
+    return corners, base
 end
 
 ---------------------
@@ -404,7 +410,7 @@ local function solve_furniture(held, f, tinfo, hit, preview_yaw, cam_pos)
         return { pos = to_world(f, lx, -held.bottom, lz), yaw = yaw }
     end
 
-    local top = TOP[tinfo.class]
+    local top = FURN_TOP[tinfo.class]
     -- stairs: only the landing at the top counts as a surface
     if tinfo.class == "stairs" and hy < STOREY - 0.6 then return nil end
     local lx = clamp(quantise(hx, grid), -TILE / 2, TILE / 2)

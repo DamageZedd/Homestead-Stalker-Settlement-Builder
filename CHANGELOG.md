@@ -1,5 +1,10 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## Unreleased
+
+### 🪑 Furniture Snapping
+- **Furniture no longer sinks into floors**: snapping placed Homestead furniture by its placement box, which is lifted 10 cm so it clears level ground, so the model ended up up to 10 cm inside the floor. Each Homestead furniture section now carries `homestead_snap_base` (where its mesh really starts) and the snap rests that on the surface. Furniture on a foundation also stands on the paved top (0.425 m) instead of 0.4 m. Already placed furniture is not moved; pick it up and place it again to re-snap.
+
 ## v1.3.4 — Settler Prosperity, Rival Camp Sliders & a Big Bug-Fix Pass
 
 ### 💰 Settler Savings, Spending & Standing
