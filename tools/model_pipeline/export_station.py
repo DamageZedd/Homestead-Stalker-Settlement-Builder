@@ -36,7 +36,7 @@ def export_station(cfg, shipped=SHIPPED, out=OUT):
         exec(open(os.path.join(WS, r"models\accent_lib.py")).read(), acc)
         ob = sw['swap_saw'](ob, acc)
     if cfg.get("extra"):
-        cfg["extra"](ob)
+        ob = cfg["extra"](ob) or ob
     ob.data.uv_layers[0].name = "Texture"
     ob.name = cfg["name"] + "_visual"
     exp = lib['make_export_vanilla'](cfg["name"] + "_visual", cfg["name"])
@@ -68,3 +68,8 @@ STATIONS["repair_bench"] = dict(
     name="repair_bench", blend=PRE + r"\repair_bench_multibone.blend", mesh="repair_bench.001",
     overrides={"aml_mags\\cartridges\\wpn_eft_ak74_ammo_545x39_diff.002": "wpn\\wpn_bullet",
                "aml_mags\\ak545x39_mag\\wpn_eft_ak74_mag_30rnd_diff.002": "wpn\\wpn_addons\\wpn_addon_mag_ar_30rd"})
+
+_am = {}
+exec(open(os.path.join(WS, "models" + chr(92) + "ammo_bench.py")).read(), _am)
+STATIONS["ammo_bench"] = dict(name="ammo_bench", blend=PRE + chr(92) + "ammo_bench_multibone.blend", mesh="ammo_bench",
+                              overrides=_am["OVERRIDES"], uv_scale=_am["UV_SCALE"], extra=_am["extra"])

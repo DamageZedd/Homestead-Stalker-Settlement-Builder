@@ -6,7 +6,7 @@
 #     bone      vertex group the new verts are weighted to (the old parts' bone)
 # The vanilla mesh is scaled so its long axis matches the old part's long axis, rotated so its long and flat axes
 # line up (head end = the heavier end), and centred on the old part.
-import bpy, bmesh, os
+import bpy, bmesh, os, re
 import numpy as np
 from mathutils import Matrix, Vector
 
@@ -91,7 +91,23 @@ def swap_part(ob, acc, pick, ogf, tex_path, bone, shader="models\\model"):
     for o in parts: o.select_set(True)
     ob.select_set(True); bpy.context.view_layer.objects.active = ob
     bpy.ops.object.join()
-    return bpy.context.view_layer.objects.active
+    ob = bpy.context.view_layer.objects.active
+    merge_dup_groups(ob)
+    return ob
+
+
+def merge_dup_groups(ob):
+    """Joined parts can leave 'link.001'-style duplicates of a bone group: fold them back into the bone's own group."""
+    for g in list(ob.vertex_groups):
+        m = re.match(r"^(.*)\.\d{3}$", g.name)
+        if not m:
+            continue
+        base = ob.vertex_groups.get(m.group(1)) or ob.vertex_groups.new(name=m.group(1))
+        for v in ob.data.vertices:
+            for ge in v.groups:
+                if ge.group == g.index:
+                    base.add([v.index], ge.weight, 'REPLACE')
+        ob.vertex_groups.remove(g)
 
 
 def box_project(ob, tiles):
