@@ -4,7 +4,7 @@
 
 ### Models: game textures instead of atlases
 - **Pantry and Salvage Table** now use plain-Anomaly textures per material (no custom atlas); their atlas `.dds` files are removed. The Salvage Table vise wheel uses `mtl\mtl_red_painted` instead of the GAMMA-only `mtl_ventil_pod_01`. The Pantry keeps the existing `homestead_hf\farm_potato` texture for its potatoes.
-- **Building kit** (`hs_*`) no longer needs GAMMA-only textures: `crete_beton_5` and `crete_old_beton` use `roof\roof_golima`, `mtl_walls8` uses `roof\roof_metal_01`, `wood_plank6_bar_b` uses `wood\wood_plank6_bar`.
+- **Building kit** (`hs_*`): the wood keeps `wood_plank6_bar_b` and `wood_board_01`, the same textures the Even More Hideout Furniture walls use. The two GAMMA-only concrete textures (`crete_beton_5`, `crete_old_beton`) on the foundation became the plain-Anomaly `grnd\grnd_concrete_2`, and the roofs' GAMMA-only `mtl_walls8` became `roof\roof_metal_01`.
 - **Pipeline**: `reuse_rig` puts any vertex without a bone weight on `link`, so models with joined-in vanilla parts export.
 
 ### 💧 Water Purifier
