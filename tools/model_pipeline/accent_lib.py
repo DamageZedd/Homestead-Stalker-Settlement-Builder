@@ -1,9 +1,9 @@
 # Helpers to pull vanilla Anomaly .ogf props into Blender as accents (run inside Blender).
 import bpy, os
 
-VAN = r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad\vanilla\meshes"
+VAN = __import__('os').environ.get('HSHF_VANILLA_MESHES', r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad\vanilla\meshes")
 TEX_DIRS = [r"C:\GAMMA\mods\PAT\gamedata\textures",
-            r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad\vanilla_tex\textures",
+            __import__('os').environ.get('HSHF_VANILLA_TEX', r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad\vanilla_tex\textures"),
             r"C:\anomaly\tools\_test_unpack\textures"]
 
 

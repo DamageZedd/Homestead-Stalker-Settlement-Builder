@@ -6,7 +6,7 @@ from mathutils import Vector, Matrix, Euler
 NAME = "salvage_table"
 BLEND = "salvage_table.blend"
 
-SCR = r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad"
+SCR = __import__('os').environ.get('HSHF_SCRATCH', r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad")
 exec(open(os.path.join(SCR, r"models\build_lib.py")).read())
 
 start({

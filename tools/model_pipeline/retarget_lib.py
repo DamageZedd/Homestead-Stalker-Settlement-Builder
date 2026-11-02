@@ -2,7 +2,7 @@
 #   retarget(ob, overrides) -> {material name: vanilla path}; merges materials that end on the same path,
 #   loads the vanilla dds for the viewport and names each material after its texture path.
 import bpy, os, re
-IDX = r"C:\Users\hocke\AppData\Local\Temp\claude_sp\vanilla_index.txt"
+IDX = __import__('os').environ.get('HSHF_VANILLA_INDEX', r"C:\Users\hocke\AppData\Local\Temp\claude_sp\vanilla_index.txt")
 INDEX = set(l.strip() for l in open(IDX, encoding="utf8") if l.strip())
 BYBASE = {}
 for p in INDEX:
@@ -29,7 +29,7 @@ def vanilla_path(m, overrides):
     return None
 
 
-def retarget(ob, overrides=None, tex_root=r"C:\Users\hocke\AppData\Local\Temp\claude_sp\vtex\textures"):
+def retarget(ob, overrides=None, tex_root=__import__('os').environ.get('HSHF_VTEX', r"C:\Users\hocke\AppData\Local\Temp\claude_sp\vtex\textures")):
     overrides = overrides or {}
     me = ob.data
     mapping = {}; unresolved = []

@@ -4,7 +4,7 @@
 # (horizontal planks); the wheat/leaf sheet (amik\nature\list) uses the alpha-tested shader.
 import bpy, os, re, numpy as np
 
-WS = r"C:\Users\hocke\AppData\Local\Temp\claude_sp\ws"          # workspace holding models\*.py (see README in this folder)
+WS = __import__('os').environ.get('HSHF_WS', r"C:\Users\hocke\AppData\Local\Temp\claude_sp\ws")          # workspace holding models\*.py (see README in this folder)
 BLEND = r"C:\Users\hocke\Documents\Homestead_backups\pre_atlas_20261025\farmer_station.blend"
 SHIPPED = r"HomesteadHF\gamedata\meshes\dynamics\HomesteadHF"    # absolute path of the repo folder
 OUT = WS + r"\out"

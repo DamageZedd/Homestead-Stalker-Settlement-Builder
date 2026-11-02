@@ -5,7 +5,7 @@ from PIL import Image, ImageFilter
 
 REPO_ROOT = r"C:\Users\hocke\OneDrive\Documents\GitHub\Homestead-Stalker-Settlement-Builder\.claude\worktrees\laughing-turing-46d9eb"
 WD_PATCH_DIR = r"C:\GAMMA\mods\Wearable Devices\gamedata\textures\wd\bracer_rigid\customization\faction_patches"
-VTEX_DIR = r"C:\Users\hocke\AppData\Local\Temp\claude_sp\vtex\textures"
+VTEX_DIR = __import__('os').environ.get('HSHF_VTEX', r"C:\Users\hocke\AppData\Local\Temp\claude_sp\vtex\textures")
 OUT_TEX_DIR = os.path.join(REPO_ROOT, r"HomesteadHF\gamedata\textures\homestead_hf")
 
 FACTIONS = [

@@ -6,7 +6,7 @@ import numpy as np
 from mathutils import Matrix
 
 PATH = "prop\\prop_instrument_1"
-TEX_ROOT = r"C:\Users\hocke\AppData\Local\Temp\claude_sp\vtex\textures"
+TEX_ROOT = __import__('os').environ.get('HSHF_VTEX', r"C:\Users\hocke\AppData\Local\Temp\claude_sp\vtex\textures")
 
 
 def swap_saw(ob, acc):

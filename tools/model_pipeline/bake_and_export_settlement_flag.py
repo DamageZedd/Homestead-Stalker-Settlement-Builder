@@ -3,7 +3,7 @@
 import bpy, os, sys, time
 from mathutils import Matrix, Vector
 
-SCR = r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad"
+SCR = __import__('os').environ.get('HSHF_SCRATCH', r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad")
 REPO = r"C:\Users\hocke\.gemini\git repo homestead\Homestead"
 TEX_OUT = os.path.join(REPO, r"HomesteadHF\gamedata\textures\homestead_hf")
 MESH_OUT = os.path.join(REPO, r"HomesteadHF\gamedata\meshes\dynamics\HomesteadHF")

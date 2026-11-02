@@ -4,7 +4,7 @@ import math, os
 import numpy as np
 from mathutils import Matrix, Vector
 
-WS = r"C:\Users\hocke\AppData\Local\Temp\claude_sp\ws"
+WS = __import__('os').environ.get('HSHF_WS', r"C:\Users\hocke\AppData\Local\Temp\claude_sp\ws")
 MD = os.path.join(WS, "models")
 BARK = "lfo\\lfo_trees\\bark\\trees_atp_pine_bark"
 OVERRIDES = {"trees_bark_sosna_01": BARK, "axe_new_base": "prop\\prop_spade", "ston_brick": "briks\\briks_br3",

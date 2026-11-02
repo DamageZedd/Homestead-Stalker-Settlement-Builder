@@ -9,7 +9,7 @@
 # exactly; the mesh keeps its own bone vertex groups. Material names are the texture paths (models\model).
 import bpy, os
 
-WS = r"C:\Users\hocke\AppData\Local\Temp\claude_sp\ws"          # workspace holding models\*.py
+WS = __import__('os').environ.get('HSHF_WS', r"C:\Users\hocke\AppData\Local\Temp\claude_sp\ws")          # workspace holding models\*.py
 REPO = r"C:\Users\hocke\OneDrive\Documents\GitHub\Homestead-Stalker-Settlement-Builder"
 SHIPPED = os.path.join(REPO, r"HomesteadHF\gamedata\meshes\dynamics\HomesteadHF")
 OUT = os.path.join(WS, "out")

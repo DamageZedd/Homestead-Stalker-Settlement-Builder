@@ -1,5 +1,5 @@
 import bpy, bmesh, numpy as np, os
-TMP=r"C:\Users\hocke\AppData\Local\Temp\claude_sp"
+TMP=__import__('os').environ.get('HSHF_TMP', r"C:\Users\hocke\AppData\Local\Temp\claude_sp")
 def analyze(ob):
     me=ob.data
     img=bpy.data.images.get("atlas_wp.png") or bpy.data.images.load(os.path.join(TMP,'atlas_wp.png'))

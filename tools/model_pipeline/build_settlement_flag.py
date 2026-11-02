@@ -8,9 +8,9 @@ from mathutils import Vector, Matrix, Euler
 NAME = "settlement_flag"
 BLEND = "settlement_flag.blend"
 
-SCR = r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad"
+SCR = __import__('os').environ.get('HSHF_SCRATCH', r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad")
 exec(open(os.path.join(SCR, r"models\build_lib.py")).read())
-TEX_DIRS.insert(0, r"C:\Users\hocke\AppData\Local\Temp\claude_sp\vtex\textures")
+TEX_DIRS.insert(0, __import__('os').environ.get('HSHF_VTEX', r"C:\Users\hocke\AppData\Local\Temp\claude_sp\vtex\textures"))
 TEX_DIRS.insert(0, r"C:\Users\hocke\OneDrive\Documents\GitHub\Homestead-Stalker-Settlement-Builder\.claude\worktrees\laughing-turing-46d9eb\HomesteadHF\gamedata\textures")
 
 materials = {

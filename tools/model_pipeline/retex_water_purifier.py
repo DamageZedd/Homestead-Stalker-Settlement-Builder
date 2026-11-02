@@ -3,7 +3,7 @@
 # atlas, given one of five vanilla materials and a fresh box/cylinder UV in metres.
 import bpy, bmesh, math, os, numpy as np
 from mathutils import Vector
-WS = r"C:\Users\hocke\AppData\Local\Temp\claude_sp\ws"
+WS = __import__('os').environ.get('HSHF_WS', r"C:\Users\hocke\AppData\Local\Temp\claude_sp\ws")
 ns = {"__name__": "b", "NAME": "water_purifier", "COL": None}
 exec(open(os.path.join(WS, r"models\wp_analyze.py")).read(), ns)
 exec(open(os.path.join(WS, r"models\accent_lib.py")).read(), ns)

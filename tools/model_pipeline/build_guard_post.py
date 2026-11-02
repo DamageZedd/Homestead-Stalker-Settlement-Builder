@@ -15,7 +15,7 @@
 import os, bpy, bmesh, math, random
 from mathutils import Vector, Matrix, Euler
 
-SCR = r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad"
+SCR = __import__('os').environ.get('HSHF_SCRATCH', r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad")
 NAME = "guard_post"
 BLEND = os.path.join(SCR, r"models\guard_post.blend")
 exec(open(os.path.join(SCR, r"models\build_lib.py")).read())

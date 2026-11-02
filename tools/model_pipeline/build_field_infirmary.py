@@ -6,7 +6,7 @@
 # and an enamel hospital instrument cabinet with a painted red cross, articulated surgical lamp,
 # kidney basin, bone saw, stims, tourniquet, medkits, bandages and field medic bag.
 import os
-SCR = r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad"
+SCR = __import__('os').environ.get('HSHF_SCRATCH', r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad")
 NAME = "field_infirmary"
 BLEND = os.path.join(SCR, r"models\field_infirmary.blend")
 exec(open(os.path.join(SCR, r"models\build_lib.py")).read())

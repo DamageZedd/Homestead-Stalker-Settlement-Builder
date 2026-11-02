@@ -4,7 +4,7 @@
 # stock pot and kettle on the burners; a weathered wooden prep shelf with plates, a bowl, a mug and a ladle;
 # birch firewood, a charcoal sack and a kerosene can. Vanilla accents; material name = texture path.
 import os
-SCR = r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad"
+SCR = __import__('os').environ.get('HSHF_SCRATCH', r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad")
 NAME = "field_kitchen"
 BLEND = os.path.join(SCR, r"models\field_kitchen.blend")
 exec(open(os.path.join(SCR, r"models\build_lib.py")).read())

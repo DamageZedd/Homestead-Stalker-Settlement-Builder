@@ -2,7 +2,7 @@
 # Pre-atlas mesh + hand-tuned vanilla materials; the custom vise and wrench are replaced by the vanilla vise and hammer;
 # brass cartridges use the brass strip of wpn\wpn_bullet, bullet tips the lead tip of wpn\shell_545.
 import os
-WS = r"C:\Users\hocke\AppData\Local\Temp\claude_sp\ws"
+WS = __import__('os').environ.get('HSHF_WS', r"C:\Users\hocke\AppData\Local\Temp\claude_sp\ws")
 MD = os.path.join(WS, "models")
 
 OVERRIDES = {"wpn_ammo_brass": "wpn\\wpn_bullet", "mtl_scale_brass": "wpn\\wpn_bullet", "wpn_copper_tip": "wpn\\shell_545",

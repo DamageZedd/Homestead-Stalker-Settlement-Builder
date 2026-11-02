@@ -3,7 +3,7 @@
 # sacks (lifted from our own Farmer Station), tushonka and conserva tins, Russian rations, vodka,
 # flasks, jars and sausages hanging on strings. Material name = texture path.
 import os
-SCR = r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad"
+SCR = __import__('os').environ.get('HSHF_SCRATCH', r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad")
 NAME = "pantry"
 REPO = r"C:\Users\hocke\OneDrive\Documents\GitHub\Homestead-Stalker-Settlement-Builder\.claude\worktrees\laughing-turing-46d9eb"   # the repo checkout
 BLEND = os.path.join(SCR, r"models\pantry.blend")

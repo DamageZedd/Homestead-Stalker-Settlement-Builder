@@ -4,7 +4,7 @@
 # padlocked, right door open on a hat shelf (steel helmet, GP-5), a hanging rail and boots; a folded
 # army outfit on top. Vanilla accents; material name = texture path.
 import os
-SCR = r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad"
+SCR = __import__('os').environ.get('HSHF_SCRATCH', r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad")
 NAME = "quartermaster_locker"
 BLEND = os.path.join(SCR, r"models\quartermaster_locker.blend")
 exec(open(os.path.join(SCR, r"models\build_lib.py")).read())

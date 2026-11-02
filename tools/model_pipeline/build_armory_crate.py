@@ -6,7 +6,7 @@
 import bpy, bmesh, os, math, random
 from mathutils import Vector, Matrix, Euler
 
-SCR = r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad"
+SCR = __import__('os').environ.get('HSHF_SCRATCH', r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad")
 exec(open(os.path.join(SCR, r"models\accent_lib.py")).read())
 NAME = "armory_crate"
 BLEND = os.path.join(SCR, r"models\armory_crate.blend")

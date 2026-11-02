@@ -6,7 +6,7 @@ import numpy as np
 from mathutils import Matrix
 
 PATH = "prop\\prop_iten4"
-TEX_ROOT = r"C:\Users\hocke\AppData\Local\Temp\claude_sp\vtex\textures"
+TEX_ROOT = __import__('os').environ.get('HSHF_VTEX', r"C:\Users\hocke\AppData\Local\Temp\claude_sp\vtex\textures")
 CENTRE = (-0.50, -0.27, 0.91)      # bench-top spot of the old vise (x, y, bench-top z)
 SCALE = 0.65
 YAW = 180                          # degrees about z: the jaw faces the middle of the bench

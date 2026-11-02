@@ -10,7 +10,7 @@ import bpy, bmesh, os, re
 import numpy as np
 from mathutils import Matrix, Vector
 
-TEX_ROOT = r"C:\Users\hocke\AppData\Local\Temp\claude_sp\vtex\textures"
+TEX_ROOT = __import__('os').environ.get('HSHF_VTEX', r"C:\Users\hocke\AppData\Local\Temp\claude_sp\vtex\textures")
 
 
 def _frame(vs):

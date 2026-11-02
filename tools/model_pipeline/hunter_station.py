@@ -2,7 +2,7 @@
 # Everything is vanilla except the pelts/hides, which keep their custom art in textures\homestead_hf\hunter_pelts.dds
 # (see hunter_pelts.py and pack_pelts.py; the carve data lives in hunter_pelts_data\).
 import os
-WS = r"C:\Users\hocke\AppData\Local\Temp\claude_sp\ws"
+WS = __import__('os').environ.get('HSHF_WS', r"C:\Users\hocke\AppData\Local\Temp\claude_sp\ws")
 REPO = r"C:\Users\hocke\OneDrive\Documents\GitHub\Homestead-Stalker-Settlement-Builder\.claude\worktrees\laughing-turing-46d9eb"
 MD = os.path.join(WS, "models")
 DATA = os.path.join(MD, "hunter_pelts_data")
