@@ -45,57 +45,57 @@ Every job has its own placeable workstation. Settlers walk to it, work at it and
 
 <table>
 <tr>
-<td width="50%" align="center"><img src="docs/images/hero_distiller.jpg" alt="Moonshine Distiller"><br><b>MOONSHINE DISTILLER</b><br><sub>Brewer</sub></td>
-<td width="50%" align="center"><img src="docs/images/hero_ammo_bench.jpg" alt="Ammunition Crafting Bench"><br><b>AMMUNITION CRAFTING BENCH</b><br><sub>Crafter</sub></td>
+<td width="50%" align="center"><img src="docs/images/hero_distiller.jpg?v=2" alt="Moonshine Distiller"><br><b>MOONSHINE DISTILLER</b><br><sub>Brewer</sub></td>
+<td width="50%" align="center"><img src="docs/images/hero_ammo_bench.jpg?v=2" alt="Ammunition Crafting Bench"><br><b>AMMUNITION CRAFTING BENCH</b><br><sub>Crafter</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="docs/images/hero_wood_station.jpg" alt="Woodcutter Station"><br><b>WOODCUTTER STATION</b><br><sub>Woodcutter</sub></td>
-<td align="center"><img src="docs/images/hero_generator_station.jpg" alt="Electrician Generator Bench"><br><b>ELECTRICIAN GENERATOR BENCH</b><br><sub>Electrician</sub></td>
+<td align="center"><img src="docs/images/hero_wood_station.jpg?v=2" alt="Woodcutter Station"><br><b>WOODCUTTER STATION</b><br><sub>Woodcutter</sub></td>
+<td align="center"><img src="docs/images/hero_generator_station.jpg?v=2" alt="Electrician Generator Bench"><br><b>ELECTRICIAN GENERATOR BENCH</b><br><sub>Electrician</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="docs/images/hero_repair_bench.jpg" alt="Gunsmith and Armor Repair Bench"><br><b>GUNSMITH &amp; ARMOR REPAIR BENCH</b><br><sub>Repairer / Scrapper</sub></td>
-<td align="center"><img src="docs/images/hero_hunter_station.jpg" alt="Hunter Butchering Station"><br><b>HUNTER BUTCHERING STATION</b><br><sub>Hunter</sub></td>
+<td align="center"><img src="docs/images/hero_repair_bench.jpg?v=2" alt="Gunsmith and Armor Repair Bench"><br><b>GUNSMITH &amp; ARMOR REPAIR BENCH</b><br><sub>Repairer / Scrapper</sub></td>
+<td align="center"><img src="docs/images/hero_hunter_station.jpg?v=2" alt="Hunter Butchering Station"><br><b>HUNTER BUTCHERING STATION</b><br><sub>Hunter</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="docs/images/hero_farmer_station.jpg" alt="Farmer Station"><br><b>FARMER STATION</b> 🆕<br><sub>Farmer</sub></td>
-<td align="center"><img src="docs/images/hero_market_stall.jpg" alt="Market Stall"><br><b>MARKET STALL</b> 🆕<br><sub>Trader</sub></td>
+<td align="center"><img src="docs/images/hero_farmer_station.jpg?v=2" alt="Farmer Station"><br><b>FARMER STATION</b> 🆕<br><sub>Farmer</sub></td>
+<td align="center"><img src="docs/images/hero_market_stall.jpg?v=2" alt="Market Stall"><br><b>MARKET STALL</b> 🆕<br><sub>Trader</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="docs/images/hero_field_kitchen.jpg" alt="Field Kitchen"><br><b>FIELD KITCHEN</b><br><sub>Cook · counts as a stove · 300 kg of food &amp; drink storage</sub></td>
-<td align="center"><img src="docs/images/hero_field_infirmary.jpg" alt="Field Infirmary"><br><b>FIELD INFIRMARY</b><br><sub>Medic · 300 kg of medicine storage</sub></td>
+<td align="center"><img src="docs/images/hero_field_kitchen.jpg?v=2" alt="Field Kitchen"><br><b>FIELD KITCHEN</b><br><sub>Cook · counts as a stove · 300 kg of food &amp; drink storage</sub></td>
+<td align="center"><img src="docs/images/hero_field_infirmary.jpg?v=2" alt="Field Infirmary"><br><b>FIELD INFIRMARY</b><br><sub>Medic · 300 kg of medicine storage</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="docs/images/hero_guard_post.jpg" alt="Guard Post"><br><b>GUARD POST</b><br><sub>Guard · 300 kg of weapon, ammo &amp; grenade storage</sub></td>
-<td align="center"><img src="docs/images/hero_salvage_table.jpg" alt="Salvage Table"><br><b>SALVAGE TABLE</b><br><sub>Scavenger · 300 kg of tool, parts &amp; salvage storage</sub></td>
+<td align="center"><img src="docs/images/hero_guard_post.jpg?v=2" alt="Guard Post"><br><b>GUARD POST</b><br><sub>Guard · 300 kg of weapon, ammo &amp; grenade storage</sub></td>
+<td align="center"><img src="docs/images/hero_salvage_table.jpg?v=2" alt="Salvage Table"><br><b>SALVAGE TABLE</b><br><sub>Scavenger · 300 kg of tool, parts &amp; salvage storage</sub></td>
 </tr>
 </table>
 
 ### 💧 Water Purifier
 A gravity-fed **water purifier** on a concrete pad: an intake pipe comes up out of the ground into a blue steel settling drum, a grey carbon canister and two filter cartridges, and clean water runs out of a valve spout into the vanilla bucket. Ground water is irradiated, so it needs cleaning. It counts as a settlement water pump, so with charcoal or paper filters in camp storage your settlers fill clean flasks of water every few hours. It is built from vanilla G.A.M.M.A. parts and textures (the valve wheel, the bucket, and metal, concrete and rust textures). Craft it at a workbench; it weighs 10 kg in your inventory.
 
-<p align="center"><img src="docs/images/hero_water_purifier.jpg" alt="Water Purifier" width="70%"><br><b>WATER PURIFIER</b></p>
+<p align="center"><img src="docs/images/hero_water_purifier.jpg?v=2" alt="Water Purifier" width="70%"><br><b>WATER PURIFIER</b></p>
 
 ### 🏴 Settlement Flag
 A pole and banner that marks the ground as yours. Placing it founds a settlement and makes it the camp hub. Its banner shows your faction's patch and changes by itself if your faction does; a custom faction from Factions of the Zone shows its own emblem. It is also the camp's main storage (300 kg). Picking it up dismantles the settlement.
 
-<p align="center"><img src="docs/images/hero_settlement_flag.jpg" alt="Settlement Flag" width="70%"><br><b>SETTLEMENT FLAG</b></p>
+<p align="center"><img src="docs/images/hero_settlement_flag.jpg?v=2" alt="Settlement Flag" width="70%"><br><b>SETTLEMENT FLAG</b></p>
 
-<p align="center"><img src="docs/images/hero_settlement_flag_factions.jpg" alt="Settlement Flag faction banners"><br><sub>Loners · Duty · Freedom · Clear Sky · Ecologists · Military<br>Bandits · Renegades · Mercenaries · Monolith · Sin · ISG</sub></p>
+<p align="center"><img src="docs/images/hero_settlement_flag_factions.jpg?v=2" alt="Settlement Flag faction banners"><br><sub>Loners · Duty · Freedom · Clear Sky · Ecologists · Military<br>Bandits · Renegades · Mercenaries · Monolith · Sin · ISG</sub></p>
 
 ### 📦 Settlement Storage
 Themed boxes for the settlement's own stock. Settlers and Auto-Sort put each kind of item in its own box first, and settlers take what they need from them.
 
 <table>
 <tr>
-<td width="50%" align="center"><img src="docs/images/hero_armory_crate.jpg" alt="Armory Crate"><br><b>ARMORY CRATE</b><br><sub>weapons, ammunition &amp; grenades · 250 kg</sub></td>
-<td width="50%" align="center"><img src="docs/images/hero_quartermaster_locker.jpg" alt="Quartermaster Locker"><br><b>QUARTERMASTER LOCKER</b><br><sub>suits, armour, helmets &amp; gas masks · 250 kg</sub></td>
+<td width="50%" align="center"><img src="docs/images/hero_armory_crate.jpg?v=2" alt="Armory Crate"><br><b>ARMORY CRATE</b><br><sub>weapons, ammunition &amp; grenades · 250 kg</sub></td>
+<td width="50%" align="center"><img src="docs/images/hero_quartermaster_locker.jpg?v=2" alt="Quartermaster Locker"><br><b>QUARTERMASTER LOCKER</b><br><sub>suits, armour, helmets &amp; gas masks · 250 kg</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="docs/images/hero_med_crate.jpg" alt="Med Crate"><br><b>MED CRATE</b><br><sub>medkits, bandages, drugs &amp; anti-rad · 100 kg</sub></td>
-<td align="center"><img src="docs/images/hero_pantry.jpg" alt="Pantry"><br><b>PANTRY</b><br><sub>food &amp; drink that keeps (after the fridges) · 200 kg</sub></td>
+<td align="center"><img src="docs/images/hero_med_crate.jpg?v=2" alt="Med Crate"><br><b>MED CRATE</b><br><sub>medkits, bandages, drugs &amp; anti-rad · 100 kg</sub></td>
+<td align="center"><img src="docs/images/hero_pantry.jpg?v=2" alt="Pantry"><br><b>PANTRY</b><br><sub>food &amp; drink that keeps (after the fridges) · 200 kg</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="docs/images/hero_supply_crate.jpg" alt="Supply Crate"><br><b>SUPPLY CRATE</b><br><sub>parts, tools, materials &amp; everything else · 300 kg</sub></td>
+<td align="center"><img src="docs/images/hero_supply_crate.jpg?v=2" alt="Supply Crate"><br><b>SUPPLY CRATE</b><br><sub>parts, tools, materials &amp; everything else · 300 kg</sub></td>
 <td align="center"></td>
 </tr>
 </table>
@@ -168,24 +168,24 @@ Build real houses, Fallout 4 style. The new HomesteadHF building pieces and the 
 
 <table>
 <tr>
-<td width="50%" align="center"><img src="docs/images/hero_foundation.jpg" alt="Concrete Foundation"><br><b>CONCRETE FOUNDATION</b><br><sub>sinks into slopes; levels itself to the ground</sub></td>
-<td width="50%" align="center"><img src="docs/images/hero_floor.jpg" alt="Plank Floor"><br><b>PLANK FLOOR</b><br><sub>on a foundation or on top of walls</sub></td>
+<td width="50%" align="center"><img src="docs/images/hero_foundation.jpg?v=2" alt="Concrete Foundation"><br><b>CONCRETE FOUNDATION</b><br><sub>sinks into slopes; levels itself to the ground</sub></td>
+<td width="50%" align="center"><img src="docs/images/hero_floor.jpg?v=2" alt="Plank Floor"><br><b>PLANK FLOOR</b><br><sub>on a foundation or on top of walls</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="docs/images/hero_wall_window.jpg" alt="Plank Wall with Window"><br><b>PLANK WALL WITH WINDOW</b><br><sub>matches the Hideout Furniture wall</sub></td>
-<td align="center"><img src="docs/images/hero_wall_gable.jpg" alt="Gable Wall"><br><b>GABLE WALL</b><br><sub>closes the open end under a sloped roof</sub></td>
+<td align="center"><img src="docs/images/hero_wall_window.jpg?v=2" alt="Plank Wall with Window"><br><b>PLANK WALL WITH WINDOW</b><br><sub>matches the Hideout Furniture wall</sub></td>
+<td align="center"><img src="docs/images/hero_wall_gable.jpg?v=2" alt="Gable Wall"><br><b>GABLE WALL</b><br><sub>closes the open end under a sloped roof</sub></td>
 </tr>
 <tr>
-<td align="center"><img src="docs/images/hero_stairs.jpg" alt="Wooden Stairs"><br><b>WOODEN STAIRS</b><br><sub>one storey in 3.2 m</sub></td>
-<td align="center"><img src="docs/images/hero_roof_flat.jpg" alt="Flat Tin Roof"><br><b>FLAT TIN ROOF</b></td>
+<td align="center"><img src="docs/images/hero_stairs.jpg?v=2" alt="Wooden Stairs"><br><b>WOODEN STAIRS</b><br><sub>one storey in 3.2 m</sub></td>
+<td align="center"><img src="docs/images/hero_roof_flat.jpg?v=2" alt="Flat Tin Roof"><br><b>FLAT TIN ROOF</b></td>
 </tr>
 <tr>
-<td align="center"><img src="docs/images/hero_roof_slope.jpg" alt="Sloped Tin Roof"><br><b>SLOPED TIN ROOF</b><br><sub>30°, one storey over one tile</sub></td>
-<td align="center"><img src="docs/images/hero_roof_hip.jpg" alt="Hip Roof"><br><b>HIP ROOF (OUTER CORNER)</b></td>
+<td align="center"><img src="docs/images/hero_roof_slope.jpg?v=2" alt="Sloped Tin Roof"><br><b>SLOPED TIN ROOF</b><br><sub>30°, one storey over one tile</sub></td>
+<td align="center"><img src="docs/images/hero_roof_hip.jpg?v=2" alt="Hip Roof"><br><b>HIP ROOF (OUTER CORNER)</b></td>
 </tr>
 <tr>
-<td align="center"><img src="docs/images/hero_roof_valley.jpg" alt="Valley Roof"><br><b>VALLEY ROOF (INNER CORNER)</b></td>
-<td align="center"><img src="docs/images/hero_roof_pyramid.jpg" alt="Pyramid Roof"><br><b>PYRAMID ROOF</b></td>
+<td align="center"><img src="docs/images/hero_roof_valley.jpg?v=2" alt="Valley Roof"><br><b>VALLEY ROOF (INNER CORNER)</b></td>
+<td align="center"><img src="docs/images/hero_roof_pyramid.jpg?v=2" alt="Pyramid Roof"><br><b>PYRAMID ROOF</b></td>
 </tr>
 </table>
 
