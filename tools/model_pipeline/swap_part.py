@@ -30,7 +30,7 @@ def _basis(long_ax, flat_ax):
     return np.array([long_ax, flat_ax, third]).T      # columns
 
 
-def swap_part(ob, acc, pick, ogf, tex_path, bone, shader="models\\model"):
+def swap_part(ob, acc, pick, ogf, tex_path, bone, shader="models\\model", post=None):
     me = ob.data
     names = [m.name if m else None for m in me.materials]
     bm = bmesh.new(); bm.from_mesh(me); bm.faces.ensure_lookup_table()
@@ -81,6 +81,9 @@ def swap_part(ob, acc, pick, ogf, tex_path, bone, shader="models\\model"):
         nt.links.new(ti.outputs['Color'], bs.inputs['Base Color']); nt.links.new(bs.outputs['BSDF'], out.inputs['Surface'])
         bs.inputs['Roughness'].default_value = 0.8
         mat.xray.eshader = shader; mat.xray.cshader = "default"; mat.xray.gamemtl = "default_object"
+    if post is not None:                       # optional tweak about the placed part: post(points) -> Matrix
+        placed = np.array([(M @ Vector(v)) [:] for v in van])
+        M = post(placed) @ M
     for o in parts:
         o.data.transform(M)
         for mod in list(o.modifiers): o.modifiers.remove(mod)

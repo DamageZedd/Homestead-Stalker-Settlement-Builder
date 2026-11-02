@@ -48,9 +48,7 @@ def export_station(cfg, shipped=SHIPPED, out=OUT):
 PRE = r"C:\Users\hocke\Documents\Homestead_backups\pre_atlas_20261025"
 STATIONS = {
     "distiller": dict(name="distiller", blend=PRE + r"\distiller_multibone.blend", mesh="wpn_homestead_distiller_visual"),
-    "wood_station": dict(name="wood_station", blend=PRE + r"\wood_station_multibone.blend", mesh="wood_station",
-                         overrides={"trees_bark_sosna_01": "lfo\\lfo_trees\\bark\\trees_atp_pine_bark", "axe_new_base": "prop\\prop_spade",
-                                    "ston_brick": "briks\\briks_br3", "mat_charcoal": "mtl\\mtl_barrel_big_rust"}, saw=True),
+    "wood_station": dict(name="wood_station", blend=PRE + r"\wood_station_multibone.blend", mesh="wood_station"),
     "market_stall": dict(name="market_stall", blend=PRE + r"\market_stall.blend", mesh="market_stall_visual"),
 }
 
@@ -73,3 +71,11 @@ _am = {}
 exec(open(os.path.join(WS, "models" + chr(92) + "ammo_bench.py")).read(), _am)
 STATIONS["ammo_bench"] = dict(name="ammo_bench", blend=PRE + chr(92) + "ammo_bench_multibone.blend", mesh="ammo_bench",
                               overrides=_am["OVERRIDES"], uv_scale=_am["UV_SCALE"], extra=_am["extra"])
+
+_wsn = {}
+exec(open(os.path.join(WS, "models" + chr(92) + "wood_station.py")).read(), _wsn)
+STATIONS["wood_station"].update(overrides=_wsn["OVERRIDES"], extra=_wsn["extra"])
+
+_hs = {}
+exec(open(os.path.join(WS, "models" + chr(92) + "hunter_station.py")).read(), _hs)
+STATIONS["hunter_station"].update(overrides=_hs["OVERRIDES"], extra=_hs["extra"])
