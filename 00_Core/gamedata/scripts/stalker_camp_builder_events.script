@@ -160,6 +160,7 @@ function trigger_random_camp_event(hub_id, camp, hub_obj)
             camp.trader_spawn_time = stalker_camp_builder.game_sec()
             camp.trader_needs_stock = true
             camp.trader_community = stalker_camp_builder.save_safe_faction and stalker_camp_builder.save_safe_faction(comm) or comm
+            stalker_camp_builder.guarded_call("prosper_on_trader_arrived", stalker_camp_builder.prosper_on_trader_arrived, hub_id, camp)
 
             CreateTimeEvent("homestead_trader_init", "init_" .. tostring(se_trader.id), 0.1, function()
                 local trader_cl = level.object_by_id(se_trader.id)

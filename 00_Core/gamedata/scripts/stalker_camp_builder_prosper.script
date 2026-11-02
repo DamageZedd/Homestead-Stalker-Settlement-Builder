@@ -42,6 +42,8 @@ local PROSPER_CALLBACKS = {
     "homestead_on_raid_defended",        -- hub_id, raiders_killed, guards_lost
     "homestead_on_expedition_returned",  -- npc_id, survivor, haul table
     "homestead_on_before_settler_leave", -- npc_id, survivor, flags table (set flags.keep = true to keep them)
+    "homestead_on_trader_arrived",       -- hub_id, trader_id, community
+    "homestead_on_trader_departed",      -- hub_id, trader_id, community
 }
 for _, name in ipairs(PROSPER_CALLBACKS) do
     AddScriptCallback(name)
@@ -247,6 +249,44 @@ function sb.set_settler_community(npc_id, comm)
         end
     end
     return true
+end
+
+-- Visiting traders (issue #380). The caravan trader is camp-level: one per camp, its faction is
+-- camp.trader_community. These are behind the same MCM switch as moving on, and do nothing while it is off.
+
+-- the camp's visiting trader faction, or nil when no trader is present
+function sb.get_trader_community(hub_id)
+    local camp = sb.active_camps and sb.active_camps[hub_id]
+    if not (camp and camp.active_trader_id) then return nil end
+    return camp.trader_community
+end
+
+-- Change the visiting trader's faction (it is the camp's, so the whole stall changes): updates the camp
+-- now, and the trader at once if it is online, otherwise when it is next stocked. Returns true when a
+-- trader was present.
+function sb.set_trader_community(hub_id, comm)
+    if not (prosper_move_on_on() and type(comm) == "string" and comm ~= "") then return false end
+    local camp = sb.active_camps and sb.active_camps[hub_id]
+    if not (camp and camp.active_trader_id) then return false end
+    comm = prosper_clean_community(comm)
+    camp.trader_community = sb.save_safe_faction and sb.save_safe_faction(comm) or comm
+    local obj = level.object_by_id(camp.active_trader_id)
+    if obj and obj:alive() then
+        pcall(function() obj:set_character_community(comm, 0, 0) end)
+    end
+    return true
+end
+
+-- a trader came to the camp
+function sb.prosper_on_trader_arrived(hub_id, camp)
+    if not (prosper_move_on_on() and camp and camp.active_trader_id) then return end
+    sb.send_settler_callback("homestead_on_trader_arrived", hub_id, camp.active_trader_id, camp.trader_community)
+end
+
+-- the trader left, or was lost; call before the camp forgets their id
+function sb.prosper_on_trader_departed(hub_id, camp)
+    if not (prosper_move_on_on() and camp and camp.active_trader_id) then return end
+    sb.send_settler_callback("homestead_on_trader_departed", hub_id, camp.active_trader_id, camp.trader_community)
 end
 
 -- a settler who has done well may move on and rejoin their faction as a veteran: the slot frees up,

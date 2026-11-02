@@ -3575,6 +3575,7 @@ function stalker_camp_builder.update_camp_jobs()
             end
 
             if camp.active_trader_id and not is_camp_trader(camp) then
+                sb.guarded_call("prosper_on_trader_departed", sb.prosper_on_trader_departed, hub_id, camp)
                 camp.active_trader_id = nil
                 camp.trader_spawn_time = nil
                 camp.trader_needs_stock = nil
@@ -3649,6 +3650,7 @@ function stalker_camp_builder.update_camp_jobs()
                         safe_release_manager.release(se_trader)
                         sb.camp_send_tip(actor, game.translate_string("st_job_caravan_departed"), nil, "general_stalker", 10000)
                     end
+                    sb.guarded_call("prosper_on_trader_departed", sb.prosper_on_trader_departed, hub_id, camp)
                     camp.active_trader_id = nil
                     camp.trader_spawn_time = nil
                     camp.trader_needs_stock = nil

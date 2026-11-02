@@ -3099,6 +3099,7 @@ function stalker_camp_builder.summon_caravan(hub_id)
         camp.trader_needs_stock = true
         camp.trader_community = stalker_camp_builder.save_safe_faction(comm)
         camp.last_caravan_summon_sec = current_sec
+        stalker_camp_builder.guarded_call("prosper_on_trader_arrived", stalker_camp_builder.prosper_on_trader_arrived, hub_id, camp)
 
         CreateTimeEvent("homestead_trader_init", "init_" .. tostring(se_trader.id), 0.1, function()
             local trader_cl = level.object_by_id(se_trader.id)
