@@ -478,6 +478,10 @@ function stalker_camp_builder.get_settler_job_target(npc_id, hub_id)
             if assigned_id and camp.structures and camp.structures[assigned_id] == stype then
                 local se_struct = alife_object(assigned_id)
                 if se_struct then
+                    local s_lvid, s_pos = sb.get_furniture_stand_spot(se_struct, camp)
+                    if s_lvid and s_pos then
+                        return s_pos, s_lvid, se_struct.m_game_vertex_id
+                    end
                     if sb.get_furniture_front_vertex_and_pos then
                         local f_lvid, f_pos = sb.get_furniture_front_vertex_and_pos(se_struct.position, 1.4)
                         if f_lvid and f_pos then
@@ -500,6 +504,10 @@ function stalker_camp_builder.get_settler_job_target(npc_id, hub_id)
                         if survivor then
                             survivor.assigned_furniture = survivor.assigned_furniture or {}
                             survivor.assigned_furniture[stype] = struct_id
+                        end
+                        local s_lvid, s_pos = sb.get_furniture_stand_spot(se_struct, camp)
+                        if s_lvid and s_pos then
+                            return s_pos, s_lvid, se_struct.m_game_vertex_id
                         end
                         if sb.get_furniture_front_vertex_and_pos then
                             local f_lvid, f_pos = sb.get_furniture_front_vertex_and_pos(se_struct.position, 1.4)

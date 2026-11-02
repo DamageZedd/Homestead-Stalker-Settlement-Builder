@@ -1677,6 +1677,106 @@ function stalker_camp_builder.get_furniture_front_vertex_and_pos(struct_or_pos, 
 end
 local get_furniture_front_vertex_and_pos = stalker_camp_builder.get_furniture_front_vertex_and_pos
 
+-- Station spot in front of a furniture piece. The usable face is the piece's local +z side (the
+-- direction its yaw turns +z to: world (sin yaw, cos yaw)). A section whose face is another side
+-- lists the extra yaw to turn by in STATION_FACE_YAW (radians); sections not listed use +z.
+local STATION_FACE_YAW = {
+    -- placeable_xxx = math.pi,   -- face on the local -z side
+}
+local station_dims_cache = {}
+
+local function station_dims(sec)
+    local c = station_dims_cache[sec]
+    if c then return c[1], c[2] end
+    local hw, hd = 0.4, 0.4
+    local ok, raw = pcall(function() return ini_sys:r_string_ex(sec, "bounding_box_size") end)
+    if ok and raw then
+        local bx, bz = tostring(raw):match("([%d%.]+)%s*,%s*[%d%.]+%s*,%s*([%d%.]+)")
+        bx, bz = tonumber(bx), tonumber(bz)
+        if bx and bz and bx > 0 and bz > 0 then
+            hw, hd = math.min(bx, 6.0) * 0.5, math.min(bz, 6.0) * 0.5
+        end
+    end
+    station_dims_cache[sec] = { hw, hd }
+    return hw, hd
+end
+
+-- whether x,z lies inside the footprint (grown by pad) of the piece at pos turned by yaw
+local function station_in_box(x, z, pos, yaw, hw, hd, pad)
+    local dx, dz = x - pos.x, z - pos.z
+    local c, s = math.cos(yaw), math.sin(yaw)
+    local lx = dx * c - dz * s
+    local lz = dx * s + dz * c
+    return math.abs(lx) < hw + pad and math.abs(lz) < hd + pad
+end
+
+-- get_furniture_stand_spot -- level vertex, position and look point for a settler working se_struct,
+-- clear of its footprint, in front of its face, on walkable ground and clear of the camp's other
+-- pieces. Returns nil when no candidate is valid (the caller keeps its old spot).
+local function furniture_stand_spot(se_struct, camp, npc)
+    if not se_struct or not level then return nil end
+    local pos = se_struct.position
+    local sec = se_struct:section_name()
+    if not pos or not sec or sec == "" then return nil end
+    local ang = se_struct.angle
+    local yaw = (ang and ang.y or 0) + (STATION_FACE_YAW[sec] or 0)
+    local hw, hd = station_dims(sec)
+    local sy, cy = math.sin(yaw), math.cos(yaw)
+
+    -- other pieces of the camp the spot must stay out of
+    local others = {}
+    if camp and camp.structures then
+        local n = 0
+        for oid in pairs(camp.structures) do
+            if oid ~= se_struct.id and n < 40 then
+                local ose = alife_object(oid)
+                local osec = ose and ose:section_name()
+                if ose and ose.position and osec and osec ~= "" and ose.position:distance_to(pos) < 8 then
+                    local ohw, ohd = station_dims(osec)
+                    local oang = ose.angle
+                    others[#others + 1] = { ose.position, oang and oang.y or 0, ohw, ohd }
+                    n = n + 1
+                end
+            end
+        end
+    end
+
+    -- front first, then the front corners, then the sides and the back
+    local gap = 0.7
+    local cands = {
+        { 0, hd + gap }, { 0.5, hd + gap }, { -0.5, hd + gap },
+        { hw + gap, 0 }, { -(hw + gap), 0 }, { 0, -(hd + gap) },
+    }
+    local tp = vector()
+    for _, cd in ipairs(cands) do
+        local wx = pos.x + cd[1] * cy + cd[2] * sy
+        local wz = pos.z - cd[1] * sy + cd[2] * cy
+        tp:set(wx, pos.y, wz)
+        local lvid = level.vertex_id(tp)
+        if lvid and lvid < 4294967295 and lvid ~= -1 then
+            local vp = level.vertex_position(lvid)
+            local ok = vp and math.abs(vp.y - pos.y) <= 0.55
+                and not station_in_box(vp.x, vp.z, pos, yaw, hw, hd, 0.25)
+            if ok and npc and npc.accessible then ok = npc:accessible(lvid) end
+            if ok then
+                for _, o in ipairs(others) do
+                    if station_in_box(vp.x, vp.z, o[1], o[2], o[3], o[4], 0.15) then ok = false; break end
+                end
+            end
+            if ok then
+                return lvid, vector():set(vp.x, vp.y + 0.1, vp.z), vector():set(pos.x, pos.y, pos.z)
+            end
+        end
+    end
+    return nil
+end
+
+function stalker_camp_builder.get_furniture_stand_spot(se_struct, camp, npc)
+    local r1, r2, r3
+    guarded_call("furniture_stand_spot", function() r1, r2, r3 = furniture_stand_spot(se_struct, camp, npc) end)
+    return r1, r2, r3
+end
+
 function teleport_npc_to_camp_hub(npc_id, hub_id)
     return stalker_camp_builder.teleport_npc_to_camp_hub(npc_id, hub_id)
 end
@@ -2971,6 +3071,9 @@ function npc_on_update(npc)
                     if best_stand_lvid then
                         acc_lvid = best_stand_lvid
                     end
+                    -- the spot in front of the piece's face wins; the old one stays when none is valid
+                    local front_lvid = sb.get_furniture_stand_spot(se_struct, my_camp, npc)
+                    if front_lvid then acc_lvid = front_lvid end
                     if utils_obj and utils_obj.send_to_nearest_accessible_vertex then
                         acc_lvid = utils_obj.send_to_nearest_accessible_vertex(npc, acc_lvid) or acc_lvid
                     end
