@@ -254,9 +254,10 @@ if ($Skip -notcontains 'hygiene') {
     } else { Write-Host '  not a git checkout: line-ending check skipped.' }
     $binRx = '(^|/)luac\.out$|\.(out|exe|dll|so|dylib|obj|o|luac|pyc|class)$'
     foreach ($f in $tracked) { if ($f -match $binRx) { Add-Finding 'STRAY_BINARY' $f 'tracked file looks like a build artifact' } }
-    Get-ChildItem $root -Recurse -File -Force -ErrorAction SilentlyContinue |
-        Where-Object { $_.Name -ieq 'luac.out' -and $_.FullName -notmatch '[\\/]\.git[\\/]' } |
-        ForEach-Object { Add-Finding 'STRAY_BINARY' (Rel $_.FullName) 'luac.out present in the working tree' }
+    # untracked-but-not-ignored files (git), else a tree walk that skips .git and .claude (worktrees)
+    $others = if ($haveGit) { @(git ls-files --others --exclude-standard) } else {
+        @(Get-ChildItem $root -Recurse -File -Force -ErrorAction SilentlyContinue | Where-Object { $_.FullName -notmatch '[\/]\.(git|claude)[\/]' } | ForEach-Object { Rel $_.FullName }) }
+    foreach ($f in $others) { if ($f -match '(^|/)luac\.out$' -and $f -notmatch '^\.claude/') { Add-Finding 'STRAY_BINARY' $f 'luac.out present in the working tree' } }
     foreach ($s in $scripts) {
         $fs = [IO.File]::OpenRead((Join-Path $root $s)); $b = New-Object byte[] 4; [void]$fs.Read($b, 0, 4); $fs.Dispose()
         if ($b[0] -eq 0x1B -and $b[1] -eq 0x4C) { Add-Finding 'STRAY_BINARY' $s 'script is compiled Lua bytecode' }
