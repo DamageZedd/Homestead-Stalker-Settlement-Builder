@@ -3,13 +3,13 @@
 ; Only boxes with homestead_storage (and work-station stashes, workbench stashes and fridges) are
 ; camp storage; every other Hideout Furniture box is the player's own. homestead_storage_buckets
 ; says what the sorter sends each box (stalker_camp_builder_storage.script).
-; Each box has its own model on one atlas (homestead_hf\atlas_<box>) and an icon on the workstation icon atlas.
+; Each box has its own model on plain game textures (one per material, no custom atlas) and an icon on the workstation icon atlas.
 ;--------------------------------------------------------------------------------------------------
 
 ;--------------------------
 ;--- Armory Crate (Оружейный ящик): weapons, ammo, grenades
-;--- An open Soviet rifle crate with an AK-74, 5.45 packs and F-1s inside (vanilla meshes baked in),
-;--- one atlas (homestead_hf\atlas_armory_crate), a link box for the crate and a rigid box for the lid
+;--- An open Soviet rifle crate with an AK-74, 5.45 packs and F-1s inside (vanilla meshes joined in),
+;--- game textures per material (no atlas), a link box for the crate and a rigid box for the lid
 ;--------------------------
 
 [homestead_armory_crate]:tch_junk
@@ -51,7 +51,7 @@ homestead_snap_base                     = -0.002
 ;--------------------------
 ;--- Quartermaster Locker (Шкаф интенданта): armour, helmets, outfits
 ;--- A two-door Soviet steel locker, left door padlocked, right door open on a steel helmet, a GP-5
-;--- and boots, a folded army outfit on top (vanilla meshes baked in); one atlas
+;--- and boots, a folded army outfit on top (vanilla meshes joined in); one atlas
 ;--- (homestead_hf\atlas_quartermaster_locker), a link box for the body and a rigid box for the open door
 ;--------------------------
 
@@ -94,7 +94,7 @@ homestead_snap_base                     = 0.000
 ;--------------------------
 ;--- Pantry (Кладовая): food and drink that keeps (the fridge stays the first stop for food)
 ;--- An open plank rack stocked with sacks and potatoes, tushonka, conserva, rations, vodka, flasks, jars
-;--- and hanging sausages (vanilla and Farmer Station meshes baked in); one atlas (homestead_hf\atlas_pantry), one link box
+;--- and hanging sausages (vanilla and Farmer Station meshes joined in); game textures per material (no atlas), one link box
 ;--------------------------
 
 [homestead_pantry]:tch_junk
@@ -136,7 +136,7 @@ homestead_snap_base                     = 0.000
 ;--------------------------
 ;--- Supply Crate (Ящик снабжения): parts, tools and everything else
 ;--- A plywood shipping crate in grey battens on a pallet, lid slid half off over a tray of kit boxes, components,
-;--- copper wire and gun oil (vanilla meshes baked in); one atlas (homestead_hf\atlas_supply_crate), one link box
+;--- copper wire and gun oil (vanilla meshes joined in); game textures per material (no atlas), one link box
 ;--------------------------
 
 [homestead_supply_crate]:tch_junk
@@ -178,7 +178,7 @@ homestead_snap_base                     = -0.002
 ;--------------------------
 ;--- Med Crate (Медицинский ящик): medkits, bandages, drugs
 ;--- A Soviet steel field medical chest with painted red crosses, lid open on medkits, bandages, stims and a drugs
-;--- kit, a med bag beside it (vanilla meshes baked in); one atlas (homestead_hf\atlas_med_crate), a link box and a lid box
+;--- kit, a med bag beside it (vanilla meshes joined in); game textures per material (no atlas), a link box and a lid box
 ;--------------------------
 
 [homestead_med_crate]:tch_junk
