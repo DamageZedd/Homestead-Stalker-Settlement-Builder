@@ -1677,11 +1677,13 @@ function stalker_camp_builder.get_furniture_front_vertex_and_pos(struct_or_pos, 
 end
 local get_furniture_front_vertex_and_pos = stalker_camp_builder.get_furniture_front_vertex_and_pos
 
--- Station spot in front of a furniture piece. The usable face is the piece's local +z side (the
--- direction its yaw turns +z to: world (sin yaw, cos yaw)). A section whose face is another side
--- lists the extra yaw to turn by in STATION_FACE_YAW (radians); sections not listed use +z.
+-- Station spot in front of a furniture piece. In game most pieces face their local -z side, so the
+-- default is the yaw turned by pi (the direction -z turns to: world (-sin yaw, -cos yaw)). A section
+-- whose face is another side lists the extra yaw to turn by in STATION_FACE_YAW (radians, added to the
+-- yaw itself, so 0 means the local +z side); sections not listed use STATION_DEFAULT_FACE_YAW.
+local STATION_DEFAULT_FACE_YAW = math.pi
 local STATION_FACE_YAW = {
-    -- placeable_xxx = math.pi,   -- face on the local -z side
+    -- placeable_xxx = 0,   -- face on the local +z side
 }
 local station_dims_cache = {}
 
@@ -1719,7 +1721,7 @@ local function furniture_stand_spot(se_struct, camp, npc)
     local sec = se_struct:section_name()
     if not pos or not sec or sec == "" then return nil end
     local ang = se_struct.angle
-    local yaw = (ang and ang.y or 0) + (STATION_FACE_YAW[sec] or 0)
+    local yaw = (ang and ang.y or 0) + (STATION_FACE_YAW[sec] or STATION_DEFAULT_FACE_YAW)
     local hw, hd = station_dims(sec)
     local sy, cy = math.sin(yaw), math.cos(yaw)
 
