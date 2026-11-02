@@ -5,6 +5,9 @@
 ### Settler record fixes (audit F1, F2)
 - **Invincible respawn keeps the record until it succeeds**: `respawn_settler` clears `camp.respawning` only after the new settler holds the record, so a missing hub or a failed create no longer loses the settler's job, tier, XP and savings.
 - **Heal skips a camp with no hub**: `verify_and_heal_settlers` leaves every settler record of a camp whose hub is unavailable alone and logs it once, instead of deleting them as stale.
+### Fixes
+- **Settler lookup keeps only numeric ids**: assigning a job no longer leaves a string-keyed copy of the settler in `settler_lookup`, which kept the old camp after the settler was dismissed, died or went offline (audit F3).
+- **Single disconnect-grace registration**: removed the duplicate `on_level_changing` / `actor_on_net_destroy` handlers from the PDA monkeypatch; the core script's handlers already set the same flags and deadline (audit F6).
 
 ## v1.3.3 — Storage Overflow Protection, Settlement Teardown Options & Hub Independence
 
