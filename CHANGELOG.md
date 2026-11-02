@@ -15,6 +15,7 @@
 
 ### 🏴 Rival Camps
 - The spawn-distance, attempt-interval and chance sliders now do what they say, and old saved defaults (25 and 250) read as the new 20 and 35. Descriptions match the code.
+- **Camp furniture no longer piles up or clips**: every piece an outpost spawns (starting layout, tier 2 and tier 3 upgrades) is checked against the footprint of the chest and the furniture already standing, earlier tiers included. An overlapping piece is nudged outward or skipped, the radio now sits on its table, a camp holds at most 24 pieces, and an upgrade is never applied twice. Camps saved with old layouts are not rearranged.
 
 ### 🛠️ Fixes
 - Large review passes of the jobs, settlers, expeditions, turrets, lock, hologram, trader pricing, Technician and PDA code (issues #376, #377, #388): storage-full handling, restored-settler collisions, despawned-settler records, scripted-target heal clearing only our settlers, section checks for purchases, string-table text for promotions, expeditions and the radio, and more.
