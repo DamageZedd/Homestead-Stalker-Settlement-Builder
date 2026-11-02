@@ -91,7 +91,10 @@
 		<text>Water Purifier</text>
 	</string>
 	<string id="st_homestead_water_purifier_descr">
-		<text>A gravity-fed water purifier on a concrete pad. Groundwater is drawn up the intake pipe, settles in the drum and runs through carbon filter cartridges, so it comes out clean of the radiation that soaks the soil. It counts as a settlement water purifier: with charcoal or paper filters in camp storage, your settlers fill clean flasks of water every few hours. Weighs 10 kg to carry. Use it to open its storage: 300 kg of settlement storage your settlers fill and draw from.</text>
+		<text>A gravity-fed water purifier on a concrete pad. Groundwater is drawn up the intake pipe, settles in the drum and runs through carbon filter cartridges, so it comes out clean of the radiation that soaks the soil. It counts as a settlement water purifier: with charcoal or paper filters in camp storage, your settlers fill clean flasks of water every few hours. Weighs 10 kg to carry.</text>
+	</string>
+	<string id="st_homestead_purifier_storage_moved">
+		<text>The Water Purifier no longer has storage. Its old contents are in your inventory.</text>
 	</string>
 	<string id="st_homestead_station_stash_busy">
 		<text>The station's storage is not loaded yet. Try again in a moment.</text>
