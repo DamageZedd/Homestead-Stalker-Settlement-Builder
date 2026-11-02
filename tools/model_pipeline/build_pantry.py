@@ -5,9 +5,10 @@
 import os
 SCR = r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad"
 NAME = "pantry"
+REPO = r"C:\Users\hocke\OneDrive\Documents\GitHub\Homestead-Stalker-Settlement-Builder\.claude\worktrees\laughing-turing-46d9eb"   # the repo checkout
 BLEND = os.path.join(SCR, r"models\pantry.blend")
 exec(open(os.path.join(SCR, r"models\build_lib.py")).read())
-TEX_DIRS.insert(0, os.path.join(SCR, r"wt\HomesteadHF\gamedata\textures"))
+TEX_DIRS.insert(0, os.path.join(REPO, r"HomesteadHF\gamedata\textures"))
 start({"wood": ("wood\\wood_jasik2", "models\\model"), "metal": ("mtl\\mtl_rust_dark", "models\\model"),
        "rope": ("mtl\\mtl_rope2-1", "models\\model")}, seed=2024)
 # painted planks of wood_jasik2 (u ranges)
@@ -50,7 +51,7 @@ TOP = [z + ST for z in SHELVES]
 
 def farmer_sacks():
     """The three produce sacks of our Farmer Station, as separate objects (bottom centre at origin)."""
-    p = os.path.join(SCR, r"wt\HomesteadHF\gamedata\meshes\dynamics\HomesteadHF\farmer_station.object")
+    p = os.path.join(REPO, r"HomesteadHF\gamedata\meshes\dynamics\HomesteadHF\farmer_station.object")
     d, f = os.path.split(p)
     before = set(bpy.data.objects)
     bpy.ops.xray_import.object(directory=d, files=[{'name': f}])
@@ -61,22 +62,22 @@ def farmer_sacks():
             bpy.data.objects.remove(o, do_unlink=True)
     mesh.modifiers.clear()
     mesh.parent = None
-    atlas = os.path.join(SCR, r"wt\HomesteadHF\gamedata\textures\homestead_hf\atlas_farmer_station.dds")
-    for m in mesh.data.materials:
-        for n in m.node_tree.nodes:
+    for m in mesh.data.materials:                      # the shipped farmer station: one material per vanilla texture
+        for n in list(m.node_tree.nodes):
             if n.type == 'TEX_IMAGE':
-                n.image = bpy.data.images.load(atlas, check_existing=True)
+                p_ = find_tex(m.name.split(".0")[0])
+                if p_:
+                    n.image = bpy.data.images.load(p_, check_existing=True)
     bpy.context.view_layer.objects.active = mesh
     bpy.ops.object.select_all(action='DESELECT'); mesh.select_set(True)
     bpy.ops.object.mode_set(mode='EDIT'); bpy.ops.mesh.select_all(action='SELECT')
     bpy.ops.mesh.separate(type='LOOSE')
     bpy.ops.object.mode_set(mode='OBJECT')
     parts = [o for o in bpy.data.objects if o.type == 'MESH' and o.data.materials
-             and o.data.materials[0] and o.data.materials[0].name.startswith("hf_atlas_farmer_station")]
-    sacks = sorted([o for o in parts if len(o.data.vertices) == 1432], key=lambda o: o.dimensions.z, reverse=True)
-    for o in parts:
-        if o not in sacks:
-            bpy.data.objects.remove(o, do_unlink=True)
+             and o.data.polygons and o.data.materials[o.data.polygons[0].material_index].name.startswith("item\\item_sack")]
+    sacks = sorted([o for o in parts if len(o.data.vertices) > 1000], key=lambda o: o.dimensions.z, reverse=True)
+    for o in [o for o in bpy.data.objects if o.type == 'MESH' and o not in sacks and o.name.startswith(mesh.name.split(".")[0][:10])]:
+        bpy.data.objects.remove(o, do_unlink=True)      # every other piece of the farmer station
     for o in sacks:
         cs = [o.matrix_world @ Vector(c) for c in o.bound_box]
         base = Vector(((min(c.x for c in cs) + max(c.x for c in cs)) / 2, (min(c.y for c in cs) + max(c.y for c in cs)) / 2, min(c.z for c in cs)))
@@ -103,7 +104,7 @@ place_part(sacks[0], T(-0.38, 0.0, TOP[0], 0, 0, 20) @ Matrix.Diagonal((0.72, 0.
 place_part(sacks[2], T(0.30, 0.0, TOP[0], 0, 0, -8) @ Matrix.Diagonal((0.85, 0.85, 0.85, 1)), ratio=0.45)
 place_part(sacks[1], T(-0.02, 0.06, TOP[0], 0, 0, -35) @ Matrix.Diagonal((0.74, 0.74, 0.74, 1)), ratio=0.45)
 # loose potatoes (our own farm_potato) spilling in front of the sacks
-pot_path = os.path.join(SCR, r"wt\HomesteadHF\gamedata\meshes\dynamics\HomesteadHF\farm_potato.ogf")
+pot_path = os.path.join(REPO, r"HomesteadHF\gamedata\meshes\dynamics\HomesteadHF\farm_potato.ogf")
 for i, (x, y) in enumerate([(-0.16, -0.17), (-0.10, -0.2), (0.12, -0.18), (0.55, -0.15), (0.50, -0.19)]):
     d_, f_ = os.path.split(pot_path)
     before = set(bpy.data.objects)
@@ -115,7 +116,7 @@ for i, (x, y) in enumerate([(-0.16, -0.17), (-0.10, -0.2), (0.12, -0.18), (0.55,
         for m in o.data.materials:
             for n in m.node_tree.nodes:
                 if n.type == 'TEX_IMAGE':
-                    n.image = bpy.data.images.load(os.path.join(SCR, r"wt\HomesteadHF\gamedata\textures\dynamics\homestead_hf\farm_potato.dds"), check_existing=True)
+                    n.image = bpy.data.images.load(os.path.join(REPO, r"HomesteadHF\gamedata\textures\dynamics\homestead_hf\farm_potato.dds"), check_existing=True)
         o.modifiers.clear(); mw = o.matrix_world.copy(); o.parent = None
         cs = [mw @ Vector(c) for c in o.bound_box]
         base = Vector(((min(c.x for c in cs) + max(c.x for c in cs)) / 2, (min(c.y for c in cs) + max(c.y for c in cs)) / 2, min(c.z for c in cs)))
