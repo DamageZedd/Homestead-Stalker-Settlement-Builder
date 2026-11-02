@@ -201,7 +201,6 @@ function stalker_camp_builder.set_survivor_job(npc_id, job)
                     }
                     sb.settler_lookup[matched_id] = entry
                     if id_num then sb.settler_lookup[id_num] = entry end
-                    if id_str then sb.settler_lookup[id_str] = entry end
                 end
                 camp._stats_cache_tick = nil
                 camp._stats_cache = nil
