@@ -7,7 +7,7 @@
 
 *Build camps. Recruit survivors. Automate production. Hold the line.*
 
-![Version](https://img.shields.io/badge/version-v1.4.0-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-v1.3.4-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
 
 **[GAMMA Discord Thread](https://discord.com/channels/912320241713958912/1515669053606334504/1542893750408315030)** · **[Full Changelog](CHANGELOG.md)** · **[ModDB](https://www.moddb.com/mods/stalker-anomaly/addons/homestead-stalker-settlement-builder)** · **[Latest Release](https://github.com/DamageZedd/Homestead-Stalker-Settlement-Builder/releases/latest)**
 
@@ -22,7 +22,7 @@ Plant a Settlement Flag to establish a 50-meter settlement boundary. Construct b
 
 ---
 
-## 🆕 New in v1.4.0
+## 🆕 New in v1.3.4
 
 ### 💰 Settler Savings, Spending & Standing
 Working settlers earn a cut that builds as savings, spend it on gear for their faction, and rise in rank and reputation. Overflow pays the cut instead of pausing jobs. Options are in MCM.

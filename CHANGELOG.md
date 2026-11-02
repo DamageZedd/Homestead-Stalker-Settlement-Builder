@@ -1,6 +1,6 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
-## v1.4.0 — Settler Prosperity, Rival Camp Sliders & a Big Bug-Fix Pass
+## v1.3.4 — Settler Prosperity, Rival Camp Sliders & a Big Bug-Fix Pass
 
 ### 💰 Settler Savings, Spending & Standing
 - **Settler's cut**: settlers who work now earn a cut that builds up as savings; production overflow pays the cut instead of pausing the job on "Storage Full". MCM: `settler_cut_enabled`, `settler_cut_per_cycle`, `settler_savings_cap`.
