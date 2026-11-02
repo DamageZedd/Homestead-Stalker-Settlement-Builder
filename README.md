@@ -7,7 +7,7 @@
 
 *Build camps. Recruit survivors. Automate production. Hold the line.*
 
-![Version](https://img.shields.io/badge/version-v1.3.3-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-v1.3.4-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
 
 **[GAMMA Discord Thread](https://discord.com/channels/912320241713958912/1515669053606334504/1542893750408315030)** · **[Full Changelog](CHANGELOG.md)** · **[ModDB](https://www.moddb.com/mods/stalker-anomaly/addons/homestead-stalker-settlement-builder)** · **[Latest Release](https://github.com/DamageZedd/Homestead-Stalker-Settlement-Builder/releases/latest)**
 
@@ -22,57 +22,20 @@ Plant a Settlement Flag to establish a 50-meter settlement boundary. Construct b
 
 ---
 
-## 🆕 New in v1.3.3
+## 🆕 New in v1.3.4
 
-### 🚩 Settlement Flag Hub & Workbench Decoupling
-Decoupled settlement founding from Hideout Furniture workbenches so workbenches can be placed freely in personal hideouts, rooms, and safehouses without inadvertently creating a settlement zone. Only planting a **Settlement Flag** founds a settlement by default, matching the v1.3.0 headline design (with an MCM toggle under *General Settings* to restore the legacy v1.2 auto-founding behavior). Hub pickups and dismantling now cleanly purge all map markers, container links, and registrations.
+### 💰 Settler Savings, Spending & Standing
+Working settlers earn a cut that builds as savings, spend it on gear for their faction, and rise in rank and reputation. Overflow pays the cut instead of pausing jobs. Options are in MCM.
 
-### 🛡️ Production Overflow & Storage Full Protection
-Routed automated worker surplus and overflow into the camp Market Stall when settlement storage is full, allowing the camp Trader to sell surplus goods for RU. Eliminated the legacy ground-spawning fallback from camp storage to prevent item and physics clutter buildup, protecting long unattended settlements against the 65,534 ALife ID cap. Automated jobs now check storage headroom before consuming recipe components.
+### 🚶 Settlers Who Move On (off by default)
+A settler who has done well can move on and rejoin their faction as a veteran. Script callbacks and a faction provider hook let other mods, such as Factions of the Zone, plug in.
 
-### 🧹 Settlement Dismantling Content Cleanup Option
-Added an MCM toggle (`dismantle_removes_furniture`, under *Building*, default: OFF) allowing players to choose whether dismantling a settlement completely wipes the site or preserves placed structures. When enabled, all built furniture, building kit pieces, storage containers, container contents, and loose ground clutter within the camp boundary are safely and progressively released via a batched ALife queue.
+### 🏴 Rival Camps
+The spawn-distance, interval and chance sliders now work as described.
 
-### 🔤 Missing Vanilla Crafting Category Localization
-Added missing `st_ui_craft_furniture` and `st_craft_furniture` strings across English and Russian text configs, preventing raw unparsed string tokens from displaying in the crafting category list on Vanilla Anomaly and non-GAMMA modpacks.
+### 🛠️ Fixes
+A large bug-fix pass across jobs, settlers, expeditions, turrets, the lock, trader pricing and the PDA, plus a fix for a start-up crash on GAMMA. See the changelog.
 
----
-
-## 🆕 New in v1.3.2
-
-### 🌩️ Roof Shelter Protection Against Emissions & Psi-Storms
-Standing underneath any placed Homestead roof piece (`placeable_hs_roof_flat`, `placeable_hs_roof_slope`, `placeable_hs_roof_hip`, `placeable_hs_roof_valley`, `placeable_hs_roof_pyramid`) or upper-story floor (`placeable_hs_floor`) now protects the player and NPCs from Emissions and Psi-Storms, lighting up the HUD shelter indicator and integrating cleanly with Dynamic Emission Cover.
-
-### ⚡ Lua Garbage & Frame-Time Optimization
-Eliminated per-frame and per-tick Lua closure, table, and vector allocations across `actor_on_update` guards, surge cover checks, NPC weapon checks, rival patrols, and structure scans (pre-filtering 65,534 ALife objects by float distance before calling C++ Luabind methods) to dramatically reduce Lua garbage generation and periodic GC freeze spikes.
-
-### 🛠️ Vanilla Anomaly Crafting Tab & Ghost Stash Fix
-Fixed the dedicated **Homestead** crafting category on Vanilla Anomaly / non-GAMMA setups where `craft.ltx` stops at category `[6]`, and eliminated the invisible ground-level `inventory_box` left behind when picking up a Workbench or Settlement Flag by migrating hub storage to the underground `-50m` linked stash and cleaning up any legacy `camp_stash_id` boxes on pickup or dismantle.
-
----
-
-## 🆕 New in v1.3.1
-
-### 🛠️ Dedicated Homestead Crafting Tab & Basic Tools Tier
-Added a dedicated **Homestead** category tab in the Workshop Crafting menu so all 35 Homestead hubs, workstations, storage boxes, building pieces, and defense gadgets are organized in one place (while still appearing in *Furniture*). All 25 basic recipes (`recipe_basic_0`) now require **Basic Tools** instead of Advanced Tools.
-
-### 🛡️ Stability & Bug Fixes
-Guarded `demonized_ledge_grabbing.checkLedgeGrabbing` against transient Luabind `geometry_ray:get` nil lookups on `actor_on_update`, prevented `patch_actor_binder_guard` from re-raising third-party update errors as fatal CTDs, fixed the `02_GAMMA` flag script module/global collision, guarded Market Stall and Workbench stashes when offline or when ALife object IDs are reused, and added missing Electrician/Cook PDA localization strings.
-
----
-
-## 🆕 New in v1.3.0
-
-### 🧱 Building Kit
-10 modular pieces (foundation, floor, window wall, gable wall, stairs and five tin roofs) on the same grid as the Hideout Furniture walls. Pieces snap together, furniture snaps onto floors and against walls, and a see-through hologram shows green where a piece fits and red where it doesn't. Placed furniture stays put.
-
-### 📦 Settlement storage & new stations
-Settlers now only use the settlement's own storage: five new boxes (Armory Crate, Quartermaster Locker, Pantry, Supply Crate, Med Crate), the work stations (each holds 300 kg) and the fridges. Your own furniture boxes stay yours, and the PDA Auto-Sort fills them first, falling back to the settlement's boxes. New stations for the Cook, Medic, Guards and Scavengers, and a **Settlement Flag** in your faction's colours that founds a settlement.
-
-### 👷 Settlers
-Better guns and suits from the Armory Crate and Quartermaster Locker, Cook orders, fridges that keep food from spoiling, grenade and VOG orders for the Crafter, and an Electrician whose generator now runs on kerosene.
-
-**Existing saves:** settlers no longer see supplies in your own Hideout Furniture boxes. Move what they need into a Homestead box, a station or a fridge.
 
 ---
 

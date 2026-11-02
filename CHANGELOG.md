@@ -1,16 +1,36 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
-## Unreleased
+## v1.3.4 — Settler Prosperity, Rival Camp Sliders & a Big Bug-Fix Pass
 
-### Settler record fixes (audit F1, F2)
+### 💰 Settler Savings, Spending & Standing
+- **Settler's cut**: settlers who work now earn a cut that builds up as savings; production overflow pays the cut instead of pausing the job on "Storage Full". MCM: `settler_cut_enabled`, `settler_cut_per_cycle`, `settler_savings_cap`.
+- **Spending**: settlers spend savings on gear matched to their faction (`settler_spending_enabled`).
+- **Standing**: settlers rise through ranks and gain reputation for the player at set savings tiers (`settler_standing_enabled`). A new Guide page explains it.
+- Savings and standing are kept when a settler is re-created or the recruit dialog rebuilds their record.
+
+### 🚶 Settlers Who Move On & Hooks for Other Mods (off by default)
+- A settler who has done well can move on and rejoin their faction as a veteran, freeing the slot and raising the faction's goodwill. Switch it on in MCM.
+- New script callbacks for other mods: promoted, killed, raid defended, expedition returned, before settler leave, trader arrived and trader departed. New helpers `set_settler_community`, `get_trader_community`, `set_trader_community`.
+- **Faction provider hook** (`get_player_faction`, `save_safe_faction`) so a mod such as Factions of the Zone can share one player faction. No change when no provider is set.
+
+### 🏴 Rival Camps
+- The spawn-distance, attempt-interval and chance sliders now do what they say, and old saved defaults (25 and 250) read as the new 20 and 35. Descriptions match the code.
+
+### 🛠️ Fixes
+- Large review passes of the jobs, settlers, expeditions, turrets, lock, hologram, trader pricing, Technician and PDA code (issues #376, #377, #388): storage-full handling, restored-settler collisions, despawned-settler records, scripted-target heal clearing only our settlers, section checks for purchases, string-table text for promotions, expeditions and the radio, and more.
+- Fixed a GAMMA start crash caused by a script file named like a global flag; the GAMMA flag script is now `stalker_camp_builder_gamma_mode.script`.
+- Removed a stray `luac.out` from the repository.
+
+### 🛡️ Audit fixes: settler records, save/load safety
+#### Settler records (F1, F2)
 - **Invincible respawn keeps the record until it succeeds**: `respawn_settler` clears `camp.respawning` only after the new settler holds the record, so a missing hub or a failed create no longer loses the settler's job, tier, XP and savings.
 - **Heal skips a camp with no hub**: `verify_and_heal_settlers` leaves every settler record of a camp whose hub is unavailable alone and logs it once, instead of deleting them as stale.
 
-### Fixes
+#### Lookup and callbacks (F3, F6)
 - **Settler lookup keeps only numeric ids**: assigning a job no longer leaves a string-keyed copy of the settler in `settler_lookup`, which kept the old camp after the settler was dismissed, died or went offline (audit F3).
 - **Single disconnect-grace registration**: removed the duplicate `on_level_changing` / `actor_on_net_destroy` handlers from the PDA monkeypatch; the core script's handlers already set the same flags and deadline (audit F6).
 
-### Save and load safety
+#### Save and load (F4, F5)
 - **Per-field saving**: `save_state` now writes each large field (camps, outposts, refugees, expeditions, convoys) on its own. A field that cannot be written is logged and left out, instead of dropping every field after it. The save format is unchanged; a save with a failed field also lists it in an extra key that older versions ignore.
 - **Safer loading**: `load_state` keeps the camps, outposts, refugees, expeditions and convoys it already has for a field the save could not write, skips camp and settler entries that are not tables instead of raising, and both save and load handlers are wrapped in `guarded_call`.
 
