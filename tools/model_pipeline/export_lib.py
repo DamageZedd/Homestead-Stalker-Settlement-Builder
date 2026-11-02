@@ -1,5 +1,8 @@
 # Turns a baked HomesteadHF model into its export rig and writes .object/.ogf (run inside Blender).
-#   make_export(bake_name, name, atlas_png) -> mesh with one atlas material
+#   make_export(bake_name, name, atlas_png) -> mesh with one atlas material (legacy: per-model atlas)
+#   make_export_vanilla(src_name, name) -> mesh keeping its per-texture materials (material name = game texture path,
+#        no atlas), so the .ogf references the game's own textures like the Hideout Furniture mods do
+#   reuse_rig(mesh, name, shipped_dir) -> imports the shipped '<name>.object' and parents the mesh to its rig (keeps bones/collision)
 #   rig(mesh, name, boxes, mass) -> armature: 'link' root bone (first box, mass, objects\large_furniture)
 #        plus rigid 'shape_N' child bones for further boxes; boxes are (centre, half sizes, Blender rotation matrix)
 #   export(arm, folder, name)
@@ -37,6 +40,48 @@ def make_export(bake_name, name, atlas_png):
     ob = bpy.data.objects.new(name + "_visual", me)
     bpy.context.scene.collection.objects.link(ob)
     return ob
+
+
+def make_export_vanilla(src_name, name):
+    src = bpy.data.objects[src_name]
+    for o in list(bpy.data.objects):
+        if o.name in (name + "_visual_export", name + "_visual"):
+            if o is not src:
+                bpy.data.objects.remove(o, do_unlink=True)
+    me = src.data.copy()
+    for uv in [u.name for u in me.uv_layers if u.name != "Texture"]:
+        me.uv_layers.remove(me.uv_layers[uv])
+    me.uv_layers["Texture"].active_render = True
+    for i, m in enumerate(me.materials):
+        # the exporter writes the texture from the one image node (named after the material); drop bump/extra images
+        imgs = [n for n in m.node_tree.nodes if n.type == 'TEX_IMAGE']
+        main = next((n for n in imgs if n.image and not n.image.name.endswith("_bump.dds")), imgs[0])
+        for n in imgs:
+            if n is not main:
+                m.node_tree.nodes.remove(n)
+        main.name = main.label = m.name
+        m.xray.cshader = "default"; m.xray.gamemtl = "default_object"
+        if not m.xray.eshader or m.xray.eshader == "default":
+            m.xray.eshader = "models\\model"
+    ob = bpy.data.objects.new(name + "_visual_export", me)
+    bpy.context.scene.collection.objects.link(ob)
+    return ob
+
+
+def reuse_rig(mesh, name, shipped_dir):
+    """Imports the shipped <name>.object from shipped_dir and parents mesh to its rig (bones/collision untouched)."""
+    if name + ".object" in bpy.data.objects:
+        bpy.data.objects.remove(bpy.data.objects[name + ".object"], do_unlink=True)
+    bpy.ops.xray_import.object(directory=shipped_dir, files=[{'name': name + ".object"}])
+    arm = bpy.data.objects[name + ".object"]
+    for c in list(arm.children):
+        bpy.data.objects.remove(c, do_unlink=True)
+    mesh.parent = arm
+    vg = mesh.vertex_groups.get("link") or mesh.vertex_groups.new(name="link")
+    vg.add(list(range(len(mesh.data.vertices))), 1.0, 'REPLACE')
+    mod = mesh.modifiers.get("Armature") or mesh.modifiers.new("Armature", 'ARMATURE')
+    mod.object = arm
+    return arm
 
 
 def rig(mesh, name, boxes, mass):
@@ -85,7 +130,9 @@ def export(arm, folder, name):
     # the addon resets a brand-new material's shaders to 'default' once it first sees it: set them again
     for c in arm.children:
         for m in c.data.materials:
-            m.xray.eshader = "models\\model"; m.xray.cshader = "default"; m.xray.gamemtl = "default_object"
+            if not m.xray.eshader or m.xray.eshader == "default" or m.name.startswith("homestead_hf"):
+                m.xray.eshader = "models\\model"
+            m.xray.cshader = "default"; m.xray.gamemtl = "default_object"
     bpy.ops.object.select_all(action='DESELECT')
     arm.select_set(True)
     for c in arm.children:
