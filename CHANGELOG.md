@@ -9,6 +9,7 @@
 - **Placed furniture is always locked**: the *Lock Placed Furniture* MCM option is removed; every frozen Hideout Furniture, Even More Hideout Furniture and Hideout Gadgets piece is put in door mode (the same state the building-kit walls and roofs use) and kept at its saved spot, so NPCs no longer push furniture into floors and make them slide.
 - **Missed pieces are caught**: a piece that Hideout Furniture's freeze hook never reported (rival camp furniture, pieces whose shell was not ready, or pieces frozen before the lock loaded) is now found within 80 m of the player every 2 s, fixed and locked. Pieces unfrozen through the radial menu stay free until frozen again.
 
+### 🧍 Settler Stations
 - **Settlers stand in front of their furniture**: the spot a settler works at is now placed in front of the piece's usable face (its yaw and `bounding_box_size`), outside its footprint, on walkable ground and clear of the camp's other pieces, instead of the nearest of eight world-axis offsets that could sit beside or inside the piece. Applies to all work furniture, existing saved furniture included (no re-place needed); if no valid spot exists the old one is kept.
 
 ## v1.3.4 — Settler Prosperity, Rival Camp Sliders & a Big Bug-Fix Pass
