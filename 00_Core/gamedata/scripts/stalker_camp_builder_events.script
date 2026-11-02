@@ -528,6 +528,9 @@ function check_completed_raids()
                 if db.actor then
                     stalker_camp_builder.camp_send_tip(db.actor, string.format(game.translate_string("st_raid_summary"), camp_name, raiders_killed, raid.guards_lost or 0), nil, "general_stalker", 12000, hub_id, "combat", true)
                 end
+                if stalker_camp_builder.send_settler_callback then
+                    stalker_camp_builder.send_settler_callback("homestead_on_raid_defended", hub_id, raiders_killed, raid.guards_lost or 0)
+                end
                 camp.active_raid = nil
             end
         end

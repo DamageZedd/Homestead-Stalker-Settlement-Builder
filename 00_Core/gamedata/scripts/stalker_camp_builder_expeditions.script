@@ -1933,6 +1933,10 @@ local function complete_expedition(stash_id)
             camp_send_tip(actor, receipt, nil, "general_stalker", 16000, exp.hub_id, "expedition")
         end
     end
+    if sb.send_settler_callback then
+        sb.send_settler_callback("homestead_on_expedition_returned", exp.npc_id, surv,
+            { items = items_recovered, names = deposited_names, counts = item_counts, xp = xp_earned })
+    end
 
     cleanup_expedition(stash_id)
 end

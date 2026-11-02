@@ -2579,6 +2579,33 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="ui_mcm_stalker_camp_builder_settler_standing_enabled_desc">
         <text>A promotion raises the settler's rank and reputation. Changes wait on the record until the settler is online.</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_move_on_enabled">
+        <text>Master Settlers May Move On</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_move_on_enabled_desc">
+        <text>A Master settler with savings and a purchased weapon may leave to rejoin their faction as a veteran. The slot frees up and the faction thinks better of you.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_move_on_chance">
+        <text>Chance to Move On (%)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_move_on_chance_desc">
+        <text>Percent chance, at each equipment check, that a settler who qualifies moves on.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_move_on_savings">
+        <text>Savings to Move On (RU)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_move_on_savings_desc">
+        <text>Savings a settler needs before they may move on.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_move_on_goodwill">
+        <text>Faction Goodwill Gained</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_settler_move_on_goodwill_desc">
+        <text>Goodwill the settler's faction gains with you when a settler moves on.</text>
+    </string>
+    <string id="st_homestead_settler_moved_on">
+        <text>%s has moved on to rejoin the %s as a veteran. They will speak well of you.</text>
+    </string>
     <string id="st_homestead_settler_bought_weapon">
         <text>%s bought a %s from their own savings.</text>
     </string>
