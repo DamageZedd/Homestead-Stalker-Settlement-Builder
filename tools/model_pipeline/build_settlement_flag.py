@@ -10,17 +10,19 @@ BLEND = "settlement_flag.blend"
 
 SCR = r"C:\Users\hocke\AppData\Local\Temp\claude\C--Users-hocke--gemini-git-repo-homestead-Homestead\9b9ceea6-ee44-4aee-8343-201a00d5359f\scratchpad"
 exec(open(os.path.join(SCR, r"models\build_lib.py")).read())
+TEX_DIRS.insert(0, r"C:\Users\hocke\AppData\Local\Temp\claude_sp\vtex\textures")
+TEX_DIRS.insert(0, r"C:\Users\hocke\OneDrive\Documents\GitHub\Homestead-Stalker-Settlement-Builder\.claude\worktrees\laughing-turing-46d9eb\HomesteadHF\gamedata\textures")
 
 materials = {
     "metal": ("mtl\\mtl_rust_dark", "models\\model"),
     "metal_green": ("mtl\\mtl_pod_green", "models\\model"),
     "metal_plate": ("mtl\\mtl_pod_02", "models\\model"),
     "metal_tin": ("prop\\prop_iten4", "models\\model"),
-    "brass": ("mtl\\mtl_ventil_pod_01", "models\\model"),
+    "brass": ("mtl\\mtl_red_paint_iov", "models\\model"),
     "wood": ("wood\\wood_box", "models\\model"),
     "wood_dark": ("wood\\wood_jasik", "models\\model"),
     "canvas": ("prop\\prop_brezent", "models\\model"),
-    "flag_stalker": ("prop\\flag_stalker", "models\\model"),
+    "flag_stalker": ("homestead_hf\\settlement_flags", "models\\model"),
 }
 
 start(materials)
