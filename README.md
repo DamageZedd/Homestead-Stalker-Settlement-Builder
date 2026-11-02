@@ -7,7 +7,7 @@
 
 *Build camps. Recruit survivors. Automate production. Hold the line.*
 
-![Version](https://img.shields.io/badge/version-v1.3.3-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-v1.4.0-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
 
 **[GAMMA Discord Thread](https://discord.com/channels/912320241713958912/1515669053606334504/1542893750408315030)** · **[Full Changelog](CHANGELOG.md)** · **[ModDB](https://www.moddb.com/mods/stalker-anomaly/addons/homestead-stalker-settlement-builder)** · **[Latest Release](https://github.com/DamageZedd/Homestead-Stalker-Settlement-Builder/releases/latest)**
 
@@ -19,6 +19,22 @@
 Homestead is a comprehensive settlement management and tactical camp-building mod for S.T.A.L.K.E.R. Anomaly. Build functioning camps, recruit survivors, automate production, repel hostile raids, and watch the Zone come alive as rival factions fight over territory around you.
 
 Plant a Settlement Flag to establish a 50-meter settlement boundary. Construct beds, stoves, stashes, defensive barricades, water pumps, alarm sirens, automated pistol turrets, power generators, and decorative furniture. Recruit stalkers or shelter refugees, assign them specialized jobs, manage morale and resources, and control everything remotely through a full 5-tab PDA interface and extensive MCM.
+
+---
+
+## 🆕 New in v1.4.0
+
+### 💰 Settler Savings, Spending & Standing
+Working settlers earn a cut that builds as savings, spend it on gear for their faction, and rise in rank and reputation. Overflow pays the cut instead of pausing jobs. Options are in MCM.
+
+### 🚶 Settlers Who Move On (off by default)
+A settler who has done well can move on and rejoin their faction as a veteran. Script callbacks and a faction provider hook let other mods, such as Factions of the Zone, plug in.
+
+### 🏴 Rival Camps
+The spawn-distance, interval and chance sliders now work as described.
+
+### 🛠️ Fixes
+A large bug-fix pass across jobs, settlers, expeditions, turrets, the lock, trader pricing and the PDA, plus a fix for a start-up crash on GAMMA. See the changelog.
 
 ---
 

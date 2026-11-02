@@ -1,5 +1,26 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## v1.4.0 — Settler Prosperity, Rival Camp Sliders & a Big Bug-Fix Pass
+
+### 💰 Settler Savings, Spending & Standing
+- **Settler's cut**: settlers who work now earn a cut that builds up as savings; production overflow pays the cut instead of pausing the job on "Storage Full". MCM: `settler_cut_enabled`, `settler_cut_per_cycle`, `settler_savings_cap`.
+- **Spending**: settlers spend savings on gear matched to their faction (`settler_spending_enabled`).
+- **Standing**: settlers rise through ranks and gain reputation for the player at set savings tiers (`settler_standing_enabled`). A new Guide page explains it.
+- Savings and standing are kept when a settler is re-created or the recruit dialog rebuilds their record.
+
+### 🚶 Settlers Who Move On & Hooks for Other Mods (off by default)
+- A settler who has done well can move on and rejoin their faction as a veteran, freeing the slot and raising the faction's goodwill. Switch it on in MCM.
+- New script callbacks for other mods: promoted, killed, raid defended, expedition returned, before settler leave, trader arrived and trader departed. New helpers `set_settler_community`, `get_trader_community`, `set_trader_community`.
+- **Faction provider hook** (`get_player_faction`, `save_safe_faction`) so a mod such as Factions of the Zone can share one player faction. No change when no provider is set.
+
+### 🏴 Rival Camps
+- The spawn-distance, attempt-interval and chance sliders now do what they say, and old saved defaults (25 and 250) read as the new 20 and 35. Descriptions match the code.
+
+### 🛠️ Fixes
+- Large review passes of the jobs, settlers, expeditions, turrets, lock, hologram, trader pricing, Technician and PDA code (issues #376, #377, #388): storage-full handling, restored-settler collisions, despawned-settler records, scripted-target heal clearing only our settlers, section checks for purchases, string-table text for promotions, expeditions and the radio, and more.
+- Fixed a GAMMA start crash caused by a script file named like a global flag; the GAMMA flag script is now `stalker_camp_builder_gamma_mode.script`.
+- Removed a stray `luac.out` from the repository.
+
 ## v1.3.3 — Storage Overflow Protection, Settlement Teardown Options & Hub Independence
 
 ### 🚩 Settlement Flag Hub & Workbench Decoupling
