@@ -53,3 +53,18 @@ STATIONS = {
                                     "ston_brick": "briks\\briks_br3", "mat_charcoal": "mtl\\mtl_barrel_big_rust"}, saw=True),
     "market_stall": dict(name="market_stall", blend=PRE + r"\market_stall.blend", mesh="market_stall_visual"),
 }
+
+_BARK = "lfo\\lfo_trees\\bark\\trees_atp_pine_bark"
+STATIONS["generator_station"] = dict(
+    name="generator_station", blend=PRE + r"\generator_station_multibone.blend", mesh="generator_station_mesh",
+    overrides={"prop_accumulator_6st60": "item\\item_battery", "mat_cable_red": "prop\\prop_provod_01", "mat_cable_black": "prop\\prop_provod_02",
+               "act\\psu\\psu_battery_screen.009": "item\\item_battery", "act\\psu\\psu_battery_overall.009": "item\\item_battery"})
+STATIONS["hunter_station"] = dict(
+    name="hunter_station", blend=PRE + r"\hunter_station_multibone.blend", mesh="hunter_station_visual",
+    overrides={"mat_hunter_pine_bark": _BARK, "mat_hunter_pine_bark.001": _BARK, "act\\act_plot": "act\\act_dogs_brown_soc",
+               "mat_hunter_raw_flesh_hide": "food\\food_raw_flesh", "mat_hunter_pseudodog_pelt": "act\\act_dogs_black",
+               "mat_hunter_pseudodog_pelt_back": "act\\act_dogs_black", "mat_hunter_leather_pelt": "act\\act_dogs_brown"})
+STATIONS["repair_bench"] = dict(
+    name="repair_bench", blend=PRE + r"\repair_bench_multibone.blend", mesh="repair_bench.001",
+    overrides={"aml_mags\\cartridges\\wpn_eft_ak74_ammo_545x39_diff.002": "wpn\\wpn_bullet",
+               "aml_mags\\ak545x39_mag\\wpn_eft_ak74_mag_30rnd_diff.002": "wpn\\wpn_addons\\wpn_addon_mag_ar_30rd"})
