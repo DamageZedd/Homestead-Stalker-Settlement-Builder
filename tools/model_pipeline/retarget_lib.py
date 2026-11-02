@@ -47,12 +47,14 @@ def retarget(ob, overrides=None, tex_root=r"C:\Users\hocke\AppData\Local\Temp\cl
         if m is not None and mapping[m.name] not in order:
             order.append(mapping[m.name])
     remap = {i: order.index(mapping[m.name]) for i, m in enumerate(me.materials) if m is not None}
-    for p in me.polygons:
-        p.material_index = remap.get(p.material_index, 0)
+    newidx = [remap.get(p.material_index, 0) for p in me.polygons]   # clearing the slots would reset the face indices
     olds = list(me.materials)
     me.materials.clear()
     for path in order:
         mat = bpy.data.materials.get(path)
+        if mat is not None:
+            bpy.data.materials.remove(mat)      # a same-named material from the source blend has broken image paths
+            mat = None
         if mat is None:
             mat = bpy.data.materials.new(path); mat.use_nodes = True
             nt = mat.node_tree
@@ -63,6 +65,8 @@ def retarget(ob, overrides=None, tex_root=r"C:\Users\hocke\AppData\Local\Temp\cl
             nt.links.new(ti.outputs['Color'], bs.inputs['Base Color']); nt.links.new(bs.outputs['BSDF'], out.inputs['Surface'])
             mat.xray.eshader = "models\model"; mat.xray.cshader = "default"; mat.xray.gamemtl = "default_object"
         me.materials.append(mat)
+    for p, i in zip(me.polygons, newidx):
+        p.material_index = i
     return mapping, []
 
 
