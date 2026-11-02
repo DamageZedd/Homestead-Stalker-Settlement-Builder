@@ -76,7 +76,7 @@ def inline(s):
         lambda m: f'<a href="{fix_link(m[3])}"><img src="{fix_img(m[2])}" alt="{m[1]}" style="{IMG}"></a>', s)
     s = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)",
                lambda m: f'<img src="{fix_img(m[2])}" alt="{m[1]}" style="{IMG}">', s)
-    s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)",
+    s = re.sub(r"\[((?:[^\[\]]|\[[^\[\]]*\])+)\]\(([^)]+)\)",
                lambda m: f'<a href="{fix_link(m[2])}" style="color: {GOLD};">{m[1]}</a>', s)
     s = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", s)
     s = re.sub(r"(?<![\w*])\*(?!\s)(.+?)(?<!\s)\*(?![\w*])", r"<em>\1</em>", s)
@@ -85,7 +85,7 @@ def inline(s):
 
 def plain(s):
     """Inline markdown stripped to text, for titles."""
-    s = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", s)
+    s = re.sub(r"\[((?:[^\[\]]|\[[^\[\]]*\])+)\]\([^)]+\)", r"\1", s)
     return re.sub(r"[*`]", "", s).strip()
 
 
