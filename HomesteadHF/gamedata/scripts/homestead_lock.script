@@ -19,9 +19,8 @@
 -- Door mode lives on the physics shell, so it is set again every time a piece comes online. A piece the
 -- player unfreezes through HF's radial menu collides normally until it is frozen again, and its spot is
 -- taken again where it is frozen. Pieces that are not physics objects (HF lamps and stash boxes) only
--- get their spot back.
+-- get their spot back. The lock is always on (it used to have an MCM toggle).
 
-local MCM = "stalker_camp_builder/building/"
 local VAR = "hs_spot"          -- x, y, z, heading, pitch, bank the piece was frozen at
 local OLD_VAR = "hs_lock"      -- spot saved by an earlier version of this script, no longer used
 local SOLID = { foundation = true, floor = true }   -- homestead_snap types that stay solid
@@ -30,16 +29,12 @@ local MOVE_TOL = 0.001         -- metres a piece may be off its spot
 local TURN_TOL = 0.0005        -- radians a piece may be turned off its spot
 local GIMBAL = math.pi / 2 - 0.001  -- beyond this pitch obj:angle() is too coarse to rebuild the rotation
 
-local enabled = true
+local SWEEP_MS = 2000          -- how often pieces that HF's freeze hook missed are looked for
+local SWEEP_RADIUS = 80        -- metres around the player
+
+local next_sweep = 0
 local online = {}              -- id of an online frozen piece -> true
 local put_back_count = 0
-
-local function mcm_get(key, def)
-    if not (ui_mcm and ui_mcm.get) then return def end
-    local v = ui_mcm.get(MCM .. key)
-    if v == nil then return def end
-    return v
-end
 
 local function report(err)
     printf("homestead_lock: %s", tostring(err))
@@ -137,7 +132,7 @@ local function hook_set_frozen(id)
     wrapper.set_frozen = function(self, frozen)
         set_frozen(self, frozen)
         local obj = self.object
-        if obj and enabled then
+        if obj then
             local ok, err = pcall(function()
                 if self.is_frozen then save_spot(obj:id(), obj) else clear_spot(obj:id()) end
                 set_static(obj, self.is_frozen)
@@ -156,10 +151,6 @@ local function on_piece_frozen(id)
     if se_load_var(id, nil, OLD_VAR) then
         se_save_var(id, nil, OLD_VAR, nil)
     end
-    if not enabled then                -- lock is off: a piece stays wherever it ends up
-        clear_spot(id)
-        return
-    end
     local spot = se_load_var(id, nil, VAR)
     if spot then
         put_back(obj, spot)
@@ -169,24 +160,33 @@ local function on_piece_frozen(id)
     set_static(obj, true)
 end
 
-local function load_settings()
-    local was = enabled
-    enabled = mcm_get("lock_furniture", true)
-    if enabled == was then return end
-    for id in pairs(online) do
-        local obj = level.object_by_id(id)
-        if obj then
-            local wrapper = bind_hf_base.get_wrapper(id)
-            local frozen = not wrapper or wrapper.is_frozen
-            local ok, err = pcall(function()
-                if enabled and frozen then save_spot(id, obj) else clear_spot(id) end
-                set_static(obj, enabled and frozen)
-            end)
-            if not ok then report(err) end
-        else
-            online[id] = nil
-        end
-    end
+-- A piece HF's freeze hook never reported (freeze_obj returned false while the shell was not ready,
+-- a rival camp piece, a piece frozen before this script loaded) would stay a plain dynamic body that
+-- NPCs shove into floors. Look for such pieces around the player: any HF-bound piece whose wrapper says
+-- it is frozen is fixed and put in door mode like the rest. A piece the player unfroze through HF's
+-- radial menu is left alone.
+local function sweep_piece(o)
+    local id = o:id()
+    if online[id] then return end
+    local sec = o:section()
+    local bind = ini_sys:r_string_ex(sec, "script_binding") or ""
+    if not string.find(bind, "bind_hf", 1, true) then return end
+    local wrapper = bind_hf_base.get_wrapper(id)
+    if not wrapper or wrapper.is_frozen == false then return end
+    local ps = o:get_physics_shell()
+    if not ps then return end
+    ps:freeze()
+    on_piece_frozen(id)
+end
+
+local function sweep_update()
+    local now = time_global()
+    if now < next_sweep or not db.actor then return end
+    next_sweep = now + SWEEP_MS
+    level.iterate_nearest(db.actor:position(), SWEEP_RADIUS, function(o)
+        local ok, err = pcall(sweep_piece, o)
+        if not ok then report(err) end
+    end)
 end
 
 -- HF's net_spawn looks freeze_obj up when it runs, so replacing it here covers every piece.
@@ -206,11 +206,10 @@ end
 function on_game_start()
     local fs = getFS()
     if not fs:exist("$game_scripts$", "bind_hf_base.script") then return end
-    enabled = mcm_get("lock_furniture", true)
     hook_freeze(bind_hf_base)
     if fs:exist("$game_scripts$", "bind_hf_static.script") then
         hook_freeze(bind_hf_static)
     end
-    RegisterScriptCallback("on_option_change", load_settings)
+    RegisterScriptCallback("actor_on_update", sweep_update)
     RegisterScriptCallback("server_object_on_unregister", forget_piece)
 end
