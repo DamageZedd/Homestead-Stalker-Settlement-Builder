@@ -11,6 +11,7 @@
 
 ### 🧍 Settler Stations
 - **Settlers stand in front of their furniture**: the spot a settler works at is now placed in front of the piece's usable face (its yaw and `bounding_box_size`), outside its footprint, on walkable ground and clear of the camp's other pieces, instead of the nearest of eight world-axis offsets that could sit beside or inside the piece. Applies to all work furniture, existing saved furniture included (no re-place needed); if no valid spot exists the old one is kept.
+- **Front worked out per piece**: a piece's front is the side Hideout Furniture turns toward the player when it is placed (local -z, turned by the section's `base_rotation`), using the engine's own axis convention; the footprint also uses `bounding_box_origin`. Rival camp furniture footprints use the same axes (they were mirrored).
 
 ## v1.3.4 — Settler Prosperity, Rival Camp Sliders & a Big Bug-Fix Pass
 

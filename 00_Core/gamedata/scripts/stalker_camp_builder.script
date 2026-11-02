@@ -1677,20 +1677,25 @@ function stalker_camp_builder.get_furniture_front_vertex_and_pos(struct_or_pos, 
 end
 local get_furniture_front_vertex_and_pos = stalker_camp_builder.get_furniture_front_vertex_and_pos
 
--- Station spot in front of a furniture piece. In game most pieces face their local -z side, so the
--- default is the yaw turned by pi (the direction -z turns to: world (-sin yaw, -cos yaw)). A section
--- whose face is another side lists the extra yaw to turn by in STATION_FACE_YAW (radians, added to the
--- yaw itself, so 0 means the local +z side); sections not listed use STATION_DEFAULT_FACE_YAW.
-local STATION_DEFAULT_FACE_YAW = math.pi
+-- Station spot in front of a furniture piece.
+-- Axes: an object turned by yaw (angle.y) has its local +x along world (cos yaw, sin yaw) and its local
+-- +z along world (-sin yaw, cos yaw), the engine's setHP / getH convention.
+-- Front: Hideout Furniture places a piece with yaw = camera heading + base_rotation (degrees, from the
+-- section), so with base_rotation 0 the side that faces the player is local -z; HomesteadHF models are
+-- built with their front on Blender -Y, which exports to local -z. The front is therefore local -z turned
+-- back by base_rotation: local (-sin b, -cos b). A section whose model faces another way lists the extra
+-- turn in STATION_FACE_YAW (radians, added to base_rotation).
 local STATION_FACE_YAW = {
-    -- placeable_xxx = 0,   -- face on the local +z side
+    -- placeable_xxx = math.pi,   -- model's front is on the side the player does not face at placement
 }
 local station_dims_cache = {}
 
+-- half width (local x), half depth (local z), footprint centre offset (local x, z) and front direction
+-- (local x, z) of a section
 local function station_dims(sec)
     local c = station_dims_cache[sec]
-    if c then return c[1], c[2] end
-    local hw, hd = 0.4, 0.4
+    if c then return c[1], c[2], c[3], c[4], c[5], c[6] end
+    local hw, hd, ox, oz = 0.4, 0.4, 0, 0
     local ok, raw = pcall(function() return ini_sys:r_string_ex(sec, "bounding_box_size") end)
     if ok and raw then
         local bx, bz = tostring(raw):match("([%d%.]+)%s*,%s*[%d%.]+%s*,%s*([%d%.]+)")
@@ -1699,16 +1704,32 @@ local function station_dims(sec)
             hw, hd = math.min(bx, 6.0) * 0.5, math.min(bz, 6.0) * 0.5
         end
     end
-    station_dims_cache[sec] = { hw, hd }
-    return hw, hd
+    local ok2, org = pcall(function() return ini_sys:r_string_ex(sec, "bounding_box_origin") end)
+    if ok2 and org then
+        local px, pz = tostring(org):match("(%-?[%d%.]+)%s*,%s*%-?[%d%.]+%s*,%s*(%-?[%d%.]+)")
+        px, pz = tonumber(px), tonumber(pz)
+        if px and pz and math.abs(px) < 3 and math.abs(pz) < 3 then ox, oz = px, pz end
+    end
+    local ok3, b = pcall(function() return ini_sys:r_float_ex(sec, "base_rotation", 0) end)
+    b = math.rad(ok3 and b or 0) + (STATION_FACE_YAW[sec] or 0)
+    local fx, fz = -math.sin(b), -math.cos(b)
+    station_dims_cache[sec] = { hw, hd, ox, oz, fx, fz }
+    return hw, hd, ox, oz, fx, fz
 end
 
--- whether x,z lies inside the footprint (grown by pad) of the piece at pos turned by yaw
-local function station_in_box(x, z, pos, yaw, hw, hd, pad)
+-- world x, z of the point at local (lx, lz) of a piece at pos turned by yaw
+local function station_to_world(pos, yaw, lx, lz)
+    local c, s = math.cos(yaw), math.sin(yaw)
+    return pos.x + lx * c - lz * s, pos.z + lx * s + lz * c
+end
+
+-- whether x,z lies inside the footprint (grown by pad) of a piece at pos turned by yaw, whose footprint
+-- centre sits at local (ox, oz)
+local function station_in_box(x, z, pos, yaw, hw, hd, pad, ox, oz)
     local dx, dz = x - pos.x, z - pos.z
     local c, s = math.cos(yaw), math.sin(yaw)
-    local lx = dx * c - dz * s
-    local lz = dx * s + dz * c
+    local lx = dx * c + dz * s - (ox or 0)
+    local lz = -dx * s + dz * c - (oz or 0)
     return math.abs(lx) < hw + pad and math.abs(lz) < hd + pad
 end
 
@@ -1721,9 +1742,12 @@ local function furniture_stand_spot(se_struct, camp, npc)
     local sec = se_struct:section_name()
     if not pos or not sec or sec == "" then return nil end
     local ang = se_struct.angle
-    local yaw = (ang and ang.y or 0) + (STATION_FACE_YAW[sec] or STATION_DEFAULT_FACE_YAW)
-    local hw, hd = station_dims(sec)
-    local sy, cy = math.sin(yaw), math.cos(yaw)
+    local yaw = ang and ang.y or 0
+    local hw, hd, ox, oz, fx, fz = station_dims(sec)
+    -- reach of the footprint along the front and along the side (local), from its centre
+    local reach_f = math.abs(fx) * hw + math.abs(fz) * hd
+    local reach_s = math.abs(fz) * hw + math.abs(fx) * hd
+    local sx, sz = -fz, fx      -- the front turned a quarter: the piece's side
 
     -- other pieces of the camp the spot must stay out of
     local others = {}
@@ -1734,9 +1758,9 @@ local function furniture_stand_spot(se_struct, camp, npc)
                 local ose = alife_object(oid)
                 local osec = ose and ose:section_name()
                 if ose and ose.position and osec and osec ~= "" and ose.position:distance_to(pos) < 8 then
-                    local ohw, ohd = station_dims(osec)
+                    local ohw, ohd, oox, ooz = station_dims(osec)
                     local oang = ose.angle
-                    others[#others + 1] = { ose.position, oang and oang.y or 0, ohw, ohd }
+                    others[#others + 1] = { ose.position, oang and oang.y or 0, ohw, ohd, oox, ooz }
                     n = n + 1
                 end
             end
@@ -1744,25 +1768,27 @@ local function furniture_stand_spot(se_struct, camp, npc)
     end
 
     -- front first, then the front corners, then the sides and the back
+    -- each candidate is { along the front, along the side }, from the footprint centre (local)
     local gap = 0.7
     local cands = {
-        { 0, hd + gap }, { 0.5, hd + gap }, { -0.5, hd + gap },
-        { hw + gap, 0 }, { -(hw + gap), 0 }, { 0, -(hd + gap) },
+        { reach_f + gap, 0 }, { reach_f + gap, 0.5 }, { reach_f + gap, -0.5 },
+        { 0, reach_s + gap }, { 0, -(reach_s + gap) }, { -(reach_f + gap), 0 },
     }
     local tp = vector()
     for _, cd in ipairs(cands) do
-        local wx = pos.x + cd[1] * cy + cd[2] * sy
-        local wz = pos.z - cd[1] * sy + cd[2] * cy
+        local lx = ox + cd[1] * fx + cd[2] * sx
+        local lz = oz + cd[1] * fz + cd[2] * sz
+        local wx, wz = station_to_world(pos, yaw, lx, lz)
         tp:set(wx, pos.y, wz)
         local lvid = level.vertex_id(tp)
         if lvid and lvid < 4294967295 and lvid ~= -1 then
             local vp = level.vertex_position(lvid)
             local ok = vp and math.abs(vp.y - pos.y) <= 0.55
-                and not station_in_box(vp.x, vp.z, pos, yaw, hw, hd, 0.25)
+                and not station_in_box(vp.x, vp.z, pos, yaw, hw, hd, 0.25, ox, oz)
             if ok and npc and npc.accessible then ok = npc:accessible(lvid) end
             if ok then
                 for _, o in ipairs(others) do
-                    if station_in_box(vp.x, vp.z, o[1], o[2], o[3], o[4], 0.15) then ok = false; break end
+                    if station_in_box(vp.x, vp.z, o[1], o[2], o[3], o[4], 0.15, o[5], o[6]) then ok = false; break end
                 end
             end
             if ok then

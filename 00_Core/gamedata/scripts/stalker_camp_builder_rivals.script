@@ -2101,9 +2101,10 @@ local function rival_decor_dims(sec)
     return hw, hd, ht
 end
 
--- footprint of a piece centred on x,z turned by yaw: local x = (cos, -sin), local z = (sin, cos)
+-- footprint of a piece centred on x,z turned by yaw. The engine turns local x to (cos yaw, sin yaw)
+-- and local z to (-sin yaw, cos yaw); with s = -sin yaw that is local x = (c, -s), local z = (s, c)
 local function rival_decor_box(x, z, yaw, hw, hd)
-    return { x = x, z = z, hw = hw, hd = hd, c = math.cos(yaw), s = math.sin(yaw), r = math.sqrt(hw * hw + hd * hd) }
+    return { x = x, z = z, hw = hw, hd = hd, c = math.cos(yaw), s = -math.sin(yaw), r = math.sqrt(hw * hw + hd * hd) }
 end
 
 local function rival_decor_boxes_overlap(a, b)
