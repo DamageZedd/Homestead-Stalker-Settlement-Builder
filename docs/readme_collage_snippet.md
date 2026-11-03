@@ -6,7 +6,7 @@ Replaces these README lines (one <img> per line today):
  - storage table (~90-98): hero_armory_crate, hero_quartermaster_locker, hero_med_crate, hero_pantry, hero_supply_crate
  - building kit (~171-188): hero_foundation, hero_floor, hero_wall_window, hero_wall_gable, hero_stairs, hero_roof_flat, hero_roof_slope, hero_roof_hip, hero_roof_valley, hero_roof_pyramid
  hero_*.jpg files can stay in docs/images or be deleted afterwards.
- Not pictured: farm_grain / farm_potato (crop props, no .object source). collage_floors.jpg shows the OLD triangular foundation (old brown concrete, one face may be see-through); re-render it once the rebuilt model with the new concrete is exported. -->
+ Not pictured: farm_grain / farm_potato (crop props, no .object source). All models are pictured except farm_grain/farm_potato. -->
 
 ### Crafting & workstations
 <p align="center"><img src="docs/images/collage_workstations.jpg?v=1" alt="Crafting and workstations"><br><sub>Ammunition crafting bench · Gunsmith &amp; armor repair bench · Salvage table · Electrician generator bench · Moonshine distiller · Woodcutter station</sub></p>
