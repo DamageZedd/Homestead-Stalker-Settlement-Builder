@@ -302,3 +302,35 @@ function sb.needs_summary_text(camp)
     local tier_id = "st_homestead_needs_tier_" .. tostring(n.tier)
     return string.format(game.translate_string("st_homestead_needs_line"), game.translate_string(tier_id), n.variety or 0)
 end
+
+-- the PDA's Needs row: text and colour role (good / warn / danger / dim). Never nil: "off" and
+-- "starting" say so, so the row is not mistaken for a missing feature.
+function sb.needs_status_text(camp)
+    if not sb.needs_enabled_now() then
+        return game.translate_string("st_pda_ov_needs_off"), "dim"
+    end
+    local n = camp and camp.needs
+    if not (n and n.tier) then
+        return game.translate_string("st_pda_ov_needs_wait"), "dim"
+    end
+    local tier = n.tier
+    local txt = string.format(game.translate_string("st_pda_ov_needs_val"),
+        game.translate_string("st_homestead_needs_tier_" .. tostring(tier)), n.variety or 0)
+    if tier >= 2 then
+        local hungry = 0
+        for _, s in pairs(camp.survivors or {}) do
+            if flag_on(s.needs_hungry_until) or flag_on(s.needs_starving_until) then hungry = hungry + 1 end
+        end
+        if hungry > 0 then
+            txt = string.format(game.translate_string("st_pda_ov_needs_hungry"),
+                game.translate_string("st_homestead_needs_tier_" .. tostring(tier)), hungry)
+        end
+    end
+    return txt, (tier >= 3 and "danger") or (tier >= 2 and "warn") or "good"
+end
+
+-- true while a shortage has pulled the camp's morale into the range where settlers leave
+function sb.needs_leaving_warning(camp)
+    if not sb.needs_enabled_now() or sb.cfg.needs_desertion == false then return false end
+    return (camp.happiness or 100) < 30 and sb.needs_happiness_delta(camp) < 0
+end

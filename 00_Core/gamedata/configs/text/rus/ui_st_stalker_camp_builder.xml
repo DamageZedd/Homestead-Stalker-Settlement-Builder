@@ -2846,5 +2846,116 @@
     <string id="st_homestead_needs_tier_3">
         <text>Starving</text>
     </string>
+    <string id="st_pda_ov_settlers">
+        <text>Жители</text>
+    </string>
+    <string id="st_pda_ov_occupancy">
+        <text>Заселённость</text>
+    </string>
+    <string id="st_pda_ov_rating">
+        <text>Рейтинг</text>
+    </string>
+    <string id="st_pda_ov_threat">
+        <text>Угроза</text>
+    </string>
+    <string id="st_pda_ov_perimeter">
+        <text>Периметр</text>
+    </string>
+    <string id="st_pda_ov_food">
+        <text>Еда</text>
+    </string>
+    <string id="st_pda_ov_water">
+        <text>Вода</text>
+    </string>
+    <string id="st_pda_ov_needs">
+        <text>Нужды</text>
+    </string>
+    <string id="st_pda_ov_storage">
+        <text>Склад</text>
+    </string>
+    <string id="st_pda_ov_morale">
+        <text>Мораль</text>
+    </string>
+    <string id="st_pda_ov_comfort">
+        <text>Комфорт</text>
+    </string>
+    <string id="st_pda_ov_banner_raid">
+        <text>[! ИДЁТ НАБЕГ !]</text>
+    </string>
+    <string id="st_pda_ov_banner_spawn">
+        <text>[! ТОЧКА СПАВНА В ПЕРИМЕТРЕ - %d м !]</text>
+    </string>
+    <string id="st_pda_ov_banner_secure">
+        <text>[ ПЕРИМЕТР ПОД КОНТРОЛЕМ ]</text>
+    </string>
+    <string id="st_pda_ov_settlers_val">
+        <text>%d  (коек: %d)</text>
+    </string>
+    <string id="st_pda_ov_def_high">
+        <text>Высокая</text>
+    </string>
+    <string id="st_pda_ov_def_ok">
+        <text>Защищён</text>
+    </string>
+    <string id="st_pda_ov_def_vulnerable">
+        <text>Уязвим</text>
+    </string>
+    <string id="st_pda_ov_threat_low">
+        <text>Низкая</text>
+    </string>
+    <string id="st_pda_ov_threat_moderate">
+        <text>Средняя</text>
+    </string>
+    <string id="st_pda_ov_threat_elevated">
+        <text>Повышенная (спавн)</text>
+    </string>
+    <string id="st_pda_ov_threat_critical">
+        <text>Критическая (набег)</text>
+    </string>
+    <string id="st_pda_ov_perimeter_val">
+        <text>стен: %d, охр.: %d, турелей: %d</text>
+    </string>
+    <string id="st_pda_ov_food_ok">
+        <text>В норме</text>
+    </string>
+    <string id="st_pda_ov_food_low">
+        <text>Мало</text>
+    </string>
+    <string id="st_pda_ov_water_ok">
+        <text>Насосов: %d, в норме</text>
+    </string>
+    <string id="st_pda_ov_water_none">
+        <text>Нет насосов</text>
+    </string>
+    <string id="st_pda_ov_water_nofilter">
+        <text>Насосов: %d, нет фильтра</text>
+    </string>
+    <string id="st_pda_ov_needs_off">
+        <text>Выкл. (MCM > Нужды)</text>
+    </string>
+    <string id="st_pda_ov_needs_wait">
+        <text>Запуск - ждём первый обед</text>
+    </string>
+    <string id="st_pda_ov_needs_val">
+        <text>%s, разнообразие %d/3</text>
+    </string>
+    <string id="st_pda_ov_needs_hungry">
+        <text>%s, без еды/воды: %d</text>
+    </string>
+    <string id="st_pda_ov_na">
+        <text>Н/Д</text>
+    </string>
+    <string id="st_pda_ov_comfort_high">
+        <text>Высокий</text>
+    </string>
+    <string id="st_pda_ov_comfort_std">
+        <text>Обычный</text>
+    </string>
+    <string id="st_pda_ov_comfort_poor">
+        <text>Плохой</text>
+    </string>
+    <string id="st_pda_ov_leaving">
+        <text>Поселенцы могут уйти</text>
+    </string>
 </string_table>
 

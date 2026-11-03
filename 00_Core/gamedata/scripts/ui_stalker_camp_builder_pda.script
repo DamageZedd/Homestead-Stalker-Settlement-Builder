@@ -449,6 +449,16 @@ function SettlementManagerPDA:InitControls()
     self.camp_water = xml:InitTextWnd("overview_content:camp_water", self.overview_content)
     self.camp_supplies = xml:InitTextWnd("overview_content:camp_supplies", self.overview_content)
     self.camp_morale = xml:InitTextWnd("overview_content:camp_morale", self.overview_content)
+    self.camp_needs = xml:InitTextWnd("overview_content:camp_needs", self.overview_content)
+    self.camp_storage = xml:InitTextWnd("overview_content:camp_storage", self.overview_content)
+    self.camp_comfort = xml:InitTextWnd("overview_content:camp_comfort", self.overview_content)
+    self.morale_card_bg = xml:InitStatic("overview_content:morale_card_bg", self.overview_content)
+    self.morale_header_bg = xml:InitStatic("overview_content:morale_header_bg", self.overview_content)
+    self.morale_card_lbl = xml:InitTextWnd("overview_content:morale_card_lbl", self.overview_content)
+    self.ov_row_labels = {}
+    for _, lab in ipairs({ "settlers", "occupancy", "rating", "threat", "perimeter", "food", "water", "needs", "storage", "morale", "comfort" }) do
+        self.ov_row_labels[lab] = xml:InitTextWnd("overview_content:lbl_ov_" .. lab, self.overview_content)
+    end
 
     self.directives_header_bg = xml:InitStatic("overview_content:directives_header_bg", self.overview_content)
     self.directives_lbl = xml:InitTextWnd("overview_content:directives_lbl", self.overview_content)
@@ -1120,6 +1130,9 @@ function SettlementManagerPDA:ClearDetails()
     self.camp_water:SetText("")
     self.camp_morale:SetText("")
     self.camp_supplies:SetText("")
+    self.camp_needs:SetText("")
+    self.camp_storage:SetText("")
+    self.camp_comfort:SetText("")
     self.survivor_name_txt:SetText("")
     self.survivor_rank_badge:SetText("")
     self.survivor_xp_bar:SetText("")
@@ -1338,14 +1351,10 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
     self.camp_name:SetText(name)
 
     local spec = camp.specialization or "none"
-    local spec_str = game.translate_string("st_pda_spec_" .. spec)
-    -- region and specialization on lines of their own: on one line they overflowed 350 wide
-    -- and the wrap climbed into the camp name. The defense line goes under however many
-    -- lines they take.
-    self.camp_spec_badge:SetText(sformat("[ REGION: %s ]\\n[ SPEC: %s ]", level_name:upper(), spec_str:upper()))
-    self.camp_spec_badge:AdjustHeightToText()
+    local spec_str = (tostring(game.translate_string("st_pda_spec_" .. spec)):gsub("%s*%b()", ""))
+    -- one line, region and specialization: the box is one line high, so nothing may wrap
+    self.camp_spec_badge:SetText(sformat("%s  -  %s", level_name:upper(), spec_str:upper()))
 
-    local banner_y = 22 + math.max(30, self.camp_spec_badge:GetHeight()) + 2
     local smart_hazard, smart_dist = camp.near_smart, camp.near_smart_dist
     -- on the settlement's level, not the player's: the list holds settlements from every level
     if not smart_hazard and camp.level and camp.level ~= "unknown"
@@ -1354,100 +1363,100 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
     end
 
     if self.raid_banner_bg then
-        self.raid_banner_bg:SetWndPos(vector2():set(0, banner_y))
-        if camp.active_raid then
-            hs_theme.banner(self.raid_banner_bg, "threat")
-        elseif smart_hazard then
-            hs_theme.banner(self.raid_banner_bg, "threat")
-        else
-            hs_theme.banner(self.raid_banner_bg, "secure")
-        end
+        hs_theme.banner(self.raid_banner_bg, (camp.active_raid or smart_hazard) and "threat" or "secure")
     end
-
     if self.raid_banner_lbl then
-        self.raid_banner_lbl:SetWndPos(vector2():set(0, banner_y + 3))
         if camp.active_raid then
-            self.raid_banner_lbl:SetText("[! THREAT ALERT: SETTLEMENT UNDER ACTIVE HOSTILE ASSAULT !]")
+            self.raid_banner_lbl:SetText(game.translate_string("st_pda_ov_banner_raid"))
             self.raid_banner_lbl:SetTextColor(hs_theme.argb("danger"))
         elseif smart_hazard then
-            local s_disp = game.translate_string(smart_hazard)
-            if not s_disp or s_disp == "" or s_disp == smart_hazard then s_disp = smart_hazard end
-            self.raid_banner_lbl:SetText(sformat("[! SPAWN HAZARD: NATURAL SPAWN POINT IN PERIMETER (%s - %dm) !]", s_disp, math.floor(smart_dist or 0)))
-            self.raid_banner_lbl:SetTextColor(hs_theme.argb("warn") or hs_theme.argb("danger"))
+            self.raid_banner_lbl:SetText(sformat(game.translate_string("st_pda_ov_banner_spawn"), math.floor(smart_dist or 0)))
+            self.raid_banner_lbl:SetTextColor(hs_theme.argb("warn"))
         else
-            self.raid_banner_lbl:SetText("[ DEFENSE STATUS: SECURE // PERIMETER INTACT ]")
+            self.raid_banner_lbl:SetText(game.translate_string("st_pda_ov_banner_secure"))
             self.raid_banner_lbl:SetTextColor(hs_theme.argb("good"))
         end
     end
 
     if self.btn_specialization and self.btn_specialization.TextControl and self.btn_specialization:TextControl() then
-        self.btn_specialization:TextControl():SetText(sformat("Spec: %s", (tostring(spec_str):gsub("%s*%b()", ""))))
+        self.btn_specialization:TextControl():SetText(sformat("Spec: %s", spec_str))
     end
 
-    local pop_pct = math.floor(mmin(100, (stats.population / math.max(1, stats.beds)) * 100))
-    local pop_gauge = make_gauge(pop_pct, 10)
-    self.camp_pop:SetText(sformat("Resident Settlers: %d Stalkers   /   %d Available Bunks", stats.population, stats.beds))
-    if self.camp_pop_gauge then
-        local avail_beds = math.max(0, stats.beds - stats.population)
-        local cap_str = avail_beds > 0 and sformat("(%d Bunks Available)", avail_beds) or "(Full Capacity)"
-        self.camp_pop_gauge:SetText(sformat("Occupancy Rate: %d%%   [%s]   %s", pop_pct, pop_gauge, cap_str))
+    -- one value row: text and the colour role that says how it stands (good / warn / danger / body)
+    local function row(ctl, text, role)
+        if not ctl then return end
+        ctl:SetText(text)
+        ctl:SetTextColor(hs_theme.argb(role or "body"))
     end
+    local function tr(id) return game.translate_string(id) end
 
+    -- POPULATION
+    local beds = math.max(1, stats.beds)
+    local pop_pct = math.floor(mmin(100, (stats.population / beds) * 100))
+    row(self.camp_pop, sformat(tr("st_pda_ov_settlers_val"), stats.population, stats.beds), "body")
+    row(self.camp_pop_gauge, sformat("%d%%  [%s]", pop_pct, make_gauge(pop_pct, 10)), stats.population >= stats.beds and "warn" or "body")
+
+    -- SECURITY
     local def_cap = stalker_camp_builder.cfg and stalker_camp_builder.cfg.defense_cap or 150
     local def_pct = math.floor(mmin(100, (stats.defense / def_cap) * 100))
-    local def_gauge = make_gauge(def_pct, 10)
-    local def_rating_str = def_pct >= 66 and "High Defense" or (def_pct >= 33 and "Defended" or "Vulnerable")
-    self.camp_def:SetText(sformat("Security Rating: %d / %d   [%s]   %d%%  (%s)", stats.defense, def_cap, def_gauge, def_pct, def_rating_str))
-    self.camp_def_breakdown:SetText(sformat("Perimeter Grid: %d Barricades   |   %d Guards   |   %d Turrets", stats.barricades, stats.guards, stats.gadgets))
-    if self.camp_threat_lvl then
-        -- against the defense cap, as the rating above: 40% is the old 60 of the default 150
-        local threat_str = camp.active_raid and "CRITICAL (Active Raid)"
-            or (smart_hazard and sformat("ELEVATED (Natural Spawn Point %s inside perimeter)", tostring(smart_hazard))
-            or (def_pct >= 40 and "LOW (Sector Fortified)" or "MODERATE (Standard Patrols)"))
-        self.camp_threat_lvl:SetText(sformat("Threat Level: %s", threat_str))
-    end
+    local def_word, def_role = tr("st_pda_ov_def_vulnerable"), "danger"
+    if def_pct >= 66 then def_word, def_role = tr("st_pda_ov_def_high"), "good"
+    elseif def_pct >= 33 then def_word, def_role = tr("st_pda_ov_def_ok"), "body" end
+    row(self.camp_def, sformat("%d / %d  (%s)", stats.defense, def_cap, def_word), def_role)
+    -- against the defense cap, as the rating above: 40% is the old 60 of the default 150
+    local threat_id, threat_role = "st_pda_ov_threat_moderate", "warn"
+    if camp.active_raid then threat_id, threat_role = "st_pda_ov_threat_critical", "danger"
+    elseif smart_hazard then threat_id, threat_role = "st_pda_ov_threat_elevated", "warn"
+    elseif def_pct >= 40 then threat_id, threat_role = "st_pda_ov_threat_low", "good" end
+    row(self.camp_threat_lvl, tr(threat_id), threat_role)
+    row(self.camp_def_breakdown, sformat(tr("st_pda_ov_perimeter_val"), stats.barricades, stats.guards, stats.gadgets), "body")
 
-    local water_pumps_str = stats.water_pumps > 0 and sformat("%d Active Pumps (Supply: OK)", stats.water_pumps) or "0 Pumps (Water Supply LOW)"
-    if stats.water_pumps > 0 and stalker_camp_builder.get_camp_inventory_snapshot then
+    -- SUPPLIES
+    local has_food = stalker_camp_builder.check_camp_chest_supplies(camp, hub_obj)
+    row(self.camp_supplies, tr(has_food and "st_pda_ov_food_ok" or "st_pda_ov_food_low"), has_food and "good" or "danger")
+
+    local water_txt, water_role = sformat(tr("st_pda_ov_water_ok"), stats.water_pumps), "good"
+    if stats.water_pumps <= 0 then
+        water_txt, water_role = tr("st_pda_ov_water_none"), "warn"
+    elseif stalker_camp_builder.get_camp_inventory_snapshot then
         -- each batch uses up a filter from camp storage: without one the pumps make no water
         local snap = stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, false)
         if snap and (snap.water_filter_count or 0) == 0 then
-            water_pumps_str = sformat(game.translate_string("st_pda_camp_water_no_filter"), stats.water_pumps)
+            water_txt, water_role = sformat(tr("st_pda_ov_water_nofilter"), stats.water_pumps), "warn"
         end
     end
-    self.camp_water:SetText(sformat("Water Infrastructure: %s", water_pumps_str))
+    row(self.camp_water, water_txt, water_role)
 
-    local has_food, has_water = stalker_camp_builder.check_camp_chest_supplies(camp, hub_obj)
-    local food_status = has_food and "Food: OK" or "Food: LOW"
-    local storage_str = "Storage: N/A"
+    -- living needs: "off" says so, instead of showing nothing
+    local needs_txt, needs_role
+    if stalker_camp_builder.needs_status_text then
+        needs_txt, needs_role = stalker_camp_builder.needs_status_text(camp)
+    end
+    row(self.camp_needs, needs_txt or tr("st_pda_ov_needs_off"), needs_role or "dim")
+
+    local storage_txt, storage_role = tr("st_pda_ov_na"), "body"
     if stalker_camp_builder.get_camp_storage_metrics then
-        local u_w, m_w, t_items, pct = stalker_camp_builder.get_camp_storage_metrics(camp, hub_obj)
-        storage_str = sformat("Storage: %d / %d kg (%d%% Cap)", u_w, m_w, pct)
+        local u_w, m_w, _, pct = stalker_camp_builder.get_camp_storage_metrics(camp, hub_obj)
+        storage_txt = sformat("%d / %d kg  (%d%%)", u_w, m_w, pct)
+        if pct >= 95 then storage_role = "danger" elseif pct >= 80 then storage_role = "warn" end
     end
-    local needs_txt = stalker_camp_builder.needs_summary_text and stalker_camp_builder.needs_summary_text(camp)
-    if not needs_txt and stalker_camp_builder.needs_enabled_now then
-        if not stalker_camp_builder.needs_enabled_now() then
-            needs_txt = "Needs: off (enable in MCM > Needs)"
-        else
-            needs_txt = "Needs: waiting for first meal round"
-        end
-    end
-    if needs_txt then
-        self.camp_supplies:SetText(sformat("%s   |   %s", needs_txt, storage_str))
-    else
-        self.camp_supplies:SetText(sformat("Provisions: %s   |   %s", food_status, storage_str))
-    end
+    row(self.camp_storage, storage_txt, storage_role)
 
-    -- the camp's morale as get_camp_stats scores it (camp.happiness): settlers leave below 20,
-    -- and the map marker warns below 40
+    -- MORALE as get_camp_stats scores it (camp.happiness): settlers leave below 20, and the
+    -- map marker warns below 40
     local morale_val = math.floor(stats.happiness or 50)
-    local morale_gauge = make_gauge(morale_val, 10)
-    local morale_desc = morale_val >= 75 and "High Comfort" or (morale_val >= 40 and "Standard" or "Poor Conditions")
-    self.camp_morale:SetText(sformat("Settlement Morale: %d%%   [%s]   Comfort: %s", morale_val, morale_gauge, morale_desc))
+    local morale_role = morale_val >= 75 and "good" or (morale_val >= 40 and "body" or (morale_val >= 20 and "warn" or "danger"))
+    row(self.camp_morale, sformat("%d%%  [%s]", morale_val, make_gauge(morale_val, 10)), morale_role)
+    local comfort_id = morale_val >= 75 and "st_pda_ov_comfort_high" or (morale_val >= 40 and "st_pda_ov_comfort_std" or "st_pda_ov_comfort_poor")
+    local comfort_txt, comfort_role = tr(comfort_id), morale_role
+    if stalker_camp_builder.needs_leaving_warning and stalker_camp_builder.needs_leaving_warning(camp) then
+        comfort_txt, comfort_role = tr("st_pda_ov_leaving"), "danger"
+    end
+    row(self.camp_comfort, comfort_txt, comfort_role)
 
     if self.overview_content then
         self.overview_content:Show(true)
-        self.overview_content:SetWndSize(vector2():set(350, 510))
+        self.overview_content:SetWndSize(vector2():set(350, 576))
     end
 end
 

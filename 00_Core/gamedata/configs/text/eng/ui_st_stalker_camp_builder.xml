@@ -737,7 +737,7 @@
         <text>WATER PUMPS</text>
     </string>
     <string id="st_pda_settlement_supplies_lbl">
-        <text>RESOURCES &amp; FOOD SUPPLY</text>
+        <text>SUPPLIES</text>
     </string>
     <string id="st_pda_settlement_breakdown_lbl">
         <text>DEFENSE INFRASTRUCTURE BREAKDOWN</text>
@@ -2842,5 +2842,116 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     </string>
     <string id="st_homestead_needs_tier_3">
         <text>Starving</text>
+    </string>
+    <string id="st_pda_ov_settlers">
+        <text>Settlers</text>
+    </string>
+    <string id="st_pda_ov_occupancy">
+        <text>Occupancy</text>
+    </string>
+    <string id="st_pda_ov_rating">
+        <text>Rating</text>
+    </string>
+    <string id="st_pda_ov_threat">
+        <text>Threat</text>
+    </string>
+    <string id="st_pda_ov_perimeter">
+        <text>Perimeter</text>
+    </string>
+    <string id="st_pda_ov_food">
+        <text>Food</text>
+    </string>
+    <string id="st_pda_ov_water">
+        <text>Water</text>
+    </string>
+    <string id="st_pda_ov_needs">
+        <text>Needs</text>
+    </string>
+    <string id="st_pda_ov_storage">
+        <text>Storage</text>
+    </string>
+    <string id="st_pda_ov_morale">
+        <text>Morale</text>
+    </string>
+    <string id="st_pda_ov_comfort">
+        <text>Comfort</text>
+    </string>
+    <string id="st_pda_ov_banner_raid">
+        <text>[! RAID IN PROGRESS !]</text>
+    </string>
+    <string id="st_pda_ov_banner_spawn">
+        <text>[! SPAWN POINT IN PERIMETER - %dm !]</text>
+    </string>
+    <string id="st_pda_ov_banner_secure">
+        <text>[ PERIMETER SECURE ]</text>
+    </string>
+    <string id="st_pda_ov_settlers_val">
+        <text>%d  (%d bunks)</text>
+    </string>
+    <string id="st_pda_ov_def_high">
+        <text>High</text>
+    </string>
+    <string id="st_pda_ov_def_ok">
+        <text>Defended</text>
+    </string>
+    <string id="st_pda_ov_def_vulnerable">
+        <text>Vulnerable</text>
+    </string>
+    <string id="st_pda_ov_threat_low">
+        <text>Low</text>
+    </string>
+    <string id="st_pda_ov_threat_moderate">
+        <text>Moderate</text>
+    </string>
+    <string id="st_pda_ov_threat_elevated">
+        <text>Elevated (spawn point)</text>
+    </string>
+    <string id="st_pda_ov_threat_critical">
+        <text>Critical (raid)</text>
+    </string>
+    <string id="st_pda_ov_perimeter_val">
+        <text>%d walls, %d guards, %d turrets</text>
+    </string>
+    <string id="st_pda_ov_food_ok">
+        <text>OK</text>
+    </string>
+    <string id="st_pda_ov_food_low">
+        <text>Low</text>
+    </string>
+    <string id="st_pda_ov_water_ok">
+        <text>%d pumps, OK</text>
+    </string>
+    <string id="st_pda_ov_water_none">
+        <text>No pumps</text>
+    </string>
+    <string id="st_pda_ov_water_nofilter">
+        <text>%d pumps idle, no filter</text>
+    </string>
+    <string id="st_pda_ov_needs_off">
+        <text>Off (MCM > Needs)</text>
+    </string>
+    <string id="st_pda_ov_needs_wait">
+        <text>Starting - first meal round</text>
+    </string>
+    <string id="st_pda_ov_needs_val">
+        <text>%s, variety %d/3</text>
+    </string>
+    <string id="st_pda_ov_needs_hungry">
+        <text>%s, %d going without</text>
+    </string>
+    <string id="st_pda_ov_na">
+        <text>N/A</text>
+    </string>
+    <string id="st_pda_ov_comfort_high">
+        <text>High</text>
+    </string>
+    <string id="st_pda_ov_comfort_std">
+        <text>Standard</text>
+    </string>
+    <string id="st_pda_ov_comfort_poor">
+        <text>Poor</text>
+    </string>
+    <string id="st_pda_ov_leaving">
+        <text>Settlers may leave</text>
     </string>
 </string_table>
