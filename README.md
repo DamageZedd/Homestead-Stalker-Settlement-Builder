@@ -7,7 +7,7 @@
 
 *Build camps. Recruit survivors. Automate production. Hold the line.*
 
-![Version](https://img.shields.io/badge/version-v1.3.4-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-v1.3.5-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
 
 **[GAMMA Discord Thread](https://discord.com/channels/912320241713958912/1515669053606334504/1542893750408315030)** · **[Full Changelog](CHANGELOG.md)** · **[ModDB](https://www.moddb.com/mods/stalker-anomaly/addons/homestead-stalker-settlement-builder)** · **[Latest Release](https://github.com/DamageZedd/Homestead-Stalker-Settlement-Builder/releases/latest)**
 
@@ -22,19 +22,22 @@ Plant a Settlement Flag to establish a 50-meter settlement boundary. Construct b
 
 ---
 
-## 🆕 New in v1.3.4
+## 🆕 New in v1.3.5
 
-### 💰 Settler Savings, Spending & Standing
-Working settlers earn a cut that builds as savings, spend it on gear for their faction, and rise in rank and reputation. Overflow pays the cut instead of pausing jobs. Options are in MCM.
+### 🧱 14 New Building Pieces
+SCUM-style modular pieces: low and loophole walls, wide doorway, support post, triangular floor, foundation and tin roof, entry steps, ramp, L-, U- and spiral stairs, and a plank floor with a spiral opening. They snap like the existing kit and have real wood or scrap recipes. The triangle foundation was rebuilt and the foundation concrete is lighter.
 
-### 🚶 Settlers Who Move On (off by default)
-A settler who has done well can move on and rejoin their faction as a veteran. Script callbacks and a faction provider hook let other mods, such as Factions of the Zone, plug in.
+### 🏴 One Flag, Auto-Switching Banner
+The Settlement Flag is a single model whose banner follows your faction, including Factions of the Zone patches.
 
-### 🏴 Rival Camps
-The spawn-distance, interval and chance sliders now work as described.
+### 🎨 All Models on Vanilla Textures
+The custom atlas textures are gone from every furniture model, so the download is smaller and textures no longer go missing.
+
+### ⚔️ Raid Reputation
+Settlers killed by raiders cost goodwill with the raiders' enemies (MCM options in Raids & Events).
 
 ### 🛠️ Fixes
-A large bug-fix pass across jobs, settlers, expeditions, turrets, the lock, trader pricing and the PDA, plus a fix for a start-up crash on GAMMA. See the changelog.
+The PDA no longer shows a duplicate Settlements tab with Mod App Creator, the Water Purifier can be picked up again (now 2x size, no storage), and missing Russian strings were added. See the changelog.
 
 
 ---
@@ -146,7 +149,7 @@ Build real houses, Fallout 4 style. The new HomesteadHF building pieces and the 
 - **Controls while placing**: aim at a placed piece and the preview snaps to it. **R** rotates 90° (to the next snap position when snapped), **G** turns snapping on or off. Both keys can be changed in MCM → Homestead → Building, along with the snap radius and the furniture grid.
 
 <p align="center"><img src="docs/images/collage_walls.jpg?v=1" alt="Walls, doorways and support post" width="100%"></p>
-<p align="center"><img src="docs/images/collage_floors.jpg?v=1" alt="Foundations and floors" width="100%"></p>
+<p align="center"><img src="docs/images/collage_floors.jpg?v=2" alt="Foundations and floors" width="100%"></p>
 <p align="center"><img src="docs/images/collage_stairs.jpg?v=1" alt="Stairs and ramp" width="100%"></p>
 <p align="center"><img src="docs/images/collage_roofs.jpg?v=1" alt="Tin roofs" width="100%"></p>
 
@@ -211,6 +214,7 @@ Build real houses, Fallout 4 style. The new HomesteadHF building pieces and the 
 - Automated pistol turrets (**+15 Defense** each)
 - Alarm sirens with 75m threat radar (**+15 Defense**)
 - Cumulative Defense Rating system and post-raid radio combat reports
+- Settlers killed by raiders cost goodwill with the raiding faction's enemies (configurable in MCM)
 - Empty settlements (0 settlers) are immune to raids
 
 ## 🏷️ Settlement Specializations

@@ -1,6 +1,6 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
-## Unreleased
+## v1.3.5 — 14 New Building Pieces, One Auto-Switching Flag & Vanilla Textures (2026-11-03)
 
 ### More Building Kit Pieces
 - **12 new pieces** modelled on SCUM's modular base-building set, all on the kit's existing plank, board and concrete textures: low plank wall, plank wall with loophole, wide double doorway, wooden support post, triangular plank floor, triangular concrete foundation, plank entry steps, plank ramp, L-shaped stairs (and mirrored), U-shaped stairs and spiral stairs. Stairs, ramp and spiral are open underneath so you can walk under them.
