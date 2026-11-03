@@ -84,181 +84,181 @@
         <overview_scroll x="0" y="0" width="370" height="536" always_show_scroll="0" stretch="1"/>
     </overview_panel>
 
-    <overview_content x="0" y="0" width="350" height="576" stretch="1">
+    <overview_content x="0" y="0" width="350" height="300" stretch="1">
         <!-- Top Header Card (y=0 to y=68) -->
-        <camp_header_bg x="0" y="0" width="350" height="46" stretch="1">
+        <camp_header_bg x="0" y="0" width="350" height="38" stretch="1">
             <texture>ui_homestead_module_bg</texture>
         </camp_header_bg>
         <camp_name x="0" y="2" width="350" height="20">
             <text font="letterica18" r="238" g="196" b="112" align="c" vert_align="c" complex_mode="1"/>
         </camp_name>
-        <camp_spec_badge x="0" y="24" width="350" height="18">
+        <camp_spec_badge x="0" y="21" width="350" height="16">
             <text font="letterica16" r="200" g="200" b="200" align="c" vert_align="t" complex_mode="1"/>
         </camp_spec_badge>
-        <raid_banner_bg x="0" y="50" width="350" height="22" stretch="1">
+        <raid_banner_bg x="0" y="68" width="350" height="20" stretch="1">
             <texture>ui_homestead_banner_secure</texture>
         </raid_banner_bg>
-        <raid_banner_lbl x="0" y="52" width="350" height="18">
+        <raid_banner_lbl x="0" y="70" width="350" height="16">
             <text font="letterica16" r="144" g="238" b="144" align="c" vert_align="c" complex_mode="1">st_pda_raid_alert_secure</text>
         </raid_banner_lbl>
 
         <!-- Module A: Personnel & Habitation (y=82 to y=148, h=66) -->
-        <pop_card_bg x="0" y="76" width="350" height="62" stretch="1">
+        <pop_card_bg x="0" y="94" width="350" height="80" stretch="1">
             <texture>ui_homestead_module_bg</texture>
         </pop_card_bg>
-        <pop_header_bg x="0" y="76" width="350" height="20" stretch="1">
+        <pop_header_bg x="0" y="94" width="350" height="16" stretch="1">
             <texture>ui_homestead_module_header</texture>
         </pop_header_bg>
-        <pop_card_lbl x="10" y="78" width="330" height="16">
+        <pop_card_lbl x="8" y="95" width="334" height="14">
             <text font="letterica16" r="220" g="240" b="255" align="l" vert_align="c" complex_mode="1">st_pda_settlement_pop_lbl</text>
         </pop_card_lbl>
-        <lbl_ov_settlers x="10" y="98" width="100" height="18">
+        <lbl_ov_settlers x="8" y="116" width="92" height="18">
             <text font="letterica16" r="150" g="150" b="150" align="l" complex_mode="1">st_pda_ov_settlers</text>
         </lbl_ov_settlers>
-        <camp_pop x="112" y="98" width="228" height="18">
+        <camp_pop x="100" y="116" width="242" height="18">
             <text font="letterica16" r="238" g="196" b="112" align="l" complex_mode="1"></text>
         </camp_pop>
-        <lbl_ov_occupancy x="10" y="116" width="100" height="18">
+        <lbl_ov_occupancy x="8" y="134" width="92" height="18">
             <text font="letterica16" r="150" g="150" b="150" align="l" complex_mode="1">st_pda_ov_occupancy</text>
         </lbl_ov_occupancy>
-        <camp_pop_gauge x="112" y="116" width="228" height="18">
+        <camp_pop_gauge x="100" y="134" width="242" height="18">
             <text font="letterica16" r="160" g="160" b="160" align="l" complex_mode="1"></text>
         </camp_pop_gauge>
 
         <!-- Module B: Defense & Perimeter Security (y=152 to y=234, h=82) -->
-        <def_card_bg x="0" y="142" width="350" height="80" stretch="1">
+        <def_card_bg x="0" y="94" width="350" height="80" stretch="1">
             <texture>ui_homestead_module_bg</texture>
         </def_card_bg>
-        <def_header_bg x="0" y="142" width="350" height="20" stretch="1">
+        <def_header_bg x="0" y="94" width="350" height="16" stretch="1">
             <texture>ui_homestead_module_header</texture>
         </def_header_bg>
-        <def_card_lbl x="10" y="144" width="330" height="16">
+        <def_card_lbl x="8" y="95" width="334" height="14">
             <text font="letterica16" r="220" g="240" b="255" align="l" vert_align="c" complex_mode="1">st_pda_settlement_def_lbl</text>
         </def_card_lbl>
-        <lbl_ov_rating x="10" y="164" width="100" height="18">
+        <lbl_ov_rating x="8" y="116" width="92" height="18">
             <text font="letterica16" r="150" g="150" b="150" align="l" complex_mode="1">st_pda_ov_rating</text>
         </lbl_ov_rating>
-        <camp_def x="112" y="164" width="228" height="18">
+        <camp_def x="100" y="116" width="242" height="18">
             <text font="letterica16" r="100" g="200" b="255" align="l" complex_mode="1"></text>
         </camp_def>
-        <lbl_ov_perimeter x="10" y="200" width="100" height="18">
+        <lbl_ov_perimeter x="8" y="152" width="92" height="18">
             <text font="letterica16" r="150" g="150" b="150" align="l" complex_mode="1">st_pda_ov_perimeter</text>
         </lbl_ov_perimeter>
-        <camp_def_breakdown x="112" y="200" width="228" height="18">
+        <camp_def_breakdown x="100" y="152" width="242" height="18">
             <text font="letterica16" r="200" g="200" b="200" align="l" complex_mode="1"></text>
         </camp_def_breakdown>
-        <lbl_ov_threat x="10" y="182" width="100" height="18">
+        <lbl_ov_threat x="8" y="202" width="92" height="18">
             <text font="letterica16" r="150" g="150" b="150" align="l" complex_mode="1">st_pda_ov_threat</text>
         </lbl_ov_threat>
-        <camp_threat_lvl x="112" y="182" width="228" height="18">
+        <camp_threat_lvl x="100" y="202" width="242" height="18">
             <text font="letterica16" r="238" g="196" b="112" align="l" complex_mode="1"></text>
         </camp_threat_lvl>
 
         <!-- Module C: Logistics, Life Support & Morale (y=238 to y=320, h=82) -->
-        <logistics_card_bg x="0" y="226" width="350" height="98" stretch="1">
+        <logistics_card_bg x="0" y="94" width="350" height="98" stretch="1">
             <texture>ui_homestead_module_bg</texture>
         </logistics_card_bg>
-        <morale_card_bg x="0" y="328" width="350" height="62" stretch="1">
+        <morale_card_bg x="0" y="180" width="350" height="80" stretch="1">
             <texture>ui_homestead_module_bg</texture>
         </morale_card_bg>
-        <logistics_header_bg x="0" y="226" width="350" height="20" stretch="1">
+        <logistics_header_bg x="0" y="94" width="350" height="16" stretch="1">
             <texture>ui_homestead_module_header</texture>
         </logistics_header_bg>
-        <morale_header_bg x="0" y="328" width="350" height="20" stretch="1">
+        <morale_header_bg x="0" y="180" width="350" height="16" stretch="1">
             <texture>ui_homestead_module_header</texture>
         </morale_header_bg>
-        <logistics_card_lbl x="10" y="228" width="330" height="16">
+        <logistics_card_lbl x="8" y="95" width="334" height="14">
             <text font="letterica16" r="220" g="240" b="255" align="l" vert_align="c" complex_mode="1">st_pda_settlement_supplies_lbl</text>
         </logistics_card_lbl>
-        <morale_card_lbl x="10" y="330" width="330" height="16">
+        <morale_card_lbl x="8" y="181" width="334" height="14">
             <text font="letterica16" r="220" g="240" b="255" align="l" vert_align="c" complex_mode="1">st_pda_settlement_morale_lbl</text>
         </morale_card_lbl>
-        <lbl_ov_water x="10" y="266" width="100" height="18">
+        <lbl_ov_water x="8" y="134" width="92" height="18">
             <text font="letterica16" r="150" g="150" b="150" align="l" complex_mode="1">st_pda_ov_water</text>
         </lbl_ov_water>
-        <camp_water x="112" y="266" width="228" height="18">
+        <camp_water x="100" y="134" width="242" height="18">
             <text font="letterica16" r="100" g="200" b="255" align="l" complex_mode="1"></text>
         </camp_water>
-        <lbl_ov_needs x="10" y="284" width="100" height="18">
+        <lbl_ov_needs x="8" y="220" width="92" height="18">
             <text font="letterica16" r="150" g="150" b="150" align="l" complex_mode="1">st_pda_ov_needs</text>
         </lbl_ov_needs>
-        <camp_needs x="112" y="284" width="228" height="18">
+        <camp_needs x="100" y="220" width="242" height="18">
             <text font="letterica16" r="100" g="200" b="255" align="l" complex_mode="1"></text>
         </camp_needs>
-        <lbl_ov_storage x="10" y="302" width="100" height="18">
+        <lbl_ov_storage x="8" y="152" width="92" height="18">
             <text font="letterica16" r="150" g="150" b="150" align="l" complex_mode="1">st_pda_ov_storage</text>
         </lbl_ov_storage>
-        <camp_storage x="112" y="302" width="228" height="18">
+        <camp_storage x="100" y="152" width="242" height="18">
             <text font="letterica16" r="100" g="200" b="255" align="l" complex_mode="1"></text>
         </camp_storage>
-        <lbl_ov_food x="10" y="248" width="100" height="18">
+        <lbl_ov_food x="8" y="116" width="92" height="18">
             <text font="letterica16" r="150" g="150" b="150" align="l" complex_mode="1">st_pda_ov_food</text>
         </lbl_ov_food>
-        <camp_supplies x="112" y="248" width="228" height="18">
+        <camp_supplies x="100" y="116" width="242" height="18">
             <text font="letterica16" r="200" g="200" b="200" align="l" complex_mode="1"></text>
         </camp_supplies>
-        <lbl_ov_morale x="10" y="350" width="100" height="18">
+        <lbl_ov_morale x="8" y="202" width="92" height="18">
             <text font="letterica16" r="150" g="150" b="150" align="l" complex_mode="1">st_pda_ov_morale</text>
         </lbl_ov_morale>
-        <camp_morale x="112" y="350" width="228" height="18">
+        <camp_morale x="100" y="202" width="242" height="18">
             <text font="letterica16" r="144" g="238" b="144" align="l" complex_mode="1"></text>
         </camp_morale>
-        <lbl_ov_comfort x="10" y="368" width="100" height="18">
+        <lbl_ov_comfort x="8" y="240" width="92" height="18">
             <text font="letterica16" r="150" g="150" b="150" align="l" complex_mode="1">st_pda_ov_comfort</text>
         </lbl_ov_comfort>
-        <camp_comfort x="112" y="368" width="228" height="18">
+        <camp_comfort x="100" y="240" width="242" height="18">
             <text font="letterica16" r="144" g="238" b="144" align="l" complex_mode="1"></text>
         </camp_comfort>
 
         <!-- Directives & Actions Section (y=324 to y=502) -->
-        <directives_header_bg x="0" y="394" width="350" height="20" stretch="1">
+        <directives_header_bg x="0" y="94" width="350" height="16" stretch="1">
             <texture>ui_homestead_module_header</texture>
         </directives_header_bg>
-        <directives_lbl x="10" y="396" width="330" height="16">
+        <directives_lbl x="8" y="95" width="334" height="14">
             <text font="letterica16" r="238" g="196" b="112" align="l" vert_align="c" complex_mode="1">st_pda_settlement_actions_title</text>
         </directives_lbl>
-        <directives_bg x="0" y="414" width="350" height="158" stretch="1">
+        <directives_bg x="0" y="110" width="350" height="166" stretch="1">
             <texture>ui_homestead_module_bg</texture>
         </directives_bg>
 
         <!-- Primary Action: Full-Width Auto-Sort -->
-        <btn_auto_sort x="6" y="420" width="338" height="28" check_mode="0" stretch="1">
+        <btn_auto_sort x="6" y="116" width="338" height="28" check_mode="0" stretch="1">
             <texture>ui_button_ordinary</texture>
             <text font="letterica16" align="c" vert_align="c">st_pda_btn_auto_sort</text>
         </btn_auto_sort>
 
         <!-- Row 1: Fast Travel & Track Map -->
-        <btn_travel x="6" y="452" width="166" height="26" check_mode="0" stretch="1">
+        <btn_travel x="6" y="148" width="166" height="26" check_mode="0" stretch="1">
             <texture>ui_button_ordinary</texture>
             <text font="letterica16" align="c" vert_align="c">st_pda_btn_travel</text>
         </btn_travel>
-        <btn_locate_map x="178" y="452" width="166" height="26" check_mode="0" stretch="1">
+        <btn_locate_map x="178" y="148" width="166" height="26" check_mode="0" stretch="1">
             <texture>ui_button_ordinary</texture>
             <text font="letterica16" align="c" vert_align="c">st_pda_btn_locate_map</text>
         </btn_locate_map>
 
         <!-- Row 2: Summon Caravan & Recall Settlers -->
-        <btn_summon_caravan x="6" y="482" width="166" height="26" check_mode="0" stretch="1">
+        <btn_summon_caravan x="6" y="178" width="166" height="26" check_mode="0" stretch="1">
             <texture>ui_button_ordinary</texture>
             <text font="letterica16" align="c" vert_align="c">st_pda_btn_summon_caravan</text>
         </btn_summon_caravan>
-        <btn_recall_settlers x="178" y="482" width="166" height="26" check_mode="0" stretch="1">
+        <btn_recall_settlers x="178" y="178" width="166" height="26" check_mode="0" stretch="1">
             <texture>ui_button_ordinary</texture>
             <text font="letterica16" align="c" vert_align="c">st_pda_btn_recall_settlers</text>
         </btn_recall_settlers>
 
         <!-- Row 3: Specialization & Rename -->
-        <btn_specialization x="6" y="512" width="166" height="26" check_mode="0" stretch="1">
+        <btn_specialization x="6" y="208" width="166" height="26" check_mode="0" stretch="1">
             <texture>ui_button_ordinary</texture>
             <text font="letterica16" align="c" vert_align="c">st_pda_specialization_lbl</text>
         </btn_specialization>
-        <btn_rename x="178" y="512" width="166" height="26" check_mode="0" stretch="1">
+        <btn_rename x="178" y="208" width="166" height="26" check_mode="0" stretch="1">
             <texture>ui_button_ordinary</texture>
             <text font="letterica16" align="c" vert_align="c">st_pda_btn_rename</text>
         </btn_rename>
 
         <!-- Row 4: Emergency Dismantle -->
-        <btn_dismantle x="6" y="542" width="338" height="26" check_mode="0" stretch="1">
+        <btn_dismantle x="6" y="242" width="338" height="26" check_mode="0" stretch="1">
             <texture>ui_button_ordinary</texture>
             <text font="letterica16" align="c" vert_align="c">st_dismantle_camp</text>
             <text_color>
@@ -267,6 +267,53 @@
                 <t r="255" g="90" b="90"/>
             </text_color>
         </btn_dismantle>
+
+        <!-- Mini tabs, the extra cards and the bars (concept C); the script shows one page at a time -->
+        <btn_ov_tab_status x="0" y="42" width="83" height="22" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_ov_tab_status</text>
+        </btn_ov_tab_status>
+        <btn_ov_tab_defense x="89" y="42" width="83" height="22" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_ov_tab_defense</text>
+        </btn_ov_tab_defense>
+        <btn_ov_tab_supplies x="178" y="42" width="83" height="22" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_ov_tab_supplies</text>
+        </btn_ov_tab_supplies>
+        <btn_ov_tab_orders x="267" y="42" width="83" height="22" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_ov_tab_orders</text>
+        </btn_ov_tab_orders>
+        <threat_card_bg x="0" y="180" width="350" height="60" stretch="1">
+            <texture>ui_homestead_module_bg</texture>
+        </threat_card_bg>
+        <threat_header_bg x="0" y="180" width="350" height="16" stretch="1">
+            <texture>ui_homestead_module_header</texture>
+        </threat_header_bg>
+        <threat_card_lbl x="8" y="181" width="334" height="14">
+            <text font="letterica16" r="220" g="240" b="255" align="l" vert_align="c" complex_mode="1">st_pda_settlement_threat_lbl</text>
+        </threat_card_lbl>
+        <camp_threat_detail x="8" y="220" width="334" height="18">
+            <text font="letterica16" r="200" g="200" b="200" align="l" complex_mode="1"></text>
+        </camp_threat_detail>
+        <needs_card_bg x="0" y="198" width="350" height="56" stretch="1">
+            <texture>ui_homestead_module_bg</texture>
+        </needs_card_bg>
+        <needs_header_bg x="0" y="198" width="350" height="16" stretch="1">
+            <texture>ui_homestead_module_header</texture>
+        </needs_header_bg>
+        <needs_card_lbl x="8" y="199" width="334" height="14">
+            <text font="letterica16" r="220" g="240" b="255" align="l" vert_align="c" complex_mode="1">st_pda_settlement_needs_lbl</text>
+        </needs_card_lbl>
+        <bar_pop_bg x="8" y="156" width="334" height="12" stretch="1"><texture>ui_homestead_bar</texture></bar_pop_bg>
+        <bar_pop_fill x="9" y="157" width="1" height="10" stretch="1"><texture>ui_homestead_bar</texture></bar_pop_fill>
+        <bar_morale_bg x="8" y="222" width="334" height="12" stretch="1"><texture>ui_homestead_bar</texture></bar_morale_bg>
+        <bar_morale_fill x="9" y="223" width="1" height="10" stretch="1"><texture>ui_homestead_bar</texture></bar_morale_fill>
+        <bar_def_bg x="8" y="134" width="334" height="12" stretch="1"><texture>ui_homestead_bar</texture></bar_def_bg>
+        <bar_def_fill x="9" y="135" width="1" height="10" stretch="1"><texture>ui_homestead_bar</texture></bar_def_fill>
+        <bar_storage_bg x="8" y="172" width="334" height="12" stretch="1"><texture>ui_homestead_bar</texture></bar_storage_bg>
+        <bar_storage_fill x="9" y="173" width="1" height="10" stretch="1"><texture>ui_homestead_bar</texture></bar_storage_fill>
     </overview_content>
 
     <!-- Tab 2: Survivors Management Panel -->

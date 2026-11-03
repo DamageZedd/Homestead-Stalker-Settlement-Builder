@@ -2957,5 +2957,50 @@
     <string id="st_pda_ov_leaving">
         <text>Поселенцы могут уйти</text>
     </string>
+    <string id="st_pda_ov_tab_status">
+        <text>Статус</text>
+    </string>
+    <string id="st_pda_ov_tab_defense">
+        <text>Защита</text>
+    </string>
+    <string id="st_pda_ov_tab_supplies">
+        <text>Запасы</text>
+    </string>
+    <string id="st_pda_ov_tab_orders">
+        <text>Приказы</text>
+    </string>
+    <string id="st_pda_settlement_threat_lbl">
+        <text>УГРОЗА</text>
+    </string>
+    <string id="st_pda_settlement_needs_lbl">
+        <text>ПОТРЕБНОСТИ ЖИТЕЛЕЙ</text>
+    </string>
+    <string id="st_pda_ov_hazard_none">
+        <text>Опасностей рядом нет</text>
+    </string>
+    <string id="st_pda_ov_occ_val">
+        <text>%d%%  (свободно: %d)</text>
+    </string>
+    <string id="st_pda_ov_sum_raid">
+        <text>РЕЙД</text>
+    </string>
+    <string id="st_pda_ov_sum_spawn">
+        <text>ТОЧКА СПАВНА %d м</text>
+    </string>
+    <string id="st_pda_ov_sum_secure">
+        <text>ВСЕ СПОКОЙНО</text>
+    </string>
+    <string id="st_pda_ov_sum_settlers">
+        <text>жителей: %d/%d</text>
+    </string>
+    <string id="st_pda_ov_sum_needs_ok">
+        <text>нужды в норме</text>
+    </string>
+    <string id="st_pda_ov_sum_needs_short">
+        <text>нужды: дефицит</text>
+    </string>
+    <string id="st_pda_ov_sum_needs_crit">
+        <text>нужды: КРИТИЧНО</text>
+    </string>
 </string_table>
 

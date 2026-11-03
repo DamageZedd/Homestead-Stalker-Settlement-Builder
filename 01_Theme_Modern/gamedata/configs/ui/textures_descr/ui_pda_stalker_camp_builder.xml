@@ -162,4 +162,7 @@
 	<file name="ui\homestead_pda\ui_rule">
 		<texture id="ui_homestead_rule" x="0" y="0" width="4" height="4" />
 	</file>
+	<file name="ui\homestead_pda\ui_bar">
+		<texture id="ui_homestead_bar" x="0" y="0" width="4" height="4" />
+	</file>
 </w>

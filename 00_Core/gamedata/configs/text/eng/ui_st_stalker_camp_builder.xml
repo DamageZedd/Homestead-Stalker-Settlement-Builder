@@ -2954,4 +2954,49 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_pda_ov_leaving">
         <text>Settlers may leave</text>
     </string>
+    <string id="st_pda_ov_tab_status">
+        <text>Status</text>
+    </string>
+    <string id="st_pda_ov_tab_defense">
+        <text>Defense</text>
+    </string>
+    <string id="st_pda_ov_tab_supplies">
+        <text>Supplies</text>
+    </string>
+    <string id="st_pda_ov_tab_orders">
+        <text>Orders</text>
+    </string>
+    <string id="st_pda_settlement_threat_lbl">
+        <text>THREAT</text>
+    </string>
+    <string id="st_pda_settlement_needs_lbl">
+        <text>LIVING NEEDS</text>
+    </string>
+    <string id="st_pda_ov_hazard_none">
+        <text>No hazards nearby</text>
+    </string>
+    <string id="st_pda_ov_occ_val">
+        <text>%d%%  (%d free)</text>
+    </string>
+    <string id="st_pda_ov_sum_raid">
+        <text>RAID IN PROGRESS</text>
+    </string>
+    <string id="st_pda_ov_sum_spawn">
+        <text>SPAWN HAZARD %dm</text>
+    </string>
+    <string id="st_pda_ov_sum_secure">
+        <text>ALL CLEAR</text>
+    </string>
+    <string id="st_pda_ov_sum_settlers">
+        <text>%d/%d settlers</text>
+    </string>
+    <string id="st_pda_ov_sum_needs_ok">
+        <text>Needs OK</text>
+    </string>
+    <string id="st_pda_ov_sum_needs_short">
+        <text>Needs short</text>
+    </string>
+    <string id="st_pda_ov_sum_needs_crit">
+        <text>Needs CRITICAL</text>
+    </string>
 </string_table>

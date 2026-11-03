@@ -496,6 +496,49 @@ function SettlementManagerPDA:InitControls()
     self:Register(self.btn_dismantle, "btn_dismantle")
     self:AddCallback("btn_dismantle", ui_events.BUTTON_CLICKED, self.OnDismantleClicked, self)
 
+    -- Overview mini tabs: Status / Defense / Supplies / Orders share the panel, one page at a time
+    self.ov_tab = "status"
+    self.ov_tab_btns = {}
+    for _, nm in ipairs({ "status", "defense", "supplies", "orders" }) do
+        local btn = xml:Init3tButton("overview_content:btn_ov_tab_" .. nm, self.overview_content)
+        self:Register(btn, "btn_ov_tab_" .. nm)
+        self:AddCallback("btn_ov_tab_" .. nm, ui_events.BUTTON_CLICKED, function() self:SetOverviewTab(nm) end, self)
+        self.ov_tab_btns[nm] = btn
+    end
+    self.threat_card_bg = xml:InitStatic("overview_content:threat_card_bg", self.overview_content)
+    self.threat_header_bg = xml:InitStatic("overview_content:threat_header_bg", self.overview_content)
+    self.threat_card_lbl = xml:InitTextWnd("overview_content:threat_card_lbl", self.overview_content)
+    self.camp_threat_detail = xml:InitTextWnd("overview_content:camp_threat_detail", self.overview_content)
+    self.needs_card_bg = xml:InitStatic("overview_content:needs_card_bg", self.overview_content)
+    self.needs_header_bg = xml:InitStatic("overview_content:needs_header_bg", self.overview_content)
+    self.needs_card_lbl = xml:InitTextWnd("overview_content:needs_card_lbl", self.overview_content)
+    self.ov_bars = {}
+    for _, nm in ipairs({ "pop", "morale", "def", "storage" }) do
+        self.ov_bars[nm] = {
+            bg = xml:InitStatic("overview_content:bar_" .. nm .. "_bg", self.overview_content),
+            fill = xml:InitStatic("overview_content:bar_" .. nm .. "_fill", self.overview_content),
+        }
+    end
+    local L = self.ov_row_labels
+    -- the controls of each page; the tab row, header and summary line stay on screen
+    self.ov_pages = {
+        status = { self.pop_card_bg, self.pop_header_bg, self.pop_card_lbl, L.settlers, self.camp_pop,
+            L.occupancy, self.camp_pop_gauge, self.ov_bars.pop.bg, self.ov_bars.pop.fill,
+            self.morale_card_bg, self.morale_header_bg, self.morale_card_lbl, L.morale, self.camp_morale,
+            self.ov_bars.morale.bg, self.ov_bars.morale.fill, L.comfort, self.camp_comfort },
+        defense = { self.def_card_bg, self.def_header_bg, self.def_card_lbl, L.rating, self.camp_def,
+            self.ov_bars.def.bg, self.ov_bars.def.fill, L.perimeter, self.camp_def_breakdown,
+            self.threat_card_bg, self.threat_header_bg, self.threat_card_lbl, L.threat, self.camp_threat_lvl,
+            self.camp_threat_detail },
+        supplies = { self.logistics_card_bg, self.logistics_header_bg, self.logistics_card_lbl, L.food,
+            self.camp_supplies, L.water, self.camp_water, L.storage, self.camp_storage,
+            self.ov_bars.storage.bg, self.ov_bars.storage.fill,
+            self.needs_card_bg, self.needs_header_bg, self.needs_card_lbl, L.needs, self.camp_needs },
+        orders = { self.directives_header_bg, self.directives_lbl, self.directives_bg, self.btn_auto_sort,
+            self.btn_travel, self.btn_locate_map, self.btn_summon_caravan, self.btn_recall_settlers,
+            self.btn_specialization, self.btn_rename, self.btn_dismantle },
+    }
+
     self.survivors_panel = xml:InitStatic("survivors_panel", self)
     self.survivor_filter = "all"
 
@@ -1131,6 +1174,7 @@ function SettlementManagerPDA:ClearDetails()
     self.camp_morale:SetText("")
     self.camp_supplies:SetText("")
     self.camp_needs:SetText("")
+    if self.camp_threat_detail then self.camp_threat_detail:SetText("") end
     self.camp_storage:SetText("")
     self.camp_comfort:SetText("")
     self.survivor_name_txt:SetText("")
@@ -1341,6 +1385,40 @@ function SettlementManagerPDA:OnRefreshClicked()
     self:Reset("rivals")
 end
 
+-- show the page of the selected mini tab and hide the others; the tab row marks the chosen one
+function SettlementManagerPDA:ApplyOverviewTab()
+    if not self.ov_pages then return end
+    local cur = self.ov_tab or "status"
+    for name, list in pairs(self.ov_pages) do
+        local show = (name == cur)
+        for i = 1, table.maxn(list) do
+            if list[i] then list[i]:Show(show) end
+        end
+    end
+    for name, btn in pairs(self.ov_tab_btns or {}) do
+        hs_theme.set_active(btn, name == cur)
+    end
+end
+
+function SettlementManagerPDA:SetOverviewTab(name)
+    self.ov_tab = name
+    play_pda_ui_sound([[interface\inv_open]])
+    self:ApplyOverviewTab()
+end
+
+-- fill a bar (fraction 0..1) and color it by role; the track is a dark tint of the same texture
+local BAR_W = 332
+function SettlementManagerPDA:SetOverviewBar(name, frac, role)
+    local bar = self.ov_bars and self.ov_bars[name]
+    if not bar then return end
+    frac = math.max(0, math.min(1, frac or 0))
+    if bar.bg and bar.bg.SetTextureColor then bar.bg:SetTextureColor(GetARGB(255, 18, 22, 26)) end
+    if bar.fill then
+        bar.fill:SetWndSize(vector2():set(math.max(1, math.floor(BAR_W * frac)), 10))
+        if bar.fill.SetTextureColor then bar.fill:SetTextureColor(hs_theme.argb(role or "body")) end
+    end
+end
+
 function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
     local mmin = math.min
     local sformat = string.format
@@ -1365,17 +1443,14 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
     if self.raid_banner_bg then
         hs_theme.banner(self.raid_banner_bg, (camp.active_raid or smart_hazard) and "threat" or "secure")
     end
-    if self.raid_banner_lbl then
-        if camp.active_raid then
-            self.raid_banner_lbl:SetText(game.translate_string("st_pda_ov_banner_raid"))
-            self.raid_banner_lbl:SetTextColor(hs_theme.argb("danger"))
-        elseif smart_hazard then
-            self.raid_banner_lbl:SetText(sformat(game.translate_string("st_pda_ov_banner_spawn"), math.floor(smart_dist or 0)))
-            self.raid_banner_lbl:SetTextColor(hs_theme.argb("warn"))
-        else
-            self.raid_banner_lbl:SetText(game.translate_string("st_pda_ov_banner_secure"))
-            self.raid_banner_lbl:SetTextColor(hs_theme.argb("good"))
-        end
+    -- the summary line under the tabs (set once the rows below are known): state word and its role
+    local sum_word, sum_role
+    if camp.active_raid then
+        sum_word, sum_role = game.translate_string("st_pda_ov_sum_raid"), "danger"
+    elseif smart_hazard then
+        sum_word, sum_role = sformat(game.translate_string("st_pda_ov_sum_spawn"), math.floor(smart_dist or 0)), "warn"
+    else
+        sum_word, sum_role = game.translate_string("st_pda_ov_sum_secure"), "good"
     end
 
     if self.btn_specialization and self.btn_specialization.TextControl and self.btn_specialization:TextControl() then
@@ -1394,7 +1469,8 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
     local beds = math.max(1, stats.beds)
     local pop_pct = math.floor(mmin(100, (stats.population / beds) * 100))
     row(self.camp_pop, sformat(tr("st_pda_ov_settlers_val"), stats.population, stats.beds), "body")
-    row(self.camp_pop_gauge, sformat("%d%%  [%s]", pop_pct, make_gauge(pop_pct, 10)), stats.population >= stats.beds and "warn" or "body")
+    row(self.camp_pop_gauge, sformat(tr("st_pda_ov_occ_val"), pop_pct, math.max(0, stats.beds - stats.population)), stats.population >= stats.beds and "warn" or "body")
+    self:SetOverviewBar("pop", stats.population / beds, stats.population >= stats.beds and "warn" or "heading")
 
     -- SECURITY
     local def_cap = stalker_camp_builder.cfg and stalker_camp_builder.cfg.defense_cap or 150
@@ -1403,6 +1479,9 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
     if def_pct >= 66 then def_word, def_role = tr("st_pda_ov_def_high"), "good"
     elseif def_pct >= 33 then def_word, def_role = tr("st_pda_ov_def_ok"), "body" end
     row(self.camp_def, sformat("%d / %d  (%s)", stats.defense, def_cap, def_word), def_role)
+    self:SetOverviewBar("def", def_pct / 100, def_role == "body" and "heading" or def_role)
+    row(self.camp_threat_detail, smart_hazard and sformat(tr("st_pda_ov_banner_spawn"), math.floor(smart_dist or 0)) or tr("st_pda_ov_hazard_none"),
+        smart_hazard and "warn" or "dim")
     -- against the defense cap, as the rating above: 40% is the old 60 of the default 150
     local threat_id, threat_role = "st_pda_ov_threat_moderate", "warn"
     if camp.active_raid then threat_id, threat_role = "st_pda_ov_threat_critical", "danger"
@@ -1439,6 +1518,7 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
         local u_w, m_w, _, pct = stalker_camp_builder.get_camp_storage_metrics(camp, hub_obj)
         storage_txt = sformat("%d / %d kg  (%d%%)", u_w, m_w, pct)
         if pct >= 95 then storage_role = "danger" elseif pct >= 80 then storage_role = "warn" end
+        self:SetOverviewBar("storage", pct / 100, storage_role == "body" and "heading" or storage_role)
     end
     row(self.camp_storage, storage_txt, storage_role)
 
@@ -1446,7 +1526,8 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
     -- map marker warns below 40
     local morale_val = math.floor(stats.happiness or 50)
     local morale_role = morale_val >= 75 and "good" or (morale_val >= 40 and "body" or (morale_val >= 20 and "warn" or "danger"))
-    row(self.camp_morale, sformat("%d%%  [%s]", morale_val, make_gauge(morale_val, 10)), morale_role)
+    row(self.camp_morale, sformat("%d%%", morale_val), morale_role)
+    self:SetOverviewBar("morale", morale_val / 100, morale_role == "body" and "heading" or morale_role)
     local comfort_id = morale_val >= 75 and "st_pda_ov_comfort_high" or (morale_val >= 40 and "st_pda_ov_comfort_std" or "st_pda_ov_comfort_poor")
     local comfort_txt, comfort_role = tr(comfort_id), morale_role
     if stalker_camp_builder.needs_leaving_warning and stalker_camp_builder.needs_leaving_warning(camp) then
@@ -1454,10 +1535,25 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
     end
     row(self.camp_comfort, comfort_txt, comfort_role)
 
+    -- summary line: state, settlers, and how the living needs stand (nothing when they are off)
+    if self.raid_banner_bg then
+        hs_theme.banner(self.raid_banner_bg, (camp.active_raid or smart_hazard) and "threat" or "secure")
+    end
+    if self.raid_banner_lbl then
+        local parts = { sum_word, sformat(tr("st_pda_ov_sum_settlers"), stats.population, stats.beds) }
+        local nrole = needs_role
+        if nrole == "good" then parts[#parts + 1] = tr("st_pda_ov_sum_needs_ok")
+        elseif nrole == "warn" then parts[#parts + 1] = tr("st_pda_ov_sum_needs_short")
+        elseif nrole == "danger" then parts[#parts + 1] = tr("st_pda_ov_sum_needs_crit") end
+        self.raid_banner_lbl:SetText(table.concat(parts, "  |  "))
+        self.raid_banner_lbl:SetTextColor(hs_theme.argb((nrole == "danger" and sum_role ~= "danger") and "warn" or sum_role))
+    end
+
     if self.overview_content then
         self.overview_content:Show(true)
-        self.overview_content:SetWndSize(vector2():set(350, 576))
+        self.overview_content:SetWndSize(vector2():set(350, 300))
     end
+    self:ApplyOverviewTab()
 end
 
 function SettlementManagerPDA:OnSettlementSelected(keep_survivor)
