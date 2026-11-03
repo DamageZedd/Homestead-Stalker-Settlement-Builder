@@ -262,13 +262,13 @@ function TransferCampListItem:__init(hub_id, name)
 end
 
 class "RivalListItem" (CUIListBoxItem)
-function RivalListItem:__init(smart, name, badge_text, location_text, is_hostile, xml, level_key)
+function RivalListItem:__init(smart, name, badge_text, location_text, is_hostile, xml, level_key, sub_text, pill_text)
     local type_ = type
     super()
     self.smart = smart
-    self.total_item_height = 88
-    self:SetWndRect(Frect():set(0, 0, 162, 88))
-    self:SetWndSize(vector2():set(162, 88))
+    self.total_item_height = 100
+    self:SetWndRect(Frect():set(0, 0, 162, 100))
+    self:SetWndSize(vector2():set(162, 100))
     if xml then
         self.card_bg = xml:InitStatic("rival_card_bg", self)
         self.thumb = xml:InitStatic("rival_card_thumb", self)
@@ -309,6 +309,25 @@ function RivalListItem:__init(smart, name, badge_text, location_text, is_hostile
         self.name_wnd = xml:InitTextWnd("rival_row_name", self)
         if self.name_wnd then
             self.name_wnd:SetText(name or "")
+        end
+
+        -- a coloured stripe and a status word on the photo say friend or foe without opening the card
+        local role, kind = "good", "secure"
+        if is_hostile == "hostile" then
+            role, kind = "danger", "threat"
+        elseif is_hostile == "unoccupied" then
+            role, kind = "dim", "neutral"
+        end
+        self.state_bar = xml:InitStatic("rival_row_bar", self)
+        if self.state_bar then hs_theme.banner(self.state_bar, kind) end
+        self.pill_wnd = xml:InitTextWnd("rival_row_pill", self)
+        if self.pill_wnd then
+            self.pill_wnd:SetText(pill_text or "")
+            self.pill_wnd:SetTextColor(hs_theme.argb(role))
+        end
+        self.sub_wnd = xml:InitTextWnd("rival_row_sub", self)
+        if self.sub_wnd then
+            self.sub_wnd:SetText(sub_text or "")
         end
     else
         self.text_item = self:GetTextItem()
@@ -401,6 +420,10 @@ function SettlementManagerPDA:InitControls()
     self.rival_content = xml:InitStatic("rival_content", nil)
     self.rival_scroll:AddWindow(self.rival_content, true)
 
+    -- the hero photo and its shade and state stripe sit under the name
+    self.rival_hero = xml:InitStatic("rival_content:rival_hero", self.rival_content)
+    xml:InitStatic("rival_content:rival_hero_shade", self.rival_content)
+    self.rival_hero_bar = xml:InitStatic("rival_content:rival_hero_bar", self.rival_content)
     self.rival_camp_name = xml:InitTextWnd("rival_content:rival_camp_name", self.rival_content)
     self.rival_camp_spec = xml:InitTextWnd("rival_content:rival_camp_spec", self.rival_content)
     self.rival_banner_bg = xml:InitStatic("rival_content:rival_banner_bg", self.rival_content)
@@ -410,11 +433,12 @@ function SettlementManagerPDA:InitControls()
     -- a window draws its children in the order they are attached
     self.rival_faction_bg = xml:InitStatic("rival_content:rival_faction_bg", self.rival_content)
     self.rival_loc_gar_bg = xml:InitStatic("rival_content:rival_loc_gar_bg", self.rival_content)
+    xml:InitStatic("rival_content:rival_dist_bg", self.rival_content)
     self.rival_intel_bg = xml:InitStatic("rival_content:rival_intel_bg", self.rival_content)
-    for _, name in ipairs({"rival_faction_header_bg", "rival_loc_gar_header_bg", "rival_intel_header_bg"}) do
+    for _, name in ipairs({"rival_faction_header_bg", "rival_loc_gar_header_bg", "rival_dist_header_bg", "rival_intel_header_bg"}) do
         xml:InitStatic("rival_content:" .. name, self.rival_content)
     end
-    for _, name in ipairs({"rival_faction_lbl", "rival_loc_gar_lbl", "rival_intel_lbl"}) do
+    for _, name in ipairs({"rival_faction_lbl", "rival_loc_gar_lbl", "rival_dist_lbl", "rival_intel_lbl"}) do
         xml:InitTextWnd("rival_content:" .. name, self.rival_content)
     end
     self.rival_camp_status = xml:InitTextWnd("rival_content:rival_camp_status", self.rival_content)
@@ -1190,8 +1214,12 @@ function SettlementManagerPDA:Reset(tab_name)
             end
 
             local det_str = sformat("%s  |  %s", location_text, tier_str)
-            local item = RivalListItem(smart, rcamp.name, badge_str, det_str, is_hostile, self.xml, rcamp.level)
-            local h = item.total_item_height or 88
+            local pill_key = "st_pda_rival_pill_ally"
+            if is_hostile == "hostile" then pill_key = "st_pda_rival_pill_hostile"
+            elseif is_hostile == "unoccupied" then pill_key = "st_pda_rival_pill_empty" end
+            local sub_str = sformat("%s  |  T%d", is_hostile == "unoccupied" and game.translate_string("st_pda_rival_unclaimed") or fact_name, r_tier)
+            local item = RivalListItem(smart, rcamp.name, badge_str, det_str, is_hostile, self.xml, rcamp.level, sub_str, game.translate_string(pill_key))
+            local h = item.total_item_height or 100
             self.rival_list:SetItemHeight(h)
             self.rival_list:AddExistingItem(item)
             item:SetWndSize(vector2():set(162, h))
@@ -1362,7 +1390,19 @@ function SettlementManagerPDA:OnRivalSelected()
             location_text = sformat("%s (%dm)", location_text, dist)
         end
     end
-    self.rival_camp_location:SetText(location_text)
+    -- the region goes under the name, the tile holds only the distance
+    local dist_text = "--"
+    if db.actor and rcamp.squad_id and rcamp.level == level.name() then
+        local dsquad = alife_object(rcamp.squad_id)
+        if dsquad and dsquad.position then
+            dist_text = sformat("%d m", math.floor(db.actor:position():distance_to(dsquad.position)))
+        end
+    end
+    local region_text = rcamp.level and game.translate_string(rcamp.level) or game.translate_string("unknown")
+    self.rival_camp_location:SetText(dist_text)
+    self.rival_camp_location:SetTextColor(hs_theme.argb("body"))
+    local tex_lvl = VALID_HOMESTEAD_LEVELS[rcamp.level] and rcamp.level or "default"
+    if self.rival_hero then self.rival_hero:InitTexture("ui_homestead_thumb_" .. tex_lvl) end
 
     if garrison_count > 0 then
         self.rival_camp_garrison:SetText(sformat(game.translate_string("st_pda_rival_garrison_count"), garrison_count))
@@ -1385,9 +1425,12 @@ function SettlementManagerPDA:OnRivalSelected()
     local r_tier = rcamp.tier or 1
     local tier_names = { [1] = "Tier 1 Scout Camp", [2] = "Tier 2 Outpost", [3] = "Tier 3 Stronghold" }
     if self.rival_camp_spec then
-        self.rival_camp_spec:SetText(tier_names[r_tier] or sformat("Tier %d Fortification", r_tier))
+        self.rival_camp_spec:SetText(sformat("%s  |  %s", tier_names[r_tier] or sformat("Tier %d Fortification", r_tier), region_text))
     end
 
+    local hero_kind = "secure"
+    if rcamp.status == "unoccupied" then hero_kind = "neutral" elseif is_hostile then hero_kind = "threat" end
+    if self.rival_hero_bar then hs_theme.banner(self.rival_hero_bar, hero_kind) end
     if rcamp.status == "unoccupied" then
         if self.rival_banner_bg then hs_theme.banner(self.rival_banner_bg, "neutral") end
         if self.rival_banner_lbl then
@@ -1426,7 +1469,7 @@ function SettlementManagerPDA:OnRivalSelected()
     end
 
     if self.btn_rival_locate and self.btn_refresh then
-        local btn_y = 212 + ih + 36
+        local btn_y = 240 + ih + 36
         self.btn_rival_locate:SetWndPos(vector2():set(0, btn_y))
         self.btn_refresh:SetWndPos(vector2():set(180, btn_y))
         if self.rival_content then

@@ -596,79 +596,97 @@
 
     <rival_content x="0" y="0" width="350" height="490" stretch="1">
         <!-- Top Rival Header (y=0 to y=66) -->
-        <rival_camp_name x="0" y="0" width="350" height="22">
+        <rival_hero x="0" y="0" width="350" height="118" stretch="1">
+            <texture>ui_homestead_thumb_default</texture>
+        </rival_hero>
+        <rival_hero_shade x="0" y="62" width="350" height="56" stretch="1">
+            <texture r="0" g="0" b="0" a="170">ui_homestead_rule</texture>
+        </rival_hero_shade>
+        <rival_hero_bar x="0" y="0" width="350" height="4" stretch="1">
+            <texture>ui_homestead_banner_threat</texture>
+        </rival_hero_bar>
+        <rival_camp_name x="0" y="68" width="350" height="24">
             <text font="letterica18" r="238" g="196" b="112" align="c" vert_align="c" complex_mode="1"/>
         </rival_camp_name>
-        <rival_camp_spec x="0" y="22" width="350" height="18">
+        <rival_camp_spec x="0" y="92" width="350" height="18">
             <text font="letterica16" r="100" g="200" b="255" align="c" vert_align="c" complex_mode="1"/>
         </rival_camp_spec>
-        <rival_banner_bg x="0" y="42" width="350" height="24" stretch="1">
+        <rival_banner_bg x="0" y="124" width="350" height="24" stretch="1">
             <texture>ui_homestead_banner_threat</texture>
         </rival_banner_bg>
-        <rival_banner_lbl x="0" y="46" width="350" height="18">
+        <rival_banner_lbl x="0" y="128" width="350" height="18">
             <text font="letterica16" r="255" g="100" b="100" align="c" vert_align="c" complex_mode="1"></text>
         </rival_banner_lbl>
 
         <!-- Module A: Faction Alignment & Combat Readiness (y=72 to y=136, h=64) -->
-        <rival_faction_bg x="0" y="72" width="350" height="64" stretch="1">
+        <rival_faction_bg x="0" y="154" width="112" height="58" stretch="1">
             <texture>ui_homestead_module_bg</texture>
         </rival_faction_bg>
-        <rival_faction_header_bg x="0" y="72" width="350" height="20" stretch="1">
+        <rival_faction_header_bg x="0" y="154" width="112" height="20" stretch="1">
             <texture>ui_homestead_module_header</texture>
         </rival_faction_header_bg>
-        <rival_faction_lbl x="10" y="74" width="330" height="16">
-            <text font="letterica16" r="220" g="240" b="255" align="l" vert_align="c">st_pda_rival_faction_title</text>
+        <rival_faction_lbl x="6" y="156" width="104" height="16">
+            <text font="letterica16" r="220" g="240" b="255" align="l" vert_align="c">st_pda_rival_tile_faction</text>
         </rival_faction_lbl>
-        <rival_camp_status x="10" y="96" width="330" height="18">
-            <text font="letterica16" r="255" g="120" b="120" align="l" complex_mode="1"></text>
+        <rival_camp_status x="0" y="216" width="350" height="18">
+            <text font="letterica16" r="255" g="120" b="120" align="c" complex_mode="1"></text>
         </rival_camp_status>
-        <rival_camp_faction x="10" y="114" width="330" height="18">
-            <text font="letterica16" r="180" g="180" b="180" align="l" complex_mode="1"></text>
+        <rival_camp_faction x="0" y="186" width="112" height="18">
+            <text font="letterica16" r="180" g="180" b="180" align="c" complex_mode="1"></text>
         </rival_camp_faction>
 
         <!-- Module B: Strategic Location & Garrison Force (y=142 to y=206, h=64) -->
-        <rival_loc_gar_bg x="0" y="142" width="350" height="64" stretch="1">
+        <rival_loc_gar_bg x="119" y="154" width="112" height="58" stretch="1">
             <texture>ui_homestead_module_bg</texture>
         </rival_loc_gar_bg>
-        <rival_loc_gar_header_bg x="0" y="142" width="350" height="20" stretch="1">
+        <rival_loc_gar_header_bg x="119" y="154" width="112" height="20" stretch="1">
             <texture>ui_homestead_module_header</texture>
         </rival_loc_gar_header_bg>
-        <rival_loc_gar_lbl x="10" y="144" width="330" height="16">
-            <text font="letterica16" r="220" g="240" b="255" align="l" vert_align="c">st_pda_rival_location_garrison_title</text>
+        <rival_loc_gar_lbl x="125" y="156" width="104" height="16">
+            <text font="letterica16" r="220" g="240" b="255" align="l" vert_align="c">st_pda_rival_tile_garrison</text>
         </rival_loc_gar_lbl>
-        <rival_camp_location x="10" y="166" width="330" height="18">
-            <text font="letterica16" r="100" g="200" b="255" align="l" complex_mode="1"></text>
+        <rival_camp_location x="238" y="186" width="112" height="18">
+            <text font="letterica16" r="100" g="200" b="255" align="c" complex_mode="1"></text>
         </rival_camp_location>
-        <rival_camp_garrison x="10" y="184" width="330" height="18">
-            <text font="letterica16" r="238" g="196" b="112" align="l" complex_mode="1"></text>
+        <rival_camp_garrison x="119" y="186" width="112" height="18">
+            <text font="letterica16" r="238" g="196" b="112" align="c" complex_mode="1"></text>
         </rival_camp_garrison>
+        <rival_dist_bg x="238" y="154" width="112" height="58" stretch="1">
+            <texture>ui_homestead_module_bg</texture>
+        </rival_dist_bg>
+        <rival_dist_header_bg x="238" y="154" width="112" height="20" stretch="1">
+            <texture>ui_homestead_module_header</texture>
+        </rival_dist_header_bg>
+        <rival_dist_lbl x="244" y="156" width="104" height="16">
+            <text font="letterica16" r="220" g="240" b="255" align="l" vert_align="c">st_pda_rival_tile_distance</text>
+        </rival_dist_lbl>
 
         <!-- Module C: Tactical Reconnaissance Intel (y=212 to y=360) -->
-        <rival_intel_bg x="0" y="212" width="350" height="152" stretch="1">
+        <rival_intel_bg x="0" y="240" width="350" height="152" stretch="1">
             <texture>ui_homestead_module_bg</texture>
         </rival_intel_bg>
-        <rival_intel_header_bg x="0" y="212" width="350" height="20" stretch="1">
+        <rival_intel_header_bg x="0" y="240" width="350" height="20" stretch="1">
             <texture>ui_homestead_module_header</texture>
         </rival_intel_header_bg>
-        <rival_intel_lbl x="10" y="214" width="330" height="16">
+        <rival_intel_lbl x="10" y="242" width="330" height="16">
             <text font="letterica16" r="220" g="240" b="255" align="l" vert_align="c">st_pda_rival_intel_label</text>
         </rival_intel_lbl>
-        <rival_camp_intel x="10" y="236" width="330" height="120">
+        <rival_camp_intel x="10" y="264" width="330" height="120">
             <text font="letterica16" r="220" g="220" b="220" align="l" complex_mode="1"></text>
         </rival_camp_intel>
 
         <!-- Directives -->
-        <btn_rival_locate x="0" y="372" width="170" height="28" check_mode="0">
+        <btn_rival_locate x="0" y="400" width="170" height="28" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
             <text font="letterica16" align="c" vert_align="c" r="100" g="200" b="255">st_pda_btn_locate_map</text>
         </btn_rival_locate>
-        <btn_refresh x="180" y="372" width="170" height="28" stretch="1">
+        <btn_refresh x="180" y="400" width="170" height="28" stretch="1">
             <texture>ui_homestead_btn_primary</texture>
             <text font="letterica16" align="c" vert_align="c" r="238" g="196" b="112">ui_st_refresh</text>
         </btn_refresh>
     </rival_content>
 
-    <rival_list x="212" y="162" width="180" height="510" item_height="88"
+    <rival_list x="212" y="162" width="180" height="510" item_height="100"
                 can_select="1" always_show_scroll="1" stretch="1">
         <font r="190" g="190" b="190" font="letterica18"/>
         <text_color>
@@ -814,7 +832,7 @@
     </survivor_row_needs>
 
     <!-- Rival Card Template with Landscape Thumbnail -->
-    <rival_card_bg x="0" y="0" width="162" height="84" stretch="1">
+    <rival_card_bg x="0" y="0" width="162" height="96" stretch="1">
         <texture>ui_homestead_card_bg</texture>
     </rival_card_bg>
     <rival_card_thumb x="4" y="3" width="154" height="52" stretch="1">
@@ -823,6 +841,15 @@
     <rival_row_name x="4" y="58" width="154" height="22">
         <text font="letterica18" r="238" g="196" b="112" align="c" vert_align="c" complex_mode="1"/>
     </rival_row_name>
+    <rival_row_bar x="0" y="0" width="162" height="3" stretch="1">
+        <texture>ui_homestead_banner_threat</texture>
+    </rival_row_bar>
+    <rival_row_pill x="8" y="6" width="100" height="16">
+        <text font="letterica16" r="238" g="196" b="112" align="l" vert_align="c" complex_mode="1"/>
+    </rival_row_pill>
+    <rival_row_sub x="4" y="76" width="154" height="18">
+        <text font="letterica16" r="170" g="178" b="186" align="c" vert_align="c" complex_mode="1"/>
+    </rival_row_sub>
 
     <!-- Settlement / Survivor Rename Dialog Box -->
     <backpack x="240" y="240" width="320" height="140" stretch="1">

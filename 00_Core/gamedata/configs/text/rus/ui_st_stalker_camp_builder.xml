@@ -3065,5 +3065,26 @@
     <string id="st_pda_sv_stat_xp">
         <text>Опыт</text>
     </string>
+    <string id="st_pda_rival_tile_faction">
+        <text>ФРАКЦИЯ</text>
+    </string>
+    <string id="st_pda_rival_tile_garrison">
+        <text>ГАРНИЗОН</text>
+    </string>
+    <string id="st_pda_rival_tile_distance">
+        <text>ДИСТАНЦИЯ</text>
+    </string>
+    <string id="st_pda_rival_pill_ally">
+        <text>СВОЙ</text>
+    </string>
+    <string id="st_pda_rival_pill_hostile">
+        <text>ВРАГ</text>
+    </string>
+    <string id="st_pda_rival_pill_empty">
+        <text>ПУСТО</text>
+    </string>
+    <string id="st_pda_rival_unclaimed">
+        <text>Ничей</text>
+    </string>
 </string_table>
 

@@ -3062,4 +3062,25 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_pda_sv_stat_xp">
         <text>XP</text>
     </string>
+    <string id="st_pda_rival_tile_faction">
+        <text>FACTION</text>
+    </string>
+    <string id="st_pda_rival_tile_garrison">
+        <text>GARRISON</text>
+    </string>
+    <string id="st_pda_rival_tile_distance">
+        <text>DISTANCE</text>
+    </string>
+    <string id="st_pda_rival_pill_ally">
+        <text>ALLY</text>
+    </string>
+    <string id="st_pda_rival_pill_hostile">
+        <text>HOSTILE</text>
+    </string>
+    <string id="st_pda_rival_pill_empty">
+        <text>EMPTY</text>
+    </string>
+    <string id="st_pda_rival_unclaimed">
+        <text>Unclaimed</text>
+    </string>
 </string_table>
