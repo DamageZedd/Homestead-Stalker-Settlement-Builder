@@ -7,6 +7,8 @@
 - **Also**: a triangular tin roof (half a flat roof tile) and a plank floor with a round opening and railing for the top of the spiral stairs.
 - **Snapping**: the loophole wall and doorway snap like walls; the low wall snaps to floor and foundation edges; triangles snap in any of four turns and complete a tile against a matching triangle; the post snaps to tile corners; entry steps snap outside a foundation edge; the stairs and ramp snap like the existing stairs. Crafted at the workbench with the other building pieces.
 
+- **Fix**: the 14 new pieces had placeholder recipes (icon coordinates where the ingredients belong). They now cost wood or scrap and fasteners, scaled by size (triangles about half of the square piece; the foundation triangle uses scrap like the square foundation).
+
 ### Settler Deaths Cost Faction Reputation
 - **Lost settlers in a raid cost goodwill with the raiders' enemies**: when a raiding faction kills your settlers, every faction that is an enemy of the raiders loses goodwill with you, since they hear you could not hold your ground. The raiders themselves (already hostile) and your own faction are never touched. Mutant raids have no faction and cost nothing. Factions of the Zone custom factions are respected (your own faction is read through the same provider as the rest of Homestead).
 - **How much**: each settler the raiders kill costs the per-settler amount; one raid is capped per faction. The penalty is paid once, when the raid ends: in full if the raiders were still standing (you left the level), half if you beat the raid. A tip names the factions that took note. With Invincible Settlers on, a settler who respawns still counts.
