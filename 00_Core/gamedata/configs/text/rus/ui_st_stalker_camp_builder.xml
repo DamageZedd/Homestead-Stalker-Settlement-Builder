@@ -1543,6 +1543,15 @@
     <string id="st_pda_radio_title">
         <text>Перехваты рации и журнал активности</text>
     </string>
+    <string id="st_pda_radio_channels">
+        <text>КАНАЛЫ</text>
+    </string>
+    <string id="st_pda_radio_show">
+        <text>ПОКАЗЫВАТЬ</text>
+    </string>
+    <string id="st_pda_radio_chan_all">
+        <text>Все поселения</text>
+    </string>
     <string id="st_pda_radio_filter_all">
         <text>Все записи</text>
     </string>

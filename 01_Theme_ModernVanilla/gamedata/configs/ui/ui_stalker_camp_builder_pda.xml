@@ -707,27 +707,45 @@
             <text font="letterica16" r="100" g="200" b="255" align="c" vert_align="c">st_pda_radio_title</text>
         </radio_header_lbl>
 
-        <btn_radio_filter_all x="0" y="27" width="94" height="26" check_mode="0" stretch="1">
-            <texture>ui_homestead_btn_on</texture>
-            <text font="letterica16" align="c" vert_align="c">st_pda_radio_filter_all</text>
-        </btn_radio_filter_all>
-        <btn_radio_filter_exp x="94" y="27" width="94" height="26" check_mode="0" stretch="1">
+        <radio_chan_hdr x="0" y="28" width="150" height="20" stretch="1">
+            <texture>ui_homestead_module_header</texture>
+        </radio_chan_hdr>
+        <radio_chan_lbl x="8" y="30" width="136" height="16">
+            <text font="letterica16" r="238" g="196" b="112" align="l" vert_align="c">st_pda_radio_channels</text>
+        </radio_chan_lbl>
+        <radio_chan_list x="0" y="50" width="150" height="150" item_height="24"
+                         can_select="1" always_show_scroll="1" stretch="1">
+            <font r="200" g="200" b="200" font="letterica16"/>
+            <text_color>
+                <e r="238" g="196" b="112"/>
+                <d r="70"  g="70"  b="70"/>
+            </text_color>
+        </radio_chan_list>
+        <radio_show_hdr x="0" y="206" width="150" height="20" stretch="1">
+            <texture>ui_homestead_module_header</texture>
+        </radio_show_hdr>
+        <radio_show_lbl x="8" y="208" width="136" height="16">
+            <text font="letterica16" r="238" g="196" b="112" align="l" vert_align="c">st_pda_radio_show</text>
+        </radio_show_lbl>
+
+        <btn_radio_filter_exp x="0" y="230" width="150" height="26" check_mode="0" stretch="1">
             <texture>ui_button_ordinary</texture>
             <text font="letterica16" align="c" vert_align="c">st_pda_radio_filter_exp</text>
         </btn_radio_filter_exp>
-        <btn_radio_filter_work x="188" y="27" width="94" height="26" check_mode="0" stretch="1">
+        <btn_radio_filter_work x="0" y="258" width="150" height="26" check_mode="0" stretch="1">
             <texture>ui_button_ordinary</texture>
             <text font="letterica16" align="c" vert_align="c">st_pda_radio_filter_work</text>
         </btn_radio_filter_work>
-        <btn_radio_filter_combat x="282" y="27" width="98" height="26" check_mode="0" stretch="1">
+        <btn_radio_filter_combat x="0" y="286" width="150" height="26" check_mode="0" stretch="1">
             <texture>ui_button_ordinary</texture>
             <text font="letterica16" align="c" vert_align="c">st_pda_radio_filter_combat</text>
         </btn_radio_filter_combat>
-        <btn_radio_scan x="380" y="27" width="94" height="26" check_mode="0" stretch="1">
+
+        <btn_radio_scan x="0" y="324" width="150" height="26" check_mode="0" stretch="1">
             <texture>ui_button_ordinary</texture>
             <text font="letterica16" align="c" vert_align="c">st_pda_radio_scan</text>
         </btn_radio_scan>
-        <btn_radio_clear x="474" y="27" width="90" height="26" check_mode="0" stretch="1">
+        <btn_radio_clear x="0" y="354" width="150" height="26" check_mode="0" stretch="1">
             <texture>ui_button_ordinary</texture>
             <text font="letterica16" align="c" vert_align="c">st_pda_radio_clear</text>
             <text_color>
@@ -737,20 +755,20 @@
             </text_color>
         </btn_radio_clear>
 
-        <radio_scroll x="0" y="56" width="564" height="478" always_show_scroll="1" stretch="1"/>
+        <radio_scroll x="156" y="28" width="408" height="506" always_show_scroll="1" stretch="1"/>
     </radio_panel>
 
-    <radio_card_container x="0" y="0" width="544" height="48" stretch="1"/>
-    <radio_card_bg x="0" y="0" width="544" height="44" stretch="1">
+    <radio_card_container x="0" y="0" width="386" height="26" stretch="1"/>
+    <radio_card_bg x="0" y="0" width="386" height="24" stretch="1">
         <texture>ui_homestead_card_bg</texture>
     </radio_card_bg>
-    <radio_row_time x="440" y="5" width="94" height="15">
-        <text font="letterica16" r="160" g="160" b="160" align="r" vert_align="t"/>
+    <radio_row_time x="4" y="4" width="38" height="15">
+        <text font="letterica16" r="160" g="160" b="160" align="l" vert_align="t"/>
     </radio_row_time>
-    <radio_row_badge x="10" y="5" width="420" height="15">
-        <text font="letterica16" r="238" g="196" b="112" align="l" vert_align="t" complex_mode="1"/>
+    <radio_row_badge x="44" y="4" width="34" height="15">
+        <text font="letterica16" r="238" g="196" b="112" align="l" vert_align="t"/>
     </radio_row_badge>
-    <radio_row_text x="10" y="22" width="524" height="20">
+    <radio_row_text x="82" y="4" width="298" height="16">
         <text font="letterica16" r="200" g="200" b="200" align="l" vert_align="t" complex_mode="1"/>
     </radio_row_text>
 

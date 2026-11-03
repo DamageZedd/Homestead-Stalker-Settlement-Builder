@@ -1522,6 +1522,15 @@
     <string id="st_pda_radio_title">
         <text>Settlement Radio Intercepts &amp; Activity Log</text>
     </string>
+    <string id="st_pda_radio_channels">
+        <text>CHANNELS</text>
+    </string>
+    <string id="st_pda_radio_show">
+        <text>SHOW</text>
+    </string>
+    <string id="st_pda_radio_chan_all">
+        <text>All settlements</text>
+    </string>
     <string id="st_pda_radio_filter_all">
         <text>All Logs</text>
     </string>

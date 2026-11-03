@@ -159,6 +159,19 @@ local function survivor_needs_cell(survivor)
     return "-", hs_theme.argb("dim")
 end
 
+class "RadioChanListItem" (CUIListBoxItem)
+function RadioChanListItem:__init(hub_id, name)
+    super()
+    self.hub_id = hub_id
+    self:SetWndRect(Frect():set(0, 0, 144, 24))
+    self.text_item = self:GetTextItem()
+    self.text_item:SetWndPos(vector2():set(4, 3))
+    self.text_item:SetWndSize(vector2():set(138, 18))
+    self.text_item:SetText(name)
+    self.text_item:SetFont(GetFontLetterica16Russian())
+    self.text_item:SetTextColor(hs_theme.argb("body"))
+end
+
 class "SurvivorListItem" (CUIListBoxItem)
 -- one table row: icon, name, job status, tier, needs (living needs; "-" when they are off)
 local SV_ROW_W = 353
@@ -767,9 +780,13 @@ function SettlementManagerPDA:InitControls()
     xml:InitTextWnd("radio_panel:radio_header_lbl", self.radio_panel)
     self.radio_scroll = xml:InitScrollView("radio_panel:radio_scroll", self.radio_panel)
 
-    self.btn_radio_filter_all = xml:Init3tButton("radio_panel:btn_radio_filter_all", self.radio_panel)
-    self:Register(self.btn_radio_filter_all, "btn_radio_filter_all")
-    self:AddCallback("btn_radio_filter_all", ui_events.BUTTON_CLICKED, self.OnRadioFilterAllClicked, self)
+    xml:InitStatic("radio_panel:radio_chan_hdr", self.radio_panel)
+    xml:InitTextWnd("radio_panel:radio_chan_lbl", self.radio_panel)
+    xml:InitStatic("radio_panel:radio_show_hdr", self.radio_panel)
+    xml:InitTextWnd("radio_panel:radio_show_lbl", self.radio_panel)
+    self.radio_chan_list = xml:InitListBox("radio_panel:radio_chan_list", self.radio_panel)
+    self:Register(self.radio_chan_list, "radio_chan_list")
+    self:AddCallback("radio_chan_list", ui_events.LIST_ITEM_CLICKED, self.OnRadioChannelSelected, self)
 
     self.btn_radio_filter_exp = xml:Init3tButton("radio_panel:btn_radio_filter_exp", self.radio_panel)
     self:Register(self.btn_radio_filter_exp, "btn_radio_filter_exp")
@@ -983,6 +1000,8 @@ function SettlementManagerPDA:SetTab(tab_name)
     end
 
     if self.current_tab == "radio" then
+        self:RefreshRadioTypeButtons()
+        self:PopulateRadioChannels()
         self:PopulateRadioFeed()
     end
 
@@ -3313,51 +3332,73 @@ function SettlementManagerPDA:OnLocateRivalMapClicked()
     news_manager.send_tip(db.actor, string.format("%s: %s (%s)", game.translate_string("st_pda_located_map"), rcamp.name or smart, game.translate_string(rcamp.level or "unknown")), nil, "general_stalker", 4000)
 end
 
--- RADIO FEED HANDLERS (v1.0.3 Rebuild)
-function SettlementManagerPDA:SetRadioFilter(filter)
-    self.radio_filter = filter or "all"
-
-    local c_dim  = hs_theme.argb("dim")
-    local c_gold = hs_theme.argb("heading")
-    local c_blue = hs_theme.argb("body")
-    local c_mint = hs_theme.argb("body")
-    local c_red  = hs_theme.argb("danger")
-
-    if self.btn_radio_filter_all and self.btn_radio_filter_all:TextControl() then self.btn_radio_filter_all:TextControl():SetTextColor(self.radio_filter == "all" and c_gold or c_dim) end
-    if self.btn_radio_filter_exp and self.btn_radio_filter_exp:TextControl() then self.btn_radio_filter_exp:TextControl():SetTextColor(self.radio_filter == "exp" and c_blue or c_dim) end
-    if self.btn_radio_filter_work and self.btn_radio_filter_work:TextControl() then self.btn_radio_filter_work:TextControl():SetTextColor(self.radio_filter == "work" and c_mint or c_dim) end
-    if self.btn_radio_filter_combat and self.btn_radio_filter_combat:TextControl() then self.btn_radio_filter_combat:TextControl():SetTextColor(self.radio_filter == "combat" and c_red or c_dim) end
-
-    if self.btn_radio_filter_all and self.btn_radio_filter_all.InitTexture then
-        hs_theme.set_active(self.btn_radio_filter_all, self.radio_filter == "all")
+-- RADIO FEED HANDLERS
+-- the type buttons are on/off ticks (all on by default); the channel list picks All or one settlement
+function SettlementManagerPDA:RefreshRadioTypeButtons()
+    self.radio_types = self.radio_types or { exp = true, work = true, combat = true }
+    local defs = {
+        { btn = self.btn_radio_filter_exp,    key = "exp",    str = "st_pda_radio_filter_exp" },
+        { btn = self.btn_radio_filter_work,   key = "work",   str = "st_pda_radio_filter_work" },
+        { btn = self.btn_radio_filter_combat, key = "combat", str = "st_pda_radio_filter_combat" },
+    }
+    for _, d in ipairs(defs) do
+        local on = self.radio_types[d.key]
+        if d.btn then
+            if d.btn:TextControl() then
+                d.btn:TextControl():SetText((on and "[x] " or "[ ] ") .. game.translate_string(d.str))
+                d.btn:TextControl():SetTextColor(on and hs_theme.argb("heading") or hs_theme.argb("dim"))
+            end
+            if d.btn.InitTexture then hs_theme.set_active(d.btn, on) end
+        end
     end
-    if self.btn_radio_filter_exp and self.btn_radio_filter_exp.InitTexture then
-        hs_theme.set_active(self.btn_radio_filter_exp, self.radio_filter == "exp")
-    end
-    if self.btn_radio_filter_work and self.btn_radio_filter_work.InitTexture then
-        hs_theme.set_active(self.btn_radio_filter_work, self.radio_filter == "work")
-    end
-    if self.btn_radio_filter_combat and self.btn_radio_filter_combat.InitTexture then
-        hs_theme.set_active(self.btn_radio_filter_combat, self.radio_filter == "combat")
-    end
+end
 
+function SettlementManagerPDA:ToggleRadioType(key)
+    self.radio_types = self.radio_types or { exp = true, work = true, combat = true }
+    self.radio_types[key] = not self.radio_types[key]
+    self:RefreshRadioTypeButtons()
     self:PopulateRadioFeed()
 end
 
-function SettlementManagerPDA:OnRadioFilterAllClicked()
-    self:SetRadioFilter("all")
-end
-
 function SettlementManagerPDA:OnRadioFilterExpClicked()
-    self:SetRadioFilter("exp")
+    self:ToggleRadioType("exp")
 end
 
 function SettlementManagerPDA:OnRadioFilterWorkClicked()
-    self:SetRadioFilter("work")
+    self:ToggleRadioType("work")
 end
 
 function SettlementManagerPDA:OnRadioFilterCombatClicked()
-    self:SetRadioFilter("combat")
+    self:ToggleRadioType("combat")
+end
+
+function SettlementManagerPDA:PopulateRadioChannels()
+    if not self.radio_chan_list then return end
+    local keep = self.radio_chan or "all"
+    self.radio_chan_list:RemoveAll()
+    self.radio_chan_list:AddExistingItem(RadioChanListItem("all", game.translate_string("st_pda_radio_chan_all")))
+    local camp_ids = {}
+    for hub_id, _ in pairs((stalker_camp_builder and stalker_camp_builder.active_camps) or {}) do
+        camp_ids[#camp_ids + 1] = hub_id
+    end
+    table.sort(camp_ids)
+    local sel = 0
+    for _, hub_id in ipairs(camp_ids) do
+        local camp = stalker_camp_builder.active_camps[hub_id]
+        local ok, label = pcall(stalker_camp_builder.get_camp_label, camp)
+        self.radio_chan_list:AddExistingItem(RadioChanListItem(hub_id, ok and label or tostring(hub_id)))
+        if hub_id == keep then sel = self.radio_chan_list:GetSize() - 1 end
+    end
+    if sel == 0 then self.radio_chan = "all" end
+    self.radio_chan_list:SetSelectedIndex(sel)
+end
+
+function SettlementManagerPDA:OnRadioChannelSelected()
+    local it = self.radio_chan_list and self.radio_chan_list:GetSelectedItem()
+    if it and it.hub_id ~= nil then
+        self.radio_chan = it.hub_id
+        self:PopulateRadioFeed()
+    end
 end
 
 function SettlementManagerPDA:OnRadioScanClicked()
@@ -3380,19 +3421,29 @@ end
 function SettlementManagerPDA:PopulateRadioFeed()
     if not self.radio_scroll then return end
     self.radio_scroll:Clear()
+    self.radio_types = self.radio_types or { exp = true, work = true, combat = true }
+    self.radio_chan = self.radio_chan or "all"
 
     if stalker_camp_builder and stalker_camp_builder.seed_initial_settlement_telemetry and not self.radio_cleared then
         pcall(stalker_camp_builder.seed_initial_settlement_telemetry, false)
     end
 
-    local logs = (stalker_camp_builder and stalker_camp_builder.radio_logs and stalker_camp_builder.radio_logs["all"]) or {}
-    local f = self.radio_filter or "all"
+    local all_logs = (stalker_camp_builder and stalker_camp_builder.radio_logs) or {}
+    local logs = all_logs[self.radio_chan] or {}
+    local types = self.radio_types
+
+    local tag_defs = {
+        combat     = { "DEF", "danger" },
+        expedition = { "EXP", "body" },
+        work       = { "WRK", "body" },
+    }
 
     local shown_count = 0
     for _, log_entry in ipairs(logs) do
         if type(log_entry) == "table" then
             local cat = log_entry.category or "general"
-            local include = (f == "all") or (f == "exp" and cat == "expedition") or (f == "work" and cat == "work") or (f == "combat" and cat == "combat")
+            local include = (cat == "expedition" and types.exp) or (cat == "work" and types.work)
+                or (cat == "combat" and types.combat) or (cat ~= "expedition" and cat ~= "work" and cat ~= "combat")
             if include then
                 shown_count = shown_count + 1
 
@@ -3403,32 +3454,21 @@ function SettlementManagerPDA:PopulateRadioFeed()
                     local time_wnd  = self.xml:InitTextWnd("radio_row_time", card_cont)
                     local text_wnd  = self.xml:InitTextWnd("radio_row_text", card_cont)
 
-                    local time_str = log_entry.time_str or "--:--"
-                    if time_wnd then time_wnd:SetText(time_str) end
+                    if time_wnd then time_wnd:SetText(log_entry.time_str or "--:--") end
 
-                    local badge_txt = "[COMMUNICATION]"
-                    if cat == "combat" then
-                        badge_txt = "[COMBAT ALERT // DEFENSE]"
-                        if badge_wnd then badge_wnd:SetTextColor(hs_theme.argb("danger")) end
-                    elseif cat == "expedition" then
-                        badge_txt = "[SCAVENGER // EXPEDITION]"
-                        if badge_wnd then badge_wnd:SetTextColor(hs_theme.argb("body")) end
-                    elseif cat == "work" then
-                        badge_txt = "[SETTLEMENT // LOGISTICS]"
-                        if badge_wnd then badge_wnd:SetTextColor(hs_theme.argb("body")) end
-                    else
-                        badge_txt = "[RADIO TRANSCEIVER // 148.500 MHz]"
-                        if badge_wnd then badge_wnd:SetTextColor(hs_theme.argb("heading")) end
+                    local td = tag_defs[cat]
+                    if badge_wnd then
+                        badge_wnd:SetText(td and td[1] or "RAD")
+                        badge_wnd:SetTextColor(hs_theme.argb(td and td[2] or "heading"))
                     end
-                    if badge_wnd then badge_wnd:SetText(badge_txt) end
 
                     if text_wnd then
                         text_wnd:SetText(colorize_pda_text(log_entry.text or ""))
                         text_wnd:AdjustHeightToText()
                         local th = text_wnd:GetHeight()
-                        local card_h = math.max(44, th + 26)
-                        if card_bg then card_bg:SetWndSize(vector2():set(544, card_h)) end
-                        card_cont:SetWndSize(vector2():set(544, card_h + 4))
+                        local card_h = math.max(24, th + 8)
+                        if card_bg then card_bg:SetWndSize(vector2():set(386, card_h)) end
+                        card_cont:SetWndSize(vector2():set(386, card_h + 2))
                     end
 
                     self.radio_scroll:AddWindow(card_cont, true)
