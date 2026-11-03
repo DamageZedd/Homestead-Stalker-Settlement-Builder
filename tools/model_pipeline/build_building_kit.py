@@ -31,6 +31,16 @@ def mat(name):
     raise KeyError(name)
 
 
+def retex(m, tex):
+    """Copy of material m pointing at another vanilla texture (the foundation's lighter slab concrete)."""
+    import os
+    n = m.copy()
+    node = next(x for x in n.node_tree.nodes if x.type == 'TEX_IMAGE')
+    node.image = bpy.data.images.load(os.path.join(r"C:\Users\hocke\AppData\Local\Temp\claude_sp\vtex\textures", tex + ".dds"), check_existing=True)
+    node.name = node.label = n.name = tex
+    return n
+
+
 def reproject(f, uv):
     """Texture axes in the face plane: u along the horizontal tangent (grain runs along walls, treads, ramp
     width), v up the face / along the slope, both in metres, so no face is stretched or sheared."""
@@ -232,6 +242,67 @@ def floor_triangle():
     return m.finish()
 
 
+def foundation_triangle():
+    """Half a foundation tile, built by sweeping the shipped foundation's edge profile (concrete body with a
+    chamfered top edge, steel plate and angle flange) round all three sides, so every side is identical, mitred
+    at the corners and closed. Right angle at -X,-Y like the other triangles."""
+    h = 2.354475
+    conc, rust = retex(mat("grnd\grnd_concrete_2"), "wall\wall_house_white_02"), mat("mtl\mtl_barrel_big_rust")
+    k = math.sqrt(2.0)
+
+    def ring(d, z):
+        return [(-h + d, -h + d, z), (h - d - d * k, -h + d, z), (-h + d, h - d - d * k, z)]
+
+    verts, faces = {}, []
+
+    def vert(p):
+        key = tuple(round(c, 5) for c in p)
+        return verts.setdefault(key, len(verts))
+
+    def sweep(profile, mi, closed=False):
+        pts = list(profile) + ([profile[0]] if closed else [])
+        for (d1, z1), (d2, z2) in zip(pts, pts[1:]):
+            r1, r2 = ring(d1, z1), ring(d2, z2)
+            for i in range(3):
+                j = (i + 1) % 3
+                faces.append(([vert(r1[i]), vert(r1[j]), vert(r2[j]), vert(r2[i])], mi))
+
+    def cap(d, z, mi):
+        r = ring(d, z)
+        faces.append(([vert(p) for p in r], mi))
+
+    sweep([(0.035, -1.0), (0.0, -1.0), (0.0, 0.365), (0.0047, 0.3825), (0.0175, 0.3953), (0.035, 0.4)], 0)
+    cap(0.035, -1.0, 0)
+    cap(0.035, 0.4, 0)
+    sweep([(-0.006, 0.36), (-0.003, 0.36), (-0.003, 0.405), (-0.006, 0.405)], 1, closed=True)
+    sweep([(0.0, 0.4), (0.04, 0.4), (0.04, 0.405), (0.0, 0.405)], 1, closed=True)
+    bm = bmesh.new()
+    bv = [None] * len(verts)
+    for key, i in verts.items():
+        bv[i] = bm.verts.new(key)
+    for idx, mi in faces:
+        try:
+            f = bm.faces.new([bv[i] for i in idx])
+            f.material_index = mi
+        except ValueError:
+            pass
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    uvl = bm.loops.layers.uv.new("Texture")
+    for f in bm.faces:
+        reproject(f, uvl)
+        if f.material_index == 0:            # the square foundation maps its slab concrete at 0.4 repeats per metre
+            for l in f.loops:
+                l[uvl].uv *= 0.4
+    me = bpy.data.meshes.new("hsk_foundation_triangle_visual")
+    bm.to_mesh(me)
+    bm.free()
+    me.materials.append(conc)
+    me.materials.append(rust)
+    ob = bpy.data.objects.new("hsk_foundation_triangle_visual", me)
+    bpy.context.scene.collection.objects.link(ob)
+    return ob
+
+
 def roof_triangle():
     """Half a flat tin roof tile cut along the diagonal (right angle at -X,-Y); the cut edge is closed with the wood."""
     return triangle_of("hs_roof_flat_visual_export", "hsk_roof_triangle", cap_mat=0, keep_uv=True)
@@ -392,7 +463,7 @@ BUILDERS = {
     "hsk_doorway_double": doorway_double,
     "hsk_support_frame": support_frame,
     "hsk_floor_triangle": floor_triangle,
-    "hsk_foundation_triangle": lambda: triangle_of("hs_foundation_visual_export", "hsk_foundation_triangle"),
+    "hsk_foundation_triangle": foundation_triangle,
     "hsk_stairs_small": stairs_small,
     "hsk_ramp": ramp,
     "hsk_stairs_l": stairs_l,
