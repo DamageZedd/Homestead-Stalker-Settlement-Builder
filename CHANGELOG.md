@@ -7,6 +7,8 @@
 - **Also**: a triangular tin roof (half a flat roof tile) and a plank floor with a round opening and railing for the top of the spiral stairs.
 - **Snapping**: the loophole wall and doorway snap like walls; the low wall snaps to floor and foundation edges; triangles snap in any of four turns and complete a tile against a matching triangle; the post snaps to tile corners; entry steps snap outside a foundation edge; the stairs and ramp snap like the existing stairs. Crafted at the workbench with the other building pieces.
 
+- **Icons**: the 14 newest pieces have their own inventory icons on the building sheet.
+
 - **Fix**: the 14 new pieces had placeholder recipes (icon coordinates where the ingredients belong). They now cost wood or scrap and fasteners, scaled by size (triangles about half of the square piece; the foundation triangle uses scrap like the square foundation).
 
 ### Settler Deaths Cost Faction Reputation
