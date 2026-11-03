@@ -301,6 +301,27 @@
     <string id="st_pda_morale_lbl">
         <text>Мораль</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_raid_rep_enabled">
+        <text>Faction Reputation for Lost Settlers</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raid_rep_enabled_desc">
+        <text>Settlers killed by a raiding faction cost you goodwill with that faction's enemies, who hear you could not hold your ground. Never with the raiders themselves or your own faction.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raid_rep_per_settler">
+        <text>Goodwill Lost per Settler</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raid_rep_per_settler_desc">
+        <text>Goodwill lost with each of the raiders' enemies for every settler the raiders kill. Half of it if you beat the raid.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raid_rep_cap">
+        <text>Goodwill Lost Cap per Raid</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raid_rep_cap_desc">
+        <text>The most goodwill one raid can cost you with any one faction.</text>
+    </string>
+    <string id="st_homestead_raid_rep_loss">
+        <text>%d settlers fell to the %s raiders. Their enemies (%s) think less of you.</text>
+    </string>
     <string id="st_raid_summary">
         <text>Рейд на %s отбит! Убито рейдеров: %d, потеряно охранников: %d.</text>
     </string>

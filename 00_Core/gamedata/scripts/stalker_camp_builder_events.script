@@ -266,6 +266,7 @@ function spawn_camp_raid(hub_id, camp, hub_obj)
     local actor_fac = actor_comm:gsub("^actor_", "")
 
     local section = nil
+    local raid_faction = nil
     if mrandom(100) <= 35 then
         local mutant_squads = {
             "simulation_snork",
@@ -295,8 +296,10 @@ function spawn_camp_raid(hub_id, camp, hub_obj)
             section = enemy_fac .. "_sim_squad_advanced"
         end
 
+        raid_faction = enemy_fac
         if not (ini_sys and ini_sys:section_exist(section)) then
             section = "monolith_sim_squad_veteran"
+            raid_faction = "monolith"
         end
     end
 
@@ -344,6 +347,8 @@ function spawn_camp_raid(hub_id, camp, hub_obj)
             start_sec = stalker_camp_builder.game_sec(),
             raiders_killed = 0,
             guards_lost = 0,
+            faction = raid_faction,   -- nil for a mutant pack: no faction to blame
+            settlers_lost = 0,
             original_squad_size = squad_size,
             remaining_count = squad_size,
         }
@@ -452,6 +457,78 @@ function process_camp_raids()
     check_completed_raids()
 end
 
+-- Reputation for settlers lost in a raid: the factions that are enemies of the raiders heard that you
+-- could not hold your ground, and lose goodwill with you. Never the raiders (already hostile) or the
+-- player's own faction. Counted at each settler death, paid once when the raid ends.
+local RAID_REP_FALLBACK_FACTIONS = {
+    "stalker", "bandit", "csky", "army", "freedom", "dolg", "ecolog", "killer", "monolith", "renegade", "greh", "isg",
+}
+local RAID_REP_SKIP = { monster = true, zombied = true, trader = true, none = true, arena_enemy = true, actor = true }
+
+local function raid_rep_clean(comm)
+    if type(comm) ~= "string" then return nil end
+    return (string.gsub(comm, "^actor_", ""))
+end
+
+-- counts a settler killed by the raiders; called from npc_on_death_callback
+function stalker_camp_builder.raid_note_settler_killed(camp, who)
+    local raid = camp and camp.active_raid
+    if not (raid and raid.faction and who and cfg.raid_rep_enabled) then return end
+    local from_raid = false
+    local wid = who:id()
+    local se = wid and alife_object(wid)
+    if se and se.group_id and se.group_id == raid.squad_id then
+        from_raid = true
+    elseif IsStalker(who) then
+        from_raid = raid_rep_clean(who:character_community()) == raid.faction
+    end
+    if from_raid then
+        raid.settlers_lost = (raid.settlers_lost or 0) + 1
+    end
+end
+
+-- failed: the raiders were still standing when the raid ended; a raid that was beaten costs half
+function stalker_camp_builder.raid_apply_reputation(raid, failed)
+    local actor = db.actor
+    if not (raid and actor and raid.faction and cfg.raid_rep_enabled) then return end
+    local lost = raid.settlers_lost or 0
+    if lost <= 0 then return end
+    local pts = math.min(cfg.raid_rep_cap or 100, lost * (cfg.raid_rep_per_settler or 25))
+    if not failed then pts = math.floor(pts / 2) end
+    if pts <= 0 then return end
+
+    local killer = raid.faction
+    local own = raid_rep_clean(stalker_camp_builder.get_player_faction and stalker_camp_builder.get_player_faction())
+    local list = RAID_REP_FALLBACK_FACTIONS
+    pcall(function()
+        local t = game_relations and game_relations.factions_table
+        if type(t) == "table" and #t > 0 then list = t end
+    end)
+
+    local hit = {}
+    for _, f in ipairs(list) do
+        if type(f) == "string" and f ~= killer and f ~= own and not RAID_REP_SKIP[f] then
+            local enemies = false
+            pcall(function()
+                if game_relations and game_relations.is_factions_enemies then
+                    enemies = game_relations.is_factions_enemies(killer, f) and true or false
+                else
+                    local rel = relation_registry.community_relation(killer, f)
+                    enemies = rel ~= nil and rel <= -500
+                end
+            end)
+            if enemies and pcall(relation_registry.change_community_goodwill, f, actor:id(), -pts) then
+                hit[#hit + 1] = f
+            end
+        end
+    end
+    if #hit > 0 then
+        pcall(stalker_camp_builder.camp_send_tip, actor,
+            string.format(game.translate_string("st_homestead_raid_rep_loss"), lost, killer, table.concat(hit, ", ")),
+            nil, "general_stalker", 12000)
+    end
+end
+
 -- a camp's raid ends with the camp: the raiders' saved "actor" target would otherwise keep them
 -- following the player to every level, as check_completed_raids sees only camps that still exist
 function stalker_camp_builder.end_camp_raid(camp)
@@ -474,6 +551,7 @@ function check_completed_raids()
             if squad and squad.scripted_target == "actor" then
                 squad.scripted_target = nil
             end
+            pcall(stalker_camp_builder.raid_apply_reputation, camp.active_raid, squad ~= nil)
             camp.active_raid = nil
         elseif camp.active_raid then
             local raid = camp.active_raid
@@ -532,6 +610,7 @@ function check_completed_raids()
                 if stalker_camp_builder.send_settler_callback then
                     stalker_camp_builder.send_settler_callback("homestead_on_raid_defended", hub_id, raiders_killed, raid.guards_lost or 0)
                 end
+                pcall(stalker_camp_builder.raid_apply_reputation, raid, false)
                 camp.active_raid = nil
             end
         end
