@@ -100,5 +100,51 @@ sb.needs_round(st, 3, { water_free = true, mult = 0.5 }, io)
 eq(#io.eaten, 1, "1.5 -> 1 ration"); sb.needs_round(st, 3, { water_free = true, mult = 0.5 }, io)
 eq(#io.eaten, 3, "carry makes 3 over two rounds")
 
+-- consequences (phase 4), with a stubbed clock and config
+local now = 1000
+sb.game_sec = function() return now end
+sb.cfg = { needs_enabled = true }
+local camp = { survivors = {
+    [1] = { job = "craft" }, [2] = { job = "repair" }, [3] = { job = "farmer" }, [4] = { job = "guard" }, [5] = { job = "medic" },
+} }
+sb.needs_mark_settlers(camp, { tier = 2, unserved = 2 }, now, 86400)
+eq(camp.survivors[1].needs_hungry_until ~= nil, true, "first worker hungry")
+eq(camp.survivors[2].needs_hungry_until ~= nil, true, "second worker hungry")
+eq(camp.survivors[5].needs_hungry_until, nil, "only two marked")
+eq(camp.survivors[3].needs_hungry_until, nil, "farmer never refuses")
+eq(camp.survivors[4].needs_hungry_until, nil, "guard not marked")
+eq(sb.needs_job_refused(camp.survivors[1]), true, "hungry craft refuses")
+eq(sb.needs_job_refused(camp.survivors[3]), false, "farmer works")
+eq(sb.needs_starving(camp.survivors[1]), false, "tier 2 still pays")
+now = 1000 + 86400
+eq(sb.needs_job_refused(camp.survivors[1]), false, "refusal lapses")
+now = 1000
+sb.cfg.needs_job_refusal = false
+eq(sb.needs_job_refused(camp.survivors[1]), false, "refusal option off")
+sb.cfg.needs_job_refusal = nil
+sb.cfg.needs_enabled = false
+eq(sb.needs_job_refused(camp.survivors[1]), false, "master off")
+sb.cfg.needs_enabled = true
+
+sb.needs_mark_settlers(camp, { tier = 3, unserved = 1 }, now, 86400)
+eq(sb.needs_starving(camp.survivors[4]), true, "starving camp pays no cut, guard too")
+eq(camp.survivors[2].needs_hungry_until, nil, "marks are rebuilt each round")
+
+camp.needs = { tier = 3, until_sec = now + 100, penalty = -30 }
+eq(sb.needs_guard_mult(camp), 0.6, "starving guards x0.6")
+sb.cfg.needs_guard_penalty = false
+eq(sb.needs_guard_mult(camp), 1, "guard option off")
+sb.cfg.needs_guard_penalty = nil
+camp.needs.tier = 2
+eq(sb.needs_guard_mult(camp), 1, "short is not starving")
+camp.needs.tier = 3; now = now + 200
+eq(sb.needs_guard_mult(camp), 1, "lapsed round")
+now = 1000
+eq(sb.needs_blocks_desertion(camp), false, "desertion allowed by default")
+sb.cfg.needs_desertion = false
+eq(sb.needs_blocks_desertion(camp), true, "shortage morale cannot drive settlers away")
+camp.needs.penalty = 5
+eq(sb.needs_blocks_desertion(camp), false, "no shortage, no block")
+
 print(fails == 0 and "all needs tests passed" or (fails .. " FAILED"))
 os.exit(fails == 0 and 0 or 1)

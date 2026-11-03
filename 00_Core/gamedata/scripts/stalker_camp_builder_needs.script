@@ -213,12 +213,92 @@ function sb.needs_process(hub_id, camp)
     st.tier = res.tier
     st.variety = res.variety
     camp._stats_cache = nil
+    sb.needs_mark_settlers(camp, res, now, interval)
     -- the old hunger penalty must not stack on top of this one
     camp.hungry_until, camp.hungry_count = nil, nil
+
+    -- a camp sliding towards the leaving line hears about it, at most once in two game days
+    if res.penalty < 0 and (camp.happiness or 100) < 30 and sb.cfg.needs_desertion ~= false
+            and now - (st.warned_sec or -1e9) >= 172800 and db.actor and sb.camp_send_tip then
+        st.warned_sec = now
+        sb.camp_send_tip(db.actor, string.format(game.translate_string("st_homestead_needs_leaving"), camp.name or "Settlement"),
+            nil, "red_danger", 10000, hub_id, "general", true)
+    end
 
     if res.tier >= 2 and db.actor and sb.camp_send_tip then
         local id = res.tier >= 3 and "st_homestead_needs_starving" or "st_homestead_needs_short"
         sb.camp_send_tip(db.actor, string.format(game.translate_string(id), camp.name or "Settlement", res.unserved),
             nil, "general_stalker", 9000, hub_id, "work", true)
     end
+end
+
+-- ---------------------------------------------------------------------------------------------------
+-- consequences (phase 4) and the PDA line (phase 3)
+
+-- jobs a hungry settler still does: they produce food, or fetch it
+local HUNGRY_EXEMPT_JOB = { farmer = true, hunter = true, cook = true, scavenge = true, scavenger = true }
+local GUARD_MULT = 0.6
+
+local function flag_on(until_sec)
+    return until_sec ~= nil and sb.game_sec() < until_sec
+end
+
+-- the camp's needs record while its last round still counts, else nil
+local function live_needs(camp)
+    local n = camp and camp.needs
+    if n and n.until_sec and sb.game_sec() < n.until_sec then return n end
+    return nil
+end
+
+function sb.needs_job_refused(survivor)
+    if not (survivor and sb.needs_enabled_now()) then return false end
+    if sb.cfg.needs_job_refusal == false then return false end
+    if HUNGRY_EXEMPT_JOB[survivor.job or ""] then return false end
+    return flag_on(survivor.needs_hungry_until)
+end
+
+-- a starving camp pays no cut to its settlers
+function sb.needs_starving(survivor)
+    return survivor ~= nil and sb.needs_enabled_now() and flag_on(survivor.needs_starving_until)
+end
+
+-- starving guards count for less in the camp's defense (the raid chance reads it)
+function sb.needs_guard_mult(camp)
+    if not sb.needs_enabled_now() or sb.cfg.needs_guard_penalty == false then return 1 end
+    local n = live_needs(camp)
+    if n and (n.tier or 0) >= 3 then return GUARD_MULT end
+    return 1
+end
+
+-- the MCM switch that stops a food or water shortage from driving settlers away
+function sb.needs_blocks_desertion(camp)
+    if not sb.needs_enabled_now() or sb.cfg.needs_desertion ~= false then return false end
+    return sb.needs_happiness_delta(camp) < 0
+end
+
+-- who went without, who the starving camp stops paying, and the warning before settlers leave
+function sb.needs_mark_settlers(camp, res, now, interval)
+    local ids = {}
+    for npc_id in pairs(camp.survivors or {}) do ids[#ids + 1] = npc_id end
+    table.sort(ids, function(a, b) return tostring(a) < tostring(b) end)
+    local left = res.unserved or 0
+    for _, npc_id in ipairs(ids) do
+        local s = camp.survivors[npc_id]
+        s.needs_hungry_until = nil
+        s.needs_starving_until = nil
+        if res.tier >= 3 then s.needs_starving_until = now + interval end
+        if left > 0 and not HUNGRY_EXEMPT_JOB[s.job or ""] and s.job ~= "idle" and s.job ~= "guard" and s.job ~= "companion" then
+            s.needs_hungry_until = now + interval
+            left = left - 1
+        end
+    end
+end
+
+-- "Needs: Fed, Variety 2/3" for the PDA, or nil when needs are off or not started
+function sb.needs_summary_text(camp)
+    if not sb.needs_enabled_now() then return nil end
+    local n = camp and camp.needs
+    if not (n and n.tier) then return nil end
+    local tier_id = "st_homestead_needs_tier_" .. tostring(n.tier)
+    return string.format(game.translate_string("st_homestead_needs_line"), game.translate_string(tier_id), n.variety or 0)
 end

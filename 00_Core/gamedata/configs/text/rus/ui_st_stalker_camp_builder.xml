@@ -2810,5 +2810,41 @@
     <string id="st_homestead_needs_starving">
         <text>%s: %d settler(s) are starving. Morale is collapsing and they may leave.</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_job_refusal">
+        <text>Hungry Settlers Refuse Work</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_job_refusal_desc">
+        <text>A settler who went without food or water will not work until fed. Farmers, hunters, cooks and scavengers keep working.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_guard_penalty">
+        <text>Starving Guards Weaken Defense</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_guard_penalty_desc">
+        <text>While a camp is starving its guards count for less in the camp's defense, which raises the raid chance.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_desertion">
+        <text>Shortages Can Drive Settlers Away</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_desertion_desc">
+        <text>Off: low morale caused by a food or water shortage does not make settlers leave. Low morale from other causes still can.</text>
+    </string>
+    <string id="st_homestead_needs_leaving">
+        <text>%s: morale is low after the shortages. Settlers may start to leave.</text>
+    </string>
+    <string id="st_homestead_needs_line">
+        <text>Needs: %s, Variety %d/3</text>
+    </string>
+    <string id="st_homestead_needs_tier_0">
+        <text>Fed</text>
+    </string>
+    <string id="st_homestead_needs_tier_1">
+        <text>Thin</text>
+    </string>
+    <string id="st_homestead_needs_tier_2">
+        <text>Short</text>
+    </string>
+    <string id="st_homestead_needs_tier_3">
+        <text>Starving</text>
+    </string>
 </string_table>
 

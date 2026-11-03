@@ -1257,6 +1257,12 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         return false, nil, nil
     end
 
+    -- living needs: a settler who went without today will not take up work (farmers, hunters, cooks and
+    -- scavengers are exempt, they are the way out of a shortage)
+    if sb.needs_job_refused and sb.needs_job_refused(survivor) then
+        return true, "Too Hungry", "Went without food or water; the settler will not work until fed"
+    end
+
     if not camp or not hub_id then
         if survivor.hub_id and sb.active_camps and sb.active_camps[survivor.hub_id] then
             hub_id = survivor.hub_id

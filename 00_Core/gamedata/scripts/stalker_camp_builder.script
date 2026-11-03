@@ -810,6 +810,9 @@ local defaults = {
     needs_consumption_mult = 1.0,     -- Scales how much the settlers eat and drink per day.
     needs_grace_days = 3,             -- Game days after the first round without any penalty, so an old save is not caught out.
     needs_catchup_cap = 1,            -- Most rounds a long sleep or wait may cost; 1 is the old behaviour.
+    needs_job_refusal = true,         -- A settler who went without food or water will not work until fed.
+    needs_guard_penalty = true,       -- Starving guards count for less (x0.6) in the camp's defense.
+    needs_desertion = true,           -- Settlers may leave over a food or water shortage (the usual low-morale rule).
     needs_variety_bonus = true,       -- A varied diet (three food classes in three days) adds a little morale.
     dismantle_removes_furniture = false, -- When true, dismantling removes all furniture, building pieces, containers and loose ground clutter.
 
@@ -5182,7 +5185,7 @@ function get_camp_stats(camp, hub_obj)
         end
     end
 
-    stats.defense = mmin(cfg.defense_cap, ((stats.barricades * 2) + (stats.guards * 5) + (stats.gadgets * 15) + (stats.alarms * 10)) * get_specialization_mult(camp, "defense"))
+    stats.defense = mmin(cfg.defense_cap, ((stats.barricades * 2) + (stats.guards * 5 * (stalker_camp_builder.needs_guard_mult and stalker_camp_builder.needs_guard_mult(camp) or 1)) + (stats.gadgets * 15) + (stats.alarms * 10)) * get_specialization_mult(camp, "defense"))
 
     local score = 50
     if stats.population > 0 then
@@ -5264,7 +5267,8 @@ function process_camp_morale()
         if camp._last_abandon_time and camp._last_abandon_time > now_sec then
             camp._last_abandon_time = nil
         end
-        if camp.happiness and camp.happiness < 20 then
+        if camp.happiness and camp.happiness < 20
+                and not (stalker_camp_builder.needs_blocks_desertion and stalker_camp_builder.needs_blocks_desertion(camp)) then
             if camp._last_abandon_time and (now_sec - camp._last_abandon_time) < 7200 then
             elseif camp.survivors then
                 local surv_count = 0

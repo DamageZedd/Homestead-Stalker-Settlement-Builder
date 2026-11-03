@@ -1424,7 +1424,12 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
         local u_w, m_w, t_items, pct = stalker_camp_builder.get_camp_storage_metrics(camp, hub_obj)
         storage_str = sformat("Storage: %d / %d kg (%d%% Cap)", u_w, m_w, pct)
     end
-    self.camp_supplies:SetText(sformat("Provisions: %s   |   %s", food_status, storage_str))
+    local needs_txt = stalker_camp_builder.needs_summary_text and stalker_camp_builder.needs_summary_text(camp)
+    if needs_txt then
+        self.camp_supplies:SetText(sformat("%s   |   %s", needs_txt, storage_str))
+    else
+        self.camp_supplies:SetText(sformat("Provisions: %s   |   %s", food_status, storage_str))
+    end
 
     -- the camp's morale as get_camp_stats scores it (camp.happiness): settlers leave below 20,
     -- and the map marker warns below 40

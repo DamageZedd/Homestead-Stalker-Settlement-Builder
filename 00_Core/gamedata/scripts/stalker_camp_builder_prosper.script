@@ -79,6 +79,7 @@ end
 -- credit a settler's cut, clamped so the real-time economy cannot run away
 function sb.prosper_credit(survivor, amount)
     if not (survivor and amount and amount > 0 and prosper_cut_on()) then return 0 end
+    if sb.needs_starving and sb.needs_starving(survivor) then return 0 end
     local have = survivor.savings or 0
     local add = mmin(amount, mmax(0, prosper_savings_cap() - have))
     if add <= 0 then return 0 end

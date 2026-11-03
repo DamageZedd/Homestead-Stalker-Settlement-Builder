@@ -173,3 +173,13 @@ Nothing can be play-tested here; every phase ends with a short in-game checklist
 - Decisions taken for the open questions (change them if you disagree): water is its own need and a camp with a water pump counts as supplied; vodka/beer/treats are "comfort" food, raw meat is eaten last; cap -35; catch-up cap 1.
 - Differences from the sketch above: the "Thin" tier was dropped (a lean camp eating one class would be penalised every day, against section 5); the penalty only comes from unserved settlers, plus the variety bonus. Job refusal, guard multiplier, desertion toggle, savings slowdown and the PDA panel are still phases 3-4.
 - Known gap: if the toggle is switched off for a long time and on again, the stored clock is stale; the catch-up cap limits the cost to `needs_catchup_cap` rounds, and the grace period is not renewed.
+
+## 14. Implementation status (phases 3-4 done, not play-tested)
+
+- PDA: while Living Needs is on, the overview "Provisions" line shows `Needs: <tier>, Variety n/3` before the storage figure (`ui_stalker_camp_builder_pda.script`, `needs_summary_text`). No new widgets, so the layout is unchanged. The separate Stores sub-panel (stocked days, daily draw) is not built.
+- Job refusal: `needs_job_refused` is checked in `_calc_job_paused_status`, so the existing pause path and the PDA reason ("Too Hungry") apply. Only the settlers who went without are marked (first N by id, N = unserved), farmers, hunters, cooks and scavengers are exempt, guards and idle settlers are not marked, and the mark lapses after one round.
+- Guards: `get_camp_stats` multiplies the guard term of `stats.defense` by 0.6 while the camp is Starving (tier 3), so the raid chance rises. No NPC combat change.
+- Savings: `prosper_credit` pays nothing to settlers of a Starving camp.
+- Desertion: new MCM `needs_desertion`; when off, a shortage-driven penalty blocks the below-20 desertion roll. A warning toast (once per 2 game days) appears when happiness is under 30 with an active penalty.
+- New MCM options: `needs_job_refusal`, `needs_guard_penalty`, `needs_desertion` (all default on, effective only with the master toggle).
+- Not done: production at half rate while starving (listed in section 4), the Stores sub-panel, medical/ammo (phase 5). The unused string `st_homestead_needs_tier_1` is kept for a future "Thin" tier.
