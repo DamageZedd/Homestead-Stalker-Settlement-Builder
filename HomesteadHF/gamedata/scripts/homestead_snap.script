@@ -98,7 +98,7 @@ local function get_info(section)
         local cls = ini_sys:r_string_ex(section, "homestead_snap")
         if cls == "roof" then
             cls = "roof_flat"
-            for _, kind in ipairs({ "slope", "hip", "valley", "pyramid" }) do
+            for _, kind in ipairs({ "slope", "hip", "valley", "pyramid", "triangle" }) do
                 if string.find(section, kind, 1, true) then cls = "roof_" .. kind end
             end
         end
@@ -107,7 +107,7 @@ local function get_info(section)
         elseif cls == "wall_low" then
             info = { class = "wall_low", w = TILE, t = WALL_T }
         elseif cls == "foundation" or cls == "floor" or cls == "stairs" or cls == "wall_gable" or cls == "roof_flat"
-            or cls == "floor_tri" or cls == "foundation_tri" or cls == "post" or cls == "steps"
+            or cls == "roof_triangle" or cls == "floor_tri" or cls == "foundation_tri" or cls == "post" or cls == "steps"
             or cls == "roof_slope" or cls == "roof_hip" or cls == "roof_valley" or cls == "roof_pyramid" then
             info = { class = cls }
         else
@@ -201,7 +201,8 @@ local ACCEPTS = {
     wall_low   = { foundation = true, floor = true },
     post       = { foundation = true, floor = true },
     steps      = { foundation = true },
-    roof_flat  = { wall = true, roof_flat = true },
+    roof_flat  = { wall = true, roof_flat = true, roof_triangle = true },
+    roof_triangle = { wall = true, roof_flat = true, roof_triangle = true },
     roof_slope = { wall = true, roof_slope = true, roof_hip = true, roof_valley = true },
     roof_hip   = { wall = true, roof_slope = true, roof_hip = true },
     roof_valley  = { wall = true, roof_slope = true },
@@ -346,11 +347,11 @@ local function sockets(held, tinfo)
     elseif hc == "floor" and tc == "foundation" then
         neighbours(FOUND_TOP - SLAB, FOUND_TOP)
 
-    elseif (hc == "floor" or hc == "roof_flat" or hc == "roof_pyramid") and tc == "wall" then
+    elseif (hc == "floor" or hc == "roof_flat" or hc == "roof_pyramid" or hc == "roof_triangle") and tc == "wall" then
         -- the tile on top of the wall, on either side of it
         for _, lx in ipairs(wall_laterals(tinfo)) do
-            add(lx, WALL_H, TILE / 2 - tinfo.t / 2 + WALL_Z, 0, lx / 2, WALL_H, 0.6)
-            add(lx, WALL_H, -(TILE / 2 + tinfo.t / 2) + WALL_Z, 0, lx / 2, WALL_H, -0.6)
+            add(lx, WALL_H, TILE / 2 - tinfo.t / 2 + WALL_Z, 0, lx / 2, WALL_H, 0.6, hc == "roof_triangle")
+            add(lx, WALL_H, -(TILE / 2 + tinfo.t / 2) + WALL_Z, 0, lx / 2, WALL_H, -0.6, hc == "roof_triangle")
         end
 
     elseif (hc == "roof_slope" or hc == "roof_hip" or hc == "roof_valley") and tc == "wall" then
@@ -396,8 +397,9 @@ local function sockets(held, tinfo)
     elseif hc == "stairs" and (tc == "floor" or tc == "foundation") then
         add(0, TOP[tc], 0, 0, 0, TOP[tc], 0, true)
 
-    elseif hc == "roof_flat" and tc == "roof_flat" then
-        neighbours(0, SLAB)
+    elseif (hc == "roof_flat" or hc == "roof_triangle") and (tc == "roof_flat" or tc == "roof_triangle") then
+        neighbours(0, SLAB, hc == "roof_triangle")
+        if hc == "roof_triangle" and tc == "roof_triangle" then add(0, 0, 0, math.pi, 0, SLAB, 0) end
 
     elseif ROOF_SHAPE[hc] and ROOF_SHAPE[tc] then
         -- beside it, further up / down the slope, meeting at a ridge, or around a hip / valley

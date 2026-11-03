@@ -132,4 +132,16 @@
 	<string id="st_homestead_stairs_spiral_descr">
 		<text>—тупени, вьющиес€ вокруг центральной колонны, поднимаютс€ на один этаж в пределах одной клетки.  репитс€ к полам и фундаментам.</text>
 	</string>
+	<string id="st_homestead_roof_triangle">
+		<text>“реугольна€ жест€на€ крыша</text>
+	</string>
+	<string id="st_homestead_roof_triangle_descr">
+		<text>ѕоловина клетки плоской жест€ной крыши, срезанна€ по диагонали.  репитс€ поверх стен в любой из четырех ориентаций или к такому же треугольнику или плоской крыше, дополн€€ клетку.</text>
+	</string>
+	<string id="st_homestead_stairs_spiral_end">
+		<text>ƒощатый пол с отверстием дл€ винтовой лестницы</text>
+	</string>
+	<string id="st_homestead_stairs_spiral_end_descr">
+		<text>ƒощата€ клетка пола с круглым отверстием и перилами, дл€ верха винтовой лестницы.  репитс€ как пол: р€дом с полами и фундаментами или поверх стен.</text>
+	</string>
 </string_table>

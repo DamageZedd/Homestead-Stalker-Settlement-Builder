@@ -861,3 +861,81 @@ homestead_snap                          = stairs
 ; width, depth, height / origin x, y (up), z: the nominal piece, like the Hideout Furniture walls
 bounding_box_size                       = 4.300000, 4.300000, 2.686630
 bounding_box_origin                     = 0.000000, 1.343315, 0.000000
+
+;--------------------------
+;--- Triangular Tin Roof
+;--------------------------
+
+[homestead_roof_triangle]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\building\hs_roof_triangle.ogf
+description                             = st_homestead_roof_triangle_descr
+inv_name                                = st_homestead_roof_triangle
+inv_name_short                          = st_homestead_roof_triangle
+inv_grid_x                              = 6
+inv_grid_y                              = 3
+inv_grid_height                         = 3
+inv_grid_width                          = 3
+icons_texture                           = ui\ui_icon_homestead_building
+cost                                    = 1200
+inv_weight                              = 3.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_hs_roof_triangle
+
+[placeable_hs_roof_triangle]:physic_object
+visual                                  = dynamics\HomesteadHF\building\hs_roof_triangle.ogf
+inv_weight                              = 120.0
+placeable_type                          = prop
+base_rotation                           = 0
+fixed_bones                             = link
+script_binding                          = bind_hf_base.init
+item_section                            = homestead_roof_triangle
+homestead_snap                          = roof
+
+; width, depth, height / origin x, y (up), z: the nominal piece, like the Hideout Furniture walls
+bounding_box_size                       = 4.708950, 4.708950, 0.180000
+bounding_box_origin                     = 0.000000, 0.090000, 0.000000
+
+;--------------------------
+;--- Plank Floor with Spiral Opening
+;--------------------------
+
+[homestead_stairs_spiral_end]:tch_junk
+class                                   = II_ATTCH
+kind                                    = i_tool
+visual                                  = dynamics\HomesteadHF\building\hs_stairs_spiral_end.ogf
+description                             = st_homestead_stairs_spiral_end_descr
+inv_name                                = st_homestead_stairs_spiral_end
+inv_name_short                          = st_homestead_stairs_spiral_end
+inv_grid_x                              = 3
+inv_grid_y                              = 0
+inv_grid_height                         = 3
+inv_grid_width                          = 3
+icons_texture                           = ui\ui_icon_homestead_building
+cost                                    = 2600
+inv_weight                              = 6.0
+
+use1_functor                            = placeable_furniture.place_item
+use1_action_functor                     = placeable_furniture.func_place_item
+
+placeable_type                          = prop
+placeable_section                       = placeable_hs_stairs_spiral_end
+
+[placeable_hs_stairs_spiral_end]:physic_object
+visual                                  = dynamics\HomesteadHF\building\hs_stairs_spiral_end.ogf
+inv_weight                              = 240.0
+placeable_type                          = prop
+base_rotation                           = 0
+fixed_bones                             = link
+script_binding                          = bind_hf_base.init
+item_section                            = homestead_stairs_spiral_end
+homestead_snap                          = floor
+
+; width, depth, height / origin x, y (up), z: the nominal piece, like the Hideout Furniture walls
+bounding_box_size                       = 4.708950, 4.708950, 0.100000
+bounding_box_origin                     = 0.000000, 0.050000, 0.000000

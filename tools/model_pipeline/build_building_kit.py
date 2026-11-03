@@ -22,11 +22,11 @@ UV_SCALE = 1.0       # texture repeats per metre
 
 
 def mat(name):
-    for src in ("hs_floor_visual", "hs_foundation_visual_export", "hs_wall_window_visual"):
+    for src in ("hs_floor_visual", "hs_foundation_visual_export", "hs_wall_window_visual", "hs_roof_flat_visual_export"):
         o = bpy.data.objects.get(src)
         if o:
             for m in o.data.materials:
-                if m.name == name:
+                if m.name == name or m.name.rsplit(".", 1)[0] == name:
                     return m
     raise KeyError(name)
 
@@ -86,6 +86,22 @@ class Mesh:
         self._face([(x1, y1, z0), (x0, y1, z0), (x0, y1, z1), (x1, y1, z1)], mi)
         self._face([(x1, y0, z0), (x1, y1, z0), (x1, y1, z1), (x1, y0, z1)], mi)
         self._face([(x0, y1, z0), (x0, y0, z0), (x0, y0, z1), (x0, y1, z1)], mi)
+
+    def rbox(self, p, q, z0, z1, w, mi=0):
+        """Box along the ground line p -> q, w wide, z0..z1 tall (rails that follow a curve)."""
+        d = Vector((q[0] - p[0], q[1] - p[1], 0))
+        ln = d.length
+        d.normalize()
+        n = Vector((-d.y, d.x, 0)) * (w / 2)
+        a, b = Vector((p[0], p[1], 0)) - d * (w / 2), Vector((q[0], q[1], 0)) + d * (w / 2)
+        c = [a - n, b - n, b + n, a + n]
+        bot = [(v.x, v.y, z0) for v in c]
+        top = [(v.x, v.y, z1) for v in c]
+        self._face(top[::-1], mi)
+        self._face(bot, mi)
+        for i in range(4):
+            j = (i + 1) % 4
+            self._face([bot[i], bot[j], top[j], top[i]], mi)
 
     def wedge(self, x0, x1, ya, za, yb, zb, z_base=0.0, mi=0):
         """Slab between x0..x1 whose side profile runs from (ya, za) up to (yb, zb), solid down to z_base."""
@@ -179,21 +195,23 @@ def support_frame():
 
 
 # ---------------------------------------------------------------- floor / foundation triangles
-def triangle_of(src_name, name):
+def triangle_of(src_name, name, cap_mat=0, keep_uv=False):
     """Half a tile: the shipped slab cut along the diagonal (right angle at -X,-Y), same pivot as the full tile."""
     src = bpy.data.objects[src_name]
     bm = bmesh.new()
     bm.from_mesh(src.data)
     geom = bm.verts[:] + bm.edges[:] + bm.faces[:]
     bmesh.ops.bisect_plane(bm, geom=geom, plane_co=(0, 0, 0), plane_no=(1, 1, 0), clear_outer=True, clear_inner=False)
-    cut = [e for e in bm.edges if e.is_boundary]
+    cut = [e for e in bm.edges if e.is_boundary and all(abs(v.co.x + v.co.y) < 1e-4 for v in e.verts)]   # only the diagonal cut, not gaps inside the mesh
+    new_faces = []
     if cut:
         res = bmesh.ops.edgeloop_fill(bm, edges=cut) if hasattr(bmesh.ops, "edgeloop_fill") else None
         for f in (res or {}).get("faces", []):
-            f.material_index = 0
+            f.material_index = cap_mat
+            new_faces.append(f)
     bm.normal_update()
     uvl = bm.loops.layers.uv.verify()
-    for f in bm.faces:
+    for f in (new_faces if keep_uv else bm.faces):
         reproject(f, uvl)
     me = bpy.data.meshes.new(name + "_visual")
     bm.to_mesh(me)
@@ -211,6 +229,50 @@ def floor_triangle():
     tri = [(-HALF, -HALF), (HALF, -HALF), (-HALF, HALF)]
     m.prism(tri, 0, 0.06, PLANK)
     m.prism([(-HALF + 0.02, -HALF + 0.02), (HALF - 0.04, -HALF + 0.02), (-HALF + 0.02, HALF - 0.04)], 0.06, 0.1, BOARD, side=BOARD)
+    return m.finish()
+
+
+def roof_triangle():
+    """Half a flat tin roof tile cut along the diagonal (right angle at -X,-Y); the cut edge is closed with the wood."""
+    return triangle_of("hs_roof_flat_visual_export", "hsk_roof_triangle", cap_mat=0, keep_uv=True)
+
+
+def spiral_end():
+    """Floor tile with a round opening for the spiral stairs, railed round the opening except where the stairs arrive."""
+    m = new("hsk_stairs_spiral_end")
+    seg, r = 48, 2.2
+    z0, z1 = 0.0, 0.1
+
+    def edge_pt(a):
+        c, s = math.cos(a), math.sin(a)
+        k = HALF / max(abs(c), abs(s))
+        return (c * k, s * k)
+
+    ring = [(r * math.cos(2 * math.pi * i / seg), r * math.sin(2 * math.pi * i / seg)) for i in range(seg)]
+    out = [edge_pt(2 * math.pi * i / seg) for i in range(seg)]
+    for i in range(seg):
+        j = (i + 1) % seg
+        # corner of the tile between two outer points: add it when the edge turns
+        quad = [ring[i], out[i], out[j], ring[j]]
+        m._face([(x, y, z1) for x, y in reversed(quad)], BOARD)          # top, counter-clockwise seen from above
+        m._face([(x, y, z0) for x, y in quad], PLANK)                    # underside
+        m._face([(ring[i][0], ring[i][1], z0), (ring[j][0], ring[j][1], z0), (ring[j][0], ring[j][1], z1), (ring[i][0], ring[i][1], z1)], PLANK)
+        m._face([(out[i][0], out[i][1], z0), (out[j][0], out[j][1], z0), (out[j][0], out[j][1], z1), (out[i][0], out[i][1], z1)], PLANK)
+    # rail posts and top rail around the opening, open where the spiral arrives (angle about 250-290 deg)
+    gap0, gap1 = math.radians(235), math.radians(295)
+    rr = r - 0.06
+    for i in range(seg):
+        a = 2 * math.pi * i / seg
+        if gap0 < a < gap1:
+            continue
+        if i % 4 == 0:
+            m.box(rr * math.cos(a) - 0.04, rr * math.cos(a) + 0.04, rr * math.sin(a) - 0.04, rr * math.sin(a) + 0.04, z1, z1 + 1.0, BOARD)
+        j = i + 1
+        b = 2 * math.pi * j / seg
+        if gap0 < b < gap1:
+            continue
+        p, q = (rr * math.cos(a), rr * math.sin(a)), (rr * math.cos(b), rr * math.sin(b))
+        m.rbox(p, q, z1 + 0.9, z1 + 0.97, 0.06, BOARD)
     return m.finish()
 
 
@@ -338,11 +400,22 @@ BUILDERS = {
     "hsk_stairs_u": stairs_u,
     "hsk_stairs_spiral": stairs_spiral,
 }
+BATCH2 = {"hsk_roof_triangle": roof_triangle, "hsk_stairs_spiral_end": spiral_end}
 
 
 def build_all():
     out = {}
     for name, fn in BUILDERS.items():
+        old = bpy.data.objects.get(name + "_visual")
+        if old:
+            bpy.data.objects.remove(old, do_unlink=True)
+        out[name] = fn()
+    return out
+
+
+def build_batch2():
+    out = {}
+    for name, fn in BATCH2.items():
         old = bpy.data.objects.get(name + "_visual")
         if old:
             bpy.data.objects.remove(old, do_unlink=True)

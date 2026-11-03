@@ -96,6 +96,13 @@ def boxes_for(name):
         return tri_boxes(0.1)
     if name == "hsk_foundation_triangle":
         return tri_boxes(0.4)
+    if name == "hsk_roof_triangle":
+        return tri_boxes(0.18)
+    if name == "hsk_stairs_spiral_end":
+        h, e = HALF, 2.2
+        return [slab((-h, -h), (h, -e), 0, 0.1), slab((-h, e), (h, h), 0, 0.1), slab((-h, -e), (-e, e), 0, 0.1),
+                slab((e, -e), (h, e), 0, 0.1)] + [slab((sx * 1.6 if sx > 0 else -h, sy * 1.6 if sy > 0 else -h), (h if sx > 0 else -1.6, h if sy > 0 else -1.6), 0, 0.1)
+                                                  for sx in (-1, 1) for sy in (-1, 1)]
     if name == "hsk_stairs_small":
         return [flight_box(-0.755, 0.755, -0.6, 0.6, 0.0, 0.4)]
     if name == "hsk_ramp":

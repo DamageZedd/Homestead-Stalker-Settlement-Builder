@@ -1353,6 +1353,8 @@ local structure_type_exact = {
     placeable_hs_stairs_l_mirrored = "decor",
     placeable_hs_stairs_u        = "decor",
     placeable_hs_stairs_spiral   = "decor",
+    placeable_hs_roof_triangle   = "decor",
+    placeable_hs_stairs_spiral_end = "decor",
 }
 
 local structure_type_substrings = {
@@ -6123,6 +6125,8 @@ function on_game_start()
             ["placeable_hs_roof_pyramid"] = "roof",
             ["placeable_hs_floor"]        = "floor",
             ["placeable_hs_floor_triangle"] = "floor",
+            ["placeable_hs_roof_triangle"] = "roof",
+            ["placeable_hs_stairs_spiral_end"] = "floor",
         }
         local _roof_cover_cache = nil
         local _roof_cover_cache_tg = -1

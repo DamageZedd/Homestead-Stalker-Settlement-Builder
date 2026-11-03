@@ -132,4 +132,16 @@
 	<string id="st_homestead_stairs_spiral_descr">
 		<text>Treads winding round a central column, climbing one storey inside one tile. Snaps onto floors and foundations.</text>
 	</string>
+	<string id="st_homestead_roof_triangle">
+		<text>Triangular Tin Roof</text>
+	</string>
+	<string id="st_homestead_roof_triangle_descr">
+		<text>Half a flat tin roof tile cut along the diagonal. Snaps on top of walls in any of the four orientations, or against a matching triangle or flat roof to complete a tile.</text>
+	</string>
+	<string id="st_homestead_stairs_spiral_end">
+		<text>Plank Floor with Spiral Opening</text>
+	</string>
+	<string id="st_homestead_stairs_spiral_end_descr">
+		<text>A plank floor tile with a round opening and a railing, for the top of the spiral stairs. Snaps like a floor: beside floors and foundations, or on top of walls.</text>
+	</string>
 </string_table>

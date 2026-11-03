@@ -4,6 +4,7 @@
 
 ### More Building Kit Pieces
 - **12 new pieces** modelled on SCUM's modular base-building set, all on the kit's existing plank, board and concrete textures: low plank wall, plank wall with loophole, wide double doorway, wooden support post, triangular plank floor, triangular concrete foundation, plank entry steps, plank ramp, L-shaped stairs (and mirrored), U-shaped stairs and spiral stairs. Stairs, ramp and spiral are open underneath so you can walk under them.
+- **Also**: a triangular tin roof (half a flat roof tile) and a plank floor with a round opening and railing for the top of the spiral stairs.
 - **Snapping**: the loophole wall and doorway snap like walls; the low wall snaps to floor and foundation edges; triangles snap in any of four turns and complete a tile against a matching triangle; the post snaps to tile corners; entry steps snap outside a foundation edge; the stairs and ramp snap like the existing stairs. Crafted at the workbench with the other building pieces.
 
 ### Settler Deaths Cost Faction Reputation
