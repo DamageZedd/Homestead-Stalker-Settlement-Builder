@@ -760,7 +760,71 @@
         <guide_header_lbl x="10" y="4" width="544" height="20">
             <text font="letterica18" r="238" g="196" b="112" align="c">st_pda_guide_title</text>
         </guide_header_lbl>
-        <guide_scroll x="0" y="28" width="564" height="500" always_show_scroll="1" stretch="1"/>
+        <guide_scroll x="0" y="62" width="564" height="466" always_show_scroll="1" stretch="1"/>
+    
+        <guide_qs_hdr x="0" y="28" width="564" height="22" stretch="1">
+            <texture>ui_homestead_module_header</texture>
+        </guide_qs_hdr>
+        <guide_qs_lbl x="10" y="31" width="544" height="16">
+            <text font="letterica16" r="238" g="196" b="112" align="l" vert_align="c">st_pda_guide_quick</text>
+        </guide_qs_lbl>
+        <guide_qs_text x="10" y="54" width="544" height="196">
+            <text font="letterica16" r="200" g="200" b="200" align="l" vert_align="t" complex_mode="1"/>
+        </guide_qs_text>
+        <guide_tp_hdr x="0" y="256" width="564" height="22" stretch="1">
+            <texture>ui_homestead_module_header</texture>
+        </guide_tp_hdr>
+        <guide_tp_lbl x="10" y="259" width="544" height="16">
+            <text font="letterica16" r="238" g="196" b="112" align="l" vert_align="c">st_pda_guide_topics</text>
+        </guide_tp_lbl>
+        <btn_guide_tile_1 x="0" y="286" width="138" height="48" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_settle</text>
+        </btn_guide_tile_1>
+        <btn_guide_tile_2 x="141" y="286" width="138" height="48" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_build</text>
+        </btn_guide_tile_2>
+        <btn_guide_tile_3 x="282" y="286" width="138" height="48" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_settlers</text>
+        </btn_guide_tile_3>
+        <btn_guide_tile_4 x="423" y="286" width="138" height="48" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_jobs</text>
+        </btn_guide_tile_4>
+        <btn_guide_tile_5 x="0" y="340" width="138" height="48" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_storage</text>
+        </btn_guide_tile_5>
+        <btn_guide_tile_6 x="141" y="340" width="138" height="48" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_defense</text>
+        </btn_guide_tile_6>
+        <btn_guide_tile_7 x="282" y="340" width="138" height="48" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_rivals</text>
+        </btn_guide_tile_7>
+        <btn_guide_tile_8 x="423" y="340" width="138" height="48" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_radio</text>
+        </btn_guide_tile_8>
+        <btn_guide_tile_9 x="0" y="394" width="138" height="48" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_morale</text>
+        </btn_guide_tile_9>
+        <btn_guide_tile_10 x="141" y="394" width="138" height="48" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_mcm</text>
+        </btn_guide_tile_10>
+
+        <btn_guide_back x="0" y="30" width="150" height="26" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_back</text>
+        </btn_guide_back>
+        <guide_reader_lbl x="160" y="34" width="394" height="18">
+            <text font="letterica18" r="238" g="196" b="112" align="l" vert_align="c"/>
+        </guide_reader_lbl>
     </guide_panel>
 
     <!-- Guide templates -->

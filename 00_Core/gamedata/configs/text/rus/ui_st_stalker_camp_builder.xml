@@ -982,6 +982,45 @@
     <string id="st_pda_guide_title">
         <text>РУКОВОДСТВО ПО ВЫЖИВАНИЮ В ПОСЕЛЕНИИ</text>
     </string>
+    <string id="st_pda_guide_quick">
+        <text>БЫСТРЫЙ СТАРТ</text>
+    </string>
+    <string id="st_pda_guide_topics">
+        <text>РАЗДЕЛЫ (нажмите, чтобы прочитать)</text>
+    </string>
+    <string id="st_pda_guide_back">
+        <text>К разделам</text>
+    </string>
+    <string id="st_pda_guide_t_settle">
+        <text>Поселения</text>
+    </string>
+    <string id="st_pda_guide_t_build">
+        <text>Строительство</text>
+    </string>
+    <string id="st_pda_guide_t_settlers">
+        <text>Поселенцы</text>
+    </string>
+    <string id="st_pda_guide_t_jobs">
+        <text>Работы</text>
+    </string>
+    <string id="st_pda_guide_t_storage">
+        <text>Склад</text>
+    </string>
+    <string id="st_pda_guide_t_defense">
+        <text>Защита и налёты</text>
+    </string>
+    <string id="st_pda_guide_t_rivals">
+        <text>Лагеря соперников</text>
+    </string>
+    <string id="st_pda_guide_t_radio">
+        <text>Радио</text>
+    </string>
+    <string id="st_pda_guide_t_morale">
+        <text>Мораль и сбережения</text>
+    </string>
+    <string id="st_pda_guide_t_mcm">
+        <text>Настройки MCM</text>
+    </string>
     <string id="st_pda_rival_status_unoccupied">
         <text>Не занято</text>
     </string>

@@ -814,7 +814,7 @@ function SettlementManagerPDA:InitControls()
     xml:InitStatic("guide_panel:guide_header_bg", self.guide_panel)
     xml:InitTextWnd("guide_panel:guide_header_lbl", self.guide_panel)
 
-    local guide_sections = {
+    self.guide_sections = {
         { header = "st_guide_s1_header",        body = "st_guide_s1_body"        },  -- 1. Establishing & Hubs
         { header = "st_guide_build_header",     body = "st_guide_build_body"     },  -- 2. Building Kit, Snapping & Placement
         { header = "st_guide_s2_header",        body = "st_guide_s2_body"        },  -- 3. Recruitment & Housing
@@ -843,42 +843,51 @@ function SettlementManagerPDA:InitControls()
         { header = "st_guide_s10_header",       body = "st_guide_s10_body"       },  -- 11. Quick Start Guide
     }
 
-    for i, sec in ipairs(guide_sections) do
-        local is_job = (sec.is_job == true)
-        local hdr_cont_name = is_job and "guide_job_header_container" or "guide_section_header_container"
-        local hdr_bg_name   = is_job and "guide_job_header_bg" or "guide_section_header_bg"
-        local hdr_lbl_name  = is_job and "guide_job_header_lbl" or "guide_section_header_lbl"
+    -- topics: each opens some of the sections above (index into self.guide_sections)
+    self.guide_topics = {
+        { str = "st_pda_guide_t_settle",  secs = { 1 } },
+        { str = "st_pda_guide_t_build",   secs = { 2 } },
+        { str = "st_pda_guide_t_settlers", secs = { 3 } },
+        { str = "st_pda_guide_t_jobs",    secs = { 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 } },
+        { str = "st_pda_guide_t_storage", secs = { 19 } },
+        { str = "st_pda_guide_t_defense", secs = { 20 } },
+        { str = "st_pda_guide_t_rivals",  secs = { 21 } },
+        { str = "st_pda_guide_t_radio",   secs = { 22 } },
+        { str = "st_pda_guide_t_morale",  secs = { 23, 24 } },
+        { str = "st_pda_guide_t_mcm",     secs = { 25 } },
+    }
 
-        local hdr_cont = xml:InitStatic(hdr_cont_name, nil)
-        local hdr_bg   = xml:InitStatic(hdr_bg_name, hdr_cont)
-        local hdr_lbl  = xml:InitTextWnd(hdr_lbl_name, hdr_cont)
-        hdr_lbl:SetText(game.translate_string(sec.header))
-        self.guide_scroll:AddWindow(hdr_cont, true)
-
-        local body_cont = xml:InitStatic("guide_section_body_container", nil)
-        local body_text = xml:InitTextWnd("guide_section_body_text", body_cont)
-
-        body_text:SetTextComplexMode(true)
-        body_text:SetWndPos(vector2():set(10, 4))
-        body_text:SetWndSize(vector2():set(524, 20))
-
-        local b_text = game.translate_string(sec.body)
-        if not b_text:find("\\n") and b_text:find("\n") then
-            b_text = b_text:gsub("\n", "\\n")
-        end
-        body_text:SetText(hs_theme.recolor(b_text))
-        body_text:AdjustHeightToText()
-        local bh = body_text:GetHeight()
-        body_text:SetWndSize(vector2():set(524, bh))
-        body_cont:SetWndSize(vector2():set(544, bh + 14))
-        self.guide_scroll:AddWindow(body_cont, true)
-
-        if i < #guide_sections then
-            local sep_cont = xml:InitStatic("guide_separator_container", nil)
-            xml:InitStatic("guide_separator_line", sep_cont)
-            self.guide_scroll:AddWindow(sep_cont, true)
-        end
+    -- home view: quick start text + topic tiles; reader view: back button + one topic in the scroll
+    self.guide_home_wnds = {}
+    local function home_add(w) self.guide_home_wnds[#self.guide_home_wnds + 1] = w; return w end
+    home_add(xml:InitStatic("guide_panel:guide_qs_hdr", self.guide_panel))
+    home_add(xml:InitTextWnd("guide_panel:guide_qs_lbl", self.guide_panel))
+    local qs = home_add(xml:InitTextWnd("guide_panel:guide_qs_text", self.guide_panel))
+    qs:SetTextComplexMode(true)
+    local qs_text = game.translate_string("st_guide_s10_body")
+    if not qs_text:find("\\n") and qs_text:find("\n") then
+        qs_text = qs_text:gsub("\n", "\\n")
     end
+    qs:SetText(hs_theme.recolor(qs_text))
+    home_add(xml:InitStatic("guide_panel:guide_tp_hdr", self.guide_panel))
+    home_add(xml:InitTextWnd("guide_panel:guide_tp_lbl", self.guide_panel))
+    for i = 1, #self.guide_topics do
+        local btn_name = "btn_guide_tile_" .. i
+        local btn = xml:Init3tButton("guide_panel:" .. btn_name, self.guide_panel)
+        self:Register(btn, btn_name)
+        self:AddCallback(btn_name, ui_events.BUTTON_CLICKED, function() self:OpenGuideTopic(i) end, self)
+        home_add(btn)
+    end
+
+    self.guide_reader_wnds = { self.guide_scroll }
+    self.btn_guide_back = xml:Init3tButton("guide_panel:btn_guide_back", self.guide_panel)
+    self:Register(self.btn_guide_back, "btn_guide_back")
+    self:AddCallback("btn_guide_back", ui_events.BUTTON_CLICKED, function() self:CloseGuideTopic() end, self)
+    self.guide_reader_wnds[#self.guide_reader_wnds + 1] = self.btn_guide_back
+    self.guide_reader_lbl = xml:InitTextWnd("guide_panel:guide_reader_lbl", self.guide_panel)
+    self.guide_reader_wnds[#self.guide_reader_wnds + 1] = self.guide_reader_lbl
+    self.guide_topic = nil
+    self:ApplyGuideView()
 
     self.overview_panel:Show(true)
     self.survivors_panel:Show(false)
@@ -960,6 +969,7 @@ function SettlementManagerPDA:SetTab(tab_name)
 
     if not has_sb then
         self.guide_panel:Show(self.current_tab == "guide" or self.current_tab == "overview")
+        self:ApplyGuideView()
         return
     end
 
@@ -997,6 +1007,10 @@ function SettlementManagerPDA:SetTab(tab_name)
         self.rivals_panel:Show(self.current_tab == "rivals")
         if self.radio_panel then self.radio_panel:Show(self.current_tab == "radio") end
         self.guide_panel:Show(self.current_tab == "guide")
+    end
+
+    if self.current_tab == "guide" then
+        self:ApplyGuideView()
     end
 
     if self.current_tab == "radio" then
@@ -3330,6 +3344,66 @@ function SettlementManagerPDA:OnLocateRivalMapClicked()
         pda_menu:SetActiveSubdialog("eptTasks")
     end
     news_manager.send_tip(db.actor, string.format("%s: %s (%s)", game.translate_string("st_pda_located_map"), rcamp.name or smart, game.translate_string(rcamp.level or "unknown")), nil, "general_stalker", 4000)
+end
+
+-- HOW TO PLAY: topic tiles (home) and one-topic reader
+function SettlementManagerPDA:ApplyGuideView()
+    if not self.guide_home_wnds then return end
+    local reader = (self.guide_topic ~= nil)
+    for _, w in ipairs(self.guide_home_wnds) do w:Show(not reader) end
+    for _, w in ipairs(self.guide_reader_wnds) do w:Show(reader) end
+end
+
+function SettlementManagerPDA:CloseGuideTopic()
+    self.guide_topic = nil
+    self:ApplyGuideView()
+end
+
+function SettlementManagerPDA:OpenGuideTopic(idx)
+    local topic = self.guide_topics and self.guide_topics[idx]
+    if not topic then return end
+    local xml = self.xml
+    self.guide_topic = idx
+    self.guide_scroll:Clear()
+    self.guide_reader_lbl:SetText(game.translate_string(topic.str))
+
+    for n, si in ipairs(topic.secs) do
+        local sec = self.guide_sections[si]
+        local is_job = (sec.is_job == true)
+        local hdr_cont_name = is_job and "guide_job_header_container" or "guide_section_header_container"
+        local hdr_bg_name   = is_job and "guide_job_header_bg" or "guide_section_header_bg"
+        local hdr_lbl_name  = is_job and "guide_job_header_lbl" or "guide_section_header_lbl"
+
+        local hdr_cont = xml:InitStatic(hdr_cont_name, nil)
+        xml:InitStatic(hdr_bg_name, hdr_cont)
+        local hdr_lbl = xml:InitTextWnd(hdr_lbl_name, hdr_cont)
+        hdr_lbl:SetText(game.translate_string(sec.header))
+        self.guide_scroll:AddWindow(hdr_cont, true)
+
+        local body_cont = xml:InitStatic("guide_section_body_container", nil)
+        local body_text = xml:InitTextWnd("guide_section_body_text", body_cont)
+        body_text:SetTextComplexMode(true)
+        body_text:SetWndPos(vector2():set(10, 4))
+        body_text:SetWndSize(vector2():set(524, 20))
+
+        local b_text = game.translate_string(sec.body)
+        if not b_text:find("\\n") and b_text:find("\n") then
+            b_text = b_text:gsub("\n", "\\n")
+        end
+        body_text:SetText(hs_theme.recolor(b_text))
+        body_text:AdjustHeightToText()
+        local bh = body_text:GetHeight()
+        body_text:SetWndSize(vector2():set(524, bh))
+        body_cont:SetWndSize(vector2():set(544, bh + 14))
+        self.guide_scroll:AddWindow(body_cont, true)
+
+        if n < #topic.secs then
+            local sep_cont = xml:InitStatic("guide_separator_container", nil)
+            xml:InitStatic("guide_separator_line", sep_cont)
+            self.guide_scroll:AddWindow(sep_cont, true)
+        end
+    end
+    self:ApplyGuideView()
 end
 
 -- RADIO FEED HANDLERS

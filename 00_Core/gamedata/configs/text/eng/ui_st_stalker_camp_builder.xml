@@ -955,6 +955,45 @@
     <string id="st_pda_guide_title">
         <text>HOMESTEAD SURVIVAL GUIDE</text>
     </string>
+    <string id="st_pda_guide_quick">
+        <text>QUICK START</text>
+    </string>
+    <string id="st_pda_guide_topics">
+        <text>TOPICS (click one to read it)</text>
+    </string>
+    <string id="st_pda_guide_back">
+        <text>Back to topics</text>
+    </string>
+    <string id="st_pda_guide_t_settle">
+        <text>Settlements</text>
+    </string>
+    <string id="st_pda_guide_t_build">
+        <text>Building</text>
+    </string>
+    <string id="st_pda_guide_t_settlers">
+        <text>Settlers</text>
+    </string>
+    <string id="st_pda_guide_t_jobs">
+        <text>Jobs</text>
+    </string>
+    <string id="st_pda_guide_t_storage">
+        <text>Storage</text>
+    </string>
+    <string id="st_pda_guide_t_defense">
+        <text>Defense &amp; Raids</text>
+    </string>
+    <string id="st_pda_guide_t_rivals">
+        <text>Rival Camps</text>
+    </string>
+    <string id="st_pda_guide_t_radio">
+        <text>Radio Feed</text>
+    </string>
+    <string id="st_pda_guide_t_morale">
+        <text>Morale &amp; Savings</text>
+    </string>
+    <string id="st_pda_guide_t_mcm">
+        <text>MCM Options</text>
+    </string>
     <string id="st_pda_rival_status_unoccupied">
         <text>Unoccupied</text>
     </string>
