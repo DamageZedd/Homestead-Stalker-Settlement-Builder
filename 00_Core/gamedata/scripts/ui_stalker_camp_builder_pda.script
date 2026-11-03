@@ -12,6 +12,23 @@ local function make_gauge(pct, total_blocks, fill_char, empty_char)
     local empty = mmax(0, blocks - filled)
     return string.rep(fill_char or "|", filled) .. string.rep(empty_char or ".", empty)
 end
+-- one progress bar for the whole PDA: a black track (bg) and a tinted fill, both the white bar
+-- texture. bar = { bg =, fill =, w = fill width at 100% }; role picks the fill color.
+local BAR_MIN_W = 6
+local function set_bar(bar, frac, role)
+    if not bar then return end
+    frac = math.max(0, math.min(1, frac or 0))
+    if bar.bg and bar.bg.SetTextureColor then bar.bg:SetTextureColor(GetARGB(255, 0, 0, 0)) end
+    local fill = bar.fill
+    if not fill then return end
+    local full = bar.w or 332
+    -- a bar with anything in it shows at least a few pixels, so a low value still reads as a bar
+    local w = frac > 0 and math.min(full, math.max(BAR_MIN_W, math.floor(full * frac))) or 1
+    fill:SetWndSize(vector2():set(w, 10))
+    fill:Show(frac > 0)
+    if fill.SetTextureColor then fill:SetTextureColor(hs_theme.argb(role or "body")) end
+end
+
 local function escape_pda_pattern(str)
     return (str:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1"))
 end
@@ -484,6 +501,13 @@ function SettlementManagerPDA:InitControls()
     self.raid_banner_bg = xml:InitStatic("overview_content:raid_banner_bg", self.overview_content)
     self.raid_banner_lbl = xml:InitTextWnd("overview_content:raid_banner_lbl", self.overview_content)
 
+    -- cards are created before the text that sits on them: a later static draws over earlier text
+    self.threat_card_bg = xml:InitStatic("overview_content:threat_card_bg", self.overview_content)
+    self.threat_header_bg = xml:InitStatic("overview_content:threat_header_bg", self.overview_content)
+    self.needs_card_bg = xml:InitStatic("overview_content:needs_card_bg", self.overview_content)
+    self.needs_header_bg = xml:InitStatic("overview_content:needs_header_bg", self.overview_content)
+    self.morale_card_bg = xml:InitStatic("overview_content:morale_card_bg", self.overview_content)
+    self.morale_header_bg = xml:InitStatic("overview_content:morale_header_bg", self.overview_content)
     self.pop_card_bg = xml:InitStatic("overview_content:pop_card_bg", self.overview_content)
     self.pop_header_bg = xml:InitStatic("overview_content:pop_header_bg", self.overview_content)
     self.pop_card_lbl = xml:InitTextWnd("overview_content:pop_card_lbl", self.overview_content)
@@ -506,8 +530,6 @@ function SettlementManagerPDA:InitControls()
     self.camp_needs = xml:InitTextWnd("overview_content:camp_needs", self.overview_content)
     self.camp_storage = xml:InitTextWnd("overview_content:camp_storage", self.overview_content)
     self.camp_comfort = xml:InitTextWnd("overview_content:camp_comfort", self.overview_content)
-    self.morale_card_bg = xml:InitStatic("overview_content:morale_card_bg", self.overview_content)
-    self.morale_header_bg = xml:InitStatic("overview_content:morale_header_bg", self.overview_content)
     self.morale_card_lbl = xml:InitTextWnd("overview_content:morale_card_lbl", self.overview_content)
     self.ov_row_labels = {}
     for _, lab in ipairs({ "settlers", "occupancy", "rating", "threat", "perimeter", "food", "water", "needs", "storage", "morale", "comfort" }) do
@@ -559,12 +581,8 @@ function SettlementManagerPDA:InitControls()
         self:AddCallback("btn_ov_tab_" .. nm, ui_events.BUTTON_CLICKED, function() self:SetOverviewTab(nm) end, self)
         self.ov_tab_btns[nm] = btn
     end
-    self.threat_card_bg = xml:InitStatic("overview_content:threat_card_bg", self.overview_content)
-    self.threat_header_bg = xml:InitStatic("overview_content:threat_header_bg", self.overview_content)
     self.threat_card_lbl = xml:InitTextWnd("overview_content:threat_card_lbl", self.overview_content)
     self.camp_threat_detail = xml:InitTextWnd("overview_content:camp_threat_detail", self.overview_content)
-    self.needs_card_bg = xml:InitStatic("overview_content:needs_card_bg", self.overview_content)
-    self.needs_header_bg = xml:InitStatic("overview_content:needs_header_bg", self.overview_content)
     self.needs_card_lbl = xml:InitTextWnd("overview_content:needs_card_lbl", self.overview_content)
     self.ov_bars = {}
     for _, nm in ipairs({ "pop", "morale", "def", "storage" }) do
@@ -625,6 +643,12 @@ function SettlementManagerPDA:InitControls()
     self.survivor_name_txt = xml:InitTextWnd("job_content:survivor_name", self.job_content)
     self.survivor_rank_badge = xml:InitTextWnd("job_content:survivor_rank_badge", self.job_content)
     self.survivor_xp_bar = xml:InitTextWnd("job_content:survivor_xp_bar", self.job_content)
+    self.survivor_xp_val = xml:InitTextWnd("job_content:survivor_xp_val", self.job_content)
+    self.ov_bars.xp = {
+        bg = xml:InitStatic("job_content:bar_xp_bg", self.job_content),
+        fill = xml:InitStatic("job_content:bar_xp_fill", self.job_content),
+        w = 116,
+    }
 
     self.telemetry_header_bg = xml:InitStatic("job_content:telemetry_header_bg", self.job_content)
     self.telemetry_lbl = xml:InitTextWnd("job_content:telemetry_lbl", self.job_content)
@@ -1297,6 +1321,7 @@ function SettlementManagerPDA:ClearDetails()
     self.survivor_name_txt:SetText("")
     self.survivor_rank_badge:SetText("")
     self.survivor_xp_bar:SetText("")
+    if self.survivor_xp_val then self.survivor_xp_val:SetText("") end
     self.survivor_job_txt:SetText("")
     self.survivor_pos_txt:SetText("")
     self.transfer_list:RemoveAll()
@@ -1538,17 +1563,8 @@ function SettlementManagerPDA:SetOverviewTab(name)
     self:ApplyOverviewTab()
 end
 
--- fill a bar (fraction 0..1) and color it by role; the track is a dark tint of the same texture
-local BAR_W = 332
 function SettlementManagerPDA:SetOverviewBar(name, frac, role)
-    local bar = self.ov_bars and self.ov_bars[name]
-    if not bar then return end
-    frac = math.max(0, math.min(1, frac or 0))
-    if bar.bg and bar.bg.SetTextureColor then bar.bg:SetTextureColor(GetARGB(255, 18, 22, 26)) end
-    if bar.fill then
-        bar.fill:SetWndSize(vector2():set(math.max(1, math.floor(BAR_W * frac)), 10))
-        if bar.fill.SetTextureColor then bar.fill:SetTextureColor(hs_theme.argb(role or "body")) end
-    end
+    set_bar(self.ov_bars and self.ov_bars[name], frac, role)
 end
 
 function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
@@ -1833,8 +1849,9 @@ function SettlementManagerPDA:OnSurvivorSelected()
 
     self.survivor_name_txt:SetText(s_item.name or "Survivor")
     self.survivor_rank_badge:SetText(string.format("Rank: %s (Tier %d)", tier_names[cur_tier] or "Novice", cur_tier))
-    local xp_gauge = make_gauge(progress_pct, 8)
-    self.survivor_xp_bar:SetText(string.format("XP: %d / %d  [%s] %d%%", xp, cur_cap, xp_gauge, progress_pct))
+    self.survivor_xp_bar:SetText(game.translate_string("st_pda_sv_xp_lbl"))
+    self.survivor_xp_val:SetText(string.format("%d / %d  %d%%", xp, cur_cap, progress_pct))
+    set_bar(self.ov_bars.xp, progress_pct / 100, "good")
 
     local job = s_item.job or "idle"
     local job_lbl = game.translate_string("st_pda_settlement_job_" .. job)

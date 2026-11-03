@@ -371,9 +371,14 @@
         <survivor_rank_badge x="64" y="24" width="280" height="15">
             <text font="letterica16" r="200" g="200" b="200" align="l" complex_mode="1"/>
         </survivor_rank_badge>
-        <survivor_xp_bar x="64" y="42" width="280" height="15">
+        <survivor_xp_bar x="64" y="42" width="28" height="15">
             <text font="letterica16" r="200" g="200" b="200" align="l" complex_mode="1"/>
         </survivor_xp_bar>
+        <survivor_xp_val x="216" y="42" width="128" height="15">
+            <text font="letterica16" r="200" g="200" b="200" align="r" complex_mode="1"/>
+        </survivor_xp_val>
+        <bar_xp_bg x="94" y="44" width="118" height="12" stretch="1"><texture>ui_homestead_bar</texture></bar_xp_bg>
+        <bar_xp_fill x="95" y="45" width="1" height="10" stretch="1"><texture>ui_homestead_bar</texture></bar_xp_fill>
 
         <!-- Module 2: Job Telemetry Module -->
         <telemetry_header_bg x="0" y="93" width="350" height="1" stretch="1">

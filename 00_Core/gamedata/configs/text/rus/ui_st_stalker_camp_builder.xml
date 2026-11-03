@@ -3134,5 +3134,8 @@
     <string id="st_pda_rival_unclaimed">
         <text>Ничей</text>
     </string>
+    <string id="st_pda_sv_xp_lbl">
+        <text>ОПЫТ</text>
+    </string>
 </string_table>
 

@@ -3131,4 +3131,7 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_pda_rival_unclaimed">
         <text>Unclaimed</text>
     </string>
+    <string id="st_pda_sv_xp_lbl">
+        <text>XP</text>
+    </string>
 </string_table>
