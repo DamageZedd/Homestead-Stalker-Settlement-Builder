@@ -7,6 +7,9 @@
 - **How much**: each settler the raiders kill costs the per-settler amount; one raid is capped per faction. The penalty is paid once, when the raid ends: in full if the raiders were still standing (you left the level), half if you beat the raid. A tip names the factions that took note. With Invincible Settlers on, a settler who respawns still counts.
 - **MCM (Raids & Events)**: `Faction Reputation for Lost Settlers` (on by default), `Goodwill Lost per Settler` (default 25), `Goodwill Lost Cap per Raid` (default 100).
 
+### Fixes
+- **Russian text**: the "Master settlers may move on" MCM options and the moved-on notification had no Russian entries, so they showed raw string ids under the Russian language. They now carry the English text until translated.
+
 ### 🎨 Complete Furniture Overhaul: All Furniture Uses Vanilla Textures (Zero Atlases)
 - **100% Atlas Elimination Across All Furniture**: Every piece of Homestead furniture, workstation, storage container, settlement flag, and building kit piece has been completely migrated to use standard, optimized vanilla S.T.A.L.K.E.R. Anomaly game textures. Over 32 legacy custom texture atlas files (`atlas_*.dds`, ~250MB+ total) have been completely removed from the mod, massively decreasing VRAM overhead, improving streaming performance, and eliminating purple / missing texture issues:
   - **All 13 Workstations**: Ammo Bench, Distiller, Farmer Station, Field Infirmary, Field Kitchen, Generator Station, Guard Post, Hunter Station, Market Stall, Repair Bench, Salvage Table, Water Purifier, and Wood Station now reference plain-Anomaly game textures for all metals, woods, tools, tarps, and machinery parts.
