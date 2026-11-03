@@ -1,0 +1,224 @@
+-- stalker_camp_builder_needs.script
+-- Living needs (docs/design/living_needs.md, phases 1-2): settlers need food and water, a camp that
+-- cannot feed them loses morale, and variety in the pantry earns a little back.
+-- Behind the MCM master toggle needs_enabled (default OFF): while it is off, process_settler_eating
+-- keeps its old one-ration-a-day behaviour and none of this runs.
+--
+-- The rules are pure functions (needs_class_of, needs_rounds_due, needs_tier, needs_round) that never
+-- touch the engine, so tools/tests/test_needs.lua can run them under a plain Lua 5.1. Only
+-- needs_process and the helpers after it read camp storage and the clock.
+
+local sb = stalker_camp_builder
+local mmin = math.min
+local mmax = math.max
+local mfloor = math.floor
+
+-- what a settler's food is, by class; one ration is one item. Eating from three classes in three days
+-- is a varied diet. The classes are the design doc's staple / protein / comfort.
+local FOOD_CLASS = {
+    bread = "staple", breadold = "staple", conserva = "staple", tushonka = "staple", mre = "staple",
+    ration_ru = "staple", ration_ukr = "staple", beans = "staple", chili = "staple", corn = "staple",
+    tomato = "staple", salmon = "staple", protein = "staple",
+    kolbasa = "protein", sausage = "protein",
+    chocolate = "comfort", chocolate_p = "comfort", raisins = "comfort", nuts = "comfort", mint = "comfort",
+    vodka = "comfort", vodka2 = "comfort", vodka_quality = "comfort", beer = "comfort", energy_drink = "comfort",
+}
+-- raw meat is the cook's input, so it is eaten last
+local WATER_SECTIONS = {
+    water_drink = true, mineral_water = true, bottle_metal = true, flask = true, tea = true, drink_crow = true,
+}
+
+local CLASS_ORDER = { "staple", "protein", "comfort" }
+local RAW_CLASS = "raw"
+
+local VARIETY_WINDOW = 3          -- rounds a class still counts towards variety
+local PENALTY_PER_UNSERVED = 5    -- happiness lost per settler left without food or water, cap below
+local PENALTY_UNSERVED_CAP = 20
+local PENALTY_STARVING = 25       -- flat, from the second short round in a row
+local PENALTY_CAP = 35            -- the most the needs can take off the happiness score
+local VARIETY_BONUS = 5           -- three classes in three rounds
+local DEFAULT_INTERVAL = 86400
+
+-- the class a section's food belongs to, "water" for a drink, or nil when settlers do not eat it
+function sb.needs_class_of(sec)
+    if type(sec) ~= "string" then return nil end
+    if WATER_SECTIONS[sec] then return "water" end
+    local c = FOOD_CLASS[sec]
+    if c then return c end
+    if string.sub(sec, 1, 5) == "meat_" then return RAW_CLASS end
+    return nil
+end
+
+-- how many rounds are due after elapsed seconds; a sleep never costs more than catchup_cap rounds,
+-- which is also what the old code did (one round, then the timer restarts)
+function sb.needs_rounds_due(elapsed, interval, catchup_cap)
+    if not (elapsed and interval and interval > 0) or elapsed < interval then return 0 end
+    return mmin(mmax(1, catchup_cap or 1), mfloor(elapsed / interval))
+end
+
+-- the tier of one round: 0 fed, 2 short (somebody went without), 3 starving (short twice in a row)
+function sb.needs_tier(unserved, short_rounds)
+    if (unserved or 0) <= 0 then return 0 end
+    if (short_rounds or 0) >= 2 then return 3 end
+    return 2
+end
+
+-- the happiness change for a round: negative when short, a small bonus for a varied diet
+function sb.needs_penalty(tier, unserved, variety, variety_bonus_on)
+    if tier >= 2 then
+        local p = mmin(PENALTY_UNSERVED_CAP, (unserved or 0) * PENALTY_PER_UNSERVED)
+        if tier >= 3 then p = p + PENALTY_STARVING end
+        return -mmin(PENALTY_CAP, p)
+    end
+    if variety_bonus_on and (variety or 0) >= 3 then return VARIETY_BONUS end
+    return 0
+end
+
+-- one needs round for n settlers. st is the camp's record (round, short_rounds, last, carry), changed in
+-- place. io.eat(order) eats one food item from the first class in order that has stock and returns the
+-- class eaten (or nil), io.drink() drinks one and returns true when it could. opts: mult (consumption
+-- multiplier), water_free (a pump supplies the water), grace (no penalty, no shortage counted),
+-- variety_bonus. Returns a result table; nothing here reads the engine.
+function sb.needs_round(st, n, opts, io)
+    st.round = (st.round or 0) + 1
+    st.last = st.last or {}
+    local mult = opts.mult or 1
+    local want = (n or 0) * mult + (st.carry or 0)
+    local units = mfloor(want + 1e-9)
+    st.carry = want - units
+
+    -- variety: the least recently eaten class goes first, raw meat last
+    local order = {}
+    for _, c in ipairs(CLASS_ORDER) do order[#order + 1] = c end
+    table.sort(order, function(a, b)
+        local la, lb = st.last[a] or -100, st.last[b] or -100
+        if la ~= lb then return la < lb end
+        return a < b
+    end)
+    order[#order + 1] = RAW_CLASS
+
+    local fed, no_food, no_water = 0, 0, 0
+    for _ = 1, units do
+        local c = io.eat(order)
+        if c then
+            fed = fed + 1
+            st.last[c] = st.round
+        else
+            no_food = no_food + 1
+        end
+        if not opts.water_free then
+            if not io.drink() then no_water = no_water + 1 end
+        end
+    end
+
+    local variety = 0
+    for _, c in ipairs(CLASS_ORDER) do
+        if st.last[c] and st.round - st.last[c] < VARIETY_WINDOW then variety = variety + 1 end
+    end
+
+    -- a settler lacking both food and water counts once: the camp's worse shortage decides
+    local unserved = mmin(n or 0, mmax(no_food, no_water))
+    local res = { fed = fed, no_food = no_food, no_water = no_water, unserved = unserved, variety = variety }
+    if opts.grace then
+        res.tier, res.penalty = 0, 0
+        return res
+    end
+    if unserved > 0 then
+        st.short_rounds = (st.short_rounds or 0) + 1
+    else
+        st.short_rounds = 0
+    end
+    res.tier = sb.needs_tier(unserved, st.short_rounds)
+    res.penalty = sb.needs_penalty(res.tier, unserved, variety, opts.variety_bonus)
+    return res
+end
+
+-- ---------------------------------------------------------------------------------------------------
+-- engine side
+
+function sb.needs_enabled_now()
+    return sb.cfg and sb.cfg.needs_enabled == true
+end
+
+local function needs_interval()
+    local v = sb.cfg and sb.cfg.food_consumption_interval
+    if type(v) ~= "number" or v <= 0 then return DEFAULT_INTERVAL end
+    return v
+end
+
+local function camp_has_pump(camp)
+    for _, stype in pairs(camp.structures or {}) do
+        if stype == "water_pump" then return true end
+    end
+    return false
+end
+
+-- the happiness change the camp's last round earned, 0 once it has lapsed or when needs are off
+function sb.needs_happiness_delta(camp)
+    if not (camp and sb.needs_enabled_now()) then return 0 end
+    local n = camp.needs
+    if not (n and n.penalty and n.until_sec) then return 0 end
+    if sb.game_sec() >= n.until_sec then return 0 end
+    return n.penalty
+end
+
+-- the settlers' daily round for one camp; called in place of the old one-ration loop
+function sb.needs_process(hub_id, camp)
+    if not (camp and camp.survivors) then return end
+    local now = sb.game_sec()
+    local interval = needs_interval()
+    local st = camp.needs
+    if type(st) ~= "table" then
+        -- first round for this camp (or the toggle was just turned on): the clock starts now and the
+        -- grace period keeps the first days free of penalties
+        local grace_days = sb.cfg.needs_grace_days or 3
+        st = { last_round_sec = now, grace_until = now + grace_days * 86400, round = 0, short_rounds = 0 }
+        camp.needs = st
+        return
+    end
+    if st.last_round_sec and st.last_round_sec > now then st.last_round_sec = now end
+    local due = sb.needs_rounds_due(now - (st.last_round_sec or now), interval, sb.cfg.needs_catchup_cap or 1)
+    if due <= 0 then return end
+    st.last_round_sec = now
+
+    local n = 0
+    for _ in pairs(camp.survivors) do n = n + 1 end
+    if n == 0 then return end
+
+    local function eat(order)
+        for _, c in ipairs(order) do
+            local got = sb.find_and_consume_item(hub_id, camp, function(sec) return sb.needs_class_of(sec) == c end, nil)
+            if got then return c end
+        end
+        return nil
+    end
+    local function drink()
+        return sb.find_and_consume_item(hub_id, camp, function(sec) return sb.needs_class_of(sec) == "water" end, nil) and true or false
+    end
+
+    local opts = {
+        mult = sb.cfg.needs_consumption_mult or 1.0,
+        water_free = camp_has_pump(camp),
+        grace = now < (st.grace_until or 0),
+        variety_bonus = sb.cfg.needs_variety_bonus ~= false,
+    }
+    local res
+    for _ = 1, due do
+        res = sb.needs_round(st, n, opts, { eat = eat, drink = drink })
+    end
+    if not res then return end
+
+    st.penalty = res.penalty
+    st.until_sec = now + interval
+    st.tier = res.tier
+    st.variety = res.variety
+    camp._stats_cache = nil
+    -- the old hunger penalty must not stack on top of this one
+    camp.hungry_until, camp.hungry_count = nil, nil
+
+    if res.tier >= 2 and db.actor and sb.camp_send_tip then
+        local id = res.tier >= 3 and "st_homestead_needs_starving" or "st_homestead_needs_short"
+        sb.camp_send_tip(db.actor, string.format(game.translate_string(id), camp.name or "Settlement", res.unserved),
+            nil, "general_stalker", 9000, hub_id, "work", true)
+    end
+end

@@ -2771,4 +2771,40 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_craft_furniture">
         <text>Hideout Furniture</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_enabled">
+        <text>Living Needs (Food and Water)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_enabled_desc">
+        <text>Settlers eat and drink each day. A camp that cannot feed them loses morale, and a varied diet earns a little back. Off keeps the plain one-ration-a-day rule.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_consumption_mult">
+        <text>Consumption Multiplier</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_consumption_mult_desc">
+        <text>Scales how much the settlers eat and drink per day. Only used while Living Needs is on.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_grace_days">
+        <text>Grace Period (Days)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_grace_days_desc">
+        <text>Game days after the first round without any morale penalty, so an existing camp is not caught out when Living Needs is switched on.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_catchup_cap">
+        <text>Catch-up Rounds After Sleeping</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_catchup_cap_desc">
+        <text>Most daily rounds a long sleep or wait may cost the stores. 1 means a long sleep costs one day's rations.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_variety_bonus">
+        <text>Varied Diet Bonus</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_variety_bonus_desc">
+        <text>Eating three kinds of food (staples, protein, treats) within three days adds a little morale.</text>
+    </string>
+    <string id="st_homestead_needs_short">
+        <text>%s: %d settler(s) went without food or water. Morale is dropping.</text>
+    </string>
+    <string id="st_homestead_needs_starving">
+        <text>%s: %d settler(s) are starving. Morale is collapsing and they may leave.</text>
+    </string>
 </string_table>

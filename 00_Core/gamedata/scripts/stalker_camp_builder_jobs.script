@@ -3163,6 +3163,11 @@ function stalker_camp_builder.process_settler_eating(hub_id, camp)
     local sb = stalker_camp_builder
     if not camp or not camp.survivors then return end
 
+    -- living needs (MCM, off by default): food and water rounds with tiers, in stalker_camp_builder_needs
+    if sb.needs_enabled_now and sb.needs_enabled_now() then
+        return sb.needs_process(hub_id, camp)
+    end
+
     local current_sec = sb.game_sec()
     camp.last_food_consumption_time = camp.last_food_consumption_time or current_sec
     local elapsed = current_sec - camp.last_food_consumption_time

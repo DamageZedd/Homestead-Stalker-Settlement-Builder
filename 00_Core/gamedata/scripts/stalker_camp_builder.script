@@ -806,6 +806,11 @@ local defaults = {
     raid_rep_enabled = true,          -- Settlers killed by a raiding faction cost reputation with that faction's enemies.
     raid_rep_per_settler = 25,        -- Goodwill lost with each of the raiders' enemies per settler killed by the raiders.
     raid_rep_cap = 100,               -- Most goodwill a single raid can cost with any one faction.
+    needs_enabled = false,            -- Living needs: settlers need food and water, shortages cost morale (docs/design/living_needs.md). Off keeps the old one-ration-a-day rule.
+    needs_consumption_mult = 1.0,     -- Scales how much the settlers eat and drink per day.
+    needs_grace_days = 3,             -- Game days after the first round without any penalty, so an old save is not caught out.
+    needs_catchup_cap = 1,            -- Most rounds a long sleep or wait may cost; 1 is the old behaviour.
+    needs_variety_bonus = true,       -- A varied diet (three food classes in three days) adds a little morale.
     dismantle_removes_furniture = false, -- When true, dismantling removes all furniture, building pieces, containers and loose ground clutter.
 
     trader_loot_table = {
@@ -5227,6 +5232,12 @@ function get_camp_stats(camp, hub_obj)
         end
     end
 
+    -- living needs (off by default) replace the hunger penalty above: needs_process clears the hunger
+    -- fields while it is on, and the toggle is read here so turning it off drops the effect at once
+    if stalker_camp_builder.needs_happiness_delta then
+        score = score + stalker_camp_builder.needs_happiness_delta(camp)
+    end
+
     stats.happiness = math.max(0, mmin(100, score))
 
     camp.happiness = stats.happiness
@@ -5890,6 +5901,7 @@ function on_game_start()
     local _ = stalker_camp_builder_events
     local _ = stalker_camp_builder_storage
     local _ = stalker_camp_builder_radio
+    local _ = stalker_camp_builder_needs
 
     patch_alife_storage_manager()
     patch_item_artefact_binder_save()

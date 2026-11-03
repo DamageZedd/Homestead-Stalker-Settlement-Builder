@@ -164,3 +164,12 @@ Nothing can be play-tested here; every phase ends with a short in-game checklist
 8. Fuel/cold: in or out?
 9. New file `stalker_camp_builder_needs.script` (recommended) vs extending `jobs`/`sb.script`?
 10. This feature adds an English-only text surface; add translations at the same time, or later?
+
+## 13. Implementation status (phases 0-2 done, not play-tested)
+
+- Phase 0 audit: `camp_consume_item` works on offline boxes (server-object path with `pending_item_cond`, `inv` ~170-260), so off-level camps do run needs rounds. Item classes are fixed tables in `stalker_camp_builder_needs.script`; the vanilla LTX was not consulted.
+- Phase 1: pure rules (`needs_class_of`, `needs_rounds_due`, `needs_tier`, `needs_penalty`, `needs_round`) in `stalker_camp_builder_needs.script`; tests in `tools/tests/test_needs.lua` (run with Lua 5.1 from the repo root).
+- Phase 2: `process_settler_eating` hands over to `needs_process` when `needs_enabled` is on; `get_camp_stats` adds `needs_happiness_delta` (and the old hunger penalty is cleared while needs are on); MCM options `needs_enabled`, `needs_consumption_mult`, `needs_grace_days`, `needs_catchup_cap`, `needs_variety_bonus`; eng/rus strings (English text in both).
+- Decisions taken for the open questions (change them if you disagree): water is its own need and a camp with a water pump counts as supplied; vodka/beer/treats are "comfort" food, raw meat is eaten last; cap -35; catch-up cap 1.
+- Differences from the sketch above: the "Thin" tier was dropped (a lean camp eating one class would be penalised every day, against section 5); the penalty only comes from unserved settlers, plus the variety bonus. Job refusal, guard multiplier, desertion toggle, savings slowdown and the PDA panel are still phases 3-4.
+- Known gap: if the toggle is switched off for a long time and on again, the stored clock is stale; the catch-up cap limits the cost to `needs_catchup_cap` rounds, and the grace period is not renewed.
