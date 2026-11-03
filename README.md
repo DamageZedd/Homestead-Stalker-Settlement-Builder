@@ -160,7 +160,7 @@ Build real houses, Fallout 4 style. The new HomesteadHF building pieces and the 
 - **Plank wall with loophole**: a full-height wall with a narrow firing slit.
 - **Wide plank doorway**: a wall with a wide double-door opening and a lintel.
 - **Wooden support post**: a square timber post that snaps to floor and foundation corners and holds up the storey above.
-- **Triangular foundation / triangular plank floor / triangular tin roof**: half a tile cut along the diagonal; snap in any of four orientations or against a matching triangle to complete a full tile.
+- **Triangular foundation / triangular plank floor / triangular tin roof**: half a tile cut along the diagonal; snap in any of four orientations or against a matching triangle to complete a full tile. Walls snap flush along both legs and the long diagonal of a triangle (at a corner or the middle), posts take its three corners, and floors snap onto a triangular foundation.
 - **Plank entry steps**: three wide steps up to the height of a foundation, snapped to its outside edge.
 - **Plank ramp**: a long ramp that climbs one storey across a tile, open underneath.
 - **L-shaped stairs** (and a **mirrored** version) and **U-shaped stairs**: open underneath, one storey inside one tile; press R to turn.
