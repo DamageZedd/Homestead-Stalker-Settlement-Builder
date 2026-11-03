@@ -1425,6 +1425,13 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
         storage_str = sformat("Storage: %d / %d kg (%d%% Cap)", u_w, m_w, pct)
     end
     local needs_txt = stalker_camp_builder.needs_summary_text and stalker_camp_builder.needs_summary_text(camp)
+    if not needs_txt and stalker_camp_builder.needs_enabled_now then
+        if not stalker_camp_builder.needs_enabled_now() then
+            needs_txt = "Needs: off (enable in MCM > Needs)"
+        else
+            needs_txt = "Needs: waiting for first meal round"
+        end
+    end
     if needs_txt then
         self.camp_supplies:SetText(sformat("%s   |   %s", needs_txt, storage_str))
     else
