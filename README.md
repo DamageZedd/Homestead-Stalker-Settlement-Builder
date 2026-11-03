@@ -43,62 +43,41 @@ A large bug-fix pass across jobs, settlers, expeditions, turrets, the lock, trad
 
 Every job has its own placeable workstation. Settlers walk to it, work at it and get bonuses from it.
 
-<table>
-<tr>
-<td width="50%" align="center"><img src="docs/images/hero_distiller.jpg?v=2" alt="Moonshine Distiller"><br><b>MOONSHINE DISTILLER</b><br><sub>Brewer</sub></td>
-<td width="50%" align="center"><img src="docs/images/hero_ammo_bench.jpg?v=2" alt="Ammunition Crafting Bench"><br><b>AMMUNITION CRAFTING BENCH</b><br><sub>Crafter</sub></td>
-</tr>
-<tr>
-<td align="center"><img src="docs/images/hero_wood_station.jpg?v=2" alt="Woodcutter Station"><br><b>WOODCUTTER STATION</b><br><sub>Woodcutter</sub></td>
-<td align="center"><img src="docs/images/hero_generator_station.jpg?v=2" alt="Electrician Generator Bench"><br><b>ELECTRICIAN GENERATOR BENCH</b><br><sub>Electrician</sub></td>
-</tr>
-<tr>
-<td align="center"><img src="docs/images/hero_repair_bench.jpg?v=2" alt="Gunsmith and Armor Repair Bench"><br><b>GUNSMITH &amp; ARMOR REPAIR BENCH</b><br><sub>Repairer / Scrapper</sub></td>
-<td align="center"><img src="docs/images/hero_hunter_station.jpg?v=2" alt="Hunter Butchering Station"><br><b>HUNTER BUTCHERING STATION</b><br><sub>Hunter</sub></td>
-</tr>
-<tr>
-<td align="center"><img src="docs/images/hero_farmer_station.jpg?v=2" alt="Farmer Station"><br><b>FARMER STATION</b> 🆕<br><sub>Farmer</sub></td>
-<td align="center"><img src="docs/images/hero_market_stall.jpg?v=2" alt="Market Stall"><br><b>MARKET STALL</b> 🆕<br><sub>Trader</sub></td>
-</tr>
-<tr>
-<td align="center"><img src="docs/images/hero_field_kitchen.jpg?v=2" alt="Field Kitchen"><br><b>FIELD KITCHEN</b><br><sub>Cook · counts as a stove · 300 kg of food &amp; drink storage</sub></td>
-<td align="center"><img src="docs/images/hero_field_infirmary.jpg?v=2" alt="Field Infirmary"><br><b>FIELD INFIRMARY</b><br><sub>Medic · 300 kg of medicine storage</sub></td>
-</tr>
-<tr>
-<td align="center"><img src="docs/images/hero_guard_post.jpg?v=2" alt="Guard Post"><br><b>GUARD POST</b><br><sub>Guard · 300 kg of weapon, ammo &amp; grenade storage</sub></td>
-<td align="center"><img src="docs/images/hero_salvage_table.jpg?v=2" alt="Salvage Table"><br><b>SALVAGE TABLE</b><br><sub>Scavenger · 300 kg of tool, parts &amp; salvage storage</sub></td>
-</tr>
-</table>
+<p align="center"><img src="docs/images/collage_workstations.jpg?v=1" alt="Crafting workstations" width="100%"></p>
+
+<p align="center"><img src="docs/images/collage_services.jpg?v=1" alt="Production, food and care stations" width="100%"></p>
+
+- **Moonshine Distiller**: Brewer
+- **Ammunition Crafting Bench**: Crafter
+- **Woodcutter Station**: Woodcutter
+- **Electrician Generator Bench**: Electrician
+- **Gunsmith & Armor Repair Bench**: Repairer / Scrapper
+- **Hunter Butchering Station**: Hunter
+- **Farmer Station** 🆕: Farmer
+- **Market Stall** 🆕: Trader
+- **Field Kitchen**: Cook · counts as a stove · 300 kg of food & drink storage
+- **Field Infirmary**: Medic · 300 kg of medicine storage
+- **Guard Post**: Guard · 300 kg of weapon, ammo & grenade storage
+- **Salvage Table**: Scavenger · 300 kg of tool, parts & salvage storage
 
 ### 💧 Water Purifier
 A gravity-fed **water purifier** on a concrete pad: an intake pipe comes up out of the ground into a blue steel settling drum, a grey carbon canister and two filter cartridges, and clean water runs out of a valve spout into the vanilla bucket. Ground water is irradiated, so it needs cleaning. It counts as a settlement water pump, so with charcoal or paper filters in camp storage your settlers fill clean flasks of water every few hours. It is built from vanilla G.A.M.M.A. parts and textures (the valve wheel, the bucket, and metal, concrete and rust textures). Craft it at a workbench; it weighs 10 kg in your inventory.
 
-<p align="center"><img src="docs/images/hero_water_purifier.jpg?v=2" alt="Water Purifier" width="70%"><br><b>WATER PURIFIER</b></p>
-
 ### 🏴 Settlement Flag
 A pole and banner that marks the ground as yours. Placing it founds a settlement and makes it the camp hub. Its banner shows your faction's patch and changes by itself if your faction does; a custom faction from Factions of the Zone shows its own emblem. It is also the camp's main storage (300 kg). Picking it up dismantles the settlement.
-
-<p align="center"><img src="docs/images/hero_settlement_flag.jpg?v=2" alt="Settlement Flag" width="70%"><br><b>SETTLEMENT FLAG</b></p>
 
 <p align="center"><img src="docs/images/hero_settlement_flag_factions.jpg?v=2" alt="Settlement Flag faction banners"><br><sub>Loners · Duty · Freedom · Clear Sky · Ecologists · Military<br>Bandits · Renegades · Mercenaries · Monolith · Sin · ISG</sub></p>
 
 ### 📦 Settlement Storage
 Themed boxes for the settlement's own stock. Settlers and Auto-Sort put each kind of item in its own box first, and settlers take what they need from them.
 
-<table>
-<tr>
-<td width="50%" align="center"><img src="docs/images/hero_armory_crate.jpg?v=2" alt="Armory Crate"><br><b>ARMORY CRATE</b><br><sub>weapons, ammunition &amp; grenades · 250 kg</sub></td>
-<td width="50%" align="center"><img src="docs/images/hero_quartermaster_locker.jpg?v=2" alt="Quartermaster Locker"><br><b>QUARTERMASTER LOCKER</b><br><sub>suits, armour, helmets &amp; gas masks · 250 kg</sub></td>
-</tr>
-<tr>
-<td align="center"><img src="docs/images/hero_med_crate.jpg?v=2" alt="Med Crate"><br><b>MED CRATE</b><br><sub>medkits, bandages, drugs &amp; anti-rad · 100 kg</sub></td>
-<td align="center"><img src="docs/images/hero_pantry.jpg?v=2" alt="Pantry"><br><b>PANTRY</b><br><sub>food &amp; drink that keeps (after the fridges) · 200 kg</sub></td>
-</tr>
-<tr>
-<td align="center"><img src="docs/images/hero_supply_crate.jpg?v=2" alt="Supply Crate"><br><b>SUPPLY CRATE</b><br><sub>parts, tools, materials &amp; everything else · 300 kg</sub></td>
-<td align="center"></td>
-</tr>
-</table>
+<p align="center"><img src="docs/images/collage_storage.jpg?v=1" alt="Settlement storage, guard post and flag" width="100%"></p>
+
+- **Armory Crate**: weapons, ammunition & grenades · 250 kg
+- **Quartermaster Locker**: suits, armour, helmets & gas masks · 250 kg
+- **Med Crate**: medkits, bandages, drugs & anti-rad · 100 kg
+- **Pantry**: food & drink that keeps (after the fridges) · 200 kg
+- **Supply Crate**: parts, tools, materials & everything else · 300 kg
 
 ---
 
@@ -162,32 +141,27 @@ Full 5-tab tactical interface accessible from anywhere in the Zone. The top stat
 ### 🧱 Building Kit & Snapping
 Build real houses, Fallout 4 style. The new HomesteadHF building pieces and the Hideout Furniture walls snap to each other on one grid, and furniture snaps onto floors and flush against walls.
 
-- **Pieces** (crafted at a workbench): concrete foundation, plank floor, plank wall with window, gable wall, wooden stairs, and flat, sloped, outer-corner (hip), inner-corner (valley) and pyramid tin roofs. Walls, half walls and doorways come from *Even More Hideout Furnitures*.
+- **Pieces** (crafted at a workbench): foundations, floors, walls, a doorway, a support post, stairs, a ramp and tin roofs, in square and triangular shapes (listed below). Walls, half walls and doorways come from *Even More Hideout Furnitures*.
 - **Grid**: one tile is 4.71 m (the width of a Hideout Furniture wall); one storey is a wall plus a floor. Stairs climb exactly one storey over 3.2 m (head at the tile edge, foot inset so a wall can stand in front of it), and a sloped roof rises one storey over one tile.
 - **Controls while placing**: aim at a placed piece and the preview snaps to it. **R** rotates 90° (to the next snap position when snapped), **G** turns snapping on or off. Both keys can be changed in MCM → Homestead → Building, along with the snap radius and the furniture grid.
 
-<table>
-<tr>
-<td width="50%" align="center"><img src="docs/images/hero_foundation.jpg?v=2" alt="Concrete Foundation"><br><b>CONCRETE FOUNDATION</b><br><sub>sinks into slopes; levels itself to the ground</sub></td>
-<td width="50%" align="center"><img src="docs/images/hero_floor.jpg?v=2" alt="Plank Floor"><br><b>PLANK FLOOR</b><br><sub>on a foundation or on top of walls</sub></td>
-</tr>
-<tr>
-<td align="center"><img src="docs/images/hero_wall_window.jpg?v=2" alt="Plank Wall with Window"><br><b>PLANK WALL WITH WINDOW</b><br><sub>matches the Hideout Furniture wall</sub></td>
-<td align="center"><img src="docs/images/hero_wall_gable.jpg?v=2" alt="Gable Wall"><br><b>GABLE WALL</b><br><sub>closes the open end under a sloped roof</sub></td>
-</tr>
-<tr>
-<td align="center"><img src="docs/images/hero_stairs.jpg?v=2" alt="Wooden Stairs"><br><b>WOODEN STAIRS</b><br><sub>one storey in 3.2 m</sub></td>
-<td align="center"><img src="docs/images/hero_roof_flat.jpg?v=2" alt="Flat Tin Roof"><br><b>FLAT TIN ROOF</b></td>
-</tr>
-<tr>
-<td align="center"><img src="docs/images/hero_roof_slope.jpg?v=2" alt="Sloped Tin Roof"><br><b>SLOPED TIN ROOF</b><br><sub>30°, one storey over one tile</sub></td>
-<td align="center"><img src="docs/images/hero_roof_hip.jpg?v=2" alt="Hip Roof"><br><b>HIP ROOF (OUTER CORNER)</b></td>
-</tr>
-<tr>
-<td align="center"><img src="docs/images/hero_roof_valley.jpg?v=2" alt="Valley Roof"><br><b>VALLEY ROOF (INNER CORNER)</b></td>
-<td align="center"><img src="docs/images/hero_roof_pyramid.jpg?v=2" alt="Pyramid Roof"><br><b>PYRAMID ROOF</b></td>
-</tr>
-</table>
+<p align="center"><img src="docs/images/collage_walls.jpg?v=1" alt="Walls, doorways and support post" width="100%"></p>
+<p align="center"><img src="docs/images/collage_floors.jpg?v=1" alt="Foundations and floors" width="100%"></p>
+<p align="center"><img src="docs/images/collage_stairs.jpg?v=1" alt="Stairs and ramp" width="100%"></p>
+<p align="center"><img src="docs/images/collage_roofs.jpg?v=1" alt="Tin roofs" width="100%"></p>
+
+- **Concrete foundation**: sinks into slopes; levels itself to the ground. Plank floor: on a foundation or on top of walls.
+- **Plank wall with window**: matches the Hideout Furniture wall. **Gable wall**: closes the open end under a sloped roof.
+- **Wooden stairs**: one storey in 3.2 m. **Sloped tin roof**: 30°, one storey over one tile. Flat, outer-corner (hip), inner-corner (valley) and pyramid roofs complete the set.
+- **Low plank wall**: a waist-high wall with a capping rail; nothing stacks on top of it.
+- **Plank wall with loophole**: a full-height wall with a narrow firing slit.
+- **Wide plank doorway**: a wall with a wide double-door opening and a lintel.
+- **Wooden support post**: a square timber post that snaps to floor and foundation corners and holds up the storey above.
+- **Triangular foundation / triangular plank floor / triangular tin roof**: half a tile cut along the diagonal; snap in any of four orientations or against a matching triangle to complete a full tile.
+- **Plank entry steps**: three wide steps up to the height of a foundation, snapped to its outside edge.
+- **Plank ramp**: a long ramp that climbs one storey across a tile, open underneath.
+- **L-shaped stairs** (and a **mirrored** version) and **U-shaped stairs**: open underneath, one storey inside one tile; press R to turn.
+- **Spiral stairs**: treads winding round a central column, one storey inside one tile. **Plank floor with spiral opening**: the matching floor with a round opening and railing for the top.
 
 - **Placement hologram**: while placing any Hideout Furniture or Homestead item you see a translucent copy of the model, green where it fits and red where it is blocked. It can be turned off in MCM → Homestead → Building.
 
