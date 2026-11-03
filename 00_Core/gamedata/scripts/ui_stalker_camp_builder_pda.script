@@ -149,8 +149,20 @@ function SettlementListItem:SetSelected(is_sel)
     end
 end
 
+-- the roster's needs cell for one settler: text and color; "-" when living needs are off
+local function survivor_needs_cell(survivor)
+    local state = stalker_camp_builder and stalker_camp_builder.needs_survivor_state
+        and stalker_camp_builder.needs_survivor_state(survivor)
+    if state == "starving" then return game.translate_string("st_pda_sv_needs_starving"), hs_theme.argb("danger") end
+    if state == "hungry" then return game.translate_string("st_pda_sv_needs_hungry"), hs_theme.argb("warn") end
+    if state == "fed" then return game.translate_string("st_pda_sv_needs_fed"), hs_theme.argb("good") end
+    return "-", hs_theme.argb("dim")
+end
+
 class "SurvivorListItem" (CUIListBoxItem)
-function SurvivorListItem:__init(survivor_id, name, status_str, icon_sec, rank_str, xml)
+-- one table row: icon, name, job status, tier, needs (living needs; "-" when they are off)
+local SV_ROW_W = 353
+function SurvivorListItem:__init(survivor_id, name, status_str, icon_sec, rank_str, xml, needs_str, needs_color)
     local mmax = math.max
     super()
     self.survivor_id = survivor_id
@@ -166,39 +178,44 @@ function SurvivorListItem:__init(survivor_id, name, status_str, icon_sec, rank_s
         end
 
         self.name_wnd = xml:InitTextWnd("survivor_row_name", self)
-        self.name_wnd:SetWndPos(vector2():set(50, 4))
         self.name_wnd:SetText(name)
         self.name_wnd:AdjustHeightToText()
         local nh = mmax(16, self.name_wnd:GetHeight())
 
-        local status_y = 4 + nh + 3
         self.status_wnd = xml:InitTextWnd("survivor_row_status", self)
-        self.status_wnd:SetWndPos(vector2():set(50, status_y))
         self.status_wnd:SetText(status_str or "")
         self.status_wnd:AdjustHeightToText()
-        local sh = mmax(14, self.status_wnd:GetHeight())
+        local sh = mmax(16, self.status_wnd:GetHeight())
         self.status_h = sh
 
-        local rank_y = status_y + sh + 3
         self.rank_wnd = xml:InitTextWnd("survivor_row_rank", self)
-        self.rank_wnd:SetWndPos(vector2():set(50, rank_y))
         self.rank_wnd:SetText(rank_str or "")
-        self.rank_wnd:AdjustHeightToText()
-        local rh = mmax(14, self.rank_wnd:GetHeight())
 
-        local card_h = mmax(72, rank_y + rh + 4)
+        self.needs_wnd = xml:InitTextWnd("survivor_row_needs", self)
+        self.needs_wnd:SetText(needs_str or "")
+        if needs_color then self.needs_wnd:SetTextColor(needs_color) end
+
+        local card_h = mmax(24, nh + 6, sh + 6)
         self.total_item_height = card_h + 2
-        self.card_bg:SetWndSize(vector2():set(158, card_h))
-        self:SetWndRect(Frect():set(0, 0, 158, self.total_item_height))
-        self:SetWndSize(vector2():set(158, self.total_item_height))
+        self.card_bg:SetWndSize(vector2():set(SV_ROW_W, card_h))
+        self:SetWndRect(Frect():set(0, 0, SV_ROW_W, self.total_item_height))
+        self:SetWndSize(vector2():set(SV_ROW_W, self.total_item_height))
     else
-        self.total_item_height = 72
+        self.total_item_height = 26
         self.text_item = self:GetTextItem()
         self.text_item:SetText(name)
         self.text_item:SetFont(GetFontLetterica18Russian())
         self.text_item:SetTextColor(hs_theme.argb("heading"))
-        self:SetWndRect(Frect():set(0, 0, 158, 72))
-        self:SetWndSize(vector2():set(158, 72))
+        self:SetWndRect(Frect():set(0, 0, SV_ROW_W, 26))
+        self:SetWndSize(vector2():set(SV_ROW_W, 26))
+    end
+end
+
+-- the needs column follows the camp's living-needs flags on the survivor
+function SurvivorListItem:UpdateNeeds(needs_str, needs_color)
+    if self.needs_wnd then
+        self.needs_wnd:SetText(needs_str or "")
+        if needs_color then self.needs_wnd:SetTextColor(needs_color) end
     end
 end
 
@@ -677,6 +694,45 @@ function SettlementManagerPDA:InitControls()
     self.btn_transfer = xml:Init3tButton("job_content:btn_transfer", self.job_content)
     self:Register(self.btn_transfer, "btn_transfer")
     self:AddCallback("btn_transfer", ui_events.BUTTON_CLICKED, self.OnTransferClicked, self)
+
+    -- survivor mini tabs (Job / Orders / Transfer / Stats): one page at a time under the dossier
+    self.sv_tab = "job"
+    self.sv_tab_btns = {}
+    for _, nm in ipairs({ "job", "orders", "transfer", "stats" }) do
+        local btn = xml:Init3tButton("job_content:btn_sv_tab_" .. nm, self.job_content)
+        self:Register(btn, "btn_sv_tab_" .. nm)
+        self:AddCallback("btn_sv_tab_" .. nm, ui_events.BUTTON_CLICKED, function() self:SetSurvivorTab(nm) end, self)
+        self.sv_tab_btns[nm] = btn
+    end
+    self.sv_sum_bg = xml:InitStatic("job_content:sv_sum_bg", self.job_content)
+    self.sv_sum_lbl = xml:InitTextWnd("job_content:sv_sum_lbl", self.job_content)
+    self.stats_header_bg = xml:InitStatic("job_content:stats_header_bg", self.job_content)
+    self.stats_lbl = xml:InitTextWnd("job_content:stats_lbl", self.job_content)
+    self.stats_bg = xml:InitStatic("job_content:stats_bg", self.job_content)
+    self.sv_stat_lbls, self.sv_stat_vals = {}, {}
+    for i = 1, 4 do
+        self.sv_stat_lbls[i] = xml:InitTextWnd("job_content:sv_stat_lbl_" .. i, self.job_content)
+        self.sv_stat_vals[i] = xml:InitTextWnd("job_content:sv_stat_val_" .. i, self.job_content)
+    end
+    local job_page = { self.telemetry_header_bg, self.telemetry_lbl, self.telemetry_bg, self.survivor_job_txt,
+        self.job_header_bg, self.job_header_lbl }
+    for _, nm in ipairs({ "idle", "guard", "scavenge", "hunter", "craft", "repair", "cook", "medic",
+        "electrician", "woodcutter", "brewer", "scrapper", "farmer", "trader" }) do
+        job_page[#job_page + 1] = self["btn_job_" .. nm]
+    end
+    self.sv_pages = {
+        job = job_page,
+        orders = { self.pos_header_bg, self.pos_header_lbl, self.pos_bg, self.survivor_pos_txt,
+            self.btn_position_here, self.btn_position_recall, self.btn_rename_survivor },
+        transfer = { self.transfer_header_bg, self.transfer_lbl, self.transfer_bg, self.transfer_list,
+            self.btn_transfer, self.btn_banish },
+        stats = { self.stats_header_bg, self.stats_lbl, self.stats_bg },
+    }
+    for i = 1, 4 do
+        local st = self.sv_pages.stats
+        st[#st + 1] = self.sv_stat_lbls[i]
+        st[#st + 1] = self.sv_stat_vals[i]
+    end
 
     self.close_btn = xml:Init3tButton("close_button", self)
     self:Register(self.close_btn, "close_btn")
@@ -1622,15 +1678,16 @@ function SettlementManagerPDA:OnSettlementSelected(keep_survivor)
             local cur_tier = survivor.tier or 0
             local tier_names = { [0] = game.translate_string("st_settler_tier_novice"), [1] = game.translate_string("st_settler_tier_skilled"),
                 [2] = game.translate_string("st_settler_tier_expert"), [3] = game.translate_string("st_settler_tier_master") }
-            local rank_str = sformat("Tier %d (%s)", cur_tier, tier_names[cur_tier] or "Novice")
-            local s_item = SurvivorListItem(survivor_id, sname, status_str, icon_sec, rank_str, self.xml)
+            local rank_str = sformat("T%d", cur_tier)
+            local needs_str, needs_clr = survivor_needs_cell(survivor)
+            local s_item = SurvivorListItem(survivor_id, sname, status_str, icon_sec, rank_str, self.xml, needs_str, needs_clr)
             if status_color and s_item.status_wnd then
                 s_item.status_wnd:SetTextColor(status_color)
             end
             local h = s_item.total_item_height or 80
             self.survivor_list:SetItemHeight(h)
             self.survivor_list:AddExistingItem(s_item)
-            s_item:SetWndSize(vector2():set(158, h))
+            s_item:SetWndSize(vector2():set(353, h))
             s_item:SetHeight(h)
         end
     end
@@ -1698,28 +1755,10 @@ function SettlementManagerPDA:OnSurvivorSelected()
     local prev_cap = (cur_tier > 0) and (tier_caps[cur_tier - 1] or 0) or 0
     local progress_pct = (cur_tier >= 3) and 100 or mmax(0, math.min(100, math.floor(((xp - prev_cap) / mmax(1, cur_cap - prev_cap)) * 100)))
 
-    self.survivor_name_txt:SetWndPos(vector2():set(52, 4))
     self.survivor_name_txt:SetText(s_item.name or "Survivor")
-    self.survivor_name_txt:AdjustHeightToText()
-    local name_h = mmax(18, self.survivor_name_txt:GetHeight())
-
-    local rank_y = 4 + name_h + 4
-    self.survivor_rank_badge:SetWndPos(vector2():set(52, rank_y))
     self.survivor_rank_badge:SetText(string.format("Rank: %s (Tier %d)", tier_names[cur_tier] or "Novice", cur_tier))
-    self.survivor_rank_badge:AdjustHeightToText()
-    local rank_h = mmax(14, self.survivor_rank_badge:GetHeight())
-
-    local xp_y = rank_y + rank_h + 4
-    self.survivor_xp_bar:SetWndPos(vector2():set(52, xp_y))
     local xp_gauge = make_gauge(progress_pct, 8)
-    self.survivor_xp_bar:SetText(string.format("XP: %d / %d\\n[%s] %d%%", xp, cur_cap, xp_gauge, progress_pct))
-    self.survivor_xp_bar:AdjustHeightToText()
-    local xp_h = mmax(14, self.survivor_xp_bar:GetHeight())
-
-    local dossier_header_h = mmax(54, xp_y + xp_h + 8)
-    if self.dossier_portrait_bg then
-        self.dossier_portrait_bg:SetWndSize(vector2():set(162, dossier_header_h))
-    end
+    self.survivor_xp_bar:SetText(string.format("XP: %d / %d  [%s] %d%%", xp, cur_cap, xp_gauge, progress_pct))
 
     local job = s_item.job or "idle"
     local job_lbl = game.translate_string("st_pda_settlement_job_" .. job)
@@ -1993,23 +2032,7 @@ function SettlementManagerPDA:OnSurvivorSelected()
         end
     end
 
-    local tele_y = dossier_header_h + 12
-    if self.telemetry_header_bg then self.telemetry_header_bg:SetWndPos(vector2():set(0, tele_y)) end
-    if self.telemetry_lbl then self.telemetry_lbl:SetWndPos(vector2():set(8, tele_y + 2)) end
-
-    self.survivor_job_txt:SetWndPos(vector2():set(8, tele_y + 24))
     self.survivor_job_txt:SetText(colorize_pda_text(job_str))
-    self.survivor_job_txt:AdjustHeightToText()
-    local jh = mmax(34, self.survivor_job_txt:GetHeight())
-    local tele_box_h = jh + 10
-    if self.telemetry_bg then
-        self.telemetry_bg:SetWndPos(vector2():set(0, tele_y + 18))
-        self.telemetry_bg:SetWndSize(vector2():set(164, tele_box_h))
-    end
-
-    local job_y = tele_y + 18 + tele_box_h + 14
-    if self.job_header_bg then self.job_header_bg:SetWndPos(vector2():set(0, job_y)) end
-    if self.job_header_lbl then self.job_header_lbl:SetWndPos(vector2():set(8, job_y + 2)) end
 
     local c_active = hs_theme.argb("heading") -- Gold active highlight
     local c_normal = hs_theme.argb("body") -- Slate neutral
@@ -2043,122 +2066,31 @@ function SettlementManagerPDA:OnSurvivorSelected()
         end
     end
 
-    local btn_start_y = job_y + 24
-    if self.btn_job_idle and self.btn_job_guard then
-        self.btn_job_idle:SetWndPos(vector2():set(0, btn_start_y))
-        self.btn_job_guard:SetWndPos(vector2():set(84, btn_start_y))
-        self.btn_job_scavenge:SetWndPos(vector2():set(0, btn_start_y + 32))
-        if self.btn_job_hunter then self.btn_job_hunter:SetWndPos(vector2():set(84, btn_start_y + 32)) end
-        self.btn_job_craft:SetWndPos(vector2():set(0, btn_start_y + 64))
-        self.btn_job_repair:SetWndPos(vector2():set(84, btn_start_y + 64))
-        self.btn_job_cook:SetWndPos(vector2():set(0, btn_start_y + 96))
-        self.btn_job_medic:SetWndPos(vector2():set(84, btn_start_y + 96))
-        self.btn_job_electrician:SetWndPos(vector2():set(0, btn_start_y + 128))
-        if self.btn_job_woodcutter then self.btn_job_woodcutter:SetWndPos(vector2():set(84, btn_start_y + 128)) end
-        if self.btn_job_brewer then self.btn_job_brewer:SetWndPos(vector2():set(0, btn_start_y + 160)) end
-        if self.btn_job_scrapper then self.btn_job_scrapper:SetWndPos(vector2():set(84, btn_start_y + 160)) end
-        if self.btn_job_farmer then self.btn_job_farmer:SetWndPos(vector2():set(0, btn_start_y + 192)) end
-        if self.btn_job_trader then self.btn_job_trader:SetWndPos(vector2():set(84, btn_start_y + 192)) end
-    end
-
-    local pos_y = btn_start_y + 228
     local has_dir = (job == "medic" or job == "woodcutter" or job == "craft" or job == "farmer" or job == "cook")
-    -- the status above the buttons can run to several lines (a paused job says why in a
-    -- sentence): the buttons and everything under them go below its last line
-    local st_extra = 0
-    if self.survivor_pos_txt then
-        self.survivor_pos_txt:AdjustHeightToText()
-        st_extra = mmax(0, self.survivor_pos_txt:GetHeight() - 16)
-    end
-    local mod4_h = (has_dir and 144 or 118) + st_extra
-    if self.pos_header_bg then self.pos_header_bg:SetWndPos(vector2():set(0, pos_y)) end
-    if self.pos_header_lbl then self.pos_header_lbl:SetWndPos(vector2():set(8, pos_y + 2)) end
-    if self.pos_bg then
-        self.pos_bg:SetWndPos(vector2():set(0, pos_y + 18))
-        self.pos_bg:SetWndSize(vector2():set(164, mod4_h))
-    end
-    if self.survivor_pos_txt then self.survivor_pos_txt:SetWndPos(vector2():set(4, pos_y + 22)) end
-    if self.btn_position_here then
-        self.btn_position_here:SetWndPos(vector2():set(6, pos_y + 42 + st_extra))
-        self.btn_position_here:SetWndSize(vector2():set(152, 24))
-    end
-    if self.btn_position_recall then
-        self.btn_position_recall:SetWndPos(vector2():set(6, pos_y + 68 + st_extra))
-        self.btn_position_recall:SetWndSize(vector2():set(152, 24))
-    end
-    if self.btn_job_directive then
-        if has_dir then
-            self.btn_job_directive:Show(true)
-            self.btn_job_directive:SetWndPos(vector2():set(6, pos_y + 94 + st_extra))
-            self.btn_job_directive:SetWndSize(vector2():set(152, 24))
-            if job == "medic" then
-                local m_order = s_item.medic_order or "auto"
-                local order_label = game.translate_string("st_directive_medic_" .. m_order)
-                if self.btn_job_directive.TextControl and self.btn_job_directive:TextControl() then
-                    self.btn_job_directive:TextControl():SetText("[ " .. order_label .. " ]")
-                    self.btn_job_directive:TextControl():SetTextColor(hs_theme.argb("body"))
-                end
-            elseif job == "woodcutter" then
-                local w_mode = s_item.woodcutter_mode or "auto"
-                local mode_label = hs_theme.short(game.translate_string("st_directive_woodcutter_" .. w_mode))
-                if self.btn_job_directive.TextControl and self.btn_job_directive:TextControl() then
-                    self.btn_job_directive:TextControl():SetText("[ " .. mode_label .. " ]")
-                    self.btn_job_directive:TextControl():SetTextColor(hs_theme.argb("heading"))
-                end
-            elseif job == "farmer" then
-                local f_mode = s_item.farmer_mode or "auto"
-                local mode_label = hs_theme.short(game.translate_string("st_directive_farmer_" .. f_mode))
-                if self.btn_job_directive.TextControl and self.btn_job_directive:TextControl() then
-                    self.btn_job_directive:TextControl():SetText("[ " .. mode_label .. " ]")
-                    self.btn_job_directive:TextControl():SetTextColor(hs_theme.argb("heading"))
-                end
-            elseif job == "craft" then
-                local c_order = s_item.craft_order or "auto"
-                local order_label = hs_theme.short(game.translate_string("st_directive_craft_" .. c_order))
-                if self.btn_job_directive.TextControl and self.btn_job_directive:TextControl() then
-                    self.btn_job_directive:TextControl():SetText("[ " .. order_label .. " ]")
-                    self.btn_job_directive:TextControl():SetTextColor(hs_theme.argb("warn"))
-                end
-            elseif job == "cook" then
-                local c_mode = s_item.cook_mode or "auto"
-                local mode_label = hs_theme.short(game.translate_string("st_directive_cook_" .. c_mode))
-                if self.btn_job_directive.TextControl and self.btn_job_directive:TextControl() then
-                    self.btn_job_directive:TextControl():SetText("[ " .. mode_label .. " ]")
-                    self.btn_job_directive:TextControl():SetTextColor(hs_theme.argb("warn"))
-                end
-            end
+    self.lay_has_dir = has_dir
+    if self.btn_job_directive and has_dir then
+        local dtc = self.btn_job_directive.TextControl and self.btn_job_directive:TextControl()
+        local label, role
+        if job == "medic" then
+            label = game.translate_string("st_directive_medic_" .. (s_item.medic_order or "auto")); role = "body"
+        elseif job == "woodcutter" then
+            label = hs_theme.short(game.translate_string("st_directive_woodcutter_" .. (s_item.woodcutter_mode or "auto"))); role = "heading"
+        elseif job == "farmer" then
+            label = hs_theme.short(game.translate_string("st_directive_farmer_" .. (s_item.farmer_mode or "auto"))); role = "heading"
+        elseif job == "craft" then
+            label = hs_theme.short(game.translate_string("st_directive_craft_" .. (s_item.craft_order or "auto"))); role = "warn"
         else
-            self.btn_job_directive:Show(false)
+            label = hs_theme.short(game.translate_string("st_directive_cook_" .. (s_item.cook_mode or "auto"))); role = "warn"
+        end
+        if dtc then
+            dtc:SetText("[ " .. label .. " ]")
+            dtc:SetTextColor(hs_theme.argb(role))
         end
     end
-    if self.btn_rename_survivor then
-        local rename_y = (has_dir and (pos_y + 120) or (pos_y + 94)) + st_extra
-        self.btn_rename_survivor:SetWndPos(vector2():set(6, rename_y))
-        self.btn_rename_survivor:SetWndSize(vector2():set(152, 24))
-    end
 
-    local tr_y = pos_y + mod4_h + 30
-    if self.transfer_header_bg then self.transfer_header_bg:SetWndPos(vector2():set(0, tr_y)) end
-    if self.transfer_lbl then self.transfer_lbl:SetWndPos(vector2():set(8, tr_y + 2)) end
-    if self.transfer_bg then
-        self.transfer_bg:SetWndPos(vector2():set(0, tr_y + 18))
-        self.transfer_bg:SetWndSize(vector2():set(164, 114))
-    end
-    if self.transfer_list then self.transfer_list:SetWndPos(vector2():set(6, tr_y + 26)) end
-    if self.btn_transfer then self.btn_transfer:SetWndPos(vector2():set(6, tr_y + 98)) end
+    self:UpdateSurvivorHeader(s_item, job, job_lbl, is_paused, camp)
+    self:LayoutSurvivorPages()
 
-    local banish_y = tr_y + 140
-    if self.btn_banish then self.btn_banish:SetWndPos(vector2():set(0, banish_y)) end
-
-    local total_h = banish_y + 40
-    if self.job_content then
-        self.job_content:SetWndSize(vector2():set(164, total_h))
-    end
-    -- what the layout made room for; RefreshJobProgress rewrites both texts later
-    -- (RefitSurvivorDetail)
-    self.lay_jh = jh
-    self.lay_st = self.survivor_pos_txt and mmax(16, self.survivor_pos_txt:GetHeight()) or 16
-    self.job_resized = true
 
     self.transfer_list:RemoveAll()
     local current_hub_id = nil
@@ -2181,6 +2113,153 @@ function SettlementManagerPDA:OnSurvivorSelected()
             self.transfer_list:AddExistingItem(list_item)
         end
     end
+end
+
+-- the survivor detail is one page at a time under the dossier, tab row and summary line
+local SV_PAGE_Y = 122
+local SV_JOB_ORDER = { "idle", "guard", "scavenge", "hunter", "craft", "repair", "cook", "medic",
+    "electrician", "woodcutter", "brewer", "scrapper", "farmer", "trader" }
+
+function SettlementManagerPDA:ApplySurvivorTab()
+    if not self.sv_pages then return end
+    local cur = self.sv_tab or "job"
+    for name, list in pairs(self.sv_pages) do
+        local show = (name == cur)
+        for i = 1, table.maxn(list) do
+            if list[i] then list[i]:Show(show) end
+        end
+    end
+    -- the directive button belongs to the orders page only for jobs that have one
+    if self.btn_job_directive then
+        self.btn_job_directive:Show(cur == "orders" and self.lay_has_dir == true)
+    end
+    for name, btn in pairs(self.sv_tab_btns or {}) do
+        hs_theme.set_active(btn, name == cur)
+    end
+    local h = (self.sv_page_bottom and self.sv_page_bottom[cur]) or 300
+    self.job_content:SetWndSize(vector2():set(350, h))
+    self.job_resized = true
+end
+
+function SettlementManagerPDA:SetSurvivorTab(name)
+    self.sv_tab = name
+    play_pda_ui_sound([[interface\inv_open]])
+    self:ApplySurvivorTab()
+end
+
+-- the summary line under the tabs and the Stats page: what the survivor is doing and how the
+-- living needs stand for them
+function SettlementManagerPDA:UpdateSurvivorHeader(s_item, job, job_lbl, is_paused, camp)
+    local tr = game.translate_string
+    local state = stalker_camp_builder.needs_survivor_state and stalker_camp_builder.needs_survivor_state(s_item)
+    local needs_txt, needs_role = tr("st_pda_sv_needs_off"), "dim"
+    if state == "starving" then needs_txt, needs_role = tr("st_pda_sv_needs_starving"), "danger"
+    elseif state == "hungry" then needs_txt, needs_role = tr("st_pda_sv_needs_hungry"), "warn"
+    elseif state == "fed" then needs_txt, needs_role = tr("st_pda_sv_needs_fed"), "good" end
+
+    local word, kind, role
+    if is_paused then word, kind, role = tr("st_pda_sv_sum_paused"), "threat", "warn"
+    elseif job == "idle" then word, kind, role = tr("st_pda_sv_sum_idle"), "neutral", "dim"
+    else word, kind, role = tr("st_pda_sv_sum_working"), "secure", "good" end
+    if state == "starving" then kind, role = "threat", "danger" end
+    local parts = { word, job_lbl }
+    if state then parts[#parts + 1] = string.format(tr("st_pda_sv_sum_needs"), needs_txt) end
+    hs_theme.banner(self.sv_sum_bg, kind)
+    if self.sv_sum_lbl then
+        self.sv_sum_lbl:SetText(table.concat(parts, "  |  "))
+        self.sv_sum_lbl:SetTextColor(hs_theme.argb(role))
+    end
+
+    local tiers = { [0] = tr("st_settler_tier_novice"), [1] = tr("st_settler_tier_skilled"),
+        [2] = tr("st_settler_tier_expert"), [3] = tr("st_settler_tier_master") }
+    local tier = s_item.tier or 0
+    local caps = { [0] = 100, [1] = 250, [2] = 500, [3] = 500 }
+    local xp = s_item.xp or 0
+    local morale_txt, morale_role = "-", "body"
+    if camp and camp.happiness then
+        local m = math.floor(camp.happiness)
+        morale_txt = string.format("%d%%", m)
+        morale_role = m >= 75 and "good" or (m >= 40 and "body" or (m >= 20 and "warn" or "danger"))
+    end
+    local rows = {
+        { tr("st_pda_sv_stat_needs"), needs_txt, needs_role },
+        { tr("st_pda_sv_stat_morale"), morale_txt, morale_role },
+        { tr("st_pda_sv_stat_rank"), string.format("%s (T%d)", tiers[tier] or tiers[0], tier), "good" },
+        { tr("st_pda_sv_stat_xp"), string.format("%d / %d", xp, caps[tier] or 500), "body" },
+    }
+    for i, r in ipairs(rows) do
+        local l, v = self.sv_stat_lbls and self.sv_stat_lbls[i], self.sv_stat_vals and self.sv_stat_vals[i]
+        if l then l:SetText(r[1]) end
+        if v then v:SetText(r[2]); v:SetTextColor(hs_theme.argb(r[3])) end
+    end
+end
+
+-- put every control of the detail where its page wants it; the job and status texts set the heights
+function SettlementManagerPDA:LayoutSurvivorPages()
+    local mmax = math.max
+    local P = SV_PAGE_Y
+    local function pos(w, x, y) if w then w:SetWndPos(vector2():set(x, y)) end end
+    local function size(w, ww, hh) if w then w:SetWndSize(vector2():set(ww, hh)) end end
+
+    -- job page
+    pos(self.telemetry_header_bg, 0, P)
+    pos(self.telemetry_lbl, 8, P + 2)
+    self.survivor_job_txt:AdjustHeightToText()
+    local jh = mmax(18, self.survivor_job_txt:GetHeight())
+    pos(self.survivor_job_txt, 8, P + 22)
+    pos(self.telemetry_bg, 0, P + 18)
+    size(self.telemetry_bg, 350, jh + 10)
+    local job_y = P + 18 + jh + 10 + 8
+    pos(self.job_header_bg, 0, job_y)
+    pos(self.job_header_lbl, 8, job_y + 2)
+    local gy = job_y + 22
+    for i, nm in ipairs(SV_JOB_ORDER) do
+        local b = self["btn_job_" .. nm]
+        pos(b, ((i - 1) % 4) * 89, gy + math.floor((i - 1) / 4) * 28)
+    end
+    local job_bottom = gy + 4 * 28 + 6
+
+    -- orders page
+    pos(self.pos_header_bg, 0, P)
+    pos(self.pos_header_lbl, 8, P + 2)
+    local sh = 16
+    if self.survivor_pos_txt then
+        self.survivor_pos_txt:AdjustHeightToText()
+        sh = mmax(16, self.survivor_pos_txt:GetHeight())
+    end
+    pos(self.survivor_pos_txt, 6, P + 22)
+    pos(self.pos_bg, 0, P + 18)
+    size(self.pos_bg, 350, sh + 10)
+    local oy = P + 18 + sh + 10 + 8
+    pos(self.btn_position_here, 0, oy)
+    size(self.btn_position_here, 172, 26)
+    pos(self.btn_position_recall, 178, oy)
+    size(self.btn_position_recall, 172, 26)
+    oy = oy + 30
+    if self.lay_has_dir then
+        pos(self.btn_job_directive, 0, oy)
+        size(self.btn_job_directive, 350, 26)
+        oy = oy + 30
+    end
+    pos(self.btn_rename_survivor, 0, oy)
+    size(self.btn_rename_survivor, 350, 26)
+    local orders_bottom = oy + 32
+
+    -- transfer page
+    pos(self.transfer_header_bg, 0, P)
+    pos(self.transfer_lbl, 8, P + 2)
+    pos(self.transfer_bg, 0, P + 18)
+    size(self.transfer_bg, 350, 102)
+    pos(self.transfer_list, 6, P + 24)
+    pos(self.btn_transfer, 6, P + 96)
+    pos(self.btn_banish, 0, P + 128)
+    local transfer_bottom = P + 160
+
+    self.sv_page_bottom = { job = job_bottom, orders = orders_bottom, transfer = transfer_bottom, stats = P + 150 }
+    -- what the layout made room for; RefreshJobProgress rewrites both texts later (RefitSurvivorDetail)
+    self.lay_jh = jh
+    self.lay_st = sh
+    self:ApplySurvivorTab()
 end
 
 function SettlementManagerPDA:GetSurvivorInfo(survivor_id)
@@ -2689,6 +2768,9 @@ function SettlementManagerPDA:UpdateSurvivorsProgress()
                     surv.npc_id = surv.npc_id or tonum(item.survivor_id) or item.survivor_id
                     surv.hub_id = surv.hub_id or hub_id
                     local str, clr = self:FormatSurvivorStatus(surv, camp, hub_id)
+                    if item.UpdateNeeds then
+                        item:UpdateNeeds(survivor_needs_cell(surv))
+                    end
                     if item.UpdateStatus then
                         outgrown = item:UpdateStatus(str, clr) or outgrown
                     elseif item.status_wnd then
@@ -2737,51 +2819,15 @@ function SettlementManagerPDA:RefitSurvivorDetail()
     if not (self.lay_jh and self.lay_st and self.job_content and self.survivor_job_txt) then
         return
     end
-    local under = {
-        self.job_header_bg, self.job_header_lbl,
-        self.btn_job_idle, self.btn_job_guard, self.btn_job_scavenge, self.btn_job_hunter,
-        self.btn_job_craft, self.btn_job_repair, self.btn_job_cook, self.btn_job_medic,
-        self.btn_job_electrician, self.btn_job_woodcutter, self.btn_job_brewer, self.btn_job_scrapper, self.btn_job_farmer, self.btn_job_trader,
-        self.pos_header_bg, self.pos_header_lbl, self.pos_bg, self.survivor_pos_txt,
-        self.btn_position_here, self.btn_position_recall, self.btn_job_directive, self.btn_rename_survivor,
-        self.transfer_header_bg, self.transfer_lbl, self.transfer_bg, self.transfer_list,
-        self.btn_transfer, self.btn_banish,
-    }
-    local function shift(dy, below)
-        for _, w in pairs(under) do
-            local p = w:GetWndPos()
-            if p.y > below then
-                w:SetWndPos(vector2():set(p.x, p.y + dy))
-            end
-        end
-    end
-    local function grow(w, dy)
-        if w then
-            w:SetWndSize(vector2():set(w:GetWidth(), w:GetHeight() + dy))
-        end
-    end
-    local total = 0
     self.survivor_job_txt:AdjustHeightToText()
-    local jh = math.max(34, self.survivor_job_txt:GetHeight())
-    if jh ~= self.lay_jh then
-        local dy = jh - self.lay_jh
-        shift(dy, self.survivor_job_txt:GetWndPos().y)
-        grow(self.telemetry_bg, dy)
-        self.lay_jh, total = jh, total + dy
-    end
+    local jh = math.max(18, self.survivor_job_txt:GetHeight())
+    local sh = 16
     if self.survivor_pos_txt then
         self.survivor_pos_txt:AdjustHeightToText()
-        local sh = math.max(16, self.survivor_pos_txt:GetHeight())
-        if sh ~= self.lay_st then
-            local dy = sh - self.lay_st
-            shift(dy, self.survivor_pos_txt:GetWndPos().y)
-            grow(self.pos_bg, dy)
-            self.lay_st, total = sh, total + dy
-        end
+        sh = math.max(16, self.survivor_pos_txt:GetHeight())
     end
-    if total ~= 0 then
-        grow(self.job_content, total)
-        self.job_resized = true
+    if jh ~= self.lay_jh or sh ~= self.lay_st then
+        self:LayoutSurvivorPages()
     end
 end
 

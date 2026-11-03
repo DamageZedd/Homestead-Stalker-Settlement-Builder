@@ -2999,4 +2999,67 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_pda_ov_sum_needs_crit">
         <text>Needs CRITICAL</text>
     </string>
+    <string id="st_pda_sv_col_name">
+        <text>Name</text>
+    </string>
+    <string id="st_pda_sv_col_job">
+        <text>Job</text>
+    </string>
+    <string id="st_pda_sv_col_rank">
+        <text>Rank</text>
+    </string>
+    <string id="st_pda_sv_col_needs">
+        <text>Needs</text>
+    </string>
+    <string id="st_pda_sv_tab_job">
+        <text>Job</text>
+    </string>
+    <string id="st_pda_sv_tab_orders">
+        <text>Orders</text>
+    </string>
+    <string id="st_pda_sv_tab_transfer">
+        <text>Transfer</text>
+    </string>
+    <string id="st_pda_sv_tab_stats">
+        <text>Stats</text>
+    </string>
+    <string id="st_pda_sv_stats_title">
+        <text>SURVIVOR STATS</text>
+    </string>
+    <string id="st_pda_sv_needs_fed">
+        <text>Fed</text>
+    </string>
+    <string id="st_pda_sv_needs_hungry">
+        <text>Hungry</text>
+    </string>
+    <string id="st_pda_sv_needs_starving">
+        <text>Starving</text>
+    </string>
+    <string id="st_pda_sv_needs_off">
+        <text>Off</text>
+    </string>
+    <string id="st_pda_sv_sum_working">
+        <text>WORKING</text>
+    </string>
+    <string id="st_pda_sv_sum_paused">
+        <text>PAUSED</text>
+    </string>
+    <string id="st_pda_sv_sum_idle">
+        <text>RESTING</text>
+    </string>
+    <string id="st_pda_sv_sum_needs">
+        <text>Needs: %s</text>
+    </string>
+    <string id="st_pda_sv_stat_needs">
+        <text>Needs</text>
+    </string>
+    <string id="st_pda_sv_stat_morale">
+        <text>Camp morale</text>
+    </string>
+    <string id="st_pda_sv_stat_rank">
+        <text>Rank</text>
+    </string>
+    <string id="st_pda_sv_stat_xp">
+        <text>XP</text>
+    </string>
 </string_table>

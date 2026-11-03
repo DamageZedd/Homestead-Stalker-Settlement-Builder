@@ -3002,5 +3002,68 @@
     <string id="st_pda_ov_sum_needs_crit">
         <text>нужды: КРИТИЧНО</text>
     </string>
+    <string id="st_pda_sv_col_name">
+        <text>Имя</text>
+    </string>
+    <string id="st_pda_sv_col_job">
+        <text>Работа</text>
+    </string>
+    <string id="st_pda_sv_col_rank">
+        <text>Ранг</text>
+    </string>
+    <string id="st_pda_sv_col_needs">
+        <text>Нужды</text>
+    </string>
+    <string id="st_pda_sv_tab_job">
+        <text>Работа</text>
+    </string>
+    <string id="st_pda_sv_tab_orders">
+        <text>Приказы</text>
+    </string>
+    <string id="st_pda_sv_tab_transfer">
+        <text>Перевод</text>
+    </string>
+    <string id="st_pda_sv_tab_stats">
+        <text>Данные</text>
+    </string>
+    <string id="st_pda_sv_stats_title">
+        <text>ДАННЫЕ ПОСЕЛЕНЦА</text>
+    </string>
+    <string id="st_pda_sv_needs_fed">
+        <text>Сыт</text>
+    </string>
+    <string id="st_pda_sv_needs_hungry">
+        <text>Голоден</text>
+    </string>
+    <string id="st_pda_sv_needs_starving">
+        <text>Истощён</text>
+    </string>
+    <string id="st_pda_sv_needs_off">
+        <text>Выкл</text>
+    </string>
+    <string id="st_pda_sv_sum_working">
+        <text>РАБОТАЕТ</text>
+    </string>
+    <string id="st_pda_sv_sum_paused">
+        <text>ПАУЗА</text>
+    </string>
+    <string id="st_pda_sv_sum_idle">
+        <text>ОТДЫХАЕТ</text>
+    </string>
+    <string id="st_pda_sv_sum_needs">
+        <text>Нужды: %s</text>
+    </string>
+    <string id="st_pda_sv_stat_needs">
+        <text>Нужды</text>
+    </string>
+    <string id="st_pda_sv_stat_morale">
+        <text>Мораль лагеря</text>
+    </string>
+    <string id="st_pda_sv_stat_rank">
+        <text>Ранг</text>
+    </string>
+    <string id="st_pda_sv_stat_xp">
+        <text>Опыт</text>
+    </string>
 </string_table>
 

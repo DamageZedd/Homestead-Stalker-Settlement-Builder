@@ -262,6 +262,14 @@ function sb.needs_starving(survivor)
     return survivor ~= nil and sb.needs_enabled_now() and flag_on(survivor.needs_starving_until)
 end
 
+-- what the PDA roster shows for one settler: nil when living needs are off
+function sb.needs_survivor_state(survivor)
+    if not (survivor and sb.needs_enabled_now()) then return nil end
+    if flag_on(survivor.needs_starving_until) then return "starving" end
+    if flag_on(survivor.needs_hungry_until) then return "hungry" end
+    return "fed"
+end
+
 -- starving guards count for less in the camp's defense (the raid chance reads it)
 function sb.needs_guard_mult(camp)
     if not sb.needs_enabled_now() or sb.cfg.needs_guard_penalty == false then return 1 end
