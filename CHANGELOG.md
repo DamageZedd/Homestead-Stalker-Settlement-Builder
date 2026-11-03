@@ -13,6 +13,7 @@
 - **MCM (Raids & Events)**: `Faction Reputation for Lost Settlers` (on by default), `Goodwill Lost per Settler` (default 25), `Goodwill Lost Cap per Raid` (default 100).
 
 ### Fixes
+- **Mod App Creator (MAC)**: with MAC installed the PDA showed two Settlements entries, the app in MAC's launcher and an extra tab in the top tab bar. The top tab is now skipped when MAC is detected, so the launcher app is the only one. Without MAC the top tab is added as before.
 - **Russian text**: the "Master settlers may move on" MCM options and the moved-on notification had no Russian entries, so they showed raw string ids under the Russian language. They now carry the English text until translated.
 
 ### 🎨 Complete Furniture Overhaul: All Furniture Uses Vanilla Textures (Zero Atlases)

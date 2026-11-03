@@ -831,6 +831,17 @@ local function get_paw_mapspots()
     return homestead_paw_mapspots
 end
 
+-- True only when Mod App Creator (MAC) is positively detected. MAC ships mac_mcm.script, which
+-- exposes add_app(); with MAC the Settlement app lives in its launcher (z_stalker_camp_builder_pda_mac),
+-- so the top tab bar must not get a second entry. Evaluated on every PDA xml read (not cached) so
+-- script load order cannot matter; any error or doubt returns false, which keeps the top tab.
+local function mac_is_active()
+    local ok, found = pcall(function()
+        return type(mac_mcm) == "table" and type(mac_mcm.add_app) == "function"
+    end)
+    return ok and found == true
+end
+
 function on_xml_read()
     local ipairs_ = ipairs
     local sfind = string.find
@@ -882,7 +893,7 @@ function on_xml_read()
                         end
                     end
 
-                    if is_main_tab_bar and not exists then
+                    if is_main_tab_bar and not exists and not mac_is_active() then
                         -- Calculate responsive button widths and positions so all tabs fit cleanly within 550px header
                         local total_buttons = #buttons + 1
                         local max_tab_width = 548
