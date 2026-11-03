@@ -336,7 +336,10 @@ function RivalListItem:__init(smart, name, badge_text, location_text, is_hostile
 
         self.name_wnd = xml:InitTextWnd("rival_row_name", self)
         if self.name_wnd then
-            self.name_wnd:SetText(name or "")
+            -- one line only: a longer name wrapped onto the subline under it
+            local nm = name or ""
+            if #nm > 19 then nm = nm:sub(1, 17) .. ".." end
+            self.name_wnd:SetText(nm)
         end
 
         -- a coloured stripe and a status word on the photo say friend or foe without opening the card
@@ -506,6 +509,14 @@ function SettlementManagerPDA:InitControls()
     self.needs_header_bg = xml:InitStatic("overview_content:needs_header_bg", self.overview_content)
     self.morale_card_bg = xml:InitStatic("overview_content:morale_card_bg", self.overview_content)
     self.morale_header_bg = xml:InitStatic("overview_content:morale_header_bg", self.overview_content)
+    self.sumsec_card_bg = xml:InitStatic("overview_content:sumsec_card_bg", self.overview_content)
+    self.sumsec_header_bg = xml:InitStatic("overview_content:sumsec_header_bg", self.overview_content)
+    self.sumsec_card_lbl = xml:InitTextWnd("overview_content:sumsec_card_lbl", self.overview_content)
+    self.ov_sum = {}
+    for _, nm in ipairs({ "def", "perim", "needs", "food", "water" }) do
+        self.ov_sum["lbl_" .. nm] = xml:InitTextWnd("overview_content:sum_lbl_" .. nm, self.overview_content)
+        self.ov_sum[nm] = xml:InitTextWnd("overview_content:sum_" .. nm, self.overview_content)
+    end
     self.pop_card_bg = xml:InitStatic("overview_content:pop_card_bg", self.overview_content)
     self.pop_header_bg = xml:InitStatic("overview_content:pop_header_bg", self.overview_content)
     self.pop_card_lbl = xml:InitTextWnd("overview_content:pop_card_lbl", self.overview_content)
@@ -583,7 +594,7 @@ function SettlementManagerPDA:InitControls()
     self.camp_threat_detail = xml:InitTextWnd("overview_content:camp_threat_detail", self.overview_content)
     self.needs_card_lbl = xml:InitTextWnd("overview_content:needs_card_lbl", self.overview_content)
     self.ov_bars = {}
-    for _, nm in ipairs({ "pop", "morale", "def", "storage" }) do
+    for _, nm in ipairs({ "pop", "morale", "def", "storage", "sumdef" }) do
         self.ov_bars[nm] = {
             bg = xml:InitStatic("overview_content:bar_" .. nm .. "_bg", self.overview_content),
             fill = xml:InitStatic("overview_content:bar_" .. nm .. "_fill", self.overview_content),
@@ -595,7 +606,11 @@ function SettlementManagerPDA:InitControls()
         status = { self.pop_card_bg, self.pop_header_bg, self.pop_card_lbl, L.settlers, self.camp_pop,
             L.occupancy, self.camp_pop_gauge, self.ov_bars.pop.bg, self.ov_bars.pop.fill,
             self.morale_card_bg, self.morale_header_bg, self.morale_card_lbl, L.morale, self.camp_morale,
-            self.ov_bars.morale.bg, self.ov_bars.morale.fill, L.comfort, self.camp_comfort },
+            self.ov_bars.morale.bg, self.ov_bars.morale.fill, L.comfort, self.camp_comfort,
+            self.sumsec_card_bg, self.sumsec_header_bg, self.sumsec_card_lbl, self.ov_bars.sumdef.bg,
+            self.ov_bars.sumdef.fill, self.ov_sum.lbl_def, self.ov_sum.def, self.ov_sum.lbl_perim, self.ov_sum.perim,
+            self.ov_sum.lbl_needs, self.ov_sum.needs, self.ov_sum.lbl_food, self.ov_sum.food,
+            self.ov_sum.lbl_water, self.ov_sum.water },
         defense = { self.def_card_bg, self.def_header_bg, self.def_card_lbl, L.rating, self.camp_def,
             self.ov_bars.def.bg, self.ov_bars.def.fill, L.perimeter, self.camp_def_breakdown,
             self.threat_card_bg, self.threat_header_bg, self.threat_card_lbl, L.threat, self.camp_threat_lvl,
@@ -1447,7 +1462,8 @@ function SettlementManagerPDA:OnRivalSelected()
         end
     end
     -- the region goes under the name, the tile holds only the distance
-    local dist_text = "--"
+    -- the distance is only known on the player's level: the other levels have their own coordinates
+    local dist_text = (rcamp.level and rcamp.level ~= level.name()) and game.translate_string("st_pda_ov_dist_other") or "--"
     if db.actor and rcamp.squad_id and rcamp.level == level.name() then
         local dsquad = alife_object(rcamp.squad_id)
         if dsquad and dsquad.position then
@@ -1659,6 +1675,16 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
     end
     row(self.camp_needs, needs_txt or tr("st_pda_ov_needs_off"), needs_role or "dim")
 
+    -- Status page summary: the same facts as the other pages, so the key ones show without a tab change
+    if self.ov_sum then
+        row(self.ov_sum.def, sformat("%d / %d  (%s)", stats.defense, def_cap, def_word), def_role)
+        self:SetOverviewBar("sumdef", def_pct / 100, def_role == "body" and "heading" or def_role)
+        row(self.ov_sum.perim, sformat(tr("st_pda_ov_perimeter_val"), stats.barricades, stats.guards, stats.gadgets), "body")
+        row(self.ov_sum.needs, needs_txt or tr("st_pda_ov_needs_off"), needs_role or "dim")
+        row(self.ov_sum.food, tr(has_food and "st_pda_ov_food_ok" or "st_pda_ov_food_low"), has_food and "good" or "danger")
+        row(self.ov_sum.water, water_txt, water_role)
+    end
+
     local storage_txt, storage_role = tr("st_pda_ov_na"), "body"
     if stalker_camp_builder.get_camp_storage_metrics then
         local u_w, m_w, _, pct = stalker_camp_builder.get_camp_storage_metrics(camp, hub_obj)
@@ -1683,7 +1709,7 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
 
     -- summary line: state, settlers, and how the living needs stand (nothing when they are off)
     if self.raid_banner_bg then
-        hs_theme.banner(self.raid_banner_bg, (camp.active_raid or smart_hazard) and "threat" or "secure")
+        hs_theme.banner(self.raid_banner_bg, camp.active_raid and "threat" or (smart_hazard and "neutral" or "secure"))
     end
     if self.raid_banner_lbl then
         local parts = { sum_word, sformat(tr("st_pda_ov_sum_settlers"), stats.population, stats.beds) }
@@ -1697,7 +1723,7 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
 
     if self.overview_content then
         self.overview_content:Show(true)
-        self.overview_content:SetWndSize(vector2():set(350, 300))
+        self.overview_content:SetWndSize(vector2():set(350, 420))
     end
     self:ApplyOverviewTab()
 end

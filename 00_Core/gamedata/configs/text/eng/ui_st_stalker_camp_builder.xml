@@ -3134,4 +3134,10 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_pda_sv_xp_lbl">
         <text>XP</text>
     </string>
+    <string id="st_pda_settlement_sumsec_lbl">
+        <text>SECURITY AND NEEDS</text>
+    </string>
+    <string id="st_pda_ov_dist_other">
+        <text>Other level</text>
+    </string>
 </string_table>

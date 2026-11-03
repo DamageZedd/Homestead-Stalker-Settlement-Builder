@@ -3137,5 +3137,11 @@
     <string id="st_pda_sv_xp_lbl">
         <text>ношр</text>
     </string>
+    <string id="st_pda_settlement_sumsec_lbl">
+        <text>аегноюямнярэ х онрпеамнярх</text>
+    </string>
+    <string id="st_pda_ov_dist_other">
+        <text>дПСЦНИ СПНБЕМЭ</text>
+    </string>
 </string_table>
 
