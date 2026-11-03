@@ -88,23 +88,25 @@ Themed boxes for the settlement's own stock. Settlers and Auto-Sort put each kin
 
 Full 5-tab tactical interface accessible from anywhere in the Zone. The top status bar shows a live military clock, weather, RF signal strength, and the active settlement.
 
-**Tab 1 — Settlements Overview.** Live population, defense rating, morale, food, water, and storage. 8-button operations grid: Fast Travel, Summon Caravan, Auto-Sort Stash, Set Specialization, Recall Settlers, Rename, Transfer Resources, Dismantle.
+**Tab 1 - Overview.** Pick a settlement, then switch between Status, Defense, Supplies and Orders. Status shows population and bunks, morale and comfort, security rating, perimeter, and food and water at a glance, with a banner when a spawn hazard is near.
 
-![Settlements Overview](https://media.moddb.com/images/members/5/4662/4661404/profile/ss_player_09-03-26_22-16-37_l03.png)
+<p align="center"><img src="docs/images/pda_overview.jpg?v=1" alt="PDA Overview, Status" width="100%"></p>
 
-**Tab 2 — Settlers Roster & Dossier.** Scrollable survivor cards with portraits, rank, experience, and real-time job progress. Job assignment and per-job directives (Medic, Crafter, Woodcutter, Farmer). Field commands: Anchor Position, Recall, Rename, Transfer Between Settlements.
+**Tab 2 - Survivors.** A filterable roster (All, Exped, Work, Idle) with portrait, job, task progress and needs. Select a settler for rank, an XP bar, and Job, Orders, Transfer and Stats tabs, plus one-click job reassignment.
 
-![Settlers Roster](https://media.moddb.com/images/members/5/4662/4661404/profile/ss_player_09-03-26_22-16-44_l03.png)
+<p align="center"><img src="docs/images/pda_survivors.jpg?v=1" alt="PDA Survivors" width="100%"></p>
 
-**Tab 3 — Rival Wilderness Camps.** Real landscape photos for 21 Zone levels. Dynamic threat banners (HOSTILE / ABANDONED / ALLIED / MUTANT NEST). Tactical recon: faction, garrison strength, tier, estimated loot.
+**Tab 3 - Outposts.** Rival camps with real landscape photos and HOSTILE / ALLY tags. A hero header and stat tiles show faction, garrison and distance, plus tactical intel and Show on Map.
 
-![Rival Wilderness Camps](https://media.moddb.com/images/members/5/4662/4661404/profile/ss_player_09-03-26_22-16-47_l03.png)
+<p align="center"><img src="docs/images/pda_outposts.jpg?v=1" alt="PDA Outposts" width="100%"></p>
 
-**Tab 4 — Settlement Radio Transceiver.** Real-time event log for expeditions, combat alerts, craft cycles, harvests, sales, medical treatments, and raid summaries. Category filters + Live Zone Scanner.
+**Tab 4 - Radio Feed.** Real-time event log for expeditions, workshops, combat and raids. Pick a channel (all settlements or just one), toggle the type filters, Scan Zone, or Clear Log.
 
-![Settlement Radio](https://media.moddb.com/images/members/5/4662/4661404/profile/ss_player_09-03-26_22-16-50_l03.png)
+<p align="center"><img src="docs/images/pda_radio.jpg?v=1" alt="PDA Radio Feed" width="100%"></p>
 
-**Tab 5 — Field Survival Guide.** Illustrated operational directives covering every mechanic, including every job. Full English & Russian localization.
+**Tab 5 - How to Play.** A quick-start checklist plus topic tiles (Settlements, Building, Settlers, Jobs, Storage, Defense, Rival Camps, Radio Feed, Morale, MCM). Click a tile to read that topic, with a Back button. Full English & Russian localization.
+
+<p align="center"><img src="docs/images/pda_howtoplay.jpg?v=1" alt="PDA How to Play" width="100%"></p>
 
 ![Field Survival Guide](https://media.moddb.com/images/members/5/4662/4661404/profile/ss_player_09-03-26_22-16-52_l03.png)
 
