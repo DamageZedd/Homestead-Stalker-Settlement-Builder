@@ -43,9 +43,14 @@ local WALLS_385 = {
 }
 
 local SIDES = { {1, 0}, {-1, 0}, {0, 1}, {0, -1} }
+-- A triangle piece is half a tile cut along the diagonal: right angle at local (-X, -Z), legs on the
+-- -X and -Z edges, hypotenuse from (+X, -Z) to (-X, +Z) through the pivot, facing (+1, +1) / sqrt 2.
+local LEGS = { {-1, 0}, {0, -1} }
+local HYPO = math.sqrt(0.5)
+local HYPO_LEN = TILE * math.sqrt(2)
 
 -- top surface above the pivot, per target class
-local TOP = { foundation = FOUND_TOP, floor = SLAB, stairs = STOREY }
+local TOP = { foundation = FOUND_TOP, floor = SLAB, stairs = STOREY, foundation_tri = FOUND_TOP, floor_tri = SLAB }
 -- what furniture stands on: the foundation mesh top is paved 0.405 - 0.425 m, above the 0.4 m
 -- collision slab that building pieces measure from
 local FURN_TOP = { foundation = 0.425, floor = SLAB, stairs = STOREY }
@@ -196,10 +201,10 @@ end
 local ACCEPTS = {
     foundation = { foundation = true, foundation_tri = true },
     foundation_tri = { foundation = true, foundation_tri = true },
-    floor      = { floor = true, foundation = true, wall = true, floor_tri = true },
-    floor_tri  = { floor = true, foundation = true, floor_tri = true },
-    wall_low   = { foundation = true, floor = true },
-    post       = { foundation = true, floor = true },
+    floor      = { floor = true, foundation = true, wall = true, floor_tri = true, foundation_tri = true },
+    floor_tri  = { floor = true, foundation = true, floor_tri = true, foundation_tri = true, wall = true },
+    wall_low   = { foundation = true, floor = true, foundation_tri = true, floor_tri = true },
+    post       = { foundation = true, floor = true, foundation_tri = true, floor_tri = true },
     steps      = { foundation = true },
     roof_flat  = { wall = true, roof_flat = true, roof_triangle = true },
     roof_triangle = { wall = true, roof_flat = true, roof_triangle = true },
@@ -208,7 +213,7 @@ local ACCEPTS = {
     roof_valley  = { wall = true, roof_slope = true },
     roof_pyramid = { wall = true },
     wall_gable   = { wall = true },
-    wall       = { foundation = true, floor = true, wall = true },
+    wall       = { foundation = true, floor = true, wall = true, foundation_tri = true, floor_tri = true },
     stairs     = { floor = true, foundation = true },
     furniture  = { floor = true, foundation = true, stairs = true, wall = true },
 }
@@ -298,8 +303,9 @@ local function sockets(held, tinfo)
     local hc, tc = held.class, tinfo.class
 
     -- next tile over on each side
-    local function neighbours(py, top, quad)
-        for _, d in ipairs(SIDES) do
+    -- (a triangle target only has its two legs to build off; its hypotenuse faces nothing a tile fits)
+    local function neighbours(py, top, quad, sides)
+        for _, d in ipairs(sides or SIDES) do
             add(d[1] * TILE, py, d[2] * TILE, 0, d[1] * TILE / 2, top, d[2] * TILE / 2, quad)
         end
     end
@@ -312,18 +318,33 @@ local function sockets(held, tinfo)
 
     if (hc == "foundation" or hc == "foundation_tri") and (tc == "foundation" or tc == "foundation_tri") then
         local tri = hc == "foundation_tri"
-        neighbours(0, FOUND_TOP, tri)
+        neighbours(0, FOUND_TOP, tri, tc == "foundation_tri" and LEGS or nil)
         if tri and tc == "foundation_tri" then add(0, 0, 0, math.pi, 0, FOUND_TOP, 0) end   -- the other half of the tile
 
     elseif hc == "floor_tri" and tc == "floor_tri" then
-        neighbours(0, SLAB, true)
+        neighbours(0, SLAB, true, LEGS)
         add(0, 0, 0, math.pi, 0, SLAB, 0)
 
     elseif hc == "floor_tri" and (tc == "floor" or tc == "foundation") then
         if tc == "floor" then neighbours(0, SLAB, true) else neighbours(FOUND_TOP - SLAB, FOUND_TOP, true) end
 
+    elseif hc == "floor_tri" and tc == "foundation_tri" then
+        neighbours(FOUND_TOP - SLAB, FOUND_TOP, true, LEGS)
+        add(0, FOUND_TOP - SLAB, 0, math.pi, 0, FOUND_TOP, 0)
+
     elseif hc == "floor" and tc == "floor_tri" then
-        neighbours(0, SLAB)
+        neighbours(0, SLAB, false, LEGS)
+
+    elseif hc == "floor" and tc == "foundation_tri" then
+        neighbours(FOUND_TOP - SLAB, FOUND_TOP, false, LEGS)
+
+    elseif hc == "post" and (tc == "foundation_tri" or tc == "floor_tri") then
+        -- the three corners of the triangle: the right angle, and the two acute ones pulled in so the
+        -- 0.4 m post stays inside the hypotenuse
+        local top, h = TOP[tc], TILE / 2
+        for _, c in ipairs({ { -h + 0.2, -h + 0.2 }, { h - 0.6, -h + 0.2 }, { -h + 0.2, h - 0.6 } }) do
+            add(c[1], top, c[2], 0, c[1], top, c[2])
+        end
 
     elseif hc == "post" and (tc == "foundation" or tc == "floor") then
         -- the four corners of the tile
@@ -347,11 +368,11 @@ local function sockets(held, tinfo)
     elseif hc == "floor" and tc == "foundation" then
         neighbours(FOUND_TOP - SLAB, FOUND_TOP)
 
-    elseif (hc == "floor" or hc == "roof_flat" or hc == "roof_pyramid" or hc == "roof_triangle") and tc == "wall" then
+    elseif (hc == "floor" or hc == "floor_tri" or hc == "roof_flat" or hc == "roof_pyramid" or hc == "roof_triangle") and tc == "wall" then
         -- the tile on top of the wall, on either side of it
         for _, lx in ipairs(wall_laterals(tinfo)) do
-            add(lx, WALL_H, TILE / 2 - tinfo.t / 2 + WALL_Z, 0, lx / 2, WALL_H, 0.6, hc == "roof_triangle")
-            add(lx, WALL_H, -(TILE / 2 + tinfo.t / 2) + WALL_Z, 0, lx / 2, WALL_H, -0.6, hc == "roof_triangle")
+            add(lx, WALL_H, TILE / 2 - tinfo.t / 2 + WALL_Z, 0, lx / 2, WALL_H, 0.6, hc == "roof_triangle" or hc == "floor_tri")
+            add(lx, WALL_H, -(TILE / 2 + tinfo.t / 2) + WALL_Z, 0, lx / 2, WALL_H, -0.6, hc == "roof_triangle" or hc == "floor_tri")
         end
 
     elseif (hc == "roof_slope" or hc == "roof_hip" or hc == "roof_valley") and tc == "wall" then
@@ -363,17 +384,32 @@ local function sockets(held, tinfo)
             add(lx, WALL_H, -(TILE / 2 - tinfo.t / 2) + WALL_Z, math.pi, lx / 2, WALL_H, -0.6, quad)
         end
 
-    elseif (hc == "wall" or hc == "wall_low") and (tc == "foundation" or tc == "floor") then
+    elseif (hc == "wall" or hc == "wall_low") and (tc == "foundation" or tc == "floor" or tc == "foundation_tri" or tc == "floor_tri") then
         local top = TOP[tc]
-        local laterals = held.half and { TILE / 4, -TILE / 4 } or { 0 }
-        for _, d in ipairs(SIDES) do
-            local ex, ez = d[2], -d[1]     -- along the edge
-            local yaw = dir_yaw(-d[1], -d[2])
+        local tri = tc == "foundation_tri" or tc == "floor_tri"
+        -- every edge: outward direction d, distance from the pivot to the edge, length. The legs of a
+        -- triangle are tile edges; its hypotenuse passes through the pivot at 45 degrees and is
+        -- longer than a wall, so walls go flush to either corner or in the middle.
+        local edges = {}
+        for _, d in ipairs(tri and LEGS or SIDES) do
+            edges[#edges + 1] = { dx = d[1], dz = d[2], dist = TILE / 2, len = TILE }
+        end
+        if tri then edges[#edges + 1] = { dx = HYPO, dz = HYPO, dist = 0, len = HYPO_LEN } end
+        for _, e in ipairs(edges) do
+            local ex, ez = e.dz, -e.dx     -- along the edge
+            local yaw = dir_yaw(-e.dx, -e.dz)
             -- the wall's slab sits WALL_Z towards its front (local -Z, which faces out)
-            local inset = TILE / 2 - held.t / 2 + WALL_Z
+            local inset = e.dist - held.t / 2 + WALL_Z
+            local laterals
+            if e.len > TILE + 0.01 then
+                local o = (e.len - held.w) / 2
+                laterals = { -o, 0, o }
+            else
+                laterals = held.half and { TILE / 4, -TILE / 4 } or { 0 }
+            end
             for _, l in ipairs(laterals) do
-                add(d[1] * inset + ex * l, top, d[2] * inset + ez * l, yaw,
-                    d[1] * (TILE / 2 - 0.3) + ex * l, top, d[2] * (TILE / 2 - 0.3) + ez * l)
+                add(e.dx * inset + ex * l, top, e.dz * inset + ez * l, yaw,
+                    e.dx * (e.dist - 0.3) + ex * l, top, e.dz * (e.dist - 0.3) + ez * l)
             end
         end
 
@@ -398,7 +434,7 @@ local function sockets(held, tinfo)
         add(0, TOP[tc], 0, 0, 0, TOP[tc], 0, true)
 
     elseif (hc == "roof_flat" or hc == "roof_triangle") and (tc == "roof_flat" or tc == "roof_triangle") then
-        neighbours(0, SLAB, hc == "roof_triangle")
+        neighbours(0, SLAB, hc == "roof_triangle", tc == "roof_triangle" and LEGS or nil)
         if hc == "roof_triangle" and tc == "roof_triangle" then add(0, 0, 0, math.pi, 0, SLAB, 0) end
 
     elseif ROOF_SHAPE[hc] and ROOF_SHAPE[tc] then

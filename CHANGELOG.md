@@ -11,6 +11,8 @@
 
 - **Fix**: the 14 new pieces had placeholder recipes (icon coordinates where the ingredients belong). They now cost wood or scrap and fasteners, scaled by size (triangles about half of the square piece; the foundation triangle uses scrap like the square foundation).
 
+- **Fix: walls snap to triangle floors and foundations**: walls (the new low, loophole and wide-doorway walls, the window and gable walls and the Hideout Furniture walls) now snap along both legs and the long diagonal edge of a triangular floor or foundation, flush at 45 degrees; on the diagonal they sit against either corner or in the middle. Posts snap to the three corners of a triangle, a square or triangle floor snaps onto a triangular foundation, a triangle floor snaps on top of a wall, and building off a triangle only offers its two legs instead of all four sides.
+
 ### Settler Deaths Cost Faction Reputation
 - **Lost settlers in a raid cost goodwill with the raiders' enemies**: when a raiding faction kills your settlers, every faction that is an enemy of the raiders loses goodwill with you, since they hear you could not hold your ground. The raiders themselves (already hostile) and your own faction are never touched. Mutant raids have no faction and cost nothing. Factions of the Zone custom factions are respected (your own faction is read through the same provider as the rest of Homestead).
 - **How much**: each settler the raiders kill costs the per-settler amount; one raid is capped per faction. The penalty is paid once, when the raid ends: in full if the raiders were still standing (you left the level), half if you beat the raid. A tip names the factions that took note. With Invincible Settlers on, a settler who respawns still counts.
