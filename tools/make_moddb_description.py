@@ -196,7 +196,8 @@ def render_html_block(raw):
         cells = re.findall(r"<td[^>]*>(.*?)</td>", raw, re.S)
         return "\n".join(hero_card(c) for c in cells if "<img" in c)
     if "<img" in raw:
-        return hero_card(raw)
+        parts = [x for x in re.split(r"(?<=</p>)", raw) if "<img" in x]
+        return "\n".join(hero_card(x) for x in parts)
     return raw
 
 
