@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### More Building Kit Pieces
+- **12 new pieces** modelled on SCUM's modular base-building set, all on the kit's existing plank, board and concrete textures: low plank wall, plank wall with loophole, wide double doorway, wooden support post, triangular plank floor, triangular concrete foundation, plank entry steps, plank ramp, L-shaped stairs (and mirrored), U-shaped stairs and spiral stairs. Stairs, ramp and spiral are open underneath so you can walk under them.
+- **Snapping**: the loophole wall and doorway snap like walls; the low wall snaps to floor and foundation edges; triangles snap in any of four turns and complete a tile against a matching triangle; the post snaps to tile corners; entry steps snap outside a foundation edge; the stairs and ramp snap like the existing stairs. Crafted at the workbench with the other building pieces.
+
 ### Settler Deaths Cost Faction Reputation
 - **Lost settlers in a raid cost goodwill with the raiders' enemies**: when a raiding faction kills your settlers, every faction that is an enemy of the raiders loses goodwill with you, since they hear you could not hold your ground. The raiders themselves (already hostile) and your own faction are never touched. Mutant raids have no faction and cost nothing. Factions of the Zone custom factions are respected (your own faction is read through the same provider as the rest of Homestead).
 - **How much**: each settler the raiders kill costs the per-settler amount; one raid is capped per faction. The penalty is paid once, when the raid ends: in full if the raiders were still standing (you left the level), half if you beat the raid. A tip names the factions that took note. With Invincible Settlers on, a settler who respawns still counts.

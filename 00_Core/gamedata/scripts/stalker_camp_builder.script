@@ -1341,6 +1341,18 @@ local structure_type_exact = {
     placeable_hs_roof_hip       = "decor",
     placeable_hs_roof_valley    = "decor",
     placeable_hs_roof_pyramid   = "decor",
+    placeable_hs_wall_low        = "barricade",
+    placeable_hs_wall_loophole   = "barricade",
+    placeable_hs_doorway_double  = "barricade",
+    placeable_hs_support_frame   = "decor",
+    placeable_hs_floor_triangle  = "decor",
+    placeable_hs_foundation_triangle = "decor",
+    placeable_hs_stairs_small    = "decor",
+    placeable_hs_ramp            = "decor",
+    placeable_hs_stairs_l        = "decor",
+    placeable_hs_stairs_l_mirrored = "decor",
+    placeable_hs_stairs_u        = "decor",
+    placeable_hs_stairs_spiral   = "decor",
 }
 
 local structure_type_substrings = {
@@ -6110,6 +6122,7 @@ function on_game_start()
             ["placeable_hs_roof_valley"]  = "roof",
             ["placeable_hs_roof_pyramid"] = "roof",
             ["placeable_hs_floor"]        = "floor",
+            ["placeable_hs_floor_triangle"] = "floor",
         }
         local _roof_cover_cache = nil
         local _roof_cover_cache_tg = -1

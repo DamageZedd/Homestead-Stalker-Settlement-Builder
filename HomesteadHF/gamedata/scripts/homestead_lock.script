@@ -23,7 +23,7 @@
 
 local VAR = "hs_spot"          -- x, y, z, heading, pitch, bank the piece was frozen at
 local OLD_VAR = "hs_lock"      -- spot saved by an earlier version of this script, no longer used
-local SOLID = { foundation = true, floor = true }   -- homestead_snap types that stay solid
+local SOLID = { foundation = true, floor = true, foundation_tri = true, floor_tri = true }   -- homestead_snap types that stay solid
 
 local MOVE_TOL = 0.001         -- metres a piece may be off its spot
 local TURN_TOL = 0.0005        -- radians a piece may be turned off its spot

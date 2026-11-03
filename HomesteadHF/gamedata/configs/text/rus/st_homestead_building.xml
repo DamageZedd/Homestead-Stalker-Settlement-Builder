@@ -60,4 +60,76 @@
 	<string id="st_homestead_roof_pyramid_descr">
 		<text>Четырёхскатная жестяная крыша для здания в одну клетку, со свесами по всему периметру и стальным навершием. Ставится поверх стен.</text>
 	</string>
+	<string id="st_homestead_wall_low">
+		<text>Низкая дощатая стенка</text>
+	</string>
+	<string id="st_homestead_wall_low_descr">
+		<text>Дощатая стенка высотой по пояс шириной в одну клетку, с верхней планкой. Крепится к краям пола и фундамента. Сверху ничего не ставится.</text>
+	</string>
+	<string id="st_homestead_wall_loophole">
+		<text>Дощатая стена с бойницей</text>
+	</string>
+	<string id="st_homestead_wall_loophole_descr">
+		<text>Дощатая стена в полную высоту с узкой бойницей. Крепится к краям пола и фундамента, рядом с другими стенами и поверх них.</text>
+	</string>
+	<string id="st_homestead_doorway_double">
+		<text>Широкий дощатый проем</text>
+	</string>
+	<string id="st_homestead_doorway_double_descr">
+		<text>Дощатая стена с широким проемом под двойную дверь и перемычкой. Крепится к краям пола и фундамента, рядом с другими стенами и поверх них.</text>
+	</string>
+	<string id="st_homestead_support_frame">
+		<text>Деревянная опорная стойка</text>
+	</string>
+	<string id="st_homestead_support_frame_descr">
+		<text>Квадратная деревянная стойка с основанием и капителью. Крепится к углам пола и фундамента и держит верхний этаж.</text>
+	</string>
+	<string id="st_homestead_floor_triangle">
+		<text>Треугольный дощатый пол</text>
+	</string>
+	<string id="st_homestead_floor_triangle_descr">
+		<text>Половина клетки дощатого пола, срезанная по диагонали. Крепится к полам и фундаментам в любой из четырех ориентаций или к такому же треугольнику, дополняя клетку.</text>
+	</string>
+	<string id="st_homestead_foundation_triangle">
+		<text>Треугольный бетонный фундамент</text>
+	</string>
+	<string id="st_homestead_foundation_triangle_descr">
+		<text>Половина клетки бетонного фундамента, срезанная по диагонали. Крепится к фундаментам в любой из четырех ориентаций или к такому же треугольнику, дополняя клетку.</text>
+	</string>
+	<string id="st_homestead_stairs_small">
+		<text>Дощатое крыльцо</text>
+	</string>
+	<string id="st_homestead_stairs_small_descr">
+		<text>Три широких ступени до высоты фундамента. Крепится к внешнему краю фундамента.</text>
+	</string>
+	<string id="st_homestead_ramp">
+		<text>Дощатый пандус</text>
+	</string>
+	<string id="st_homestead_ramp_descr">
+		<text>Длинный дощатый пандус, поднимающийся на один этаж в пределах клетки, открытый снизу. Крепится к полам и фундаментам, как лестница.</text>
+	</string>
+	<string id="st_homestead_stairs_l">
+		<text>Г-образная деревянная лестница</text>
+	</string>
+	<string id="st_homestead_stairs_l_descr">
+		<text>Лестница с поворотом на площадке, открытая снизу, поднимается на один этаж в пределах одной клетки. Крепится к полам и фундаментам; R поворачивает.</text>
+	</string>
+	<string id="st_homestead_stairs_l_mirrored">
+		<text>Г-образная деревянная лестница (зеркальная)</text>
+	</string>
+	<string id="st_homestead_stairs_l_mirrored_descr">
+		<text>Зеркальная версия Г-образной лестницы, поворачивающая в другую сторону. Крепится к полам и фундаментам; R поворачивает.</text>
+	</string>
+	<string id="st_homestead_stairs_u">
+		<text>П-образная деревянная лестница</text>
+	</string>
+	<string id="st_homestead_stairs_u_descr">
+		<text>Два марша с площадкой между ними, открытые снизу, поднимаются на один этаж в пределах одной клетки. Крепится к полам и фундаментам; R поворачивает.</text>
+	</string>
+	<string id="st_homestead_stairs_spiral">
+		<text>Деревянная винтовая лестница</text>
+	</string>
+	<string id="st_homestead_stairs_spiral_descr">
+		<text>Ступени, вьющиеся вокруг центральной колонны, поднимаются на один этаж в пределах одной клетки. Крепится к полам и фундаментам.</text>
+	</string>
 </string_table>

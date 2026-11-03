@@ -60,4 +60,76 @@
 	<string id="st_homestead_roof_pyramid_descr">
 		<text>A four-sided tin roof cap for a one-tile building, with eaves all round and a steel finial at the peak. Snaps on top of the walls.</text>
 	</string>
+	<string id="st_homestead_wall_low">
+		<text>Low Plank Wall</text>
+	</string>
+	<string id="st_homestead_wall_low_descr">
+		<text>A waist-high plank wall, one building tile wide, with a capping rail. Snaps to floor and foundation edges. Nothing stacks on top of it.</text>
+	</string>
+	<string id="st_homestead_wall_loophole">
+		<text>Plank Wall with Loophole</text>
+	</string>
+	<string id="st_homestead_wall_loophole_descr">
+		<text>A full-height plank wall with a narrow firing slit. Snaps to floor and foundation edges, beside other walls and on top of them.</text>
+	</string>
+	<string id="st_homestead_doorway_double">
+		<text>Wide Plank Doorway</text>
+	</string>
+	<string id="st_homestead_doorway_double_descr">
+		<text>A plank wall with a wide double-door opening and a lintel. Snaps to floor and foundation edges, beside other walls and on top of them.</text>
+	</string>
+	<string id="st_homestead_support_frame">
+		<text>Wooden Support Post</text>
+	</string>
+	<string id="st_homestead_support_frame_descr">
+		<text>A square timber post with a base block and capital. Snaps to the corners of floors and foundations and holds up the storey above.</text>
+	</string>
+	<string id="st_homestead_floor_triangle">
+		<text>Triangular Plank Floor</text>
+	</string>
+	<string id="st_homestead_floor_triangle_descr">
+		<text>Half a plank floor tile cut along the diagonal. Snaps to floors and foundations in any of the four orientations, or against a matching triangle to complete a full tile.</text>
+	</string>
+	<string id="st_homestead_foundation_triangle">
+		<text>Triangular Concrete Foundation</text>
+	</string>
+	<string id="st_homestead_foundation_triangle_descr">
+		<text>Half a concrete foundation tile cut along the diagonal. Snaps to foundations in any of the four orientations, or against a matching triangle to complete a full tile.</text>
+	</string>
+	<string id="st_homestead_stairs_small">
+		<text>Plank Entry Steps</text>
+	</string>
+	<string id="st_homestead_stairs_small_descr">
+		<text>Three wide steps up to the height of a foundation. Snaps to the outside edge of a foundation.</text>
+	</string>
+	<string id="st_homestead_ramp">
+		<text>Plank Ramp</text>
+	</string>
+	<string id="st_homestead_ramp_descr">
+		<text>A long plank ramp that climbs one storey across a tile, open underneath. Snaps onto floors and foundations like the stairs.</text>
+	</string>
+	<string id="st_homestead_stairs_l">
+		<text>L-Shaped Wooden Stairs</text>
+	</string>
+	<string id="st_homestead_stairs_l_descr">
+		<text>Stairs that turn a corner on a landing, open underneath, climbing one storey inside one tile. Snaps onto floors and foundations; press R to turn.</text>
+	</string>
+	<string id="st_homestead_stairs_l_mirrored">
+		<text>L-Shaped Wooden Stairs (Mirrored)</text>
+	</string>
+	<string id="st_homestead_stairs_l_mirrored_descr">
+		<text>The mirror image of the L-shaped stairs, turning the other way. Snaps onto floors and foundations; press R to turn.</text>
+	</string>
+	<string id="st_homestead_stairs_u">
+		<text>U-Shaped Wooden Stairs</text>
+	</string>
+	<string id="st_homestead_stairs_u_descr">
+		<text>Two flights joined by a landing, open underneath, climbing one storey inside one tile. Snaps onto floors and foundations; press R to turn.</text>
+	</string>
+	<string id="st_homestead_stairs_spiral">
+		<text>Wooden Spiral Stairs</text>
+	</string>
+	<string id="st_homestead_stairs_spiral_descr">
+		<text>Treads winding round a central column, climbing one storey inside one tile. Snaps onto floors and foundations.</text>
+	</string>
 </string_table>
