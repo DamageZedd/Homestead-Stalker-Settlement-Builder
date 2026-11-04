@@ -1,11 +1,33 @@
 # Raiders: design (not implemented)
 
-Status: DRAFT for user approval. No feature code exists. Internal doc, not README content.
+Status: DRAFT, owner decisions recorded (see Decisions). No feature code exists. Internal doc, not README content.
 Origin: suggestion from Discord user Wx (raiders attack and capture/loot camps that are not the player's, and can be sent to reinforce the player's settlements under attack), plus the owner's Goodwill idea (losing or looting a chest friendly to a faction costs goodwill with that faction; bandit-style play).
 Cites are from `main` at b385d08 and will drift. Paths: `00_Core/gamedata/scripts/`, abbreviated `sb` (stalker_camp_builder), `jobs`, `events`, `rivals`, `exp` (expeditions), `prosper`, `needs`, `pda`, `mcm`.
 Nothing here was run in game; "feasible" below means "reads as feasible from the code", not "tested".
 
 Goal: the player does not care which faction robs someone else's outpost, so hand that chore to a settler job. A Raider is a survivor job that takes a rival outpost (or hits one for loot), brings the haul home, and can be recalled to help defend the player's own camp. The Goodwill rules make "who you rob" a real choice, and give bandit-style players a path where robbing is the point.
+
+## Decisions (owner answers, 2026-11-03)
+
+These override anything below that disagrees. Question numbers refer to the original list (section 16).
+
+| Q | Decision |
+|---|---|
+| 1 | **Clear and loot.** A raided camp becomes "cleared" (the existing unoccupied/ruins state). It is not player-owned. Captured outposts are dropped from the plan. |
+| 2 | **Player-directed only.** The player picks the target and sends the band. No auto-targeting and no auto mode; `raiders_auto_mode` and timed ranking are removed. |
+| 3 | **Both.** Abstract timer-and-odds missions AND visible real fights when the player is on the level. Real assault is a planned phase after the abstract one (section 5), and both share one mission record. |
+| 4 | **Both goodwill cases.** Robbing a camp of a faction friendly to the player (new), plus the existing raid reputation for the player's own settlement being hit. |
+| 5 | Keep the numbers: -60 goodwill per robbed camp, an extra -100 for a faction friendly to the player, daily cap 150 per faction. |
+| 6 | **Bandit mode:** reduced penalties, bandit/renegade reputation, richer loot. It does not change the player's faction. |
+| 7 | An idle raider at home counts as **half a guard**. |
+| 8 | **Rank 2+**, and at least one guard stays home. |
+| 9 | A failed raid: raiders **return wounded** and unavailable for a while. **Permanent death only on a disaster outcome.** The flat 25% death chance is dropped. |
+| 10 | Keep 60% of the chest, 15% cut, cash bounty by tier. **Add an MCM toggle to forbid weapon/armor loot.** |
+| 11 | Use the **existing retaliation timers**, no extra damper. |
+| 12 | **Recall button plus optional auto-recall (default off).** Abstract teleport-back; no real arriving squads. |
+| 13 | Not asked; default: no mutant nests, no story camps, no own settlements as targets. |
+| 14 | **Design the PDA hooks now**: see section 9, based on the current `ui_stalker_camp_builder_pda.xml`. |
+| 15 | Not asked; default: English now, Russian carries the English text until translated. |
 
 ## 1. What exists today
 
@@ -46,77 +68,82 @@ Two facts shape the whole design:
 
 A new survivor job `raider`, assigned like the others (PDA Survivors tab, Job page), counted in `get_camp_stats` as `stats.raiders`.
 
-Requirements to take the job (all checked when assigning and again before each dispatch):
-- settler is not wounded, not on another expedition, has a weapon and ammo in inventory (reuses `survivor_se` checks used by scavengers);
-- minimum rank (default: Experienced / rank 2 of the prosper ranks), so day-one settlers cannot raid;
-- the camp keeps at least `raiders_min_guards` guards at home (default 1 per 3 settlers, floor 1).
+Requirements to take the job (checked when assigning and again before each dispatch):
+- not wounded, not on another expedition or mission, has a weapon and ammo in inventory (the `survivor_se` checks scavengers use);
+- **rank 2 or higher** (default; MCM `raiders_min_rank`);
+- the camp keeps **at least one guard** at home (`raiders_min_guards`, default 1).
 
-A raider away from home does not count as a guard in `stats.defense`. A raider at home with no mission counts as a half guard (default; see open question 7).
+Guard accounting: a raider away or wounded counts as no guard in `stats.defense`; an **idle raider at home counts as half a guard**.
 
-Group size: one raider on a mission is a lone-wolf run (small loot, high risk). A band is formed when 2 to 4 raiders are free at once (default `raiders_band_size = 3`); odds and loot scale with the band. Phase 1 may ship lone-wolf only.
+Band: 1 to 4 raiders sent together (default size 3). Odds and loot scale with the band. Phase 2 may ship lone-wolf only.
 
-## 4. Target selection
+Wounded state: a raider back from a failed raid has `survivor.raider.wounded_until` (game seconds). While wounded they cannot be sent and count as no guard. Default 12 game hours (MCM `raiders_wounded_hours`).
 
-Candidates are the rival camps in `sb.rival_camps` that are occupied (`camp.status == nil`, `camp.faction` set and not monster/zombied) and not currently targeted by another raid band. Never targeted:
-- the player's own camps, and camps friendly to the player when `raiders_spare_friends` is on (default on, see section 7);
-- camps inside the player's settlement boundary (`in_player_settlement`, `rivals` 55);
-- camps with a story NPC in the garrison (`squad_has_story_npc`, `rivals` 731);
-- mutant nests and zombified camps (these are a PvE job, maybe phase 4);
-- camps whose level the player has barred through an MCM list (phase 3).
+## 4. Target selection (player-directed only)
 
-Ranking: score = expected loot (camp tier x chest content estimate) / (garrison strength x travel time), with a faction filter. The player chooses the filter per camp:
+There is no auto-targeting. The player picks a rival outpost on the Outposts tab (section 9) and sends the band. Invalid targets get a disabled button with a reason.
 
-| Mode | Raiders go for | Default |
-|---|---|---|
-| Hostile only | factions at relation <= -500 (or `is_factions_enemies`) with the player | **yes** |
-| Neutral and hostile | anything not friendly | no |
-| Anyone | includes friends (bandit mode) | no, requires `raiders_bandit_mode` |
-| Player pick | one rival camp chosen from the Outposts tab ("Raid this camp") | always available when the job is on |
+Valid target: an occupied rival camp in `sb.rival_camps` (`camp.status == nil`, `camp.faction` set, not monster or zombied), not already under a raid mission, not on cooldown. Never valid (not configurable, per Q13):
+- the player's own settlements and anything inside the settlement boundary (`in_player_settlement`, `rivals` 55);
+- camps whose garrison holds a story NPC (`squad_has_story_npc`, `rivals` 731);
+- mutant nests and zombified camps.
 
-The Outposts tab already lists rival camps (map spots, `show_rival_camp_map_spots`); a "Send raiders" button on the selected card is the player-directed path. Auto mode picks the best target on a timer.
+Friendly factions: a camp of a faction friendly to the player is **allowed**, because the goodwill system prices it (section 7). The confirm panel warns in red and shows the cost. With `raiders_spare_friends` on (default) the button is disabled for friendly camps unless bandit mode is on.
 
-## 5. Travel, combat, capture (three resolution levels)
+## 5. Travel, combat, capture: one mission record, two resolvers
 
-### Level A: abstract timer (phase 1, the default)
+Both abstract missions and visible real fights are wanted. They share **one mission record**, so a mission can start abstract and become real (or fall back) without a second code path for loot, casualties, goodwill or cooldowns.
 
-Copy the expedition shape. A `raider_mission` record sits on the camp (not on the NPC, so it survives NPC re-creation, see `restore_missing_settler`):
+### 5.1 The mission record
 
 ```
 camp.raider_missions[mission_id] = {
-  target_key, target_level, faction, raider_ids = {...},
-  start_sec, duration, state = "away" | "returning" | "done",
-  odds_snapshot, loot_rolled = false
+  id, state,            -- "away" | "assault" | "returning" | "done"
+  mode,                 -- "abstract" | "real"   (abstract -> real once; real -> abstract on fallback)
+  target_key, target_level, faction,
+  raider_ids = {...},   -- settler npc ids (plain numbers)
+  start_sec, duration, arrive_sec,
+  odds,                 -- snapshot shown at dispatch, recomputed at resolve
+  real = { squad_id, spawn_lvid, spawn_gvid, started_sec },   -- only when mode = "real"
+  result,               -- nil | "success" | "repulsed" | "disaster"
+  loot_rolled = false, goodwill_paid = false
 }
 ```
 
-1. Dispatch: raiders are teleported off like `teleport_scavenger_on_departure` (`exp` 1238) so no NPC is left half-walking on a level the player is not on. They are marked `on_expedition`-like (`surv.on_mission = mission_id`) so the existing "not available" checks apply.
-2. Duration: based on distance between camp and target (game-graph distance, as `get_self_contained_distance` already does in `exp` 608) and a flat 30 game-minute assault window. Capped, like expeditions.
-3. Resolution at the end of the timer, in a pure function `raid_outcome(band, target, rng)`:
-   - attacker strength = sum of per-raider strength (rank, weapon tier, armor tier), times a mission modifier (night, familiarity);
-   - defender strength = garrison size x tier factor, plus the camp's defenses (turrets/decor are rival "defenses", `spawn_rival_camp_defenses_and_decor`);
-   - win chance = a logistic of the ratio, clamped 5%-90%, shown to the player as odds before sending;
-   - outcomes: **Success** (garrison beaten), **Repulsed** (raiders flee, some wounded), **Disaster** (raiders killed).
-4. Casualties per raider on non-success: death probability `raiders_death_chance` (default 25% on Repulsed, 60% on Disaster for each member; a lone-wolf is not safer). Dead raiders are removed through the same path as a killed settler (so `settler_lookup`, relations and the "settler killed" bookkeeping stay consistent).
-5. Real-world effect: on Success the rival camp's garrison is removed by calling the existing `mark_rival_garrison_eliminated` (`rivals` 1201) with `actor = nil`; this means the existing machinery handles map spots, ruins decay, "cleared" flag and, importantly, `faction_retaliation_timers`. Retaliation is therefore automatic if the faction hates the player. That coupling is intentional and has to be visible in the PDA (section 9).
+The record lives on the camp (not the NPC), so it survives NPC re-creation (`restore_missing_settler`) and save/load. Result, loot and goodwill are applied by one function `finish_mission(camp, mission, result)`; both resolvers only decide the `result` and the casualty list. `loot_rolled` and `goodwill_paid` make it idempotent.
 
-Level A is level-independent and works offline (the same reason expeditions do). It is also the only level that cannot visibly "do" anything, which is why Level B exists.
+### 5.2 Resolver A: abstract (phase 2)
 
-### Level B: real assault when the player is on the level (phase 3, optional)
+1. Dispatch: raiders are teleported off like `teleport_scavenger_on_departure` (`exp` 1238) and flagged `surv.on_mission = id`.
+2. Duration: game-graph distance (as `get_self_contained_distance`, `exp` 608) plus a 30 game-minute assault window; capped like expeditions.
+3. At the end, `raid_outcome(band, target, rng)` (pure function) returns `success | repulsed | disaster` from attacker strength (rank, weapon and armor tier) against garrison size x tier factor plus the camp's defenses. Win chance is a logistic of the ratio, clamped 5%-90%, shown before sending.
+4. Casualties (Q9): on **success** none. On **repulsed**, every raider returns **wounded** and unavailable for `raiders_wounded_hours`, no loot. On **disaster**, each raider has `raiders_disaster_death_chance` (default 50%) to be lost permanently; survivors return wounded. Lost raiders leave through the same path as a killed settler (`settler_lookup`, relations, "settler killed" bookkeeping).
+5. On success: remove the garrison through `mark_rival_garrison_eliminated` (`rivals` 1201) with a nil actor, so map spot, ruins decay, `cleared` and the faction retaliation timers (Q11) follow the existing code, undamped.
 
-If the player is on the target's level and within about 300 m when a mission would resolve, the band is spawned as a real squad (reuse `create_squad_at_pos`, `rivals` 470) near the camp and pointed at it with `scripted_target`, the way raids point at the actor. The existing garrison logic (garrison alive checks, `resolve_pending_rival_skirmish`, `rivals` 1109) judges the result. This is the same code path that makes a player fight; no new combat rules, but also the highest risk of AI weirdness (squads that wander, companion-squad id collisions seen in `end_camp_raid`, the "only one raid at a time" rule). Treat as a stretch goal.
+### 5.3 Resolver B: real assault (phase 4)
 
-### Level C: capture and hold (phase 4, optional)
+If when the band arrives the player is on the target's level (and within about 300 m, so the camp is online), the mission switches to `mode = "real"`, `state = "assault"`:
+1. The band is spawned as a real squad near the camp (`create_squad_at_pos`, `rivals` 470), pointed at the camp with `scripted_target`, and tagged with the mission id.
+2. The existing garrison logic judges the fight; the mission polls the squad every few seconds (the alive-count pattern of `check_completed_raids`, `events` 546).
+3. Result: garrison gone and some raiders alive = `success`; band gone = `disaster` (those deaths are real, no extra roll); a stalemate timeout (default 6 game minutes without progress) or the player leaving the level = fall back to Resolver A's roll using the raiders still alive, so a half-finished fight never leaves a mission hanging.
+4. The player can join the fight. Loot comes from the live chest (section 6).
+5. This is the highest-risk piece: squad AI control, companion-squad id collisions (see `end_camp_raid`), and the mission/level-leave race. It ships behind `raiders_real_assault` (default off), and Resolver A stays the fallback for every failure.
 
-The rival camp becomes a Homestead "outpost" owned by the player: a small record in `camp.outposts` (position, level, faction theme, chest id, garrison = raiders left behind). It would need ownership, defense, upkeep, and a raid-back model. This is large. Phase 1-3 deliberately avoid it: "capture" means eliminating the garrison and taking the chest contents, leaving the camp in the existing "unoccupied/cleared" state. See open question 3.
+A `real` mission found on load has no live squad: it is converted to `abstract` and re-rolled from the raiders still alive, never resumed mid-fight.
+
+### 5.4 Capture
+
+Cleared only (Q1): garrison gone, chest looted, the camp left in the existing unoccupied state with its ruins timer. No ownership model, no hold, no raid-back.
 
 ## 6. Loot rules
 
-- Loot comes from the target's chest (`camp.chest_id`) and what Level A rolls from its tier, not from the player's boxes. At resolution on Success: take a fraction of the chest, `raiders_loot_fraction` default 60% of items by count (a weighted pick favoring ammo, meds, food, then weapons), and the rest stays for the player to find. Rationale: the player can still do the outpost themselves and sees a believable leftover.
+- Loot comes from the target's chest (`camp.chest_id`) and what the abstract resolver rolls from its tier, not from the player's boxes. At resolution on Success: take a fraction of the chest, `raiders_loot_fraction` default 60% of items by count (a weighted pick favoring ammo, meds, food, then weapons), and the rest stays for the player to find. Rationale: the player can still do the outpost themselves and sees a believable leftover.
 - If the chest is not loaded (other level), roll a synthetic haul from the tier loot tables already in `rivals` (~2487-2520 initial loot lists, 944 resupply list), the way `generate_gamma_stash_loot` (`exp` 755) synthesizes stash loot. No item is removed from an unloaded object (avoids server-object edits; Phase 0 must confirm `camp_consume_item` offline works, as needs did).
 - Split: the camp keeps the haul (deposited like `deposit_expedition_haul`, `exp` 1719, into settlement storage only, never personal boxes, honoring `is_settlement_storage`). Raiders keep a cut in rubles into their savings via `prosper_credit` (default 15% of haul value, ties into the existing "cut per cycle" economy; a Starving camp pays none, matching `needs`).
 - Money: rival chests do not hold cash today, so cash is a flat bounty by tier (default 500/1500/3000 for tiers 1-3, scaled by an MCM multiplier).
 - Weight/space: if the settlement has no room (existing storage-full pause), the mission still resolves but the surplus is dropped to a "loot pile" (a stash at the camp) rather than lost; Phase 1 may simply pause dispatch when storage is nearly full.
-- Cooldowns: a raider returns, rests `raiders_rest_hours` (default 6 game hours) before the next mission, and a given target camp cannot be raided again for `raiders_target_cooldown_hours` (default 24; on top, rival camps already respawn/decay on their own timers).
+- **Weapon and armor toggle (Q10):** MCM `raiders_forbid_weapon_armor` (default off). When on, weapon and armor items are excluded from both the live chest pick and the synthetic haul; they stay in the rival chest for the player.
+- Cooldowns: a raider returns, rests (`raiders_rest_hours`, default 6 game hours; wounded raiders use `raiders_wounded_hours` instead) before the next mission, and a given target camp cannot be raided again for `raiders_target_cooldown_hours` (default 24; on top, rival camps already respawn/decay on their own timers).
 - Anti-exploit: loot value per mission is capped, per-day missions are capped (`raiders_max_per_day`, default 3 per camp), and a cleared camp yields nothing on a second visit.
 
 ## 7. Goodwill and the bandit option
@@ -127,15 +154,15 @@ Who is hit when a raider (or the player) robs a camp:
 
 | Event | Goodwill change |
 |---|---|
-| A raider band takes down a camp of faction F | F: `-raiders_goodwill_loot` (default -60 per camp). F's allies (friends of F, from `game_relations`): half. F's enemies: `+raiders_goodwill_enemy_bonus` (default +15, off by default; optional). |
-| A raider loots a chest friendly to F (a camp where F has goodwill > 0 with the player) | F: -100 extra "betrayal" penalty. This is the owner's idea: robbing someone who likes you is worse than robbing an enemy. |
+| A raider band takes down a camp of faction F | F: `-raiders_goodwill_loot` (default -60 per camp, Q5). F's allies (friends of F, from `game_relations`): half. F's enemies: `+raiders_goodwill_enemy_bonus` (default +15, off by default; optional). |
+| A raider loots a chest friendly to F (a camp where F has goodwill > 0 with the player) | F: -100 extra "betrayal" penalty (Q5). Robbing someone who likes you is worse than robbing an enemy. |
 | The player loots a rival chest of a friendly faction manually | Same as above if `raiders_player_loot_goodwill` is on (default off, because the base game's own rules apply to that). |
 | A raider dies in a mission | no goodwill effect; pure settler loss |
 | Player recalls a mission before resolution | none |
 
 Hard caps per faction per day (default 150) so one bad dispatch cannot burn a faction permanently. Goodwill in X-Ray is a bounded integer (communities range is roughly +-5000; kill-driven changes elsewhere use hundreds), so numbers here are intentionally of the same order as `raid_rep_per_settler = 25`; values are placeholders until playtest (open question 5).
 
-The owner's wording "loses/loots a chest friendly to a faction" has two readings: (a) a *rival outpost chest* owned by a faction friendly to the player (covered above), (b) one of the player's own storage chests being looted by a raiding faction. (b) is already partly covered by raid reputation. Do not mix them. See open question 4.
+Q4: both cases apply. (a) Robbing a rival outpost of a faction friendly to the player is the new rule above. (b) The player's own settlement chests hit by a raiding faction stay under the existing raid reputation (`events` 491), unchanged. They are separate code paths and must not double-count.
 
 ### Bandit-style play option
 
@@ -146,38 +173,66 @@ The owner's wording "loses/loots a chest friendly to a faction" has two readings
 - raid reputation for lost settlers keeps working unchanged.
 It does not change the player's own faction or relations; it only changes what raiders do and how it is priced. "Playing as a bandit" in the sense of changing the player's faction is already a base-game/GAMMA concern (`get_player_faction`, `sb` raid code reads it).
 
-## 8. Reinforcement during attacks
+## 8. Reinforcement during attacks (Q12)
 
-The goal is: raiders away on a mission can be called back to help. Real teleport/return is where this gets difficult, so it is tiered.
+Recall button plus optional auto-recall; no real arriving squads.
 
-1. Phase 2 (abstract): when the camp's `active_raid` starts (`spawn_camp_raid`), any raider with `state = "away"` for a Level A mission is offered a recall on the PDA ("Recall raiders", visible while the camp is under raid), and optionally `raiders_auto_recall` (default off) recalls them. Recall = the same path as `recall_scavenger_expedition` (`exp` 152): mission cancelled, raiders appear at camp after a short delay (default 20 s real time), mission loot lost (no haul, no goodwill change). They then spawn as ordinary guards for the rest of the raid. Because raids only exist while the player is on the camp's level, the band can be placed straight at the camp without simulating travel.
-2. Reserve raiders: raiders at home count as half guards in `stats.defense` before the raid, so they lower raid chance as they do now for guards.
-3. Phase 3 (real): while the player is on the level, raiders can run to the fight from a nearby field operation (Level B). Only worthwhile after Level B exists.
-4. Reverse direction (very optional, phase 5): settler band joins a *rival* camp the player is helping (cf. `trigger_allied_reinforcement`, `rivals` 3164) so the player's raiders can be recruited to an SOS.
+1. While the camp has an `active_raid` (`spawn_camp_raid`), the PDA shows **Recall raiders** (section 9). A recall cancels every mission of that camp that is `away` or `returning`, via the same path as `recall_scavenger_expedition` (`exp` 152): no haul, no goodwill change; wounded raiders are unaffected. The raiders reappear at the camp after a short delay (default 20 s real time) and fight as ordinary guards for the rest of the raid. This is an **abstract teleport-back**: no travel is simulated, and a raid only exists while the player is on the camp's level, so the band is placed beside the hub.
+2. `raiders_auto_recall` (default **off**): the same recall fires when the raid starts.
+3. A mission in real mode (5.3) on the same level is recalled the same way: its squad is released and the members are teleported to the hub.
+4. Raiders at home already count as half guards, so they lower raid chance without any recall.
+5. Edge cases: camp on another level (raids never happen there, no button); a dead raider (nothing to recall); a wounded raider (stays home, does not fight); the player leaves the level mid-recall (`end_camp_raid` cleans the raid; raiders simply stay home).
 
-Edge cases to handle: the camp is on another level when the mission starts (raids never happen there, so no recall UI); the raider died during the mission (nothing to recall); the player leaves the level during recall (raid ends, `end_camp_raid` already cleans squad targets, the recalled raiders simply stay home).
+## 9. PDA surface: exactly where Raiders hooks in
 
-## 9. PDA surface
+Based on `00_Core/gamedata/configs/ui/ui_stalker_camp_builder_pda.xml` and `ui_stalker_camp_builder_pda.script`. Four copies of the XML exist (`00_Core`, `01_Theme_Modern`, `01_Theme_ModernVanilla`, `01_Theme_Vanilla`); every XML change below is made in all four. Everything is hidden when `raiders_enabled` is off.
 
-- Survivors tab: Job page gets "Raider" (hidden when `raiders_enabled` is off). Summary banner line shows the mission state ("On mission: Rostok Outpost, back in 2h" / "Resting"); the existing "Waiting:" reason line gets new reasons (no weapon, no ammo, rank too low, camp needs guards). The Survivors tab uses a fixed layout (`docs/design/pda_survivors/`), so use the existing summary banner and reason line; no new widgets.
-- Outposts tab: on a rival outpost card, a "Send raiders" button (visible when at least one raider is free) opening a small confirm: odds, estimated loot, expected goodwill cost, "retaliation likely". The card shows "Raid in progress" and the mission countdown, and reuses the existing map-spot flow. Needs a layout check with the Outposts redesign (`docs/design/pda_outposts/`), which is a sibling work item.
-- Overview tab: one line "Raiders: 2 away, 1 resting; last haul 18 items" near the raid banner, hidden when none.
-- Radio feed (`add_radio_feed_entry`) and tips: mission start, result, casualties, goodwill losses ("Wolf's band robbed Duty; Duty did not like that").
-- All strings ASCII in eng XML, translated via `translate_string`; Russian entries can carry English text until translated (as the "move on" strings did).
+### 9.1 Survivors tab: job list and roster
+- **Job button.** The Job page lays the job buttons in a 4-column grid (83x24 buttons, 89 px column pitch, 28 px row pitch; `LayoutSurvivorPages`, `SV_JOB_ORDER`). That is 16 slots for 14 jobs, so **`btn_job_raider` takes slot 15 (column 3, last row) with no layout change**. Add:
+  - XML: a `btn_job_raider` block copied from `btn_job_trader` (xml ~515) using `st_job_raider_btn`;
+  - script: `init_safe_job_btn("btn_job_raider", "raider", self.btn_job_guard)` next to the others (script ~735), an entry in the `job_btns` table (~2160) and in `SV_JOB_ORDER`;
+  - when the toggle is off the button is not initialised and the grid looks as today.
+- **Roster rows** (`survivor_list`; columns Name / Job / Rank / Needs): the Job column prints the localized job label; add `st_job_raider` ("Raider") and, on a mission, a short state suffix ("Raider (away)", "Raider (wounded)"), kept under about 16 characters for the 130 px column.
+- **Summary banner** (`sv_sum_bg` / `sv_sum_lbl`, filled in `UpdateSurvivorHeader`, script ~2275): reuse the existing banner kinds: dim while resting, `secure`/good while away ("Raiding: <outpost>, back ~2h"), `threat`/warn while wounded ("Wounded, back in 8h"). No new widget.
+- **Waiting reason** (the "Waiting:" line, `_calc_job_paused_status`, `jobs` 1246): new reasons: no weapon, no ammo, rank too low, wounded, camp needs a guard.
+- **Stats page** (`sv_stat_lbl_1..4`): all four rows are used; while the job is `raider` the least useful row is replaced by mission count and last haul. No fifth row.
+- **Orders page**: unchanged.
+
+### 9.2 Outposts tab (`rivals`): the Send raiders button
+The detail panel `rival_content` is a fixed 350 px stack: hero 0-118, banner 124, faction/garrison/distance tiles 154-212, status line 216, Intel box 240-392, buttons `btn_rival_locate` (x 0, w 170) and `btn_refresh` (x 180, w 170) at y 400, content height 490.
+- **Add one full-width button `btn_rival_raid`** (350 x 28) at **y 432**, under the existing two, inside the 490 px content so nothing is resized. Shown only when the toggle is on and the selected card is an occupied rival camp. Init in the same block as `btn_rival_locate` (script ~481).
+- **States** (set where `OnRivalSelected` fills the panel): enabled "Send raiders" when a raider is free and the camp is valid; disabled with the reason in `rival_banner_lbl` for: no free raider, cooldown, story camp, nest, friendly faction while `raiders_spare_friends` is on, mission in progress.
+- **Confirm.** The click opens a confirm in the style of the banish and rename confirms, listing band, win chance, estimated loot and goodwill cost, plus "retaliation likely" when the faction hates the player. A friendly faction gets a red line with the -60 and -100.
+- **Banner and Intel.** While a mission targets the camp, `rival_banner_lbl` shows "Raid in progress, back in Xh" (role warn) and `rival_camp_intel` appends one line with band size and odds.
+- **Recall.** With a mission active the same button becomes "Recall raiders" (no loot, no goodwill).
+- **List cards** (`RivalListItem`, `pill_text`): the pill shows "RAID" while a mission targets the camp. No new widget.
+
+### 9.3 Overview tab
+- **Status page:** the raid banner (`raid_banner_bg` / `raid_banner_lbl`, y 68, filled ~script 1714) gets one more segment only when relevant: "Raiders: 2 away, 1 wounded".
+- **Defense page:** the Perimeter text shows "guards (+ N raiders away)", so the cost of sending raiders is visible.
+- **Orders page:** a **Recall raiders** button, `btn_ov_recall_raiders`, as one full-width row, shown only while `camp.active_raid` exists and a raider is away. The raid banner is not used as a click target; a real button is more discoverable.
+
+### 9.4 Radio and tips
+Mission start, result, wounded, disaster and goodwill losses go to `add_radio_feed_entry` and `camp_send_tip`; ASCII text via `translate_string`.
+
+### 9.5 What is not changed
+No new top tab, no new panel, no change to list widths or the left container. Raiders add one job button, one Outposts button, one Overview button, and text in existing labels. The Survivors and Outposts redesign sessions (`docs/design/pda_survivors/`, `docs/design/pda_outposts/`) should be told about the reserved places (job grid slot 15, Outposts y=432, the Overview Orders row) before they add layout.
 
 ## 10. MCM options (new "Raiders" group)
 
 | Key | Type | Default | Purpose |
 |---|---|---|---|
 | `raiders_enabled` | check | **false** | Master toggle; off = job hidden, no missions, no goodwill code runs. |
-| `raiders_auto_mode` | check | false | Auto-pick targets on a timer instead of only player-directed sends. |
-| `raiders_target_filter` | list | hostile only | hostile / non-friendly / anyone. |
 | `raiders_bandit_mode` | check | false | Section 7 bandit-style rules. |
-| `raiders_spare_friends` | check | true | Never target factions friendly to the player (ignored in bandit mode). |
+| `raiders_spare_friends` | check | true | Disable Send raiders for factions friendly to the player (ignored in bandit mode). |
 | `raiders_min_rank` | track 0-4 | 2 | Minimum prosper rank. |
 | `raiders_band_size` | track 1-4 | 3 | Raiders per mission. |
 | `raiders_min_guards` | track 0-4 | 1 | Guards that must stay home. |
-| `raiders_death_chance` | track 0-100 | 25 | Per-raider death chance on Repulsed (x2.4 on Disaster). |
+| `raiders_idle_guard_weight` | track 0-100 | 50 | Percent of a guard an idle raider at home counts for. |
+| `raiders_disaster_death_chance` | track 0-100 | 50 | Per-raider permanent-death chance on a disaster (a failed raid only wounds). |
+| `raiders_wounded_hours` | track 1-72 | 12 | Game hours a wounded raider is unavailable. |
+| `raiders_forbid_weapon_armor` | check | false | Raiders never take weapons or armor from a chest. |
+| `raiders_real_assault` | check | false | Phase 4: visible fight when the player is on the level. |
 | `raiders_loot_fraction` | track 10-100 | 60 | Percent of the chest taken. |
 | `raiders_cut_percent` | track 0-50 | 15 | Raiders' share into savings. |
 | `raiders_goodwill_loot` | track 0-300 | 60 | Goodwill lost with the robbed faction. |
@@ -190,7 +245,7 @@ Each key needs: the defaults table (`sb` ~690), key -> path map (~870), `mcm` gr
 
 ## 11. Save/load safety
 
-- Camp-level only: `camp.raider_missions`, `camp.raider_state` (per-faction goodwill spent today, last mission day). Per-survivor: `survivor.raider = { rest_until, missions_done, kills }`. All plain numbers/strings/tables, no engine objects (ids only). nil = "never raided", so old saves load unchanged; `normalize_camps` (`sb` 3987) fills defaults.
+- Camp-level only: `camp.raider_missions` (the shared record of 5.1), `camp.raider_state` (per-faction goodwill spent today, last mission day). Per-survivor: `survivor.raider = { rest_until, missions_done, kills }`. All plain numbers/strings/tables, no engine objects (ids only). nil = "never raided", so old saves load unchanged; `normalize_camps` (`sb` 3987) fills defaults.
 - No `SAVE_STATE_VERSION` bump unless a migration step is added.
 - Mission state is derived from game seconds, not `time_global()`, so a sleep/load keeps it; resolution on load runs at most one mission per camp per tick (avoid a pile-up like the sleep catch-up problem in Living Needs).
 - Raider NPCs that are teleported away during a mission can be lost across a save/load (the same hazard `restore_missing_settler` handles for expeditions). The mission record is the source of truth, and `verify_and_heal_settlers` (`sb` ~5800) must finish a mission or a recall after a load.
@@ -210,15 +265,13 @@ Each key needs: the defaults table (`sb` ~690), key -> path map (~870), `mcm` gr
 | Piece | Verdict | Why |
 |---|---|---|
 | New job + MCM + PDA label | Easy | Jobs are strings; counted in `get_camp_stats`; the pattern is copied from other jobs. |
-| Abstract mission (Level A), odds, loot, goodwill | Easy-medium | Copies expeditions; pure functions are unit-testable. Risk is the number balance, not the code. |
+| Abstract mission (Resolver A), odds, loot, goodwill | Easy-medium | Copies expeditions; pure functions are unit-testable. Risk is the number balance, not the code. |
 | Goodwill via `change_community_goodwill` | Easy | Already used (`events` 520). |
 | Calling `mark_rival_garrison_eliminated` from a raid | Medium | It assumes the rival squad and chest exist; need a nil `actor` path and care that the garrison squad is released from the sim (`rivals` 1233-1273 deletes camps whose chest is gone). Needs read-through before use. |
 | Teleport raiders away / back | Medium | `teleport_scavenger_on_departure` and `restore_missing_settler` already do it; mission lifecycle after load is the risk. |
 | Reinforce during a raid (abstract recall) | Medium | Spawn/appear at camp is fine; the raid only exists while the player is there. |
-| Level B real assault with the player present | Hard | Squad AI control (`scripted_target`), companion-squad collisions, garrison judgment races; cannot be verified without play-testing. |
-| Level C captured outposts | Hard | New ownership model, defense, upkeep, saving. A separate project. |
-| Raid-back by rivals after capture | Hard | Depends on Level C. |
-| Raiders tied to PDA Outposts redesign | Medium | Depends on the Outposts layout being final (sibling item). |
+| Real assault with the player present (phase 4, shared record) | Hard | Squad AI control (`scripted_target`), companion-squad collisions, garrison judgment races; cannot be verified without play-testing. |
+| PDA hooks (section 9) | Easy-medium | One button per tab and text in existing labels; the four theme XML copies must stay in sync. |
 
 ## 14. Risks
 
@@ -236,34 +289,40 @@ Each key needs: the defaults table (`sb` ~690), key -> path map (~870), `mcm` gr
 
 ## 15. Phased plan
 
-Each phase ships behind `raiders_enabled` (default off) and can be checked without launching the game via Lua 5.1 unit tests and `tools/check_lua.ps1`.
+Each phase ships behind `raiders_enabled` (default off) and can be checked without launching the game via Lua 5.1 unit tests and `tools/check_lua.ps1`. Player-directed sends only throughout.
 
-0. **Audit (no behavior change).** Confirm: (a) `camp_consume_item` / reading chest contents on an unloaded rival chest; (b) what `mark_rival_garrison_eliminated` needs when called without an actor and without a loaded squad; (c) how rival chest loot is generated, to choose a synthetic-haul table; (d) which survivor checks exist for "available" (on_expedition). Findings appended to this doc.
-1. **Pure raider engine.** New `stalker_camp_builder_raiders.script`: `raid_odds`, `raid_outcome`, `loot_split`, `goodwill_plan` (pure), tests in `tools/tests/test_raiders.lua`; not wired. Verify: tests + `check_lua.ps1`.
-2. **Job + abstract mission.** Job `raider`, mission dispatch/resolve (Level A), loot to storage, savings cut, goodwill wrapper, MCM group, radio/tips, no PDA beyond the job label and the existing reason line. Player-directed send only (a temporary "send" via the Job page). Verify: unit tests + in-game checklist (assign, send, wait, result, save/load mid-mission, toggle off).
-3. **PDA Outposts "Send raiders" + Overview line**, odds/goodwill confirm, mission countdown on the card. Verify: XML well-formed, ASCII, every string id exists.
-4. **Reinforcement (abstract recall)** + reserve raiders as half guards + `raiders_auto_recall`.
-5. **Auto mode + bandit mode** (target ranking, filters, bandit reputation list).
-6. **Stretch:** Level B real assault when the player is on the level.
-7. **Separate project (not scheduled):** Level C captured outposts, raid-back, raiders garrisoning.
+0. **Audit (no behavior change).** Confirm: (a) reading chest contents on an unloaded rival chest; (b) what `mark_rival_garrison_eliminated` needs with a nil actor and an unloaded squad; (c) how rival chest loot is generated, to pick a synthetic-haul table; (d) the survivor "available" checks (`on_expedition`); (e) teleporting a band away and back. Findings appended here.
+1. **Pure raider engine.** New `stalker_camp_builder_raiders.script`: `raid_odds`, `raid_outcome`, `loot_split`, `goodwill_plan`, mission-record helpers (pure); tests in `tools/tests/test_raiders.lua`; not wired.
+2. **Job + abstract mission (Resolver A).** Job `raider`, dispatch and resolve, wounded state, loot to storage, savings cut, weapon/armor toggle, goodwill wrapper, MCM group, tips and radio. Dispatch by a temporary Job-page action until phase 3.
+3. **PDA hooks (section 9).** Job button, roster state, summary banner, Outposts "Send raiders" with confirm, Overview line and Recall button, in all four theme XML copies. Abstract recall and optional auto-recall come with it.
+4. **Real assault (Resolver B).** The shared mission record switches to real when the player is on the level; behind `raiders_real_assault` (default off); abstract fallback on level leave or timeout.
+5. **Bandit mode** (reduced penalties, bandit/renegade reputation, richer loot) and a balance pass from play-test numbers.
 
-## 16. Open questions for the owner
+Nothing can be play-tested from here; every phase ends with a short in-game checklist for the owner.
 
-1. Scope of "capture": is "eliminate the garrison and take the chest, camp becomes cleared" enough, or should a captured camp become a player-owned outpost (Level C, a separate large project)?
-2. Who picks targets: player-directed only (send from the Outposts card), auto, or both? The doc proposes both, with auto off by default.
-3. Should the Raider's mission be abstract (timer + odds, works anywhere, nothing visible) or visible (real fight when the player is nearby)? Doc proposes abstract first, visible as a stretch.
-4. Goodwill: do you mean (a) robbing a rival outpost chest of a faction friendly to the player, (b) your own chest being looted by a faction, or both? The doc covers (a) and keeps (b) in the existing raid reputation.
-5. Goodwill numbers: is -60 per robbed camp, -100 extra for a friendly faction, daily cap 150 right? Placeholder scale only (raid reputation uses 25 per settler, cap 100).
-6. Bandit mode: just reduced penalties plus bandit/renegade reputation and richer loot, or should it also let the player change their own faction/relations?
-7. Should an idle raider at home count as a half guard, a full guard, or nothing?
-8. Rank gate: minimum rank 2 and at least one guard staying home. OK, or stricter/looser?
-9. Death risk: 25% per raider on a failed raid (60% on a disaster). Too harsh for named settlers? Is a "wounded and back later" outcome preferred over death?
-10. Loot: 60% of the chest, 15% cut to the raiders, flat cash bounty by tier. OK? Should the player be able to forbid weapons/armor loot?
-11. Retaliation: a successful raid on a faction that hates the player uses the existing retaliation timers. Accept, or add a raider-only damper?
-12. Reinforcement: recall button during a raid plus optional auto-recall (default off). Is that the reinforcement you meant, or do you want raiders to arrive from the field as real squads (hard)?
-13. Should raiders ever target other settlements of the player (no), mutant nests (a PvE job, maybe later), or Zombified/story camps (no)?
-14. Order versus the other designs: Raiders touches the PDA Outposts and Survivors work in flight. Land after that redesign, or design the UI hooks now?
-15. Localization: English now with Russian carrying English text until translated (as for "move on")?
+## 16. Open questions (answered by the owner, see Decisions)
+
+1. Capture scope: answered, clear and loot only.
+2. Target picking: answered, player-directed only.
+3. Abstract vs visible: answered, both, one shared mission record.
+4. Goodwill cases: answered, both.
+5. Goodwill numbers: answered, keep -60 / -100 / 150.
+6. Bandit mode: answered, no faction change.
+7. Idle raider at home: answered, half a guard.
+8. Rank gate: answered, rank 2+, one guard stays.
+9. Death risk: answered, wounded on failure, death only on disaster.
+10. Loot: answered, keep 60/15/bounty; weapon/armor toggle added.
+11. Retaliation: answered, existing timers.
+12. Reinforcement: answered, recall button and optional auto-recall, abstract teleport-back.
+13. Other targets: defaulted, no nests, story camps or own settlements.
+14. PDA order: answered, hooks designed now (section 9).
+15. Localization: defaulted, English now, Russian carries English.
+
+New questions raised by the answers:
+- N1. Wounded duration: is 12 game hours right?
+- N2. Disaster outcome: 50% permanent death per raider, survivors wounded. OK?
+- N3. Real assault: only when the player is within about 300 m of the camp, or whenever the player is on the level?
+- N4. Should the Survivors and Outposts redesign sessions be told now about the reserved PDA places?
 
 ## 17. X-Ray Lua review (anomaly-modding checklist)
 
@@ -273,5 +332,5 @@ Added after loading the `anomaly-modding` skill. Labels: verified (read in this 
 - **Save/load** (verified for `active_camps`, inference for the new fields): mission, cooldown and goodwill-cap fields hold plain numbers, strings and id lists only; no server objects or closures. Every stored object id (raider ids, target camp key, chest id) is revalidated on load and the mission is cancelled or finished deterministically if the target camp, chest or NPC is gone. Runtime caches (target ranking, odds) are rebuilt, not saved. Timers use game seconds, not `time_global()`, because `time_global()` and `CreateTimeEvent` do not survive load.
 - **Delayed calls** (inference): the recall delay and any teleport-back must not rely on a `CreateTimeEvent` surviving a load; `respawn_settler` already handles this by keeping the record on the camp (`sb` ~5805). Raider recall copies that.
 - **MCM** (verified pattern in `mcm`): options are read at runtime through the `cfg` map, never inside `on_mcm_load`; new keys need defaults, path map, MCM group and localization, as listed in section 10. `ui_mcm` stays optional.
-- **Unknowns to resolve in Phase 0:** whether `mark_rival_garrison_eliminated` is safe with a nil actor and an unloaded squad; whether a rival chest can be read or edited while offline; whether `change_community_goodwill` is clamped by the engine (the existing raid reputation relies on it); whether teleporting a settler off-level and back leaves a stale `settler_lookup` entry (expeditions suggest not, not proven for a band).
+- **Unknowns to resolve in Phase 0 (and for the real-assault phase: squad control via `scripted_target` and the mission/level-leave race are unknown until play-tested):** whether `mark_rival_garrison_eliminated` is safe with a nil actor and an unloaded squad; whether a rival chest can be read or edited while offline; whether `change_community_goodwill` is clamped by the engine (the existing raid reputation relies on it); whether teleporting a settler off-level and back leaves a stale `settler_lookup` entry (expeditions suggest not, not proven for a band).
 - **Validation for the later code:** `luac -p`, `luac -l -l` to confirm every function stays under 200 locals (a reason for the separate file), unit tests in `tools/tests`, then the in-game checks: fresh start, first update, save and reload mid-mission, level transition during a mission, toggle off during a mission.
