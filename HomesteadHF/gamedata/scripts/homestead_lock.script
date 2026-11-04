@@ -22,9 +22,11 @@
 -- get their spot back. The lock is always on (it used to have an MCM toggle).
 
 local VAR = "hs_spot"          -- x, y, z, heading, pitch, bank the piece was frozen at
+local HINT = "hs_place"        -- x, y, z a building piece was placed at (homestead_snap): its first spot
 local OLD_VAR = "hs_lock"      -- spot saved by an earlier version of this script, no longer used
 local SOLID = { foundation = true, floor = true, foundation_tri = true, floor_tri = true }   -- homestead_snap types that stay solid
 
+local PLACE_REACH = 3.0        -- metres a piece may have been lifted from where it was placed (further: the hint is ignored)
 local MOVE_TOL = 0.001         -- metres a piece may be off its spot
 local TURN_TOL = 0.0005        -- radians a piece may be turned off its spot
 local GIMBAL = math.pi / 2 - 0.001  -- beyond this pitch obj:angle() is too coarse to rebuild the rotation
@@ -86,6 +88,9 @@ end
 local function clear_spot(id)
     if se_load_var(id, nil, VAR) then
         se_save_var(id, nil, VAR, nil)
+    end
+    if se_load_var(id, nil, HINT) then
+        se_save_var(id, nil, HINT, nil)
     end
 end
 
@@ -199,6 +204,17 @@ local function on_piece_frozen(id)
     if spot then
         put_back(obj, spot)
     else
+        -- First freeze: a slab placed with its skirt below the terrain spawns inside the level geometry and
+        -- the engine lifts it out before this runs, so its spot is where it was placed, not where it is.
+        local hint = se_load_var(id, nil, HINT)
+        if hint then
+            se_save_var(id, nil, HINT, nil)
+            local p = obj:position()
+            local dx, dy, dz = p.x - hint[1], p.y - hint[2], p.z - hint[3]
+            if dx * dx + dy * dy + dz * dz < PLACE_REACH * PLACE_REACH then
+                obj:force_set_position(vector():set(hint[1], hint[2], hint[3]), false)
+            end
+        end
         save_spot(id, obj)
     end
     set_static(obj, true)
@@ -284,6 +300,13 @@ local function hook_freeze(module)
             if not ok then report(err) end
         end
         return done
+    end
+end
+
+-- homestead_snap calls this with the position it placed a building piece at
+function note_placed(id, pos)
+    if id and pos then
+        se_save_var(id, nil, HINT, { pos.x, pos.y, pos.z })
     end
 end
 

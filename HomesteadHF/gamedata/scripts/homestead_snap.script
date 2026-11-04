@@ -650,7 +650,13 @@ local function install_hooks()
         elseif snap.fit_pos and section == snap.section and placeable_furniture.in_placing_state() then
             location = vector():set(snap.fit_pos)
         end
-        return hf_create_object(section, location, rotation, lvid, gvid)
+        local id = hf_create_object(section, location, rotation, lvid, gvid)
+        -- a building piece may spawn inside the terrain and be lifted out by the engine before it is
+        -- frozen: tell the lock where it was placed so that is the spot it keeps
+        if id and location and ini_sys:r_string_ex(section, "homestead_snap") and homestead_lock and homestead_lock.note_placed then
+            pcall(homestead_lock.note_placed, id, location)
+        end
+        return id
     end
 end
 
