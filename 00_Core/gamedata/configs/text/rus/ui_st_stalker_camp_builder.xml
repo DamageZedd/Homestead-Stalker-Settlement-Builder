@@ -3299,5 +3299,62 @@
     <string id="ui_mcm_stalker_camp_builder_raiders_bandit_mode_desc">
         <text>Smaller goodwill losses, bandit reputation and richer loot for players who rob everyone.</text>
     </string>
+    <string id="st_pda_rival_pill_raid">
+        <text>RAID</text>
+    </string>
+    <string id="st_pda_raid_btn">
+        <text>Send raiders</text>
+    </string>
+    <string id="st_pda_raid_btn_confirm">
+        <text>Confirm raid</text>
+    </string>
+    <string id="st_pda_raid_btn_away">
+        <text>Raid underway</text>
+    </string>
+    <string id="st_pda_raid_why_none">
+        <text>Cannot raid</text>
+    </string>
+    <string id="st_pda_raid_why_own">
+        <text>Not a target</text>
+    </string>
+    <string id="st_pda_raid_why_story">
+        <text>Story camp: off limits</text>
+    </string>
+    <string id="st_pda_raid_why_nest">
+        <text>Mutant nest: not a target</text>
+    </string>
+    <string id="st_pda_raid_why_empty">
+        <text>Nothing left to raid</text>
+    </string>
+    <string id="st_pda_raid_why_busy">
+        <text>Raid already underway</text>
+    </string>
+    <string id="st_pda_raid_why_cooldown">
+        <text>Already hit: wait a day</text>
+    </string>
+    <string id="st_pda_raid_why_friendly">
+        <text>Friendly faction: spared</text>
+    </string>
+    <string id="st_pda_raid_why_no_raider">
+        <text>No eligible raiders</text>
+    </string>
+    <string id="st_pda_raid_why_no_guard">
+        <text>No guard stays home</text>
+    </string>
+    <string id="st_pda_raid_why_daily">
+        <text>Daily raid limit reached</text>
+    </string>
+    <string id="st_pda_raid_banner_away">
+        <text>[ RAID IN PROGRESS // BACK IN %dh %02dm ]</text>
+    </string>
+    <string id="st_pda_raid_info_away">
+        <text>%d raiders are out. Odds of success: %d%%. Back in about %dh %02dm.</text>
+    </string>
+    <string id="st_pda_raid_preview">
+        <text>Raid the %s outpost?\n%d raiders go. Odds of success: %d%%.\nGoodwill with them: -%d. A failed raid wounds the band; a disaster can kill. Click again to confirm.</text>
+    </string>
+    <string id="st_pda_raid_preview_friendly">
+        <text>WARNING: this faction is friendly to you. Robbing them costs extra goodwill.</text>
+    </string>
 </string_table>
 

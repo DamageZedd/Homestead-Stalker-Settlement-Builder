@@ -399,6 +399,11 @@ end
 function SettlementManagerPDA:OnKeyboard(dik, keyboard_action)
     local res = CUIScriptWnd.OnKeyboard(self, dik, keyboard_action)
     if res then return res end
+    -- right-click on an outpost row: the mouse button arrives as a key, and the row under the cursor is
+    -- found with IsCursorOverWindow (the way ui_mcm clears its search box on MOUSE_2)
+    if keyboard_action == ui_events.WINDOW_KEY_RELEASED and dik == DIK_keys.MOUSE_2 then
+        self:OnRivalRightClick()
+    end
     if keyboard_action == ui_events.WINDOW_KEY_PRESSED then
         if dik == DIK_keys.DIK_ESCAPE then
             if self:IsShown() then
@@ -484,6 +489,10 @@ function SettlementManagerPDA:InitControls()
     self.btn_refresh = xml:Init3tButton("rival_content:btn_refresh", self.rival_content)
     self:Register(self.btn_refresh, "btn_refresh")
     self:AddCallback("btn_refresh", ui_events.BUTTON_CLICKED, self.OnRefreshClicked, self)
+    self.btn_rival_raid = xml:Init3tButton("rival_content:btn_rival_raid", self.rival_content)
+    self:Register(self.btn_rival_raid, "btn_rival_raid")
+    self:AddCallback("btn_rival_raid", ui_events.BUTTON_CLICKED, self.OnRaidClicked, self)
+    self.rival_raid_info = xml:InitTextWnd("rival_content:rival_raid_info", self.rival_content)
 
     self.rival_list = xml:InitListBox("rival_list", self)
     self:Register(self.rival_list, "rival_list")
@@ -1152,6 +1161,13 @@ function SettlementManagerPDA:Update()
             end
         end
     end
+    if self.current_tab == "rivals" then
+        local tg = time_global()
+        if not self._last_raid_tick or (tg - self._last_raid_tick) >= 2000 or (tg < self._last_raid_tick) then
+            self._last_raid_tick = tg
+            self:RefreshRaidPanel()
+        end
+    end
 end
 
 -- list rebuilds select the row that was selected before (by an item field), else the first
@@ -1288,6 +1304,9 @@ function SettlementManagerPDA:Reset(tab_name)
             local pill_key = "st_pda_rival_pill_ally"
             if is_hostile == "hostile" then pill_key = "st_pda_rival_pill_hostile"
             elseif is_hostile == "unoccupied" then pill_key = "st_pda_rival_pill_empty" end
+            if stalker_camp_builder.raiders_mission_for and stalker_camp_builder.raiders_mission_for(smart) then
+                pill_key = "st_pda_rival_pill_raid"
+            end
             local sub_str = sformat("%s  |  T%d", is_hostile == "unoccupied" and game.translate_string("st_pda_rival_unclaimed") or fact_name, r_tier)
             local item = RivalListItem(smart, rcamp.name, badge_str, det_str, is_hostile, self.xml, rcamp.level, sub_str, game.translate_string(pill_key))
             local h = item.total_item_height or 100
@@ -1545,8 +1564,105 @@ function SettlementManagerPDA:OnRivalSelected()
         local btn_y = 240 + ih + 36
         self.btn_rival_locate:SetWndPos(vector2():set(0, btn_y))
         self.btn_refresh:SetWndPos(vector2():set(180, btn_y))
+        if self.btn_rival_raid then self.btn_rival_raid:SetWndPos(vector2():set(0, btn_y + 32)) end
+        if self.rival_raid_info then self.rival_raid_info:SetWndPos(vector2():set(10, btn_y + 66)) end
         if self.rival_content then
-            self.rival_content:SetWndSize(vector2():set(350, btn_y + 40))
+            self.rival_content:SetWndSize(vector2():set(350, btn_y + 170))
+        end
+    end
+    self:RefreshRaidPanel()
+end
+
+-- The Raid button, its preview and the countdown for the selected outpost (Raiders phase 3).
+-- First click arms the preview, the second sends; right-clicking a row arms it too.
+local RAID_ARM_MS = 15000
+
+function SettlementManagerPDA:RefreshRaidPanel()
+    local btn, info = self.btn_rival_raid, self.rival_raid_info
+    if not (btn and info) then return end
+    local sb = stalker_camp_builder
+    local item = self.rival_list:GetSelectedItem()
+    local rcamp = item and sb and sb.rival_camps and sb.rival_camps[item.smart]
+    if not (rcamp and sb.raiders_outpost_status) or rcamp.status ~= nil or rcamp.cleared or rcamp.faction == "monster" then
+        btn:Show(false)
+        info:SetText("")
+        self.raid_armed = nil
+        return
+    end
+    btn:Show(true)
+    local tr = game.translate_string
+    local key = item.smart
+    local st = sb.raiders_outpost_status(key, selected_value(self.settlement_list, "hub_id"))
+    local was_away = self.raid_was_away
+    self.raid_was_away = (st.state == "away")
+    if was_away and not self.raid_was_away then
+        -- the raid just ended: the outpost, its pill and the banner changed
+        self.raid_armed = nil
+        self:Reset("rivals")
+        return
+    end
+    local armed = self.raid_armed == key and st.state == "ready"
+        and self.raid_armed_tg and time_global() - self.raid_armed_tg < RAID_ARM_MS
+    if not armed then self.raid_armed = nil end
+
+    local label, color, text = tr("st_pda_raid_btn"), hs_theme.argb("body"), ""
+    if st.state == "away" then
+        local h, m = sb.raiders_eta_parts(st.eta)
+        label = tr("st_pda_raid_btn_away")
+        text = sformat(tr("st_pda_raid_info_away"), st.band, math.floor(st.odds * 100 + 0.5), h, m)
+        if self.rival_banner_lbl then
+            self.rival_banner_lbl:SetText(sformat(tr("st_pda_raid_banner_away"), h, m))
+            self.rival_banner_lbl:SetTextColor(hs_theme.argb("warn"))
+        end
+        if self.rival_banner_bg then hs_theme.banner(self.rival_banner_bg, "neutral") end
+    elseif st.state == "blocked" then
+        label = tr("st_pda_raid_why_" .. tostring(st.reason))
+    elseif armed then
+        label = tr("st_pda_raid_btn_confirm")
+        text = sformat(tr("st_pda_raid_preview"), tr(st.faction), st.band, math.floor(st.odds * 100 + 0.5), st.loss)
+        if st.friendly then
+            text = text .. "\n" .. tr("st_pda_raid_preview_friendly")
+            color = hs_theme.argb("danger")
+        end
+    end
+    btn:Enable(st.state == "ready")
+    if btn:TextControl() then btn:TextControl():SetText(label) end
+    info:SetText(text)
+    info:SetTextColor(color)
+end
+
+function SettlementManagerPDA:OnRaidClicked()
+    local sb = stalker_camp_builder
+    local item = self.rival_list:GetSelectedItem()
+    if not (item and sb and sb.raiders_outpost_status) then return end
+    local key = item.smart
+    local st = sb.raiders_outpost_status(key, selected_value(self.settlement_list, "hub_id"))
+    if st.state ~= "ready" then
+        self:RefreshRaidPanel()
+        return
+    end
+    if self.raid_armed ~= key then
+        self.raid_armed, self.raid_armed_tg = key, time_global()
+        self:RefreshRaidPanel()
+        return
+    end
+    self.raid_armed = nil
+    local camp = sb.active_camps and sb.active_camps[st.hub_id]
+    if camp then sb.raiders_send(st.hub_id, camp, nil, key) end
+    self:Reset("rivals")
+end
+
+-- right-click on an outpost row: select it and arm the raid preview (the button still confirms)
+function SettlementManagerPDA:OnRivalRightClick()
+    if self.current_tab ~= "rivals" or not self.rival_list:IsShown() then return end
+    for i = 0, self.rival_list:GetSize() - 1 do
+        local it = self.rival_list:GetItemByIndex(i)
+        if it and it.smart ~= nil and it:IsCursorOverWindow() then
+            self.rival_list:SetSelectedIndex(i)
+            self:OnRivalSelected()
+            self.raid_armed, self.raid_armed_tg = it.smart, time_global()
+            self:RefreshRaidPanel()
+            return
         end
     end
 end

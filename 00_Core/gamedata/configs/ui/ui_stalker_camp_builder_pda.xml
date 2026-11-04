@@ -738,6 +738,13 @@
             <texture>ui_button_ordinary</texture>
             <text font="letterica16" align="c" vert_align="c">st_pda_btn_refresh_survivors</text>
         </btn_refresh>
+        <btn_rival_raid x="0" y="432" width="350" height="28" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_raid_btn</text>
+        </btn_rival_raid>
+        <rival_raid_info x="10" y="466" width="330" height="96">
+            <text font="letterica16" r="200" g="200" b="200" align="l" complex_mode="1"></text>
+        </rival_raid_info>
     </rival_content>
 
     <rival_list x="212" y="162" width="180" height="510" item_height="100"
