@@ -1604,15 +1604,24 @@ function SettlementManagerPDA:RefreshRaidPanel()
         self:Reset("rivals")
         return
     end
-    local armed = self.raid_armed == key and st.state == "ready"
+    local recallable = st.state == "away" and not st.returning
+    local armed = self.raid_armed == key and (st.state == "ready" or recallable)
         and self.raid_armed_tg and time_global() - self.raid_armed_tg < RAID_ARM_MS
     if not armed then self.raid_armed = nil end
 
     local label, color, text = tr("st_pda_raid_btn"), hs_theme.argb("body"), ""
     if st.state == "away" then
         local eta_txt = sb.raiders_eta_text(st.eta)
-        label = tr("st_pda_raid_btn_away")
-        text = sformat(tr("st_pda_raid_info_away"), st.band, math.floor(st.odds * 100 + 0.5), eta_txt)
+        label = tr(st.returning and "st_pda_raid_btn_recalling" or armed and "st_pda_raid_btn_recall_confirm"
+            or "st_pda_raid_btn_recall")
+        if st.returning then
+            text = sformat(tr("st_pda_raid_info_recalling"), st.band, eta_txt)
+        elseif armed then
+            text = sformat(tr(st.raid and "st_pda_raid_recall_preview_raid" or "st_pda_raid_recall_preview"),
+                sb.raiders_recall_eta_text())
+        else
+            text = sformat(tr("st_pda_raid_info_away"), st.band, math.floor(st.odds * 100 + 0.5), eta_txt)
+        end
         if self.rival_banner_lbl then
             self.rival_banner_lbl:SetText(sformat(tr("st_pda_raid_banner_away"), eta_txt))
             self.rival_banner_lbl:SetTextColor(hs_theme.argb("warn"))
@@ -1628,7 +1637,7 @@ function SettlementManagerPDA:RefreshRaidPanel()
             color = hs_theme.argb("danger")
         end
     end
-    btn:Enable(st.state == "ready")
+    btn:Enable(st.state == "ready" or recallable)
     if btn:TextControl() then btn:TextControl():SetText(label) end
     info:SetText(text)
     info:SetTextColor(color)
@@ -1640,7 +1649,8 @@ function SettlementManagerPDA:OnRaidClicked()
     if not (item and sb and sb.raiders_outpost_status) then return end
     local key = item.smart
     local st = sb.raiders_outpost_status(key, selected_value(self.settlement_list, "hub_id"))
-    if st.state ~= "ready" then
+    local recall = st.state == "away" and not st.returning
+    if st.state ~= "ready" and not recall then
         self:RefreshRaidPanel()
         return
     end
@@ -1651,7 +1661,13 @@ function SettlementManagerPDA:OnRaidClicked()
     end
     self.raid_armed = nil
     local camp = sb.active_camps and sb.active_camps[st.hub_id]
-    if camp then sb.raiders_send(st.hub_id, camp, nil, key) end
+    if camp and recall then
+        -- the mission against this outpost, not every band of the settlement
+        local m = sb.raiders_mission_for(key)
+        sb.raiders_recall(st.hub_id, camp, nil, m and m.id)
+    elseif camp then
+        sb.raiders_send(st.hub_id, camp, nil, key)
+    end
     self:Reset("rivals")
 end
 
@@ -2013,6 +2029,8 @@ function SettlementManagerPDA:OnSurvivorSelected()
     if stalker_camp_builder and stalker_camp_builder.get_job_paused_status then
         is_paused, reason_short, reason_detail = stalker_camp_builder.get_job_paused_status(s_item, camp, si and si.hub_id)
     end
+
+    self:RefreshRecallButton(survivor_id)
 
     local progress = stalker_camp_builder.get_job_progress
         and stalker_camp_builder.get_job_progress(s_item, camp, si and si.hub_id) or 0
@@ -2543,11 +2561,34 @@ function SettlementManagerPDA:OnPositionHereClicked()
     self:OnSettlementSelected()
 end
 
+-- On the Orders page the "Recall to Workbench" button recalls a raider's whole mission while they are out
+-- (no loot, no goodwill change); it is disabled with the reason once the band is already on its way back.
+function SettlementManagerPDA:RefreshRecallButton(survivor_id)
+    local btn = self.btn_position_recall
+    if not (btn and btn:TextControl()) then return end
+    local rf = stalker_camp_builder.raiders_recall_for and stalker_camp_builder.raiders_recall_for(survivor_id)
+    local label = "st_pda_btn_position_recall"
+    if rf then label = rf.ok and "st_pda_raid_btn_recall" or ("st_pda_raid_recall_why_" .. tostring(rf.reason)) end
+    btn:Enable(not rf or rf.ok)
+    btn:TextControl():SetText(game.translate_string(label))
+end
+
 function SettlementManagerPDA:OnPositionRecallClicked()
     local item = self.survivor_list:GetSelectedItem()
     if not item then return end
 
     local survivor_id = item.survivor_id
+
+    local rf = stalker_camp_builder.raiders_recall_for and stalker_camp_builder.raiders_recall_for(survivor_id)
+    if rf then
+        if rf.ok then
+            stalker_camp_builder.raiders_recall(rf.hub_id, rf.camp, nil, rf.mission)
+        else
+            actor_menu.set_msg(1, game.translate_string("st_pda_raid_recall_why_" .. tostring(rf.reason)), 3)
+        end
+        self:OnSettlementSelected()
+        return
+    end
     local s_item = self.settlement_list:GetSelectedItem()
     local hub_id = s_item and s_item.hub_id
 
@@ -3101,6 +3142,7 @@ function SettlementManagerPDA:RefreshJobProgress(force, hub_id_override)
                 if survivor then
                     survivor.npc_id = survivor.npc_id or tonumber(survivor_id) or survivor_id
                     survivor.hub_id = survivor.hub_id or hub_id
+                    self:RefreshRecallButton(survivor_id)
                     local job = survivor.job or "idle"
                     local job_label = game.translate_string("st_pda_settlement_job_" .. job)
                     if job_label == "st_pda_settlement_job_" .. job then

@@ -393,6 +393,11 @@ function sb.raiders_mission_recall(m, now_sec, delay_sec)
     return true
 end
 
+-- the delay as the player reads it (real time, the game clock only scales it)
+function sb.raiders_recall_eta_text()
+    return sb.raiders_eta_text(RECALL_DELAY_REAL_SEC)
+end
+
 function sb.raiders_recall_due(m, now_sec)
     return type(m) == "table" and m.state == "returning" and num(now_sec, 0) >= num(m.arrive_sec, math.huge)
 end

@@ -3411,9 +3411,6 @@ Click again to confirm.</text>
 The raid ends now: no loot and no goodwill change. The band reaches camp in about %s and joins the defense.
 Click again to confirm.</text>
     </string>
-    <string id="st_pda_raid_recall_why_none">
-        <text>Nobody is away</text>
-    </string>
     <string id="st_pda_raid_recall_why_returning">
         <text>Recall already in progress</text>
     </string>
