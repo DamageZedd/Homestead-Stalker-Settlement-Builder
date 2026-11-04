@@ -4,6 +4,8 @@
 local src = io.open("00_Core/gamedata/scripts/stalker_camp_builder.script", "rb"):read("*a")
 local body = src:match("(function time_factor%(%).-\nend)")
 assert(body, "time_factor not found")
+local jbody = src:match("(function job_game_elapsed_sec%(.-\nend)")
+assert(jbody, "job_game_elapsed_sec not found")
 local fails = 0
 local function eq(a, b, msg)
     if a ~= b then fails = fails + 1; print("FAIL " .. msg .. ": got " .. tostring(a) .. ", want " .. tostring(b)) end
