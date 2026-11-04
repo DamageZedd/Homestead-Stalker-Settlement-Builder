@@ -1,6 +1,6 @@
 # Raiders: design (not implemented)
 
-Status: DRAFT, owner decisions recorded (see Decisions). No feature code exists. Internal doc, not README content.
+Status: phases 0-3 implemented (always on, Resolver A abstract missions, PDA Outposts Send raiders), awaiting owner play-test; phases 4-5 (real assault, bandit-mode balance) not started. Owner decisions recorded (see Decisions). Internal doc, not README content.
 Origin: suggestion from Discord user Wx (raiders attack and capture/loot camps that are not the player's, and can be sent to reinforce the player's settlements under attack), plus the owner's Goodwill idea (losing or looting a chest friendly to a faction costs goodwill with that faction; bandit-style play).
 Cites are from `main` at b385d08 and will drift. Paths: `00_Core/gamedata/scripts/`, abbreviated `sb` (stalker_camp_builder), `jobs`, `events`, `rivals`, `exp` (expeditions), `prosper`, `needs`, `pda`, `mcm`.
 Nothing here was run in game; "feasible" below means "reads as feasible from the code", not "tested".
@@ -244,7 +244,7 @@ Each key needs: the defaults table (`sb` ~690), key -> path map (~870), `mcm` gr
 
 - Camp-level only: `camp.raider_missions` (the shared record of 5.1), `camp.raider_state` (per-faction goodwill spent today, last mission day). Per-survivor: `survivor.raider = { rest_until, missions_done, kills }`. All plain numbers/strings/tables, no engine objects (ids only). nil = "never raided", so old saves load unchanged; `normalize_camps` (`sb` 3987) fills defaults.
 - No `SAVE_STATE_VERSION` bump unless a migration step is added.
-- Mission, wounded, rest and cooldown timers are game seconds read from `stalker_camp_builder.game_sec()` (`sb.game_sec`), like the scavenger expeditions; the PDA ETA is `(arrive_sec - now) / level.get_time_factor()` (default 10). `game_sec` is a function of the `stalker_camp_builder` namespace, not a global: a bare `game_sec` call in the raiders script is nil, which froze every raiders timer at 0 (the 2026-11 countdown bug). Resolution on load runs at most one mission per camp per tick (avoid a pile-up like the sleep catch-up problem in Living Needs).
+- Mission, wounded, rest and cooldown timers are game seconds read from `stalker_camp_builder.game_sec()` (`sb.game_sec`), like the scavenger expeditions; the PDA ETA is `(arrive_sec - now) / sb.time_factor()` (default 10, floored by `sb.time_factor()` so Real Time Zones catch-up does not stretch it). `game_sec` is a function of the `stalker_camp_builder` namespace, not a global: a bare `game_sec` call in the raiders script is nil, which froze every raiders timer at 0 (the 2026-11 countdown bug). Resolution on load runs at most one mission per camp per tick (avoid a pile-up like the sleep catch-up problem in Living Needs).
 - Raider NPCs that are teleported away during a mission can be lost across a save/load (the same hazard `restore_missing_settler` handles for expeditions). The mission record is the source of truth, and `verify_and_heal_settlers` (`sb` ~5800) must finish a mission or a recall after a load.
 - The rival camp mutation (`mark_rival_garrison_eliminated`) is already save-safe; the new code only calls it.
 - Uninstalling the mod leaves unknown fields as inert tables.
@@ -273,10 +273,10 @@ Each key needs: the defaults table (`sb` ~690), key -> path map (~870), `mcm` gr
 
 | Risk | Mitigation |
 |---|---|
-| Raiders strip every rival camp, killing the "there's something to find" loop | Per-day and per-target cooldowns, loot fraction, default OFF |
+| Raiders strip every rival camp, killing the "there's something to find" loop | Per-day and per-target cooldowns, loot fraction, player-directed sends only |
 | Retaliation squads flood the player after a successful raid | Show it in the confirm panel; `rival_camp_retaliation_raids` already has its own MCM switch; add a raider-specific damper (retaliation delay x2) |
-| Goodwill spiral to hostile factions | Daily cap, "spare friends" default on, bandit mode opt-in |
-| Settlers die for nothing | Odds shown first, rank gate, `raiders_death_chance` tunable, recall always available |
+| Goodwill spiral to hostile factions | Daily cap on goodwill loss per faction, the confirm panel shows the exact loss (friendly factions are allowed, with a red warning), bandit mode opt-in |
+| Settlers die for nothing | Odds shown first (any rank may go; rank only scales the odds), `raiders_disaster_death_chance` tunable, recall always available (change the job) |
 | Camp left defenceless when raiders leave | `raiders_min_guards`, no mission starts while a raid is active, away raiders do not count as guards |
 | Balance wrong without playtest | Phase 1 numbers conservative; each phase ends with an in-game checklist |
 | Lua 200-local / 60-upvalue limits | Own script file; `tools/check_lua.ps1` |
@@ -352,8 +352,10 @@ Labels: verified (read in code), inferred (follows from code), unknown (needs th
 2. **Abstract loot is synthetic by default** (no offline chest reads exist in the code). The "take 60% of the chest" rule applies only when the chest is online.
 3. **Goodwill clamping stays unknown**; the plan keeps the daily cap in the pure code so it is bounded either way.
 
-## 19. Implementation status (phases 0-1 done, not wired, not play-tested)
+## 19. Implementation status (phases 0-3 done, committed locally, not yet play-tested)
 
 - Phase 0: audit in section 18. Biggest change: clear a camp by releasing its garrison squads, not by calling the local `mark_rival_garrison_eliminated`.
 - Phase 1: pure rules in `00_Core/gamedata/scripts/stalker_camp_builder_raiders.script` (`raiders_can_send`, `raid_odds`, `raid_outcome`, `raid_casualties`, `raiders_loot_split`, `raiders_goodwill_plan`, mission-record helpers), tests in `tools/tests/test_raiders.lua` (run with Lua 5.1 from the repo root). No MCM, PDA, XML or callback wiring; the master toggle was later removed (always on). The rank gate reads `survivor.tier` (the prosper tier).
-- Not decided in code yet: how `has_weapon`/`has_ammo`/guard counts are gathered from a live camp (phase 2).
+- Phase 2: job `raider`, abstract missions (Resolver A), jobs hooks (pause reason, mission cancel on job change), MCM group, strings; no master toggle; no rank gate; friendly camps always sendable.
+- Phase 3: PDA Outposts Send raiders (preview then confirm, right-click preview, RAID pill), Raider job button in all four XML copies, live time-left on roster, dossier, Job page and Outposts card.
+- Not started: phase 4 (real assault) and phase 5 (bandit-mode balance pass).
