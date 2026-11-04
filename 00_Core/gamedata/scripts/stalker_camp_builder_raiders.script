@@ -32,6 +32,7 @@ local DEFAULTS = {
     raiders_bandit_rep = 20,
     raiders_bandit_loot_bonus = 25,        -- percent more cash and items in bandit mode
     raiders_max_per_day = 3,
+    raiders_auto_recall = false,
 }
 
 -- cash bounty by camp tier, before the loot multiplier
@@ -41,6 +42,7 @@ local TIER_FACTOR = { 1.0, 1.4, 2.0 }
 local ASSAULT_WINDOW_SEC = 1800
 local MAX_MISSION_SEC = 4 * 3600
 local WIN_MIN, WIN_MAX = 0.05, 0.90
+local RECALL_DELAY_REAL_SEC = 20   -- real seconds a recalled band needs to reach camp (abstract teleport-back)
 local FRIEND_GOODWILL = 500      -- goodwill with the player at or above this = a friendly faction
 
 local BANDIT_FACTIONS = { bandit = true, renegade = true }
@@ -74,6 +76,8 @@ end
 function sb.raiders_defense_share(surv, now_sec, cfg)
     if type(surv) ~= "table" then return 0 end
     if surv.on_mission or sb.raiders_is_wounded(surv, now_sec or (sb.game_sec and sb.game_sec()) or 0) then return 0 end
+    -- a raider called home to fight an attack is a full guard until the attack is over
+    if type(surv.raider) == "table" and surv.raider.defending then return 1 end
     return sb.raiders_effective_guards(0, 1, cfg)
 end
 
@@ -88,6 +92,7 @@ function sb.raiders_survivor_ready(surv, now_sec, cfg)
     if type(surv) ~= "table" then return false, "none" end
     if surv.on_mission or surv.on_expedition then return false, "busy" end
     if sb.raiders_is_wounded(surv, now_sec) then return false, "wounded" end
+    if type(surv.raider) == "table" and surv.raider.defending then return false, "defending" end
     if surv.has_weapon == false then return false, "no_weapon" end
     if surv.has_ammo == false then return false, "no_ammo" end
     local r = type(surv.raider) == "table" and surv.raider
@@ -107,6 +112,7 @@ function sb.raiders_can_send(info, target, cfg)
     local f = target.faction
     if not target.occupied or type(f) ~= "string" or NOT_A_FACTION[f] then return false, "empty" end
     if target.busy then return false, "busy" end
+    if info.raid_active then return false, "raid" end
     if target.on_cooldown then return false, "cooldown" end
     if num(info.ready, 0) < 1 then return false, "no_raider" end
     if num(info.guards, 0) < num(cfgv("raiders_min_guards", cfg), 1) then return false, "no_guard" end
@@ -353,12 +359,42 @@ end
 
 -- game seconds until the mission is back; nil without an away mission
 function sb.raiders_mission_remaining(m, now_sec)
-    if type(m) ~= "table" or m.state ~= "away" then return nil end
+    if type(m) ~= "table" or (m.state ~= "away" and m.state ~= "returning") then return nil end
     return mmax(0, num(m.arrive_sec, 0) - num(now_sec, 0))
 end
 
 function sb.raiders_mission_due(m, now_sec)
     return type(m) == "table" and m.state == "away" and num(now_sec, 0) >= num(m.arrive_sec, math.huge)
+end
+
+-- ---------------------------------------------------------------- recall (phase 4)
+
+-- game seconds a recalled band needs to reach camp; tf = game seconds per real second
+function sb.raiders_recall_delay(tf)
+    tf = num(tf, 10)
+    return RECALL_DELAY_REAL_SEC * (tf > 0 and tf or 10)
+end
+
+-- Can the player recall? away / returning = raiders counted on away / already recalled missions.
+-- Returns true, or false and a reason key ("none": nobody away, "returning": a recall is already under way)
+function sb.raiders_recall_check(away, returning)
+    if num(away, 0) > 0 then return true end
+    if num(returning, 0) > 0 then return false, "returning" end
+    return false, "none"
+end
+
+-- Turns an away mission into a returning one that reaches camp after delay_sec. No loot, no goodwill, no
+-- cooldown: the record only changes state, so it saves and loads like any other. False when not away.
+function sb.raiders_mission_recall(m, now_sec, delay_sec)
+    if type(m) ~= "table" or m.state ~= "away" then return false end
+    m.state = "returning"
+    m.recalled = true
+    m.arrive_sec = num(now_sec, 0) + mmax(0, num(delay_sec, 0))
+    return true
+end
+
+function sb.raiders_recall_due(m, now_sec)
+    return type(m) == "table" and m.state == "returning" and num(now_sec, 0) >= num(m.arrive_sec, math.huge)
 end
 
 -- the one-shot guards of finish_mission: true the first time for a step ("loot" or "goodwill"),
@@ -461,12 +497,21 @@ function sb.raiders_pause_reason(surv, camp)
         local left = sb.raiders_mission_remaining(m, game_now())
         if left and sb.format_expedition_time then
             local t = sb.format_expedition_time(left)
+            if m.state == "returning" then
+                return string.format(tr("st_homestead_raider_recalling_left"), t), string.format(tr("st_homestead_raider_recalling_d"), t)
+            end
             return string.format(tr("st_homestead_raider_on_mission_left"), t), string.format(tr("st_homestead_raider_on_mission_d2"), t)
+        end
+        if m and m.state == "returning" then
+            return tr("st_homestead_raider_recalling"), tr("st_homestead_raider_recalling_d0")
         end
         return tr("st_homestead_raider_on_mission"), tr("st_homestead_raider_on_mission_d")
     end
     if sb.raiders_is_wounded(surv, game_now()) then
         return tr("st_homestead_raider_wounded"), tr("st_homestead_raider_wounded_d")
+    end
+    if type(surv.raider) == "table" and surv.raider.defending then
+        return tr("st_homestead_raider_defending"), tr("st_homestead_raider_defending_d")
     end
     return nil
 end
@@ -607,7 +652,8 @@ function sb.raiders_send(hub_id, camp, npc_id, key)
         lead_id = tonumber(npc_id) or npc_id
     end
     local band, ids = ready_band(camp, lead_id, now_sec)
-    local info = { guards = guard_count(camp), ready = #band, missions_today = st.missions_today or 0 }
+    local info = { guards = guard_count(camp), ready = #band, missions_today = st.missions_today or 0,
+        raid_active = camp.active_raid ~= nil }
     local rc, dist, squad
     if key ~= nil then
         rc = sb.rival_camps and sb.rival_camps[key]
@@ -625,6 +671,7 @@ function sb.raiders_send(hub_id, camp, npc_id, key)
         local _, reason = sb.raiders_can_send(info, { occupied = true, faction = "stalker" })
         tip(tr(reason == "no_guard" and "st_homestead_raider_cannot_no_guard"
             or reason == "daily" and "st_homestead_raider_cannot_daily"
+            or reason == "raid" and "st_homestead_raider_cannot_raid"
             or "st_homestead_raider_no_target"))
         return false
     end
@@ -721,6 +768,7 @@ function sb.raiders_outpost_status(key, prefer_hub)
     local m, mhub = sb.raiders_mission_for(key)
     if m then
         return { state = "away", hub_id = mhub, band = #m.raider_ids, odds = m.odds,
+            returning = m.state == "returning", raid = sb.active_camps[mhub].active_raid ~= nil,
             eta = mmax(0, m.arrive_sec - now_sec) / game_time_factor() }
     end
     local t, squad = target_info(key, rc, now_sec)
@@ -734,7 +782,7 @@ function sb.raiders_outpost_status(key, prefer_hub)
         local camp = sb.active_camps[hub_id]
         local band = ready_band(camp, nil, now_sec)
         local info = { guards = guard_count(camp), ready = #band,
-            missions_today = raider_state(camp).missions_today or 0 }
+            missions_today = raider_state(camp).missions_today or 0, raid_active = camp.active_raid ~= nil }
         local ok, why = sb.raiders_can_send(info, t)
         if ok then
             return { state = "ready", hub_id = hub_id, band = #band, odds = band_odds(band, rc, squad),
@@ -866,6 +914,99 @@ local function resolve_mission(hub_id, camp, id, m)
     tip(text, 12000)
 end
 
+-- ---------------------------------------------------------------- recall (phase 4)
+
+-- Raiders of the camp that are out on a raid, and those already on their way back after a recall.
+function sb.raiders_recall_status(camp)
+    local away, returning, eta = 0, 0, nil
+    local now_sec = game_now()
+    for _, m in pairs(camp and camp.raider_missions or {}) do
+        if m.state == "away" then
+            away = away + #m.raider_ids
+        elseif m.state == "returning" then
+            returning = returning + #m.raider_ids
+            local left = mmax(0, num(m.arrive_sec, now_sec) - now_sec) / game_time_factor()
+            eta = eta and mmin(eta, left) or left
+        end
+    end
+    local ok, why = sb.raiders_recall_check(away, returning)
+    return { ok = ok, reason = why, away = away, returning = returning, eta = eta,
+        raid = camp ~= nil and camp.active_raid ~= nil }
+end
+
+-- Ends away missions early: no loot, no goodwill, no cooldown. The band is flagged "returning" and reaches the
+-- camp after RECALL_DELAY_REAL_SEC; the flag lives in the mission record, so a save/load in between loses nothing
+-- (raiders_process finishes it). how = "auto" (the MCM option fired) or nil (the player); only_id limits it
+-- to one mission. Returns the number of raiders recalled.
+function sb.raiders_recall(hub_id, camp, how, only_id)
+    if not (camp and camp.raider_missions) then return 0 end
+    local now_sec = game_now()
+    local delay = sb.raiders_recall_delay(game_time_factor())
+    local n = 0
+    for id, m in pairs(camp.raider_missions) do
+        if (only_id == nil or id == only_id) and sb.raiders_mission_recall(m, now_sec, delay) then
+            n = n + #m.raider_ids
+        end
+    end
+    if n > 0 then
+        if how == "auto" then
+            tip(string.format(tr("st_homestead_raider_recall_auto"), n), 12000)
+        else
+            tip(string.format(tr(camp.active_raid and "st_homestead_raider_recall_sent_raid" or "st_homestead_raider_recall_sent"),
+                n, sb.raiders_eta_text(delay / game_time_factor())), 12000)
+        end
+    end
+    return n
+end
+
+-- the recall state of a raider on the Survivors tab: nil when they are not on a mission, else
+-- { ok, reason, hub_id, camp, mission } for the mission they are on
+function sb.raiders_recall_for(npc_id)
+    for hub_id, camp in pairs(sb.active_camps or {}) do
+        local s = surv_of(camp, npc_id)
+        if s then
+            local m = s.on_mission and camp.raider_missions and camp.raider_missions[s.on_mission]
+            if not m then return nil end
+            local ok, why = sb.raiders_recall_check(m.state == "away" and 1 or 0, m.state == "returning" and 1 or 0)
+            return { ok = ok, reason = why, hub_id = hub_id, camp = camp, mission = m.id }
+        end
+    end
+    return nil
+end
+
+-- the band of a recalled mission reaches camp; with an attack under way they arrive as defenders
+local function finish_recall(camp, id, m)
+    local raid = camp.active_raid ~= nil
+    local n = 0
+    for _, npc_id in ipairs(m.raider_ids) do
+        local s = surv_of(camp, npc_id)
+        if s then
+            bring_home(tonumber(npc_id) or npc_id, s)
+            if raid then
+                s.raider = type(s.raider) == "table" and s.raider or {}
+                s.raider.defending = true
+            end
+            n = n + 1
+        end
+    end
+    camp.raider_missions[id] = nil
+    if n > 0 then
+        tip(string.format(tr(raid and "st_homestead_raider_recall_home" or "st_homestead_raider_recall_home_calm"), n), 12000)
+    end
+end
+
+-- an attack that is over sends its defenders back to normal duty
+local function stand_down(camp)
+    local n = 0
+    for _, s in pairs(camp.survivors or {}) do
+        if type(s.raider) == "table" and s.raider.defending then
+            s.raider.defending = nil
+            n = n + 1
+        end
+    end
+    if n > 0 then tip(tr("st_homestead_raider_stand_down")) end
+end
+
 -- a raider who changes job while away leaves the mission (no loot, no goodwill)
 function sb.raiders_cancel_for(hub_id, npc_id)
     local camp = sb.active_camps and sb.active_camps[hub_id]
@@ -886,11 +1027,19 @@ end
 function sb.raiders_process()
     local now_sec = game_now()
     for hub_id, camp in pairs(sb.active_camps or {}) do
+        -- an attack on the camp with the option on: every band still away comes home to defend
+        -- (recalling is idempotent: a recalled mission is no longer "away")
+        if camp.active_raid and cfgv("raiders_auto_recall") == true then
+            pcall(sb.raiders_recall, hub_id, camp, "auto")
+        end
         for id, m in pairs(camp.raider_missions or {}) do
-            if sb.raiders_mission_due(m, now_sec) then
+            if sb.raiders_recall_due(m, now_sec) then
+                if not pcall(finish_recall, camp, id, m) then camp.raider_missions[id] = nil end
+            elseif sb.raiders_mission_due(m, now_sec) then
                 if not pcall(resolve_mission, hub_id, camp, id, m) then camp.raider_missions[id] = nil end
             end
         end
+        if not camp.active_raid then stand_down(camp) end
         for npc_id, s in pairs(camp.survivors or {}) do
             if s.on_mission and not (camp.raider_missions and camp.raider_missions[s.on_mission]) then
                 bring_home(tonumber(npc_id) or npc_id, s)

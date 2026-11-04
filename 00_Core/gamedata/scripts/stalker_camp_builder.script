@@ -841,6 +841,7 @@ local defaults = {
     raiders_goodwill_betrayal = 100,      -- Raiders: Extra goodwill lost when the robbed faction was friendly to you
     raiders_goodwill_daily_cap = 150,     -- Raiders: Most goodwill raids can cost you with one faction in a day
     raiders_max_per_day = 3,              -- Raiders: Most raids one settlement can send per game day
+    raiders_auto_recall = false,          -- Raiders: Bring raiders that are away home to defend as soon as a raid hits the settlement
     raiders_bandit_mode = false,          -- Raiders: Smaller goodwill losses, bandit reputation and richer loot for players who rob everyone
     needs_enabled = false,            -- Living needs: settlers need food and water, shortages cost morale (docs/design/living_needs.md). Off keeps the old one-ration-a-day rule.
     needs_consumption_mult = 1.0,     -- Scales how much the settlers eat and drink per day.

@@ -339,6 +339,112 @@ do
     eq(sb.raiders_send(7, camp3, nil, "k2"), false, "no raider left for a second send")
     eq(tips[1], "st_pda_raid_why_no_raider", "reason tip")
     eq(sb.raiders_send(7, camp3, nil, "gone"), false, "cleared outpost refused")
+
+    -- ---- phase 4: recall (manual, auto, defenders, save/load)
+    sb.rival_camps.k9 = { chest_id = 900, squad_id = 900, faction = "bandit", tier = 1, position = { x = 100, z = 0 }, level = "l01_escape" }
+    sb.rival_camps.k8 = { chest_id = 900, squad_id = 900, faction = "bandit", tier = 1, position = { x = 100, z = 0 }, level = "l01_escape" }
+    local function sent_camp()
+        NOW = NOW + 5 * 86400
+        local c = fresh_camp(); sb.active_camps = { [7] = c }
+        eq(sb.raiders_send(7, c, nil, "k9"), true, "recall test: raiders out")
+        return c
+    end
+    local function chk(away, ret, expect_ok, expect_why, msg)
+        local o2, w2 = sb.raiders_recall_check(away, ret)
+        eq(o2, expect_ok, msg .. " ok"); eq(w2, expect_why, msg .. " reason")
+    end
+    chk(2, 0, true, nil, "recall with a band away"); chk(0, 0, false, "none", "nobody away")
+    chk(0, 2, false, "returning", "recall already in progress"); chk(1, 2, true, nil, "another band still away")
+    near(sb.raiders_recall_delay(10), 200, "delay in game seconds"); near(sb.raiders_recall_delay(0), 200, "bad factor falls back")
+
+    -- manual recall, no raid: no loot, no goodwill, no cooldown, band home after the delay
+    do
+        local c = sent_camp(); goodwill = {}; local dep = #deposited; local rel = #released
+        local st = sb.raiders_recall_status(c); eq(st.ok, true, "status: can recall"); eq(st.away, 2, "status: two away")
+        eq(sb.raiders_recall(7, c), 2, "two raiders recalled")
+        eq(c.raider_missions[1].state, "returning", "mission is returning")
+        eq(c.raider_missions[1].recalled, true, "recall flag on the record")
+        st = sb.raiders_recall_status(c); eq(st.ok, false, "status: no second recall"); eq(st.reason, "returning", "status: already recalled")
+        eq(st.returning, 2, "status: two returning"); eq(st.eta > 0, true, "status: eta")
+        eq(sb.raiders_recall(7, c), 0, "a second recall does nothing")
+        local rf = sb.raiders_recall_for(10); eq(rf.ok, false, "survivor button: recall in progress"); eq(rf.reason, "returning", "survivor button reason")
+        eq(sb.raiders_recall_for(12), nil, "a guard has no recall")
+        local l = sb.raiders_pause_reason(c.survivors[10], c); eq(l, "st_homestead_raider_recalling", "returning label")
+        -- a mid-recall save/load keeps it; not due before the delay
+        sb.active_camps = { [7] = roundtrip(c) }; c = sb.active_camps[7]
+        eq(c.raider_missions[1].state, "returning", "recall survives save/load")
+        sb.raiders_process(); eq(c.raider_missions[1] ~= nil, true, "still on the way")
+        eq(sb.raiders_mission_due(c.raider_missions[1], NOW + 99999), false, "a returning mission is never resolved as a raid")
+        NOW = NOW + 250
+        sb.raiders_process()
+        eq(c.raider_missions[1], nil, "band arrived, mission gone")
+        eq(c.survivors[10].on_mission, nil, "flag cleared"); eq(moved.home10, true, "switched back online")
+        eq(c.survivors[10].raider and c.survivors[10].raider.defending, nil, "no attack: not marked as defenders")
+        eq(#deposited, dep, "no loot"); eq(#goodwill, 0, "no goodwill change"); eq(#released, rel, "garrison untouched")
+        eq(sb.rival_camps.k9.raid_cooldown_until, nil, "no target cooldown")
+        eq(sb.raiders_survivor_ready(c.survivors[10], NOW), true, "no rest or wounds after a recall")
+        eq(sb.raiders_recall_status(c).reason, "none", "status: nobody away now")
+    end
+
+    -- recall during an attack: arrive as defenders (full guards) until the attack ends
+    do
+        local c = sent_camp(); c.active_raid = { squad_id = 1 }
+        eq(sb.raiders_recall(7, c), 2, "recall during an attack")
+        NOW = NOW + 250; sb.raiders_process()
+        for _, id in ipairs({ 10, 11 }) do
+            eq(c.survivors[id].raider.defending, true, "defender " .. id)
+            near(sb.raiders_defense_share(c.survivors[id], NOW), 1, "a defender counts as a full guard")
+        end
+        local o3, w3 = sb.raiders_survivor_ready(c.survivors[10], NOW); eq(o3, false, "defender cannot be sent"); eq(w3, "defending", "defender reason")
+        eq(sb.raiders_pause_reason(c.survivors[10], c), "st_homestead_raider_defending", "defender label")
+        c.survivors[11].raider.wounded_until = NOW + 100
+        near(sb.raiders_defense_share(c.survivors[11], NOW), 0, "a wounded defender adds none")
+        -- no new raid during the attack, with the reason
+        local o4, w4 = sb.raiders_can_send({ guards = 2, ready = 2, missions_today = 0, raid_active = true }, { occupied = true, faction = "duty" })
+        eq(o4, false, "no raid while attacked"); eq(w4, "raid", "reason raid")
+        sb.active_camps = { [7] = roundtrip(c) }; c = sb.active_camps[7]
+        sb.raiders_process(); eq(c.survivors[10].raider.defending, true, "defenders stay while the attack lasts, also after a load")
+        c.active_raid = nil
+        sb.raiders_process()
+        eq(c.survivors[10].raider.defending, nil, "attack over: stand down"); eq(c.survivors[11].raider.defending, nil, "all stand down")
+        near(sb.raiders_defense_share(c.survivors[10], NOW), 0.5, "back to half a guard")
+    end
+
+    -- the player can recall a raider's whole mission from the Survivors tab, other missions stay
+    do
+        local c = sent_camp()
+        c.survivors[13] = { job = "raider", tier = 2 }
+        eq(sb.raiders_send(7, c, 13, "k8"), true, "second band out")
+        local before = #c.raider_missions[1].raider_ids
+        eq(sb.raiders_recall(7, c, nil, c.survivors[13].on_mission), 1, "only the one mission recalled")
+        eq(c.raider_missions[1].state, "away", "the other mission keeps going"); eq(before, 2, "band size unchanged")
+    end
+
+    -- auto recall: option off does nothing; on, an attack recalls once, state in the saved record
+    do
+        local c = sent_camp(); c.active_raid = { squad_id = 1 }
+        sb.raiders_process(); eq(c.raider_missions[1].state, "away", "auto recall off by default")
+        sb.cfg.raiders_auto_recall = true
+        sb.raiders_process(); eq(c.raider_missions[1].state, "returning", "auto recall fires when the camp is attacked")
+        local arrive = c.raider_missions[1].arrive_sec
+        sb.raiders_process(); eq(c.raider_missions[1].arrive_sec, arrive, "recalled only once")
+        sb.active_camps = { [7] = roundtrip(c) }; c = sb.active_camps[7]
+        NOW = NOW + 250; sb.raiders_process()
+        eq(c.survivors[10].raider.defending, true, "arrived as defenders after a load")
+        sb.cfg.raiders_auto_recall = nil
+        -- a quiet camp is never recalled
+        local c3 = sent_camp(); sb.cfg.raiders_auto_recall = true
+        sb.raiders_process(); eq(c3.raider_missions[1].state, "away", "no attack, no auto recall")
+        sb.cfg.raiders_auto_recall = nil
+    end
+
+    -- the outpost card: a recalled raid reads as returning, not as a fresh raid
+    do
+        local c = sent_camp()
+        eq(sb.raiders_outpost_status("k9", 7).returning, false, "card: raid running")
+        sb.raiders_recall(7, c)
+        local o5 = sb.raiders_outpost_status("k9", 7); eq(o5.state, "away", "card: still held while returning"); eq(o5.returning, true, "card: returning")
+    end
 end
 
 -- the freeze: game_sec lives in the stalker_camp_builder namespace, so a bare global game_sec is nil in

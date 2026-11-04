@@ -3281,6 +3281,12 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="ui_mcm_stalker_camp_builder_raiders_max_per_day_desc">
         <text>Most raids one settlement can send per game day.</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_auto_recall">
+        <text>Auto-Recall Raiders</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_auto_recall_desc">
+        <text>When a raid hits the settlement, raiders that are away on a mission come home at once and defend. The mission ends with no loot and no goodwill change.</text>
+    </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_bandit_mode">
         <text>Bandit Mode</text>
     </string>
@@ -3340,5 +3346,78 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     </string>
     <string id="st_pda_raid_preview_friendly">
         <text>WARNING: this faction is friendly to you. Robbing them costs extra goodwill.</text>
+    </string>
+    <string id="st_homestead_raider_recalling">
+        <text>Recalled</text>
+    </string>
+    <string id="st_homestead_raider_recalling_left">
+        <text>Recalled, %s left</text>
+    </string>
+    <string id="st_homestead_raider_recalling_d">
+        <text>Recalled from a raid. Back at camp in %s.</text>
+    </string>
+    <string id="st_homestead_raider_recalling_d0">
+        <text>Recalled from a raid. Back at camp shortly.</text>
+    </string>
+    <string id="st_homestead_raider_defending">
+        <text>Defending</text>
+    </string>
+    <string id="st_homestead_raider_defending_d">
+        <text>Called home to defend the settlement.</text>
+    </string>
+    <string id="st_homestead_raider_cannot_defending">
+        <text>That raider is defending the settlement.</text>
+    </string>
+    <string id="st_homestead_raider_cannot_raid">
+        <text>The settlement is under attack: no raids now.</text>
+    </string>
+    <string id="st_homestead_raider_recall_sent">
+        <text>Recalling %d raiders. They reach camp in about %s.</text>
+    </string>
+    <string id="st_homestead_raider_recall_sent_raid">
+        <text>Recalling %d raiders to defend the settlement. They reach camp in about %s.</text>
+    </string>
+    <string id="st_homestead_raider_recall_auto">
+        <text>The settlement is under attack. Recalling %d raiders to defend it.</text>
+    </string>
+    <string id="st_homestead_raider_recall_home">
+        <text>%d raiders are back at camp and ready to fight.</text>
+    </string>
+    <string id="st_homestead_raider_recall_home_calm">
+        <text>%d raiders are back at camp. The raid on the outpost was called off.</text>
+    </string>
+    <string id="st_homestead_raider_stand_down">
+        <text>The attack is over. The raiders stand down.</text>
+    </string>
+    <string id="st_pda_raid_btn_recall">
+        <text>Recall raiders</text>
+    </string>
+    <string id="st_pda_raid_btn_recall_confirm">
+        <text>Confirm recall</text>
+    </string>
+    <string id="st_pda_raid_btn_recalling">
+        <text>Raiders recalled</text>
+    </string>
+    <string id="st_pda_raid_recall_preview">
+        <text>Call the raiders back?
+The raid ends now: no loot and no goodwill change. The band reaches camp in about %s.
+Click again to confirm.</text>
+    </string>
+    <string id="st_pda_raid_recall_preview_raid">
+        <text>Call the raiders back?
+The raid ends now: no loot and no goodwill change. The band reaches camp in about %s and joins the defense.
+Click again to confirm.</text>
+    </string>
+    <string id="st_pda_raid_recall_why_none">
+        <text>Nobody is away</text>
+    </string>
+    <string id="st_pda_raid_recall_why_returning">
+        <text>Recall already in progress</text>
+    </string>
+    <string id="st_pda_raid_why_raid">
+        <text>Settlement under attack</text>
+    </string>
+    <string id="st_pda_raid_info_recalling">
+        <text>%d raiders are coming home. Back in about %s.</text>
     </string>
 </string_table>
