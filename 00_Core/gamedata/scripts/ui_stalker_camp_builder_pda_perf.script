@@ -1,0 +1,131 @@
+--[[
+    Homestead PDA: small helpers that keep the Settlements page's live refresh cheap.
+    ui_stalker_camp_builder_pda.script calls them on every roster tick, so each one does
+    the least work it can and keeps no engine objects.
+
+    - throttle_due: when the next live refresh is due (one cadence, no drift).
+    - job_label / tr: translated strings, looked up once per PDA open (reset()).
+    - colorize: the PDA's keyword and faction colors for a text, with the faction
+      patterns built once per PDA open and recent results remembered.
+
+    Pure Lua apart from game.translate_string; tools/tests/test_pda_perf.lua runs it.
+--]]
+
+-- is a refresh due at `now` (ms), `interval` ms after `last`? Returns due and the
+-- timestamp to keep. A first run (nil / 0) or a clock that went back is due at once and
+-- starts the cadence at `now`. The next one is kept on the cadence (last + interval) so
+-- a 1 s countdown does not drift past a whole second; after a long gap (a closed page,
+-- a load) the cadence starts again at `now` instead of firing to catch up.
+function throttle_due(last, now, interval)
+    if not last or last <= 0 or now < last then
+        return true, now
+    end
+    local dt = now - last
+    if dt < interval then
+        return false, last
+    end
+    if dt < interval * 2 then
+        return true, last + interval
+    end
+    return true, now
+end
+
+-- translated strings by id, kept until reset()
+local tr_cache = {}
+
+function tr(id)
+    local hit = tr_cache[id]
+    if hit == nil then
+        hit = game.translate_string(id)
+        tr_cache[id] = hit
+    end
+    return hit
+end
+
+-- a job's label: its st_pda_settlement_job_<job> string, else the job key capitalized
+local job_cache = {}
+
+function job_label(job)
+    local hit = job_cache[job]
+    if hit == nil then
+        local id = "st_pda_settlement_job_" .. job
+        hit = game.translate_string(id)
+        if hit == id then
+            hit = job:sub(1, 1):upper() .. job:sub(2)
+        end
+        job_cache[job] = hit
+    end
+    return hit
+end
+
+-- colorize ------------------------------------------------------------------------------
+
+-- the four event words and their colors (a table replacement is used as it is: no % codes)
+local keyword_subs = {
+    { "Ambushed",  { Ambushed  = "%c[255,100,100]Ambushed%c[200,200,200]" } },
+    { "Defeated",  { Defeated  = "%c[200,255,200]Defeated%c[200,200,200]" } },
+    { "Recovered", { Recovered = "%c[180,220,255]Recovered%c[200,200,200]" } },
+    { "Deposited", { Deposited = "%c[238,153,26]Deposited%c[200,200,200]" } },
+}
+
+local function escape_pattern(str)
+    return (str:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1"))
+end
+
+-- every faction whose name translates: { pattern, { [name] = colored name } }, in the
+-- order a walk over the theme's faction table gives
+local faction_subs = nil
+
+local function build_faction_subs()
+    local list = {}
+    local codes = ui_stalker_camp_builder_theme.faction_codes()
+    for comm, clr in pairs(codes) do
+        local comm_str = game.translate_string(comm)
+        if comm_str and comm_str ~= comm and comm_str ~= "" then
+            list[#list + 1] = { escape_pattern(comm_str),
+                { [comm_str] = string.format("%%c[%s]%s%%c[200,200,200]", clr, comm_str) } }
+        end
+    end
+    return list
+end
+
+-- the text with faction names and event words colored, then put in the theme's colors
+local function colorize_uncached(text)
+    faction_subs = faction_subs or build_faction_subs()
+    local gsub = string.gsub
+    for i = 1, #faction_subs do
+        local s = faction_subs[i]
+        text = gsub(text, s[1], s[2])
+    end
+    for i = 1, #keyword_subs do
+        local s = keyword_subs[i]
+        text = gsub(text, s[1], s[2])
+    end
+    return ui_stalker_camp_builder_theme.recolor(text)
+end
+
+-- recent results; dropped whole when full, so it never grows past MEMO_CAP
+local MEMO_CAP = 128
+local memo, memo_n = {}, 0
+
+function colorize(text)
+    if not text or text == "" then return "" end
+    local hit = memo[text]
+    if hit then return hit end
+    hit = colorize_uncached(text)
+    if memo_n >= MEMO_CAP then
+        memo, memo_n = {}, 0
+    end
+    memo[text] = hit
+    memo_n = memo_n + 1
+    return hit
+end
+
+-- forget translations and colorize results (the PDA calls it when it opens, so a changed
+-- language shows on the next open)
+function reset()
+    tr_cache = {}
+    job_cache = {}
+    faction_subs = nil
+    memo, memo_n = {}, 0
+end

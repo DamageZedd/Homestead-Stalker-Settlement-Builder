@@ -27,36 +27,36 @@ local function set_bar(bar, frac, role)
     if fill.SetTextureColor then fill:SetTextureColor(hs_theme.argb(role or "body")) end
 end
 
-local function escape_pda_pattern(str)
-    return (str:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1"))
-end
+-- live-refresh helpers: refresh cadence, cached translations, cached colorizer
+local hs_perf = ui_stalker_camp_builder_pda_perf
 
-local function colorize_pda_text_base(text)
-    if not text or text == "" then return "" end
-
-    local faction_colors = hs_theme.faction_codes()
-
-    for comm, clr in pairs(faction_colors) do
-        local comm_str = game.translate_string(comm)
-        if comm_str and comm_str ~= comm and comm_str ~= "" then
-            text = text:gsub(escape_pda_pattern(comm_str), function()
-                return string.format("%%c[%s]%s%%c[200,200,200]", clr, comm_str)
-            end)
-        end
-    end
-
-    text = text:gsub("Ambushed", function() return "%c[255,100,100]Ambushed%c[200,200,200]" end)
-    text = text:gsub("Defeated", function() return "%c[200,255,200]Defeated%c[200,200,200]" end)
-    text = text:gsub("Recovered", function() return "%c[180,220,255]Recovered%c[200,200,200]" end)
-    text = text:gsub("Deposited", function() return "%c[238,153,26]Deposited%c[200,200,200]" end)
-
-    return text
-end
-
--- the same, in the theme's colors
+-- faction names and event words in their colors, then in the theme's colors
+-- (ui_stalker_camp_builder_pda_perf.colorize: the faction patterns are built once per open)
 local function colorize_pda_text(text)
-    return hs_theme.recolor(colorize_pda_text_base(text))
+    return hs_perf.colorize(text)
 end
+
+-- fixed label tables of the roster status and the survivor detail (one table: the
+-- main chunk stays far under the 200-locals limit)
+local PDA_LABELS = {
+    craft_short = {
+        auto = "Auto", pistol = "9mm/.45", shotgun = "12ga", rifle_soviet = "5.45",
+        rifle_nato = "5.56", rifle_heavy = "7.62x39", sniper = "Marksman", turret = "Turret",
+        grenade = "Grenades", underbarrel = "VOG/40mm",
+    },
+    cook_short = { auto = "Auto", tier1 = "Roast", tier2 = "Boiled", tier3 = "Gourmet" },
+    medic_short = { auto = "Auto", bandage = "Bandages", medkit = "AI-2", kalium = "Rad-X", akvatab = "Ibuprofen" },
+    wood_short = { auto = "Auto", timber = "Timber", charcoal = "Charcoal" },
+    farm_short = { auto = "Auto", potato = "Potatoes", grain = "Grain" },
+    medic_order = {
+        auto = "Auto-Balanced", bandage = "Bandages", medkit = "AI-2 Medkits",
+        kalium = "Potassium Iodide", akvatab = "Ibuprofen",
+    },
+    wood_mode = { auto = "Auto-Rotate", timber = "Timber Focus", charcoal = "Charcoal Focus" },
+}
+
+-- roster and detail refresh cadence while the page is drawn (ms)
+local LIVE_REFRESH_MS = 1000
 
 local function play_pda_ui_sound(snd_path)
 end
@@ -80,19 +80,34 @@ function get_singleton() return SINGLETON end
 
 function homestead_pda_actor_on_update()
     if not stalker_camp_builder then return end
-    -- the window outlives a closed PDA; Update() refreshes it while it is on screen
-    if not SINGLETON or SINGLETON._closing or not SINGLETON:IsShown() then
+    local ui = SINGLETON
+    if not ui or ui._closing then
         return
     end
-    if SINGLETON.current_tab ~= "survivors" and SINGLETON.current_tab ~= "overview" then
+    if ui.current_tab ~= "survivors" and ui.current_tab ~= "overview" then
         return
     end
+    -- the window outlives a closed PDA; Update() refreshes it while it is on screen and
+    -- keeps _last_survivors_tick fresh, so this only steps in when Update() did not run
+    -- for a whole cadence while the PDA itself is open
     local now = time_global()
-    local last = SINGLETON._last_refresh or 0
-    if (now - last) < 1000 then return end
-    SINGLETON._last_refresh = now
-    if SINGLETON.UpdateSurvivorsProgress then
-        SINGLETON:UpdateSurvivorsProgress()
+    local due, keep = hs_perf.throttle_due(ui._last_survivors_tick, now, LIVE_REFRESH_MS)
+    if not due then
+        return
+    end
+    -- a closed PDA: look again in a second, not every frame
+    local idle_due, idle_keep = hs_perf.throttle_due(ui._aou_idle_tick, now, LIVE_REFRESH_MS)
+    if not idle_due then return end
+    ui._aou_idle_tick = idle_keep
+    local pda_menu = ActorMenu.get_pda_menu()
+    if not (pda_menu and pda_menu:IsShown()) or not ui:IsShown() then
+        return
+    end
+    ui._aou_idle_tick = nil
+    ui._last_survivors_tick = keep
+    ui._last_refresh = now
+    if ui.UpdateSurvivorsProgress then
+        ui:UpdateSurvivorsProgress()
     end
 end
 
@@ -168,9 +183,9 @@ end
 local function survivor_needs_cell(survivor)
     local state = stalker_camp_builder and stalker_camp_builder.needs_survivor_state
         and stalker_camp_builder.needs_survivor_state(survivor)
-    if state == "starving" then return game.translate_string("st_pda_sv_needs_starving"), hs_theme.argb("danger") end
-    if state == "hungry" then return game.translate_string("st_pda_sv_needs_hungry"), hs_theme.argb("warn") end
-    if state == "fed" then return game.translate_string("st_pda_sv_needs_fed"), hs_theme.argb("good") end
+    if state == "starving" then return hs_perf.tr("st_pda_sv_needs_starving"), hs_theme.argb("danger") end
+    if state == "hungry" then return hs_perf.tr("st_pda_sv_needs_hungry"), hs_theme.argb("warn") end
+    if state == "fed" then return hs_perf.tr("st_pda_sv_needs_fed"), hs_theme.argb("good") end
     return "-", hs_theme.argb("dim")
 end
 
@@ -222,6 +237,10 @@ function SurvivorListItem:__init(survivor_id, name, status_str, icon_sec, rank_s
         self.needs_wnd = xml:InitTextWnd("survivor_row_needs", self)
         self.needs_wnd:SetText(needs_str or "")
         if needs_color then self.needs_wnd:SetTextColor(needs_color) end
+        -- what the live refresh last wrote (UpdateStatus / UpdateNeeds skip the same again).
+        -- The status color starts unknown: the list sets it right after building the row.
+        self._st_txt = status_str or ""
+        self._nd_txt, self._nd_clr = needs_str or "", needs_color
 
         local card_h = mmax(24, nh + 6, sh + 6)
         self.total_item_height = card_h + 2
@@ -240,10 +259,19 @@ function SurvivorListItem:__init(survivor_id, name, status_str, icon_sec, rank_s
 end
 
 -- the needs column follows the camp's living-needs flags on the survivor
+-- (a refresh that would write the same text and color again does nothing)
 function SurvivorListItem:UpdateNeeds(needs_str, needs_color)
     if self.needs_wnd then
-        self.needs_wnd:SetText(needs_str or "")
-        if needs_color then self.needs_wnd:SetTextColor(needs_color) end
+        needs_str = needs_str or ""
+        if needs_str == self._nd_txt and (needs_color == nil or needs_color == self._nd_clr) then
+            return
+        end
+        self._nd_txt = needs_str
+        self.needs_wnd:SetText(needs_str)
+        if needs_color then
+            self._nd_clr = needs_color
+            self.needs_wnd:SetTextColor(needs_color)
+        end
     end
 end
 
@@ -264,15 +292,24 @@ function SurvivorListItem:SetSelected(is_sel)
 end
 
 -- returns true when the new status needs more lines than the card was laid out for (it would
--- run over the rank line under it)
+-- run over the rank line under it). The same text and color again: nothing is written or
+-- measured, and the answer is the one the last measure gave.
 function SurvivorListItem:UpdateStatus(status_str, color)
     if self.status_wnd then
-        self.status_wnd:SetText(status_str or "")
+        status_str = status_str or ""
+        if status_str == self._st_txt and (color == nil or color == self._st_clr) then
+            return self._st_grew
+        end
+        self._st_txt = status_str
+        self.status_wnd:SetText(status_str)
         if color then
+            self._st_clr = color
             self.status_wnd:SetTextColor(color)
         end
         self.status_wnd:AdjustHeightToText()
-        return self.status_h ~= nil and self.status_wnd:GetHeight() > self.status_h
+        local grew = self.status_h ~= nil and self.status_wnd:GetHeight() > self.status_h
+        self._st_grew = grew
+        return grew
     end
 end
 
@@ -1150,8 +1187,10 @@ function SettlementManagerPDA:Update()
     end
     if self.current_tab == "survivors" or self.current_tab == "overview" then
         local tg = time_global()
-        if not self._last_survivors_tick or (tg - self._last_survivors_tick) >= 500 or (tg < self._last_survivors_tick) then
-            self._last_survivors_tick = tg
+        -- once a second on a steady cadence: the roster's timers show whole seconds
+        local due, keep = hs_perf.throttle_due(self._last_survivors_tick, tg, LIVE_REFRESH_MS)
+        if due then
+            self._last_survivors_tick = keep
             self:UpdateSurvivorsProgress()
         end
         if self.current_tab == "overview" then
@@ -1191,6 +1230,8 @@ end
 function SettlementManagerPDA:Reset(tab_name)
     self._last_survivors_tick = 0
     self._last_overview_tick = 0
+    -- translations and colorized texts are looked up again once per open
+    hs_perf.reset()
     local pda_menu = ActorMenu.get_pda_menu()
     if pda_menu and pda_menu:GetTabControl() then
         pda_menu:GetTabControl():Show(true)
@@ -1938,8 +1979,6 @@ function SettlementManagerPDA:OnSettlementSelected(keep_survivor)
             end
             local icon_sec = survivor.icon or (npc_obj and npc_obj.character_icon and npc_obj:character_icon()) or "ui\\ui_noise"
             local cur_tier = survivor.tier or 0
-            local tier_names = { [0] = game.translate_string("st_settler_tier_novice"), [1] = game.translate_string("st_settler_tier_skilled"),
-                [2] = game.translate_string("st_settler_tier_expert"), [3] = game.translate_string("st_settler_tier_master") }
             local rank_str = sformat("T%d", cur_tier)
             local needs_str, needs_clr = survivor_needs_cell(survivor)
             local s_item = SurvivorListItem(survivor_id, sname, status_str, icon_sec, rank_str, self.xml, needs_str, needs_clr)
@@ -2872,64 +2911,24 @@ function SettlementManagerPDA:FormatSurvivorStatus(survivor, camp, hub_id)
         return "Resting", c_dim
     end
 
-    local job_lbl = game.translate_string("st_pda_settlement_job_" .. job)
-    if job_lbl == "st_pda_settlement_job_" .. job then
-        job_lbl = job:sub(1,1):upper() .. job:sub(2)
-    end
+    local job_lbl = hs_perf.job_label(job)
 
-    local directive_tag = ""
+    -- the directive tag; label tables: PDA_LABELS (top of file)
+    local short_labels, order = nil, nil
     if job == "craft" then
-        local c_order = survivor.craft_order or "auto"
-        local short_labels = {
-            auto = "Auto",
-            pistol = "9mm/.45",
-            shotgun = "12ga",
-            rifle_soviet = "5.45",
-            rifle_nato = "5.56",
-            rifle_heavy = "7.62x39",
-            sniper = "Marksman",
-            turret = "Turret",
-            grenade = "Grenades",
-            underbarrel = "VOG/40mm",
-        }
-        directive_tag = sformat(" [%s]", short_labels[c_order] or "Auto")
+        short_labels, order = PDA_LABELS.craft_short, survivor.craft_order
     elseif job == "cook" then
-        local c_mode = survivor.cook_mode or "auto"
-        local short_labels = {
-            auto = "Auto",
-            tier1 = "Roast",
-            tier2 = "Boiled",
-            tier3 = "Gourmet",
-        }
-        directive_tag = sformat(" [%s]", short_labels[c_mode] or "Auto")
+        short_labels, order = PDA_LABELS.cook_short, survivor.cook_mode
     elseif job == "medic" then
-        local m_order = survivor.medic_order or "auto"
-        local short_labels = {
-            auto = "Auto",
-            bandage = "Bandages",
-            medkit = "AI-2",
-            kalium = "Rad-X",
-            akvatab = "Ibuprofen",
-        }
-        directive_tag = sformat(" [%s]", short_labels[m_order] or "Auto")
+        short_labels, order = PDA_LABELS.medic_short, survivor.medic_order
     elseif job == "woodcutter" then
-        local w_mode = survivor.woodcutter_mode or "auto"
-        local short_labels = {
-            auto = "Auto",
-            timber = "Timber",
-            charcoal = "Charcoal",
-        }
-        directive_tag = sformat(" [%s]", short_labels[w_mode] or "Auto")
+        short_labels, order = PDA_LABELS.wood_short, survivor.woodcutter_mode
     elseif job == "farmer" then
-        local f_mode = survivor.farmer_mode or "auto"
-        local short_labels = {
-            auto = "Auto",
-            potato = "Potatoes",
-            grain = "Grain",
-        }
-        directive_tag = sformat(" [%s]", short_labels[f_mode] or "Auto")
+        short_labels, order = PDA_LABELS.farm_short, survivor.farmer_mode
     end
-    job_lbl = job_lbl .. directive_tag
+    if short_labels then
+        job_lbl = sformat("%s [%s]", job_lbl, short_labels[order or "auto"] or "Auto")
+    end
 
     if job == "guard" then
         return sformat("%s (+Defense)", job_lbl), c_blue
@@ -3036,6 +3035,31 @@ function SettlementManagerPDA:FormatSurvivorStatus(survivor, camp, hub_id)
     return sformat("%s (%d%%)", job_lbl, pct), c_mint
 end
 
+-- one roster row's live texts (row i of the list); true when its status outgrew the card.
+-- Called through pcall: a failing row is skipped, the rows after it still refresh.
+local function refresh_survivor_row(self, list, i, camp, hub_id)
+    local item = list:GetItemByIndex(i)
+    if item and item.survivor_id then
+        local sid = item.survivor_id
+        local survivors = camp.survivors
+        local surv = survivors[sid] or survivors[tonumber(sid)] or survivors[tostring(sid)]
+        if surv then
+            surv.npc_id = surv.npc_id or tonumber(sid) or sid
+            surv.hub_id = surv.hub_id or hub_id
+            local str, clr = self:FormatSurvivorStatus(surv, camp, hub_id)
+            if item.UpdateNeeds then
+                item:UpdateNeeds(survivor_needs_cell(surv))
+            end
+            if item.UpdateStatus then
+                return item:UpdateStatus(str, clr)
+            elseif item.status_wnd then
+                item.status_wnd:SetText(str)
+                if clr then item.status_wnd:SetTextColor(clr) end
+            end
+        end
+    end
+end
+
 function SettlementManagerPDA:UpdateSurvivorsProgress()
     local tonum = tonumber
     if not self.survivor_list or not stalker_camp_builder then return end
@@ -3063,29 +3087,14 @@ function SettlementManagerPDA:UpdateSurvivorsProgress()
     end
     if not camp or not camp.survivors then return end
 
-    local count = self.survivor_list:GetSize()
+    local list = self.survivor_list
+    local count = list:GetSize()
     local outgrown = false
     for i = 0, count - 1 do
-        pcall(function()
-            local item = self.survivor_list:GetItemByIndex(i)
-            if item and item.survivor_id then
-                local surv = camp.survivors[item.survivor_id] or camp.survivors[tonum(item.survivor_id)] or camp.survivors[tostring(item.survivor_id)]
-                if surv then
-                    surv.npc_id = surv.npc_id or tonum(item.survivor_id) or item.survivor_id
-                    surv.hub_id = surv.hub_id or hub_id
-                    local str, clr = self:FormatSurvivorStatus(surv, camp, hub_id)
-                    if item.UpdateNeeds then
-                        item:UpdateNeeds(survivor_needs_cell(surv))
-                    end
-                    if item.UpdateStatus then
-                        outgrown = item:UpdateStatus(str, clr) or outgrown
-                    elseif item.status_wnd then
-                        item.status_wnd:SetText(str)
-                        if clr then item.status_wnd:SetTextColor(clr) end
-                    end
-                end
-            end
-        end)
+        local ok, grew = pcall(refresh_survivor_row, self, list, i, camp, hub_id)
+        if ok and grew then
+            outgrown = true
+        end
     end
     -- a status that outgrew its card: lay the roster out again
     if outgrown then
@@ -3094,9 +3103,7 @@ function SettlementManagerPDA:UpdateSurvivorsProgress()
 
     local s_item = self.survivor_list:GetSelectedItem()
     if s_item and self.job_panel and self.job_panel:IsShown() then
-        pcall(function()
-            self:RefreshJobProgress(false, hub_id)
-        end)
+        pcall(self.RefreshJobProgress, self, false, hub_id)
     end
 end
 
@@ -3165,10 +3172,7 @@ function SettlementManagerPDA:RefreshJobProgress(force, hub_id_override)
                     survivor.hub_id = survivor.hub_id or hub_id
                     self:RefreshRecallButton(survivor_id)
                     local job = survivor.job or "idle"
-                    local job_label = game.translate_string("st_pda_settlement_job_" .. job)
-                    if job_label == "st_pda_settlement_job_" .. job then
-                        job_label = job:sub(1,1):upper() .. job:sub(2)
-                    end
+                    local job_label = hs_perf.job_label(job)
 
                     local is_paused, reason_short, reason_detail = false, nil, nil
                     if stalker_camp_builder.get_job_paused_status then
@@ -3264,26 +3268,14 @@ function SettlementManagerPDA:RefreshJobProgress(force, hub_id_override)
                         end
 
                         if job == "medic" then
-                            local order_labels = {
-                                auto = "Auto-Balanced",
-                                bandage = "Bandages",
-                                medkit = "AI-2 Medkits",
-                                kalium = "Potassium Iodide",
-                                akvatab = "Ibuprofen",
-                            }
-                            local ord = order_labels[survivor.medic_order or "auto"] or "Auto"
+                            local ord = PDA_LABELS.medic_order[survivor.medic_order or "auto"] or "Auto"
                             if survivor.shortfall_reason then
                                 display = sformat("%s: [%s] (Waiting: %s)", job_label, ord, survivor.shortfall_reason)
                             else
                                 display = sformat("%s: [%s] (%d%%%s)", job_label, ord, pct, time_str)
                             end
                         elseif job == "woodcutter" then
-                            local mode_labels = {
-                                auto = "Auto-Rotate",
-                                timber = "Timber Focus",
-                                charcoal = "Charcoal Focus",
-                            }
-                            local wm = mode_labels[survivor.woodcutter_mode or "auto"] or "Timber"
+                            local wm = PDA_LABELS.wood_mode[survivor.woodcutter_mode or "auto"] or "Timber"
                             display = sformat("%s: [%s]%s (%d%%%s)", job_label, wm, boost_str, pct, time_str)
                         elseif job == "brewer" then
                             display = sformat("%s: Distilling Vodka%s (%d%%%s)", job_label, boost_str, pct, time_str)
