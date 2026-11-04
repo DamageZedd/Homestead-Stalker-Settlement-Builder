@@ -1074,7 +1074,9 @@ end
 function stalker_camp_builder.format_expedition_time(game_sec)
     local mfloor = math.floor
     if not game_sec or game_sec <= 0 then return string.format(game.translate_string("st_expedition_time_s"), 0) end
-    local tf = stalker_camp_builder.time_factor()
+    -- live clock rate: the floored settlement factor reads 10 under Real Time Zones while the clock runs at 1
+    local tf = tonumber(level and level.get_time_factor and level.get_time_factor())
+    if not tf or tf <= 0 then tf = stalker_camp_builder.time_factor() end
 
     local real_sec = mfloor(game_sec / tf)
     local real_mins = mfloor(real_sec / 60)
