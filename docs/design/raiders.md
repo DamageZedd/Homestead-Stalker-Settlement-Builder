@@ -264,3 +264,14 @@ Each phase ships behind `raiders_enabled` (default off) and can be checked witho
 13. Should raiders ever target other settlements of the player (no), mutant nests (a PvE job, maybe later), or Zombified/story camps (no)?
 14. Order versus the other designs: Raiders touches the PDA Outposts and Survivors work in flight. Land after that redesign, or design the UI hooks now?
 15. Localization: English now with Russian carrying English text until translated (as for "move on")?
+
+## 17. X-Ray Lua review (anomaly-modding checklist)
+
+Added after loading the `anomaly-modding` skill. Labels: verified (read in this repo), inference (follows from the rules, untested), unknown (needs runtime proof).
+
+- **Lifecycle** (verified pattern, inference for new code): register the new script's callbacks in `on_game_start` only; world-touching init (rival-camp lookup, mission resume) waits for `actor_on_first_update` or the existing `verify_and_heal_settlers` path. The mission tick hangs off an existing `actor_on_update` slot and is budgeted to one resolution per tick.
+- **Save/load** (verified for `active_camps`, inference for the new fields): mission, cooldown and goodwill-cap fields hold plain numbers, strings and id lists only; no server objects or closures. Every stored object id (raider ids, target camp key, chest id) is revalidated on load and the mission is cancelled or finished deterministically if the target camp, chest or NPC is gone. Runtime caches (target ranking, odds) are rebuilt, not saved. Timers use game seconds, not `time_global()`, because `time_global()` and `CreateTimeEvent` do not survive load.
+- **Delayed calls** (inference): the recall delay and any teleport-back must not rely on a `CreateTimeEvent` surviving a load; `respawn_settler` already handles this by keeping the record on the camp (`sb` ~5805). Raider recall copies that.
+- **MCM** (verified pattern in `mcm`): options are read at runtime through the `cfg` map, never inside `on_mcm_load`; new keys need defaults, path map, MCM group and localization, as listed in section 10. `ui_mcm` stays optional.
+- **Unknowns to resolve in Phase 0:** whether `mark_rival_garrison_eliminated` is safe with a nil actor and an unloaded squad; whether a rival chest can be read or edited while offline; whether `change_community_goodwill` is clamped by the engine (the existing raid reputation relies on it); whether teleporting a settler off-level and back leaves a stale `settler_lookup` entry (expeditions suggest not, not proven for a band).
+- **Validation for the later code:** `luac -p`, `luac -l -l` to confirm every function stays under 200 locals (a reason for the separate file), unit tests in `tools/tests`, then the in-game checks: fresh start, first update, save and reload mid-mission, level transition during a mission, toggle off during a mission.
