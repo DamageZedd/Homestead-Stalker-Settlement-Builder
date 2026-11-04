@@ -35,7 +35,7 @@
 
 ### 🪵 Building Kit Textures
 - **Plank texture and outward faces**: the kit used `wood_board_01` for its big surfaces, and GAMMA's texture packs paint that texture as high-contrast peeling white paint; the Hideout Furniture walls use it only for thin trim and put their large faces on `wood_plank6_bar_b`. The floors, stairs, ramp, posts and the Hunter's Station now use the same plank texture as the Hideout walls (tiled the same size), and only the wall trim keeps the board texture. The 13 pieces added in v1.3.5 also had the top and bottom of every box facing the wrong way, so wall tops, steps, post tops and similar faces vanished when seen from outside; they are rebuilt with all faces outward.
-- **Floors and the Hunter's Station A-frame**: the plank texture on the floor, triangle floor and spiral-stair floor ran across the planks and showed a seam down the middle; it is now one continuous mapping with the grain along the planks. Two legs of the Hunter's Station A-frame were inside out (see-through from outside) and the bark on its poles was stretched up to 16 times along them; both are fixed.
+- **Floors and the Hunter's Station A-frame**: the plank texture on the floor, triangle floor and spiral-stair floor ran across the planks and showed a seam down the middle; it is now one continuous mapping with the grain along the planks. Two legs of the Hunter's Station A-frame were inside out (see-through from outside) and its poles were stretched pine bark; they now use the same plank texture as the rest of the kit with the grain along each beam.
 
 ## v1.3.5 — 14 New Building Pieces, One Auto-Switching Flag & Vanilla Textures (2026-11-03)
 

@@ -17,7 +17,7 @@ import numpy as np
 
 HALF = 2.354475
 FLOOR_S = 0.6
-BARK_S = 1.5
+BARK_S = 0.6                                  # repeats per metre; with the plank texture one leg is about one plank wide
 
 
 def submeshes(b):
