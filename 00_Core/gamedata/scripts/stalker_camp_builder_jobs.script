@@ -1781,7 +1781,7 @@ function stalker_camp_builder.get_job_paused_status(survivor, camp, hub_id, max_
     end
 
     if job == "raider" and stalker_camp_builder.raiders_pause_reason then
-        local label, detail = stalker_camp_builder.raiders_pause_reason(survivor)
+        local label, detail = stalker_camp_builder.raiders_pause_reason(survivor, camp)
         if label then return true, label, detail end
         return false, nil, nil
     end

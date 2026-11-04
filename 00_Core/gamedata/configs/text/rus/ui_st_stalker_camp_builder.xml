@@ -3152,6 +3152,12 @@
     <string id="st_homestead_raider_on_mission">
         <text>On a raid</text>
     </string>
+    <string id="st_homestead_raider_on_mission_left">
+        <text>On a raid, %s left</text>
+    </string>
+    <string id="st_homestead_raider_on_mission_d2">
+        <text>Away on a raid. Back in %s.</text>
+    </string>
     <string id="st_homestead_raider_on_mission_d">
         <text>Away on a raid. Back when the mission ends.</text>
     </string>
@@ -3327,10 +3333,10 @@
         <text>Daily raid limit reached</text>
     </string>
     <string id="st_pda_raid_banner_away">
-        <text>[ RAID IN PROGRESS // BACK IN %dh %02dm ]</text>
+        <text>[ RAID IN PROGRESS // BACK IN %s ]</text>
     </string>
     <string id="st_pda_raid_info_away">
-        <text>%d raiders are out. Odds of success: %d%%. Back in about %dh %02dm.</text>
+        <text>%d raiders are out. Odds of success: %d%%. Back in about %s.</text>
     </string>
     <string id="st_pda_raid_preview">
         <text>Raid the %s outpost?\n%d raiders go. Odds of success: %d%%.\nGoodwill with them: -%d. A failed raid wounds the band; a disaster can kill. Click again to confirm.</text>

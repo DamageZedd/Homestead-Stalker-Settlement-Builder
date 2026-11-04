@@ -322,9 +322,12 @@ function sb.raiders_faction_loss(faction, friendly, spent, own, cfg)
 end
 
 -- whole hours and minutes (rounded up) left on a timer in game seconds
-function sb.raiders_eta_parts(sec)
-    local mins = mfloor((mmax(0, num(sec, 0)) + 59) / 60)
-    return mfloor(mins / 60), mins % 60
+-- real seconds as a countdown that visibly ticks: "1h 05m", "12m 05s", "42s"
+function sb.raiders_eta_text(sec)
+    local s = mfloor(mmax(0, num(sec, 0)))
+    if s >= 3600 then return string.format("%dh %02dm", mfloor(s / 3600), mfloor(s % 3600 / 60)) end
+    if s >= 60 then return string.format("%dm %02ds", mfloor(s / 60), s % 60) end
+    return string.format("%ds", s)
 end
 
 function sb.raiders_is_friendly(goodwill_with_player)
@@ -346,6 +349,12 @@ function sb.raiders_new_mission(id, target_key, target_level, faction, raider_id
         odds = num(odds, WIN_MIN),
         result = nil, loot_rolled = false, goodwill_paid = false,
     }
+end
+
+-- game seconds until the mission is back; nil without an away mission
+function sb.raiders_mission_remaining(m, now_sec)
+    if type(m) ~= "table" or m.state ~= "away" then return nil end
+    return mmax(0, num(m.arrive_sec, 0) - num(now_sec, 0))
 end
 
 function sb.raiders_mission_due(m, now_sec)
@@ -444,9 +453,18 @@ local function raider_state(camp)
 end
 
 -- the pause line the PDA already has: why a raider is not available (label, detail) or nil
-function sb.raiders_pause_reason(surv)
+function sb.raiders_pause_reason(surv, camp)
     if type(surv) ~= "table" then return nil end
-    if surv.on_mission then return tr("st_homestead_raider_on_mission"), tr("st_homestead_raider_on_mission_d") end
+    if surv.on_mission then
+        -- the time left is shown the way an expedition shows its own (game seconds shown as real time)
+        local m = camp and camp.raider_missions and camp.raider_missions[surv.on_mission]
+        local left = sb.raiders_mission_remaining(m, game_now())
+        if left and sb.format_expedition_time then
+            local t = sb.format_expedition_time(left)
+            return string.format(tr("st_homestead_raider_on_mission_left"), t), string.format(tr("st_homestead_raider_on_mission_d2"), t)
+        end
+        return tr("st_homestead_raider_on_mission"), tr("st_homestead_raider_on_mission_d")
+    end
     if sb.raiders_is_wounded(surv, game_now()) then
         return tr("st_homestead_raider_wounded"), tr("st_homestead_raider_wounded_d")
     end

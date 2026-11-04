@@ -195,6 +195,22 @@ do
     eq(camp.raider_state.missions_today, 1, "counted for today")
     eq(sb.raiders_send_for(10), false, "already away: no second send")
     local l1 = sb.raiders_pause_reason(camp.survivors[10]); eq(l1, "st_homestead_raider_on_mission", "pause reason")
+    do   -- the time left shows like an expedition's (game seconds, formatted by the shared helper)
+        local m1 = camp.raider_missions[camp.survivors[10].on_mission]
+        eq(sb.raiders_mission_remaining(m1, m1.arrive_sec - 600), 600, "remaining game seconds")
+        eq(sb.raiders_mission_remaining(m1, m1.arrive_sec + 5), 0, "never negative")
+        eq(sb.raiders_mission_remaining({ state = "assault" }, 0), nil, "none once the raid is at the camp")
+        sb.format_expedition_time = function(sec) return "T" .. sec end
+        game.translate_string = function(id) return id .. ":%s" end
+        local l2, d2 = sb.raiders_pause_reason(camp.survivors[10], camp)
+        eq(l2:find("^st_homestead_raider_on_mission_left:T") ~= nil, true, "label uses the left string")
+        eq(l2:find("T%d+") ~= nil, true, "label has the formatted time"); eq(d2:find("T%d+") ~= nil, true, "detail has it too")
+        NOW = NOW + 600
+        local l3 = sb.raiders_pause_reason(camp.survivors[10], camp)
+        eq(l3 ~= l2, true, "the text changes as the clock moves")
+        NOW = NOW - 600
+        sb.format_expedition_time = nil; game.translate_string = function(id) return id end
+    end
 
     -- save/load: only plain data survives
     local function roundtrip(t)
@@ -334,7 +350,6 @@ do
     level = { get_time_factor = function() return 10 end }
     local mm = sb.raiders_new_mission(1, "k", nil, "duty", {}, gsec, 3000, 0.5)
     gsec = gsec + 1200
-    near(sb.raiders_eta_parts and (mm.arrive_sec - gsec) / 10, 180, "eta ticks with the game clock")
     eq(sb.raiders_mission_due(mm, gsec), false, "not due yet")
     gsec = gsec + 1800
     eq(sb.raiders_mission_due(mm, gsec), true, "due once the clock reaches arrive_sec")
@@ -349,10 +364,9 @@ do
     eq(sb.raiders_faction_loss("duty", false, { duty = 150 }, "stalker"), 0, "cap used up")
     eq(sb.raiders_faction_loss("stalker", false, {}, "stalker"), 0, "never the player's own faction")
     eq(sb.raiders_faction_loss("monster", false, {}, "stalker"), 0, "not a faction")
-    local h, m = sb.raiders_eta_parts(3600 * 2 + 61); eq(h, 2, "eta hours"); eq(m, 2, "eta minutes round up")
-    h, m = sb.raiders_eta_parts(0); eq(h + m, 0, "eta zero")
-    h, m = sb.raiders_eta_parts(-5); eq(h + m, 0, "eta negative")
-    h, m = sb.raiders_eta_parts(59); eq(m, 1, "under a minute counts as one")
+    eq(sb.raiders_eta_text(3600 * 2 + 61), "2h 01m", "eta hours"); eq(sb.raiders_eta_text(725), "12m 05s", "eta minutes tick by the second")
+    eq(sb.raiders_eta_text(0), "0s", "eta zero"); eq(sb.raiders_eta_text(-5), "0s", "eta negative"); eq(sb.raiders_eta_text(59.9), "59s", "eta seconds")
+    eq(sb.raiders_eta_text(724) ~= sb.raiders_eta_text(725), true, "the text changes every second")
 end
 
 if fails > 0 then print(fails .. " FAILED"); os.exit(1) end

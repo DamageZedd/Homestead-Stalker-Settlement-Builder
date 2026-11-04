@@ -1610,11 +1610,11 @@ function SettlementManagerPDA:RefreshRaidPanel()
 
     local label, color, text = tr("st_pda_raid_btn"), hs_theme.argb("body"), ""
     if st.state == "away" then
-        local h, m = sb.raiders_eta_parts(st.eta)
+        local eta_txt = sb.raiders_eta_text(st.eta)
         label = tr("st_pda_raid_btn_away")
-        text = sformat(tr("st_pda_raid_info_away"), st.band, math.floor(st.odds * 100 + 0.5), h, m)
+        text = sformat(tr("st_pda_raid_info_away"), st.band, math.floor(st.odds * 100 + 0.5), eta_txt)
         if self.rival_banner_lbl then
-            self.rival_banner_lbl:SetText(sformat(tr("st_pda_raid_banner_away"), h, m))
+            self.rival_banner_lbl:SetText(sformat(tr("st_pda_raid_banner_away"), eta_txt))
             self.rival_banner_lbl:SetTextColor(hs_theme.argb("warn"))
         end
         if self.rival_banner_bg then hs_theme.banner(self.rival_banner_bg, "neutral") end
