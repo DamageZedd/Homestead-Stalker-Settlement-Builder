@@ -5249,7 +5249,7 @@ function get_camp_stats(camp, hub_obj)
         end
     end
 
-    stats.defense = mmin(cfg.defense_cap, ((stats.barricades * 2) + ((stats.guards + (stats.raider_guards or 0)) * 5 * (stalker_camp_builder.needs_guard_mult and stalker_camp_builder.needs_guard_mult(camp) or 1)) + (stats.gadgets * 15) + (stats.alarms * 10)) * get_specialization_mult(camp, "defense"))
+    stats.defense = mmin(cfg.defense_cap, ((stats.barricades * 2) + ((stats.guards + (stats.raider_guards or 0)) * 5 * (stalker_camp_builder.needs_guard_mult and stalker_camp_builder.needs_guard_mult(camp) or 1)) + (stats.gadgets * 15) + (stats.alarms * 10)) * stalker_camp_builder.get_specialization_mult(camp, "defense"))
 
     local score = 50
     if stats.population > 0 then
