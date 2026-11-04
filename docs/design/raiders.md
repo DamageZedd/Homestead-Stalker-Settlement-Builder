@@ -1,6 +1,6 @@
 # Raiders: design (not implemented)
 
-Status: phases 0-3 implemented (always on, Resolver A abstract missions, PDA Outposts Send raiders), awaiting owner play-test; phases 4-5 (real assault, bandit-mode balance) not started. Owner decisions recorded (see Decisions). Internal doc, not README content.
+Status: phases 0-3 implemented (always on, Resolver A abstract missions, PDA Outposts Send raiders), awaiting owner play-test; phase 4 (recall, defenders) and phase 5 (visible assault, section 21, default off) implemented; bandit-mode balance not started. Owner decisions recorded (see Decisions). Internal doc, not README content.
 Origin: suggestion from Discord user Wx (raiders attack and capture/loot camps that are not the player's, and can be sent to reinforce the player's settlements under attack), plus the owner's Goodwill idea (losing or looting a chest friendly to a faction costs goodwill with that faction; bandit-style play).
 Cites are from `main` at b385d08 and will drift. Paths: `00_Core/gamedata/scripts/`, abbreviated `sb` (stalker_camp_builder), `jobs`, `events`, `rivals`, `exp` (expeditions), `prosper`, `needs`, `pda`, `mcm`.
 Nothing here was run in game; "feasible" below means "reads as feasible from the code", not "tested".
@@ -229,7 +229,7 @@ No new top tab, no new panel, no change to list widths or the left container. Ra
 | `raiders_disaster_death_chance` | track 0-100 | 50 | Per-raider permanent-death chance on a disaster (a failed raid only wounds). |
 | `raiders_wounded_hours` | track 1-72 | 12 | Game hours a wounded raider is unavailable. |
 | `raiders_forbid_weapon_armor` | check | false | Raiders never take weapons or armor from a chest. |
-| `raiders_real_assault` | check | false | Phase 4: visible fight when the player is on the level. |
+| `raiders_real_assault` | check | false | Phase 5: visible fight when the player is at the outpost (section 21). |
 | `raiders_loot_fraction` | track 10-100 | 60 | Percent of the chest taken. |
 | `raiders_cut_percent` | track 0-50 | 15 | Raiders' share into savings. |
 | `raiders_goodwill_loot` | track 0-300 | 60 | Goodwill lost with the robbed faction. |
@@ -291,7 +291,7 @@ Each phase ships always on (no master toggle) and can be checked without launchi
 1. **Pure raider engine.** New `stalker_camp_builder_raiders.script`: `raid_odds`, `raid_outcome`, `loot_split`, `goodwill_plan`, mission-record helpers (pure); tests in `tools/tests/test_raiders.lua`; not wired.
 2. **Job + abstract mission (Resolver A).** Job `raider`, dispatch and resolve, wounded state, loot to storage, savings cut, weapon/armor toggle, goodwill wrapper, MCM group, tips and radio. Dispatch by a temporary Job-page action until phase 3.
 3. **PDA hooks (section 9).** Job button, roster state, summary banner, Outposts "Send raiders" with confirm, Overview line and Recall button, in all four theme XML copies. Abstract recall and optional auto-recall come with it.
-4. **Real assault (Resolver B).** The shared mission record switches to real when the player is on the level; behind `raiders_real_assault` (default off); abstract fallback on level leave or timeout.
+4. **Real assault (Resolver B)**, built as phase 5 (section 21), recall as phase 4. The shared mission record switches to real when the player is on the level; behind `raiders_real_assault` (default off); abstract fallback on level leave or timeout.
 5. **Bandit mode** (reduced penalties, bandit/renegade reputation, richer loot) and a balance pass from play-test numbers.
 
 Nothing can be play-tested from here; every phase ends with a short in-game checklist for the owner.
@@ -378,3 +378,5 @@ Key `raiders_real_assault` (the doc's name, kept), default **off**: the state ma
 - **Shared result path.** `resolve_mission(..., forced)` skips the live-target check for a forced result; loot, bounty, cut now sit behind `raiders_mission_claim(m, "loot")` as goodwill already does.
 - **Cleanup.** Proxy squads are queued in `camp.raider_state.cleanup` (id, section, due), released members first then the squad, only after the section matches (ids are reused), out of the player's sight or after a hard cap; a won fight keeps them 90 real seconds.
 - **Load.** `actor_on_first_update` bumps `sb.raiders_epoch`; a record whose `m.real.epoch` differs is reset to `away` (proxies queued for release) and may start a fresh assault.
+
+- Status: implemented and committed locally, not play-tested. Not done: taking loot from the live chest (the haul stays synthetic, one shared path), a fight on a level the player is not on.

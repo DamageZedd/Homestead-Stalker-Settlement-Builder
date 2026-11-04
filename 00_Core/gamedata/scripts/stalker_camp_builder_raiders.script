@@ -1030,7 +1030,8 @@ end
 -- (docs/design/raiders.md, section 21). m.real holds plain numbers and the squad id, nothing else.
 
 -- changes on every load (actor_on_first_update), so a fight found with another epoch is a fight from before it
-sb.raiders_epoch = math.random(1, 1073741823)
+local function new_epoch() return ((os.time and os.time() or 0) % 1000000) * 1000 + math.random(0, 999) end
+sb.raiders_epoch = new_epoch()
 
 local function garrison_ids(rc)
     local ids = {}
@@ -1155,18 +1156,24 @@ local function start_assault(camp, m, rc, now_sec)
     local sec = proxy_section(proxy_faction(rc), band)
     local squad = sec and sb.create_squad_at_pos(sec, pos, lvi, gvi, true)
     if not squad then return false end
-    -- as many fighters as raiders: release the surplus members
     local ids = {}
     for k in sb.safe_squad_members(squad) do if k.id then ids[#ids + 1] = k.id end end
+    -- on record at once: whatever fails below, the squad is known and gets released with the mission
+    sb.raiders_assault_begin(m, now_sec, game_time_factor(), { squad_id = squad.id, section = sec,
+        epoch = sb.raiders_epoch, proxy = mmin(#ids, #m.raider_ids), garrison = g })
+    m.real.level = m.target_level
+    if #ids == 0 then
+        queue_proxy_now(camp, m.real)
+        sb.raiders_assault_reset(m, now_sec, 0)
+        return false
+    end
+    -- as many fighters as raiders: release the surplus members
     for i = #m.raider_ids + 1, #ids do
         local extra = alife_object(ids[i])
         if extra then pcall(sb.safe_alife_release or alife_release, extra) end
     end
     -- a saved string: the simulation sends a squad to a smart terrain, never to another squad
     squad.scripted_target = rc.smart_name
-    sb.raiders_assault_begin(m, now_sec, game_time_factor(), { squad_id = squad.id, section = sec,
-        epoch = sb.raiders_epoch, proxy = mmin(#ids, #m.raider_ids), garrison = g })
-    m.real.level = m.target_level
     tip(string.format(tr("st_homestead_raider_assault_start"), #m.raider_ids, tr(m.faction)), 12000)
     return true
 end
@@ -1365,7 +1372,11 @@ function sb.raiders_process()
                 if not pcall(resolve_mission, hub_id, camp, id, m) then drop_mission(camp, id, m) end
             elseif real_assault_on and sb.raiders_assault_start_due(m, now_sec) then
                 local rc = sb.rival_camps and sb.rival_camps[m.target_key]
-                if rc then pcall(start_assault, camp, m, rc, now_sec) end
+                if rc and now_sec >= num(m.assault_retry_sec, 0) then
+                    -- a start that does not happen (no spot, no smart terrain) is retried later, not every tick
+                    m.assault_retry_sec = now_sec + 15 * game_time_factor()
+                    pcall(start_assault, camp, m, rc, now_sec)
+                end
             end
         end
         process_cleanup(camp, now_sec)
@@ -1388,7 +1399,7 @@ end
 
 -- every load and level change: a fight still on record belongs to the session before
 local function on_first_update()
-    sb.raiders_epoch = math.random(1, 1073741823)
+    sb.raiders_epoch = new_epoch()
 end
 
 function on_game_start()

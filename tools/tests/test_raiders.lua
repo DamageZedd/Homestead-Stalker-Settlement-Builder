@@ -583,11 +583,7 @@ do
     eq(sb.raiders_mission_recall(m, 2400, 200), true, "recall in assault")
     eq(m.state, "returning", "returning"); eq(m.mode, "abstract", "abstract"); eq(m.real, nil, "fight dropped")
     eq(sb.raiders_assault_step(m, {}, 0).act, "reset", "no step on a returning mission")
-    do
-        local away = { raider_missions = nil }
-        local ok = sb.raiders_recall_check(3, 0)
-        eq(ok, true, "bands in the field count as away")
-    end
+    eq(sb.raiders_recall_check(3, 0), true, "bands in the field count as away")
 end
 
 if fails > 0 then print("test_raiders: " .. fails .. " FAILED"); os.exit(1) end
