@@ -13,3 +13,6 @@ __pycache__/
 # OS artifacts
 Thumbs.db
 .DS_Store
+
+# Local luacheck binary for tools/check.ps1 (downloaded, not committed)
+tools/bin/
