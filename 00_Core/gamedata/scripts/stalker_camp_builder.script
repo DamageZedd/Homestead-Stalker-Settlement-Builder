@@ -2805,6 +2805,309 @@ end
 
 local pairs_ = pairs
 
+-- Perf: the anim lists and job helpers below used to be built inside npc_on_update on every
+-- settler think (three closures plus literal tables each time). They are read-only and take
+-- the settler's state as parameters; the behaviour is unchanged.
+local SETTLER_ANIMS = {
+    temp_target  = { "sit_knee", "wait_na" },
+    post_work    = { "sit_knee", "wait_na", "guard" },
+    field_work   = { "sit_knee", "ward", "wait_na", "guard" },
+    post_guard   = { "guard", "wait_na", "threat_na" },
+    scav_alts    = { "stash", "workbench" },
+    safe_idle    = {
+        ["wait_na"] = true,
+        ["guard"] = true,
+        ["caution"] = true,
+        ["smoking_stand"] = true,
+        ["sit_knee"] = true,
+        ["threat_na"] = true,
+        ["ward"] = true,
+    },
+    idle_choices = { "wait_na", "guard", "caution", "smoking_stand", "sit_knee", "threat_na", "ward" },
+}
+
+local function settler_find_struct_lvid(npc, npc_id, my_camp, my_survivor, struct_type_name)
+    local pairs_ = pairs
+    local tsort = table.sort
+    if my_survivor and my_survivor.assigned_pos then
+        return my_survivor.assigned_pos.lvid, nil
+    end
+
+    if my_survivor then
+        my_survivor.assigned_furniture = my_survivor.assigned_furniture or {}
+        local assigned_id = my_survivor.assigned_furniture[struct_type_name]
+        if assigned_id then
+            -- the claim holds only while the camp still lists that furniture (as in get_settler_job_target)
+            local se_assigned = my_camp.structures[assigned_id] == struct_type_name and alife_object(assigned_id)
+            if se_assigned then
+                return se_assigned.m_level_vertex_id, assigned_id
+            else
+                my_survivor.assigned_furniture[struct_type_name] = nil
+            end
+        end
+    end
+
+    local found_structs = {}
+    for struct_id, stype in pairs_(my_camp.structures) do
+        if stype == struct_type_name then
+            found_structs[#found_structs + 1] = struct_id
+        end
+    end
+
+    if #found_structs > 0 then
+        local assigned_to_others = {}
+        for other_id, other_survivor in pairs_(my_camp.survivors or {}) do
+            if other_id ~= npc_id and other_survivor.assigned_furniture then
+                local oa = other_survivor.assigned_furniture[struct_type_name]
+                if oa then assigned_to_others[oa] = true end
+            end
+        end
+
+        tsort(found_structs)
+
+        local npc_pos = npc:position()
+        local best_lvid, best_dist, best_id = nil, math.huge, nil
+        for _, struct_id in ipairs(found_structs) do
+            if not assigned_to_others[struct_id] then
+                local se_struct = alife_object(struct_id)
+                if se_struct then
+                    local d = se_struct.position:distance_to(npc_pos)
+                    if d < best_dist then
+                        best_dist = d
+                        best_lvid = se_struct.m_level_vertex_id
+                        best_id   = struct_id
+                    end
+                end
+            end
+        end
+
+        if not best_lvid then
+            local index = (npc_id % #found_structs) + 1
+            best_id = found_structs[index]
+            local se_struct = alife_object(best_id)
+            if se_struct then best_lvid = se_struct.m_level_vertex_id end
+        end
+
+        if best_id and my_survivor then
+            my_survivor.assigned_furniture = my_survivor.assigned_furniture or {}
+            my_survivor.assigned_furniture[struct_type_name] = best_id
+        end
+
+        return best_lvid, best_id
+    end
+
+    local cache_key = npc_id .. "_" .. struct_type_name
+    local cached = camp_npc_furniture_cache[cache_key]
+    local now_tg = time_global()
+    if cached and now_tg < cached.expires_tg then
+        return cached.lvid, cached.id
+    end
+
+    for struct_id, stype in pairs_(my_camp.structures or {}) do
+        if stype == struct_type_name then
+            found_structs[#found_structs + 1] = struct_id
+        end
+    end
+
+    local found_lvid, assigned_id = nil, nil
+    if #found_structs > 0 then
+        tsort(found_structs)
+        local index = (npc_id % #found_structs) + 1
+        assigned_id = found_structs[index]
+        local se_struct = alife_object(assigned_id)
+        if se_struct then
+            found_lvid = se_struct.m_level_vertex_id
+            if my_survivor then
+                my_survivor.assigned_furniture = my_survivor.assigned_furniture or {}
+                my_survivor.assigned_furniture[struct_type_name] = assigned_id
+            end
+        end
+    end
+
+    camp_npc_furniture_cache[cache_key] = {
+        lvid = found_lvid, id = assigned_id, expires_tg = now_tg + 10000,
+    }
+    return found_lvid, assigned_id
+end
+
+local function settler_job_target_lvid(npc, npc_id, my_camp, my_survivor, hub_obj, job_name, struct_type_name)
+    local struct_lvid, struct_id = settler_find_struct_lvid(npc, npc_id, my_camp, my_survivor, struct_type_name)
+    if struct_lvid then return struct_lvid, false, struct_id end
+
+    local hub_pos = hub_obj.position
+    local dist_fb = 2.0
+    local angle_deg = 0
+
+    if job_name == "guard" then
+        dist_fb = 8.0
+        local slot = npc_id % 4
+        angle_deg = slot * 90 + 45
+    elseif job_name == "cook" then
+        dist_fb = 5.0
+        angle_deg = 0
+    elseif job_name == "craft" then
+        dist_fb = 4.0
+        angle_deg = 90
+    elseif job_name == "repair" then
+        dist_fb = 5.0
+        angle_deg = 180
+    elseif job_name == "medic" then
+        dist_fb = 5.0
+        angle_deg = 270
+    elseif job_name == "scavenge" or job_name == "scavenger" then
+        dist_fb = 2.5
+        angle_deg = 315
+    end
+
+    local angle_rad = math.rad(angle_deg)
+    local dx = math.cos(angle_rad) * dist_fb
+    local dz = math.sin(angle_rad) * dist_fb
+    local offset_pos = vector():set(hub_pos.x + dx, hub_pos.y, hub_pos.z + dz)
+    local fallback_lvid = level.vertex_id(offset_pos)
+
+    if fallback_lvid and fallback_lvid < 4294967295 then
+        return fallback_lvid, true, nil
+    end
+    return hub_obj.m_level_vertex_id, true, nil
+end
+
+local function settler_move_to_job_furniture(npc, npc_id, my_camp, my_survivor, hub_obj, now_tg,
+                                             target_lvid, arrive_dist, idle_states, is_fallback, struct_id)
+    local sb = stalker_camp_builder
+    local ipairs_ = ipairs
+    if not target_lvid then return end
+
+    local look_pos = nil
+    local acc_lvid = target_lvid
+
+    if struct_id and not is_fallback then
+        local cache_k = npc_id .. "_stand_" .. struct_id
+        local cached = camp_npc_furniture_cache[cache_k]
+        if cached and cached.expires_tg and now_tg < cached.expires_tg then
+            acc_lvid = cached.acc_lvid
+            look_pos = cached.look_pos
+        else
+            local se_struct = alife_object(struct_id)
+            if se_struct and se_struct.position then
+                look_pos = vector():set(se_struct.position.x,
+                                        se_struct.position.y,
+                                        se_struct.position.z)
+                local furn_pos = se_struct.position
+                local best_stand_lvid = nil
+                local best_stand_dist = math.huge
+                local hub_p = hub_obj and hub_obj.position or npc:position()
+                local v_test_p = vector()
+                for _, dir in ipairs_(STATIC_WORKSTATION_STAND_OFFSETS) do
+                    v_test_p:set(furn_pos.x + dir[1], furn_pos.y, furn_pos.z + dir[2])
+                    local test_lvid = level.vertex_id(v_test_p)
+                    if test_lvid and test_lvid < 4294967295 and test_lvid ~= -1
+                        and npc:accessible(test_lvid) then
+                        local d = v_test_p:distance_to(hub_p)
+                        if d < best_stand_dist then
+                            best_stand_dist = d
+                            best_stand_lvid = test_lvid
+                        end
+                    end
+                end
+                if best_stand_lvid then
+                    acc_lvid = best_stand_lvid
+                end
+                -- the spot in front of the piece's face wins; the old one stays when none is valid
+                local front_lvid = sb.get_furniture_stand_spot(se_struct, my_camp, npc)
+                if front_lvid then acc_lvid = front_lvid end
+                if utils_obj and utils_obj.send_to_nearest_accessible_vertex then
+                    acc_lvid = utils_obj.send_to_nearest_accessible_vertex(npc, acc_lvid) or acc_lvid
+                end
+                camp_npc_furniture_cache[cache_k] = {
+                    acc_lvid = acc_lvid, look_pos = look_pos,
+                    expires_tg = now_tg + 60000,
+                }
+            end
+        end
+    end
+    if not acc_lvid then acc_lvid = target_lvid end
+
+    local target_pos = level.vertex_position(acc_lvid)
+    if not look_pos then
+        if my_survivor and my_survivor.assigned_pos and my_survivor.assigned_pos.look_x then
+            local ap = my_survivor.assigned_pos
+            look_pos = vector():set(ap.look_x, ap.look_y, ap.look_z)
+        else
+            if hub_obj and hub_obj.position then
+                local fwd = vector():sub(target_pos, hub_obj.position):normalize()
+                if fwd:magnitude() > 0.01 then
+                    look_pos = vector():set(target_pos.x + fwd.x * 5, target_pos.y, target_pos.z + fwd.z * 5)
+                else
+                    look_pos = vector():set(target_pos.x + 2, target_pos.y, target_pos.z)
+                end
+            else
+                look_pos = vector():set(target_pos.x + 2, target_pos.y, target_pos.z)
+            end
+        end
+    end
+
+    local st = db.storage[npc_id]
+    if st then
+        if st.corpse_detection then st.corpse_detection.enabled = false end
+        if st.gather_items then st.gather_items.gather_items_enabled = false end
+        if st.help_wounded then st.help_wounded.help_wounded_enabled = false end
+    end
+
+    local npc_p = npc:position()
+    local npc_dist = npc_p:distance_to(target_pos)
+
+    local cur_state = state_mgr and state_mgr.get_state(npc)
+    local is_already_idling = false
+    for _, s in ipairs_(idle_states) do
+        if cur_state == s then is_already_idling = true; break end
+    end
+
+    local in_station_range = (is_already_idling and npc_dist <= 3.2)
+        or (npc_dist <= (arrive_dist or 2.0))
+
+    if in_station_range then
+        local chosen_anim = is_already_idling and cur_state
+            or idle_states[math.random(#idle_states)]
+        if sb.setup_settler_beh_logic then
+            sb.setup_settler_beh_logic(npc, acc_lvid, look_pos, chosen_anim)
+        else
+            npc:set_dest_level_vertex_id(acc_lvid)
+            npc:set_movement_type(move.stand)
+            npc:set_body_state(move.standing)
+            npc:set_mental_state(anim.free)
+            if not is_already_idling then
+                camp_npc_arrive(npc)
+                state_mgr.set_state(npc, chosen_anim, nil, nil,
+                    { look_position = look_pos }, { fast_set = true })
+            end
+        end
+    else
+        pcall(function() npc:disable_info_portion("npcx_beh_wait") end)
+        if npc_dist > 6.0 then
+            pcall(function()
+                if IsStalker(npc) and (not IsMonster(npc)) and npc.set_npc_position then
+                    npc:set_npc_position(target_pos)
+                end
+                local se_obj = alife_object(npc_id)
+                if se_obj then
+                    se_obj.position = target_pos
+                    se_obj.m_level_vertex_id = acc_lvid
+                end
+                npc:set_dest_level_vertex_id(acc_lvid)
+                npc:set_movement_type(move.stand)
+                npc:set_body_state(move.standing)
+                if state_mgr then
+                    local chosen_anim = idle_states[math.random(#idle_states)]
+                    state_mgr.set_state(npc, chosen_anim, nil, nil,
+                        { look_position = look_pos }, { fast_set = true })
+                end
+            end)
+        else
+            camp_npc_move_to(npc, acc_lvid)
+        end
+    end
+end
+
 -- npc_on_update -- settler per-tick AI orchestrator
 function npc_on_update(npc)
     if not npc then return end
@@ -2975,308 +3278,30 @@ function npc_on_update(npc)
         return
     end
 
-    -- Nested helpers used by the job-dispatch block below.
-
-    local function find_struct_lvid(struct_type_name)
-        local pairs_ = pairs
-        local tsort = table.sort
-        if my_survivor and my_survivor.assigned_pos then
-            return my_survivor.assigned_pos.lvid, nil
-        end
-
-        if my_survivor then
-            my_survivor.assigned_furniture = my_survivor.assigned_furniture or {}
-            local assigned_id = my_survivor.assigned_furniture[struct_type_name]
-            if assigned_id then
-                -- the claim holds only while the camp still lists that furniture (as in get_settler_job_target)
-                local se_assigned = my_camp.structures[assigned_id] == struct_type_name and alife_object(assigned_id)
-                if se_assigned then
-                    return se_assigned.m_level_vertex_id, assigned_id
-                else
-                    my_survivor.assigned_furniture[struct_type_name] = nil
-                end
-            end
-        end
-
-        local found_structs = {}
-        for struct_id, stype in pairs_(my_camp.structures) do
-            if stype == struct_type_name then
-                found_structs[#found_structs + 1] = struct_id
-            end
-        end
-
-        if #found_structs > 0 then
-            local assigned_to_others = {}
-            for other_id, other_survivor in pairs_(my_camp.survivors or {}) do
-                if other_id ~= npc_id and other_survivor.assigned_furniture then
-                    local oa = other_survivor.assigned_furniture[struct_type_name]
-                    if oa then assigned_to_others[oa] = true end
-                end
-            end
-
-            tsort(found_structs)
-
-            local npc_pos = npc:position()
-            local best_lvid, best_dist, best_id = nil, math.huge, nil
-            for _, struct_id in ipairs(found_structs) do
-                if not assigned_to_others[struct_id] then
-                    local se_struct = alife_object(struct_id)
-                    if se_struct then
-                        local d = se_struct.position:distance_to(npc_pos)
-                        if d < best_dist then
-                            best_dist = d
-                            best_lvid = se_struct.m_level_vertex_id
-                            best_id   = struct_id
-                        end
-                    end
-                end
-            end
-
-            if not best_lvid then
-                local index = (npc_id % #found_structs) + 1
-                best_id = found_structs[index]
-                local se_struct = alife_object(best_id)
-                if se_struct then best_lvid = se_struct.m_level_vertex_id end
-            end
-
-            if best_id and my_survivor then
-                my_survivor.assigned_furniture = my_survivor.assigned_furniture or {}
-                my_survivor.assigned_furniture[struct_type_name] = best_id
-            end
-
-            return best_lvid, best_id
-        end
-
-        local cache_key = npc_id .. "_" .. struct_type_name
-        local cached = camp_npc_furniture_cache[cache_key]
-        local now_tg = time_global()
-        if cached and now_tg < cached.expires_tg then
-            return cached.lvid, cached.id
-        end
-
-        for struct_id, stype in pairs_(my_camp.structures or {}) do
-            if stype == struct_type_name then
-                found_structs[#found_structs + 1] = struct_id
-            end
-        end
-
-        local found_lvid, assigned_id = nil, nil
-        if #found_structs > 0 then
-            tsort(found_structs)
-            local index = (npc_id % #found_structs) + 1
-            assigned_id = found_structs[index]
-            local se_struct = alife_object(assigned_id)
-            if se_struct then
-                found_lvid = se_struct.m_level_vertex_id
-                if my_survivor then
-                    my_survivor.assigned_furniture = my_survivor.assigned_furniture or {}
-                    my_survivor.assigned_furniture[struct_type_name] = assigned_id
-                end
-            end
-        end
-
-        camp_npc_furniture_cache[cache_key] = {
-            lvid = found_lvid, id = assigned_id, expires_tg = now_tg + 10000,
-        }
-        return found_lvid, assigned_id
-    end
-
-    local function get_job_target_lvid(job_name, struct_type_name)
-        local struct_lvid, struct_id = find_struct_lvid(struct_type_name)
-        if struct_lvid then return struct_lvid, false, struct_id end
-
-        local hub_pos = hub_obj.position
-        local dist_fb = 2.0
-        local angle_deg = 0
-
-        if job_name == "guard" then
-            dist_fb = 8.0
-            local slot = npc_id % 4
-            angle_deg = slot * 90 + 45
-        elseif job_name == "cook" then
-            dist_fb = 5.0
-            angle_deg = 0
-        elseif job_name == "craft" then
-            dist_fb = 4.0
-            angle_deg = 90
-        elseif job_name == "repair" then
-            dist_fb = 5.0
-            angle_deg = 180
-        elseif job_name == "medic" then
-            dist_fb = 5.0
-            angle_deg = 270
-        elseif job_name == "scavenge" or job_name == "scavenger" then
-            dist_fb = 2.5
-            angle_deg = 315
-        end
-
-        local angle_rad = math.rad(angle_deg)
-        local dx = math.cos(angle_rad) * dist_fb
-        local dz = math.sin(angle_rad) * dist_fb
-        local offset_pos = vector():set(hub_pos.x + dx, hub_pos.y, hub_pos.z + dz)
-        local fallback_lvid = level.vertex_id(offset_pos)
-
-        if fallback_lvid and fallback_lvid < 4294967295 then
-            return fallback_lvid, true, nil
-        end
-        return hub_obj.m_level_vertex_id, true, nil
-    end
-
-    local function move_to_job_furniture(target_lvid, arrive_dist, idle_states, is_fallback, struct_id)
-        local ipairs_ = ipairs
-        if not target_lvid then return end
-
-        local look_pos = nil
-        local acc_lvid = target_lvid
-
-        if struct_id and not is_fallback then
-            local cache_k = npc_id .. "_stand_" .. struct_id
-            local cached = camp_npc_furniture_cache[cache_k]
-            if cached and cached.expires_tg and now_tg < cached.expires_tg then
-                acc_lvid = cached.acc_lvid
-                look_pos = cached.look_pos
-            else
-                local se_struct = alife_object(struct_id)
-                if se_struct and se_struct.position then
-                    look_pos = vector():set(se_struct.position.x,
-                                            se_struct.position.y,
-                                            se_struct.position.z)
-                    local furn_pos = se_struct.position
-                    local best_stand_lvid = nil
-                    local best_stand_dist = math.huge
-                    local hub_p = hub_obj and hub_obj.position or npc:position()
-                    local v_test_p = vector()
-                    for _, dir in ipairs_(STATIC_WORKSTATION_STAND_OFFSETS) do
-                        v_test_p:set(furn_pos.x + dir[1], furn_pos.y, furn_pos.z + dir[2])
-                        local test_lvid = level.vertex_id(v_test_p)
-                        if test_lvid and test_lvid < 4294967295 and test_lvid ~= -1
-                            and npc:accessible(test_lvid) then
-                            local d = v_test_p:distance_to(hub_p)
-                            if d < best_stand_dist then
-                                best_stand_dist = d
-                                best_stand_lvid = test_lvid
-                            end
-                        end
-                    end
-                    if best_stand_lvid then
-                        acc_lvid = best_stand_lvid
-                    end
-                    -- the spot in front of the piece's face wins; the old one stays when none is valid
-                    local front_lvid = sb.get_furniture_stand_spot(se_struct, my_camp, npc)
-                    if front_lvid then acc_lvid = front_lvid end
-                    if utils_obj and utils_obj.send_to_nearest_accessible_vertex then
-                        acc_lvid = utils_obj.send_to_nearest_accessible_vertex(npc, acc_lvid) or acc_lvid
-                    end
-                    camp_npc_furniture_cache[cache_k] = {
-                        acc_lvid = acc_lvid, look_pos = look_pos,
-                        expires_tg = now_tg + 60000,
-                    }
-                end
-            end
-        end
-        if not acc_lvid then acc_lvid = target_lvid end
-
-        local target_pos = level.vertex_position(acc_lvid)
-        if not look_pos then
-            if my_survivor and my_survivor.assigned_pos and my_survivor.assigned_pos.look_x then
-                local ap = my_survivor.assigned_pos
-                look_pos = vector():set(ap.look_x, ap.look_y, ap.look_z)
-            else
-                if hub_obj and hub_obj.position then
-                    local fwd = vector():sub(target_pos, hub_obj.position):normalize()
-                    if fwd:magnitude() > 0.01 then
-                        look_pos = vector():set(target_pos.x + fwd.x * 5, target_pos.y, target_pos.z + fwd.z * 5)
-                    else
-                        look_pos = vector():set(target_pos.x + 2, target_pos.y, target_pos.z)
-                    end
-                else
-                    look_pos = vector():set(target_pos.x + 2, target_pos.y, target_pos.z)
-                end
-            end
-        end
-
-        local st = db.storage[npc_id]
-        if st then
-            if st.corpse_detection then st.corpse_detection.enabled = false end
-            if st.gather_items then st.gather_items.gather_items_enabled = false end
-            if st.help_wounded then st.help_wounded.help_wounded_enabled = false end
-        end
-
-        local npc_p = npc:position()
-        local npc_dist = npc_p:distance_to(target_pos)
-
-        local cur_state = state_mgr and state_mgr.get_state(npc)
-        local is_already_idling = false
-        for _, s in ipairs_(idle_states) do
-            if cur_state == s then is_already_idling = true; break end
-        end
-
-        local in_station_range = (is_already_idling and npc_dist <= 3.2)
-            or (npc_dist <= (arrive_dist or 2.0))
-
-        if in_station_range then
-            local chosen_anim = is_already_idling and cur_state
-                or idle_states[math.random(#idle_states)]
-            if sb.setup_settler_beh_logic then
-                sb.setup_settler_beh_logic(npc, acc_lvid, look_pos, chosen_anim)
-            else
-                npc:set_dest_level_vertex_id(acc_lvid)
-                npc:set_movement_type(move.stand)
-                npc:set_body_state(move.standing)
-                npc:set_mental_state(anim.free)
-                if not is_already_idling then
-                    camp_npc_arrive(npc)
-                    state_mgr.set_state(npc, chosen_anim, nil, nil,
-                        { look_position = look_pos }, { fast_set = true })
-                end
-            end
-        else
-            pcall(function() npc:disable_info_portion("npcx_beh_wait") end)
-            if npc_dist > 6.0 then
-                pcall(function()
-                    if IsStalker(npc) and (not IsMonster(npc)) and npc.set_npc_position then
-                        npc:set_npc_position(target_pos)
-                    end
-                    local se_obj = alife_object(npc_id)
-                    if se_obj then
-                        se_obj.position = target_pos
-                        se_obj.m_level_vertex_id = acc_lvid
-                    end
-                    npc:set_dest_level_vertex_id(acc_lvid)
-                    npc:set_movement_type(move.stand)
-                    npc:set_body_state(move.standing)
-                    if state_mgr then
-                        local chosen_anim = idle_states[math.random(#idle_states)]
-                        state_mgr.set_state(npc, chosen_anim, nil, nil,
-                            { look_position = look_pos }, { fast_set = true })
-                    end
-                end)
-            else
-                camp_npc_move_to(npc, acc_lvid)
-            end
-        end
-    end
-
-    -- JOB DISPATCH
+    -- JOB DISPATCH (helpers above npc_on_update; they take the settler's state explicitly)
+    local anims = SETTLER_ANIMS
 
     if my_survivor.temp_target_lvid and time_global() < my_survivor.temp_target_time then
-        move_to_job_furniture(my_survivor.temp_target_lvid, 2, {"sit_knee", "wait_na"}, true, nil)
+        settler_move_to_job_furniture(npc, npc_id, my_camp, my_survivor, hub_obj, now_tg,
+            my_survivor.temp_target_lvid, 2, anims.temp_target, true, nil)
         return
     end
 
     local job_cfg = JOB_DISPATCH[my_survivor.job]
     if job_cfg then
-        local target_lvid, is_fb, sid = get_job_target_lvid(my_survivor.job, job_cfg.try[1])
+        local target_lvid, is_fb, sid = settler_job_target_lvid(npc, npc_id, my_camp, my_survivor, hub_obj,
+            my_survivor.job, job_cfg.try[1])
         if is_fb then
             for i = 2, #job_cfg.try do
-                local alt, alt_sid = find_struct_lvid(job_cfg.try[i])
+                local alt, alt_sid = settler_find_struct_lvid(npc, npc_id, my_camp, my_survivor, job_cfg.try[i])
                 if alt then
                     target_lvid, is_fb, sid = alt, false, alt_sid
                     break
                 end
             end
         end
-        move_to_job_furniture(target_lvid, 1.3, job_cfg.anims, is_fb, sid)
+        settler_move_to_job_furniture(npc, npc_id, my_camp, my_survivor, hub_obj, now_tg,
+            target_lvid, 1.3, job_cfg.anims, is_fb, sid)
         return
     end
 
@@ -3286,51 +3311,53 @@ function npc_on_update(npc)
             return
         end
         if my_survivor.assigned_pos then
-            move_to_job_furniture(my_survivor.assigned_pos.lvid, 1.3,
-                {"sit_knee", "wait_na", "guard"}, true, nil)
+            settler_move_to_job_furniture(npc, npc_id, my_camp, my_survivor, hub_obj, now_tg,
+                my_survivor.assigned_pos.lvid, 1.3, anims.post_work, true, nil)
             return
         end
-        local target_lvid, is_fb, sid = get_job_target_lvid("scavenge", "salvage_table")
+        local target_lvid, is_fb, sid = settler_job_target_lvid(npc, npc_id, my_camp, my_survivor, hub_obj,
+            "scavenge", "salvage_table")
         if is_fb then
-            for _, stype in ipairs({"stash", "workbench"}) do
-                local alt, alt_sid = find_struct_lvid(stype)
+            for _, stype in ipairs(anims.scav_alts) do
+                local alt, alt_sid = settler_find_struct_lvid(npc, npc_id, my_camp, my_survivor, stype)
                 if alt then target_lvid, is_fb, sid = alt, false, alt_sid; break end
             end
         end
-        move_to_job_furniture(target_lvid, 1.3,
-            {"sit_knee", "ward", "wait_na", "guard"}, is_fb, sid)
+        settler_move_to_job_furniture(npc, npc_id, my_camp, my_survivor, hub_obj, now_tg,
+            target_lvid, 1.3, anims.field_work, is_fb, sid)
         return
     end
 
     if my_survivor.job == "hunter" then
         if my_survivor.assigned_pos then
-            move_to_job_furniture(my_survivor.assigned_pos.lvid, 1.3,
-                {"sit_knee", "wait_na", "guard"}, true, nil)
+            settler_move_to_job_furniture(npc, npc_id, my_camp, my_survivor, hub_obj, now_tg,
+                my_survivor.assigned_pos.lvid, 1.3, anims.post_work, true, nil)
             return
         end
-        local target_lvid, is_fb, sid = get_job_target_lvid("hunter", "fridge")
+        local target_lvid, is_fb, sid = settler_job_target_lvid(npc, npc_id, my_camp, my_survivor, hub_obj,
+            "hunter", "fridge")
         if is_fb then
-            local alt, alt_sid = find_struct_lvid("box")
+            local alt, alt_sid = settler_find_struct_lvid(npc, npc_id, my_camp, my_survivor, "box")
             if alt then
                 target_lvid, is_fb, sid = alt, false, alt_sid
             else
-                alt, alt_sid = find_struct_lvid("stash")
+                alt, alt_sid = settler_find_struct_lvid(npc, npc_id, my_camp, my_survivor, "stash")
                 if alt then
                     target_lvid, is_fb, sid = alt, false, alt_sid
                 else
-                    alt, alt_sid = find_struct_lvid("workbench")
+                    alt, alt_sid = settler_find_struct_lvid(npc, npc_id, my_camp, my_survivor, "workbench")
                     if alt then target_lvid, is_fb, sid = alt, false, alt_sid end
                 end
             end
         end
-        move_to_job_furniture(target_lvid, 1.3,
-            {"sit_knee", "ward", "wait_na", "guard"}, is_fb, sid)
+        settler_move_to_job_furniture(npc, npc_id, my_camp, my_survivor, hub_obj, now_tg,
+            target_lvid, 1.3, anims.field_work, is_fb, sid)
         return
     end
 
     if my_survivor.assigned_pos then
-        move_to_job_furniture(my_survivor.assigned_pos.lvid, 1.3,
-            {"guard", "wait_na", "threat_na"}, true, nil)
+        settler_move_to_job_furniture(npc, npc_id, my_camp, my_survivor, hub_obj, now_tg,
+            my_survivor.assigned_pos.lvid, 1.3, anims.post_guard, true, nil)
         return
     end
 
@@ -3402,19 +3429,11 @@ function npc_on_update(npc)
             camp_npc_furniture_cache[npc_id] = {}
             cache = camp_npc_furniture_cache[npc_id]
         end
-        local safe_idle_states = {
-            ["wait_na"] = true,
-            ["guard"] = true,
-            ["caution"] = true,
-            ["smoking_stand"] = true,
-            ["sit_knee"] = true,
-            ["threat_na"] = true,
-            ["ward"] = true,
-        }
+        local safe_idle_states = anims.safe_idle
         local need_new_anim = (not safe_idle_states[cur_state]) or (now_tg > (cache.idle_anim_tg or 0))
         if need_new_anim then
             cache.idle_anim_tg = now_tg + math.random(20000, 35000)
-            local idle_choices = { "wait_na", "guard", "caution", "smoking_stand", "sit_knee", "threat_na", "ward" }
+            local idle_choices = anims.idle_choices
             local chosen_idle = idle_choices[math.random(#idle_choices)]
             local look_pos = vector():set(
                 target_pos.x + (target_pos.x - hub_obj.position.x) * 2.0,

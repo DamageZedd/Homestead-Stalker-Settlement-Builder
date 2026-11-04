@@ -146,6 +146,26 @@ function stalker_camp_builder.consume_one_use(item_id)
     return true
 end
 
+-- Perf helper for camp_iterate_inventory: { [box_id] = { item_id, ... } } of a camp's stored_items,
+-- built once per scan so each box's stale-entry sweep only visits that box's entries.
+local NO_IDS = {}
+local function stored_ids_by_box(stored_items)
+    local by_box = {}
+    for iid, it in pairs(stored_items) do
+        local bid = it.box_id
+        if bid ~= nil then
+            local list = by_box[bid]
+            if not list then
+                list = {}
+                by_box[bid] = list
+            end
+            list[#list + 1] = iid
+        end
+    end
+    return by_box
+end
+stalker_camp_builder.stored_ids_by_box = stored_ids_by_box
+
 -- UNIFIED SETTLEMENT INVENTORY SIMULATION CONTRACT
 function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, priority_box_id)
     if not callback then return false end
@@ -187,6 +207,10 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
 
     if any_box_online then
         if camp then camp.stored_items = camp.stored_items or {} end
+        -- Perf: the stale-entry sweep after each box used to walk every stored item of the camp
+        -- (boxes x items per scan). Index the stored ids by their box once per scan instead; the
+        -- sweep below still reads each entry's current box_id, so the result is the same.
+        local stored_by_box = camp and camp.stored_items and stored_ids_by_box(camp.stored_items)
         local scan_stopped = false
         for _, cid in ipairs(box_order) do
             local box_obj = level and level.object_by_id and level.object_by_id(cid)
@@ -208,10 +232,11 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                     end
                     local sec = cl_item:section()
                     local cond = 1.0
-                    local ok_c, c = pcall(function() return cl_item:condition() end)
+                    -- Perf: method + self straight into pcall (was a new closure per item, twice)
+                    local ok_c, c = pcall(cl_item.condition, cl_item)
                     if ok_c and c then cond = c end
                     local uses = 1
-                    local ok_u, u = pcall(function() return cl_item:get_remaining_uses() end)
+                    local ok_u, u = pcall(cl_item.get_remaining_uses, cl_item)
                     if ok_u and u then uses = u end
                     local item_w = (cl_item.weight and cl_item:weight()) or nil
                     local ini = ini_sys or sys_ini or system_ini()
@@ -236,8 +261,10 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                     end
                 end)
                 if camp and camp.stored_items then
-                    for stored_iid, stored_it in pairs(camp.stored_items) do
-                        if stored_it.box_id == cid and not seen_in_box[stored_iid] then
+                    local stored_items = camp.stored_items
+                    for _, stored_iid in ipairs(stored_by_box and stored_by_box[cid] or NO_IDS) do
+                        local stored_it = stored_items[stored_iid]
+                        if stored_it and stored_it.box_id == cid and not seen_in_box[stored_iid] then
                             -- the listing misses what a stopped scan never reached, and what was spawned
                             -- into the box this update (the client lists it from the next frame)
                             local se_stored = sim:object(stored_iid)
@@ -431,6 +458,20 @@ function stalker_camp_builder.on_actor_box_change(box_id, obj, is_put)
     end
 end
 
+-- raw meats the snapshot counts (read-only; was rebuilt on every snapshot)
+local SNAPSHOT_RAW_MEATS = {
+    ["mutant_part_tushkano_meat"]  = true,
+    ["mutant_part_dog_meat"]       = true,
+    ["mutant_part_psevdodog_meat"] = true,
+    ["mutant_part_flesh_meat"]     = true,
+    ["mutant_part_boar_chop"]      = true,
+    ["mutant_part_snork_hand"]     = true,
+    ["mutant_part_krovosos_meat"]  = true,
+    ["mutant_part_psysucker_meat"] = true,
+    ["mutant_part_lurker_meat"]    = true,
+    ["mutant_part_chimera_meat"]   = true,
+}
+
 function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
     local sb = stalker_camp_builder
     if not camp and hub_id and sb.active_camps then
@@ -523,18 +564,9 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
         box_weights = {},
     }
 
-    local raw_meats = {
-        ["mutant_part_tushkano_meat"]  = true,
-        ["mutant_part_dog_meat"]       = true,
-        ["mutant_part_psevdodog_meat"] = true,
-        ["mutant_part_flesh_meat"]     = true,
-        ["mutant_part_boar_chop"]      = true,
-        ["mutant_part_snork_hand"]     = true,
-        ["mutant_part_krovosos_meat"]  = true,
-        ["mutant_part_psysucker_meat"] = true,
-        ["mutant_part_lurker_meat"]    = true,
-        ["mutant_part_chimera_meat"]   = true,
-    }
+    local raw_meats = SNAPSHOT_RAW_MEATS
+    -- Perf: read once per snapshot instead of twice per item (cfg's __index walks the MCM table)
+    local water_filters = sb.cfg and sb.cfg.water_filters
 
     if sb.camp_iterate_inventory then
         sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
@@ -547,7 +579,7 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
 
             local w = 0.1
             if cl_item and cl_item.weight then
-                local ok_w, iw = pcall(function() return cl_item:weight() end)
+                local ok_w, iw = pcall(cl_item.weight, cl_item)
                 if ok_w and iw then w = iw end
             elseif ini and ini:section_exist(sec) then
                 w = ini:r_float_ex(sec, "inv_weight") or 0.1
@@ -600,7 +632,7 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
                 end
             end
 
-            if sb.cfg and sb.cfg.water_filters and (sb.cfg.water_filters[sec] or sb.cfg.water_filters[s]) then
+            if water_filters and (water_filters[sec] or water_filters[s]) then
                 snapshot.water_filter_count = snapshot.water_filter_count + 1
             end
 

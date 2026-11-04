@@ -640,6 +640,37 @@ end
 -- item gathering, and wandering AI, while guaranteeing full player dialog,
 -- trade, and camp defense capabilities.
 -- ============================================================================
+-- Perf: setup_settler_beh_logic runs on every think of a settler at its station (about once a
+-- second each) and re-applies the same constant meet/beh condlists. Parsing them each time made
+-- some 16 parse_condlist calls (and their tables) per settler per second. Each NPC now parses a
+-- given (section, field, text) once and keeps the result in its own db.storage entry (not pstor,
+-- so nothing is saved); the fields are still assigned on every call as before. Only a parse that
+-- returned a table is kept.
+local function settler_condlist(npc, st, section, field, src)
+    local c = st.homestead_condlists
+    if type(c) ~= "table" then
+        c = {}
+        st.homestead_condlists = c
+    end
+    local by_field = c[section]
+    if not by_field then
+        by_field = {}
+        c[section] = by_field
+    end
+    local by_src = by_field[field]
+    if not by_src then
+        by_src = {}
+        by_field[field] = by_src
+    end
+    local cl = by_src[src]
+    if cl == nil then
+        cl = xr_logic.parse_condlist(npc, section, field, src)
+        if type(cl) == "table" then by_src[src] = cl end
+    end
+    return cl
+end
+stalker_camp_builder.settler_condlist = settler_condlist
+
 function stalker_camp_builder.setup_settler_beh_logic(npc, target_lvid, look_pos, anim_name)
     if not (npc and npc.id) then return end
     if npc.alive and not npc:alive() then return end
@@ -723,21 +754,21 @@ function stalker_camp_builder.setup_settler_beh_logic(npc, target_lvid, look_pos
     end)
     if st and st.meet then
         pcall(function()
-            st.meet.use = xr_logic.parse_condlist(npc, "meet", "use", "true")
-            st.meet.close_anim = xr_logic.parse_condlist(npc, "meet", "close_anim", "guard")
-            st.meet.close_snd_hello = xr_logic.parse_condlist(npc, "meet", "close_snd_hello", "nil")
-            st.meet.close_snd_bye = xr_logic.parse_condlist(npc, "meet", "close_snd_bye", "nil")
-            st.meet.snd_on_use = xr_logic.parse_condlist(npc, "meet", "snd_on_use", "nil")
-            st.meet.close_distance = xr_logic.parse_condlist(npc, "meet", "close_distance", "4")
-            st.meet.close_victim = xr_logic.parse_condlist(npc, "meet", "close_victim", "actor")
-            st.meet.far_anim = xr_logic.parse_condlist(npc, "meet", "far_anim", "nil")
-            st.meet.far_snd = xr_logic.parse_condlist(npc, "meet", "far_snd", "nil")
-            st.meet.far_distance = xr_logic.parse_condlist(npc, "meet", "far_distance", "6")
-            st.meet.far_victim = xr_logic.parse_condlist(npc, "meet", "far_victim", "actor")
-            st.meet.trade_enable = xr_logic.parse_condlist(npc, "meet", "trade_enable", "true")
-            st.meet.abuse = xr_logic.parse_condlist(npc, "meet", "abuse", "false")
-            st.meet.allow_break = xr_logic.parse_condlist(npc, "meet", "allow_break", "true")
-            st.meet.meet_on_talking = xr_logic.parse_condlist(npc, "meet", "meet_on_talking", "true")
+            st.meet.use = settler_condlist(npc, st, "meet", "use", "true")
+            st.meet.close_anim = settler_condlist(npc, st, "meet", "close_anim", "guard")
+            st.meet.close_snd_hello = settler_condlist(npc, st, "meet", "close_snd_hello", "nil")
+            st.meet.close_snd_bye = settler_condlist(npc, st, "meet", "close_snd_bye", "nil")
+            st.meet.snd_on_use = settler_condlist(npc, st, "meet", "snd_on_use", "nil")
+            st.meet.close_distance = settler_condlist(npc, st, "meet", "close_distance", "4")
+            st.meet.close_victim = settler_condlist(npc, st, "meet", "close_victim", "actor")
+            st.meet.far_anim = settler_condlist(npc, st, "meet", "far_anim", "nil")
+            st.meet.far_snd = settler_condlist(npc, st, "meet", "far_snd", "nil")
+            st.meet.far_distance = settler_condlist(npc, st, "meet", "far_distance", "6")
+            st.meet.far_victim = settler_condlist(npc, st, "meet", "far_victim", "actor")
+            st.meet.trade_enable = settler_condlist(npc, st, "meet", "trade_enable", "true")
+            st.meet.abuse = settler_condlist(npc, st, "meet", "abuse", "false")
+            st.meet.allow_break = settler_condlist(npc, st, "meet", "allow_break", "true")
+            st.meet.meet_on_talking = settler_condlist(npc, st, "meet", "meet_on_talking", "true")
             st.meet.commander_threat = nil
             if st.meet.meet_manager then
                 st.meet.meet_manager.use = "true"
@@ -755,7 +786,7 @@ function stalker_camp_builder.setup_settler_beh_logic(npc, target_lvid, look_pos
         end
         if st and type(st.beh) == "table" then
             if xr_logic and xr_logic.parse_condlist then
-                local cond = xr_logic.parse_condlist(npc, "beh", "wait_anim", safe_anim)
+                local cond = settler_condlist(npc, st, "beh", "wait_anim", safe_anim)
                 st.beh.wait_cond = cond
                 st.beh.delay_cond = cond
                 st.beh.wait_anim = cond
