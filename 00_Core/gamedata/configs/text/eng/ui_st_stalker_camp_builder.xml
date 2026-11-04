@@ -3140,4 +3140,166 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_pda_ov_dist_other">
         <text>Other level</text>
     </string>
+    <string id="st_job_raider_btn">
+        <text>Raider</text>
+    </string>
+    <string id="st_pda_settlement_job_raider">
+        <text>Raider</text>
+    </string>
+    <string id="st_homestead_raider_on_mission">
+        <text>On a raid</text>
+    </string>
+    <string id="st_homestead_raider_on_mission_d">
+        <text>Away on a raid. Back when the mission ends.</text>
+    </string>
+    <string id="st_homestead_raider_wounded">
+        <text>Wounded</text>
+    </string>
+    <string id="st_homestead_raider_wounded_d">
+        <text>Recovering from a failed raid.</text>
+    </string>
+    <string id="st_homestead_raider_cannot_wounded">
+        <text>That raider is wounded and cannot go.</text>
+    </string>
+    <string id="st_homestead_raider_cannot_busy">
+        <text>That raider is busy.</text>
+    </string>
+    <string id="st_homestead_raider_cannot_rank">
+        <text>That raider's rank is too low for a raid.</text>
+    </string>
+    <string id="st_homestead_raider_cannot_no_weapon">
+        <text>That raider has no weapon.</text>
+    </string>
+    <string id="st_homestead_raider_cannot_no_ammo">
+        <text>That raider has no ammo.</text>
+    </string>
+    <string id="st_homestead_raider_cannot_resting">
+        <text>That raider is still resting.</text>
+    </string>
+    <string id="st_homestead_raider_cannot_none">
+        <text>No raider available.</text>
+    </string>
+    <string id="st_homestead_raider_cannot_no_guard">
+        <text>A guard has to stay at the settlement.</text>
+    </string>
+    <string id="st_homestead_raider_cannot_daily">
+        <text>The settlement already sent its raids for today.</text>
+    </string>
+    <string id="st_homestead_raider_no_target">
+        <text>No outpost to raid right now.</text>
+    </string>
+    <string id="st_homestead_raider_sent">
+        <text>%d raiders set out against a %s outpost. Odds of success: %d%%.</text>
+    </string>
+    <string id="st_homestead_raider_target_gone">
+        <text>The raiders found the outpost already gone and came home.</text>
+    </string>
+    <string id="st_homestead_raider_success">
+        <text>The raiders cleared the %s outpost. %d items to storage, %d RU bounty.</text>
+    </string>
+    <string id="st_homestead_raider_goodwill">
+        <text>Goodwill dropped with: %s.</text>
+    </string>
+    <string id="st_homestead_raider_repulsed">
+        <text>The raid on the %s outpost was repulsed. The raiders are back, wounded.</text>
+    </string>
+    <string id="st_homestead_raider_disaster">
+        <text>Disaster at the %s outpost. %d raiders did not come back.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_enabled">
+        <text>Raiders (Raider Job)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_enabled_desc">
+        <text>Adds the Raider job. Raiders (rank 2+) can be sent from the Job page to clear a rival outpost; the loot goes to your storage. Off by default.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_min_rank">
+        <text>Raider Minimum Rank</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_min_rank_desc">
+        <text>Lowest settler rank (0-3) that may go on a raid.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_min_guards">
+        <text>Guards Kept at Home</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_min_guards_desc">
+        <text>Guards that must stay at the settlement for a raid to be sent.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_idle_guard_weight">
+        <text>Idle Raider Guard Weight %</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_idle_guard_weight_desc">
+        <text>How much of a guard an idle raider at home counts for.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_wounded_hours">
+        <text>Raider Wounded Hours</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_wounded_hours_desc">
+        <text>How long raiders are unavailable after a failed raid.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_rest_hours">
+        <text>Raider Rest Hours</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_rest_hours_desc">
+        <text>How long raiders rest after any mission before they can be sent again.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_disaster_death_chance">
+        <text>Disaster Death Chance %</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_disaster_death_chance_desc">
+        <text>Chance each raider dies when a raid ends in disaster. Ordinary failures never kill.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_loot_fraction">
+        <text>Loot Share %</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_loot_fraction_desc">
+        <text>Share of the outpost's stash the raiders bring home.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_cut_percent">
+        <text>Raiders' Cut %</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_cut_percent_desc">
+        <text>Share of the haul value paid to the raiders as savings.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_forbid_weapon_armor">
+        <text>Raiders Skip Weapons and Armor</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_forbid_weapon_armor_desc">
+        <text>Raiders leave weapons and armor behind and take only ammo, meds and food.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_goodwill_loot">
+        <text>Goodwill Lost per Robbed Outpost</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_goodwill_loot_desc">
+        <text>Goodwill lost with the robbed faction for each cleared outpost.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_goodwill_betrayal">
+        <text>Extra Loss for Friendly Faction</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_goodwill_betrayal_desc">
+        <text>Extra goodwill lost when the robbed faction was friendly to you.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_goodwill_daily_cap">
+        <text>Daily Goodwill Loss Cap</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_goodwill_daily_cap_desc">
+        <text>Most goodwill raids can cost you with one faction in a day.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_spare_friends">
+        <text>Spare Friendly Outposts</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_spare_friends_desc">
+        <text>Raiders refuse to hit outposts of factions friendly to you.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_max_per_day">
+        <text>Raids per Day</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_max_per_day_desc">
+        <text>Most raids one settlement can send per game day.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_bandit_mode">
+        <text>Bandit Mode</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_raiders_bandit_mode_desc">
+        <text>Smaller goodwill losses, bandit reputation and richer loot for players who rob everyone.</text>
+    </string>
 </string_table>

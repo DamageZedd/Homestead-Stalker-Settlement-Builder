@@ -1,7 +1,6 @@
 -- stalker_camp_builder_raiders.script
--- Raiders (docs/design/raiders.md, phase 1): the pure rules for the Raider job. Nothing here is wired
--- into the game yet: no callback, no MCM option, no PDA widget, no state on the camp. The rules never
--- touch the engine, so tools/tests/test_raiders.lua can run them under a plain Lua 5.1.
+-- Raiders (docs/design/raiders.md): the pure rules for the Raider job (phase 1, no engine access, run by
+-- tools/tests/test_raiders.lua) and, below the "runtime" banner, the abstract-mission layer (phase 2).
 -- The feature is behind raiders_enabled (default OFF); raiders_can_send refuses while it is off.
 --
 -- Owner decisions built in (docs/design/raiders.md, "Decisions"): player-directed sends only, rank 2+
@@ -375,4 +374,380 @@ function sb.raiders_mission_finish(m, result)
     m.result = result
     m.state = "done"
     return true
+end
+
+-- ================================================================ runtime (phase 2)
+-- Everything below talks to the game. It only runs while raiders_enabled is on (default off).
+-- State: camp.raider_missions[id] (the shared mission record), camp.raider_state = { next_id, day,
+-- spent = { [faction] = goodwill lost today }, missions_today, last = "text" }, and per survivor
+-- surv.on_mission = mission id (+ surv.on_expedition = true, so the expedition guards keep the settler
+-- away from jobs and healing), surv.raider = { wounded_until, rest_until, missions_done }.
+-- Abstract missions only (design 5.2): the band is taken offline at the camp while the timer runs.
+
+local DAY_SEC = 86400
+local TICK_MS = 3000
+local FALLBACK_FACTIONS = {
+    "stalker", "bandit", "csky", "army", "freedom", "dolg", "ecolog", "killer", "monolith", "renegade", "greh", "isg",
+}
+
+-- the haul an outpost holds when its chest is not loaded: section, kind, value
+local HAUL = {
+    { "ammo_5.45x39_fmj", "ammo", 120 }, { "ammo_5.56x45_fmj", "ammo", 150 }, { "ammo_7.62x39_fmj", "ammo", 140 },
+    { "medkit_army", "med", 300 }, { "bandage", "med", 40 }, { "antirad", "med", 120 },
+    { "conserva", "food", 40 }, { "vodka", "food", 60 }, { "bread", "food", 25 },
+    { "wpn_pm", "weapon", 900 },
+}
+local HAUL_TIER2 = { "wpn_ak74", "weapon", 2600 }
+
+local function tr(id) return game.translate_string(id) end
+
+local function tip(text, ms)
+    local actor = db.actor
+    if actor and sb.camp_send_tip then
+        pcall(sb.camp_send_tip, actor, text, nil, "general_stalker", ms or 9000)
+    end
+    if sb.add_radio_feed_entry then pcall(sb.add_radio_feed_entry, "settlement", text) end
+end
+
+local function game_now() return num(game_sec and game_sec(), 0) end
+
+local function surv_of(camp, npc_id)
+    local s = camp and camp.survivors
+    if not s then return nil end
+    return s[npc_id] or s[tonumber(npc_id) or -1] or s[tostring(npc_id)]
+end
+
+local function raider_state(camp)
+    local st = camp.raider_state
+    if type(st) ~= "table" then st = {}; camp.raider_state = st end
+    local day = mfloor(game_now() / DAY_SEC)
+    if st.day ~= day then st.day = day; st.spent = {}; st.missions_today = 0 end
+    st.spent = st.spent or {}
+    st.next_id = st.next_id or 1
+    return st
+end
+
+-- the pause line the PDA already has: why a raider is not available (label, detail) or nil
+function sb.raiders_pause_reason(surv)
+    if type(surv) ~= "table" then return nil end
+    if surv.on_mission then return tr("st_homestead_raider_on_mission"), tr("st_homestead_raider_on_mission_d") end
+    if sb.raiders_is_wounded(surv, game_now()) then
+        return tr("st_homestead_raider_wounded"), tr("st_homestead_raider_wounded_d")
+    end
+    return nil
+end
+
+local function bring_home(npc_id, surv)
+    surv.on_mission = nil
+    surv.on_expedition = nil
+    local se = alife_object(npc_id)
+    if se and not se:can_switch_online() then
+        pcall(utils_obj.switch_online, npc_id)
+        if sb.allow_home_squad_online then pcall(sb.allow_home_squad_online, npc_id, true) end
+    end
+end
+
+local function take_away(npc_id, surv, mission_id)
+    surv.on_mission = mission_id
+    surv.on_expedition = true
+    local sim = alife()
+    if sim and alife_object(npc_id) then
+        pcall(sim.set_switch_online, sim, npc_id, false)
+        pcall(sim.set_switch_offline, sim, npc_id, true)
+        if sb.allow_home_squad_online then pcall(sb.allow_home_squad_online, npc_id, false) end
+    end
+end
+
+-- ---------------------------------------------------------------- targets
+
+local function squad_alive_count(squad)
+    local n = 0
+    if squad and sb.safe_squad_members then
+        for k in sb.safe_squad_members(squad) do
+            local se = k.object or (k.id and alife_object(k.id))
+            if se and se.alive and se:alive() then n = n + 1 end
+        end
+    end
+    return n
+end
+
+local function faction_goodwill(faction)
+    local ok, v = pcall(relation_registry.community_goodwill, faction, db.actor:id())
+    return ok and num(v, 0) or 0
+end
+
+local function target_info(key, rc, now_sec)
+    local squad = rc.squad_id and alife_object(rc.squad_id)
+    local busy = false
+    for _, c in pairs(sb.active_camps or {}) do
+        for _, m in pairs(c.raider_missions or {}) do
+            if m.target_key == key then busy = true end
+        end
+    end
+    local story = false
+    if squad and sb.squad_has_story_npc then story = sb.squad_has_story_npc(squad) and true or false end
+    return {
+        occupied = squad ~= nil and rc.status == nil and rc.faction ~= nil,
+        faction = rc.faction,
+        story = story,
+        nest = rc.status == "mutant_nest",
+        busy = busy,
+        on_cooldown = num(rc.raid_cooldown_until, 0) > now_sec,
+        friendly = rc.faction ~= nil and sb.raiders_is_friendly(faction_goodwill(rc.faction)),
+    }, squad
+end
+
+local function distance_to(hub_obj, rc)
+    if not (hub_obj and rc.position) then return 1500 end
+    local p = hub_obj.position
+    local dx, dz = p.x - rc.position.x, p.z - rc.position.z
+    local d = math.sqrt(dx * dx + dz * dz)
+    if rc.level and rc.level ~= level.name() then d = d + 1500 end
+    return d
+end
+
+-- the nearest rival camp this camp may raid now (temporary, until the Outposts tab picks one)
+local function pick_target(hub_id, info, now_sec)
+    local hub_obj = alife_object(hub_id)
+    local best, best_d, best_squad, best_key
+    for key, rc in pairs(sb.rival_camps or {}) do
+        if type(rc) == "table" and rc.chest_id then
+            local t, squad = target_info(key, rc, now_sec)
+            if sb.raiders_can_send(info, t) then
+                local d = distance_to(hub_obj, rc)
+                if not best_d or d < best_d then best, best_d, best_squad, best_key = rc, d, squad, key end
+            end
+        end
+    end
+    return best, best_key, best_d, best_squad
+end
+
+-- ---------------------------------------------------------------- send
+
+-- player-directed send from the Job page: the raider npc_id and every other free raider (up to 3) go
+function sb.raiders_send(hub_id, camp, npc_id)
+    if not (sb.raiders_enabled() and camp and camp.survivors and db.actor) then return false end
+    local now_sec = game_now()
+    local st = raider_state(camp)
+    local lead = surv_of(camp, npc_id)
+    if not lead or lead.job ~= "raider" then return false end
+    local ok, why = sb.raiders_survivor_ready(lead, now_sec)
+    if not ok then tip(tr("st_homestead_raider_cannot_" .. why)); return false end
+
+    local lead_id = tonumber(npc_id) or npc_id
+    local band, ids = { lead }, { lead_id }
+    for id, s in pairs(camp.survivors) do
+        local nid = tonumber(id) or id
+        if #band < 3 and nid ~= lead_id and s.job == "raider" and sb.raiders_survivor_ready(s, now_sec) then
+            band[#band + 1] = s; ids[#ids + 1] = nid
+        end
+    end
+    local guards = 0
+    for _, s in pairs(camp.survivors) do
+        if s.job == "guard" then guards = guards + 1 end
+    end
+    local info = { guards = guards, ready = #band, missions_today = st.missions_today or 0 }
+    if guards < num(cfgv("raiders_min_guards"), 1) then tip(tr("st_homestead_raider_cannot_no_guard")); return false end
+    if info.missions_today >= num(cfgv("raiders_max_per_day"), 3) then tip(tr("st_homestead_raider_cannot_daily")); return false end
+    local rc, key, dist, squad = pick_target(hub_id, info, now_sec)
+    if not rc then tip(tr("st_homestead_raider_no_target")); return false end
+
+    local members = {}
+    for i, s in ipairs(band) do members[i] = { rank = s.tier or 0 } end
+    local attack = sb.raiders_band_strength(members)
+    local defense = sb.raiders_defender_strength(squad_alive_count(squad), rc.tier or 1, 0)
+    local odds = sb.raid_odds(attack, defense)
+    local id = st.next_id; st.next_id = id + 1
+    local m = sb.raiders_new_mission(id, key, rc.level, rc.faction, ids, now_sec, sb.raiders_mission_duration(dist), odds)
+    camp.raider_missions = camp.raider_missions or {}
+    camp.raider_missions[id] = m
+    st.missions_today = info.missions_today + 1
+    for i, s in ipairs(band) do take_away(ids[i], s, id) end
+    tip(string.format(tr("st_homestead_raider_sent"), #band, tr(rc.faction), mfloor(odds * 100 + 0.5)))
+    return true
+end
+
+-- ---------------------------------------------------------------- resolve
+
+-- clearing a camp: release its garrison squads; the rival tick then runs the elimination itself
+local function clear_garrison(rc)
+    local ids = { rc.squad_id }
+    for _, x in ipairs(rc.extra_squad_ids or {}) do ids[#ids + 1] = x end
+    for _, sid in ipairs(ids) do
+        local sq = alife_object(sid)
+        if sq then pcall(alife_release, sq) end
+    end
+end
+
+local function haul_items(tier)
+    local items = {}
+    for _ = 1, 6 + 3 * tier do
+        local h = HAUL[math.random(#HAUL)]
+        items[#items + 1] = { sec = h[1], kind = h[2], value = h[3] }
+    end
+    if tier >= 2 then
+        items[#items + 1] = { sec = HAUL_TIER2[1], kind = HAUL_TIER2[2], value = HAUL_TIER2[3] }
+    end
+    return items
+end
+
+local function apply_goodwill(st, faction, friendly)
+    local own = sb.get_player_faction and sb.get_player_faction()
+    own = type(own) == "string" and (string.gsub(own, "^actor_", "")) or nil
+    local list = FALLBACK_FACTIONS
+    pcall(function()
+        local t = game_relations and game_relations.factions_table
+        if type(t) == "table" and #t > 0 then list = t end
+    end)
+    local allies = {}
+    for _, f in ipairs(list) do
+        local friends = false
+        pcall(function()
+            friends = game_relations.is_factions_friends(faction, f) and true or false
+        end)
+        if friends and f ~= faction then allies[#allies + 1] = f end
+    end
+    local plan = sb.raiders_goodwill_plan({ faction = faction, own = own, friendly = friendly, allies = allies,
+        spent = st.spent })
+    local hit = {}
+    for _, p in ipairs(plan) do
+        if pcall(relation_registry.change_community_goodwill, p.faction, db.actor:id(), p.delta) then
+            if p.delta < 0 then st.spent[p.faction] = (st.spent[p.faction] or 0) - p.delta end
+            hit[#hit + 1] = p.faction
+        end
+    end
+    return hit
+end
+
+local function remove_dead_raider(hub_id, camp, npc_id)
+    camp.survivors[npc_id] = nil
+    camp.survivors[tonumber(npc_id) or -1] = nil
+    if sb.settler_lookup then sb.settler_lookup[npc_id] = nil end
+    if sb.set_camp_settler_relations then pcall(sb.set_camp_settler_relations, hub_id, npc_id, false) end
+    local se = alife_object(npc_id)
+    if se then pcall(alife_release, se) end
+end
+
+-- returns the raiders home; wounded ones get the wounded timer, dead ones leave the camp
+local function return_band(hub_id, camp, m, cas, now_sec)
+    local home, dead, wounded = {}, {}, {}
+    for _, i in ipairs(cas.dead) do dead[i] = true end
+    for _, i in ipairs(cas.wounded) do wounded[i] = true end
+    for i, npc_id in ipairs(m.raider_ids) do
+        local s = surv_of(camp, npc_id)
+        if s then
+            if dead[i] then
+                remove_dead_raider(hub_id, camp, npc_id)
+            else
+                bring_home(npc_id, s)
+                s.raider = type(s.raider) == "table" and s.raider or {}
+                s.raider.missions_done = (s.raider.missions_done or 0) + 1
+                s.raider.rest_until = sb.raiders_rest_until(now_sec)
+                if wounded[i] then s.raider.wounded_until = sb.raiders_wounded_until(now_sec) end
+                home[#home + 1] = s
+            end
+        end
+    end
+    return home
+end
+
+local function pay_success(hub_id, camp, st, m, rc, home)
+    local tier = rc.tier or 1
+    clear_garrison(rc)
+    local split = sb.raiders_loot_split(haul_items(tier))
+    local n = 0
+    for _, it in ipairs(split.taken) do
+        if sb.deposit_item_to_camp and pcall(sb.deposit_item_to_camp, hub_id, camp, it.sec, false, tier, nil, nil, nil, true) then
+            n = n + 1
+        end
+    end
+    local bounty = sb.raiders_bounty(tier)
+    if db.actor and bounty > 0 then pcall(db.actor.give_money, db.actor, bounty) end
+    local cut = sb.raiders_cut(split.taken_value + bounty, false)
+    if #home > 0 and cut > 0 and sb.prosper_credit then
+        for _, s in ipairs(home) do sb.prosper_credit(s, mfloor(cut / #home)) end
+    end
+    local hit = {}
+    if sb.raiders_mission_claim(m, "goodwill") then
+        hit = apply_goodwill(st, m.faction, sb.raiders_is_friendly(faction_goodwill(m.faction)))
+    end
+    local text = string.format(tr("st_homestead_raider_success"), tr(m.faction), n, bounty)
+    if #hit > 0 then text = text .. " " .. string.format(tr("st_homestead_raider_goodwill"), table.concat(hit, ", ")) end
+    return text
+end
+
+local function resolve_mission(hub_id, camp, id, m)
+    local st = raider_state(camp)
+    local now_sec = game_now()
+    local rc = sb.rival_camps and sb.rival_camps[m.target_key]
+    local squad = rc and rc.squad_id and alife_object(rc.squad_id)
+    local target_ok = rc ~= nil and squad ~= nil and rc.faction == m.faction
+    local result = target_ok and sb.raid_outcome(m.odds, math.random(), math.random()) or "gone"
+
+    local rolls = {}
+    for i = 1, #m.raider_ids do rolls[i] = math.random() end
+    local cas = sb.raid_casualties(result == "gone" and "success" or result, #m.raider_ids, rolls)
+    local home = return_band(hub_id, camp, m, cas, now_sec)
+
+    local text
+    if result == "gone" then
+        text = tr("st_homestead_raider_target_gone")
+    elseif result == "success" then
+        text = pay_success(hub_id, camp, st, m, rc, home)
+    elseif result == "repulsed" then
+        text = string.format(tr("st_homestead_raider_repulsed"), tr(m.faction))
+    else
+        text = string.format(tr("st_homestead_raider_disaster"), tr(m.faction), #cas.dead)
+    end
+    if target_ok and result ~= "success" then rc.raid_cooldown_until = now_sec + 24 * 3600 end
+    sb.raiders_mission_finish(m, result == "gone" and "repulsed" or result)
+    camp.raider_missions[id] = nil
+    st.last = text
+    tip(text, 12000)
+end
+
+-- a raider who changes job while away leaves the mission (no loot, no goodwill)
+function sb.raiders_cancel_for(hub_id, npc_id)
+    local camp = sb.active_camps and sb.active_camps[hub_id]
+    local s = surv_of(camp, npc_id)
+    if not s then return end
+    local nid = tonumber(npc_id) or npc_id
+    local m = camp.raider_missions and camp.raider_missions[s.on_mission]
+    bring_home(nid, s)
+    if m then
+        for i = #m.raider_ids, 1, -1 do
+            if m.raider_ids[i] == nid then table.remove(m.raider_ids, i) end
+        end
+        if #m.raider_ids == 0 then camp.raider_missions[m.id] = nil end
+    end
+end
+
+-- resolve due missions; free settlers whose mission record is gone (an old save, a cancelled mission)
+function sb.raiders_process()
+    local now_sec = game_now()
+    for hub_id, camp in pairs(sb.active_camps or {}) do
+        for id, m in pairs(camp.raider_missions or {}) do
+            if sb.raiders_mission_due(m, now_sec) then
+                if not pcall(resolve_mission, hub_id, camp, id, m) then camp.raider_missions[id] = nil end
+            end
+        end
+        for npc_id, s in pairs(camp.survivors or {}) do
+            if s.on_mission and not (camp.raider_missions and camp.raider_missions[s.on_mission]) then
+                bring_home(tonumber(npc_id) or npc_id, s)
+            end
+        end
+    end
+end
+
+local next_tick_tg = 0
+local function on_update()
+    if not sb.raiders_enabled() then return end
+    local tg = time_global()
+    if tg < next_tick_tg then return end
+    next_tick_tg = tg + TICK_MS
+    pcall(sb.raiders_process)
+end
+
+function on_game_start()
+    RegisterScriptCallback("actor_on_update", on_update)
 end
