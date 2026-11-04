@@ -199,7 +199,8 @@ do
         local m1 = camp.raider_missions[camp.survivors[10].on_mission]
         eq(sb.raiders_mission_remaining(m1, m1.arrive_sec - 600), 600, "remaining game seconds")
         eq(sb.raiders_mission_remaining(m1, m1.arrive_sec + 5), 0, "never negative")
-        eq(sb.raiders_mission_remaining({ state = "assault" }, 0), nil, "none once the raid is at the camp")
+        eq(sb.raiders_mission_remaining({ state = "assault", arrive_sec = 50 }, 20), 30, "countdown continues in the field")
+        eq(sb.raiders_mission_remaining({ state = "done" }, 0), nil, "none once finished")
         sb.format_expedition_time = function(sec) return "T" .. sec end
         game.translate_string = function(id) return id .. ":%s" end
         local l2, d2 = sb.raiders_pause_reason(camp.survivors[10], camp)
@@ -476,4 +477,118 @@ do
 end
 
 if fails > 0 then print(fails .. " FAILED"); os.exit(1) end
+
+-- ---------------------------------------------------------------- phase 5: visible assault
+do
+    local function serialize(v)
+        if type(v) ~= "table" then return type(v) == "string" and string.format("%q", v) or tostring(v) end
+        local out = {}
+        for k, x in pairs(v) do out[#out + 1] = "[" .. serialize(k) .. "]=" .. serialize(x) end
+        return "{" .. table.concat(out, ",") .. "}"
+    end
+    local function roundtrip(v) return assert(loadstring("return " .. serialize(v)))() end
+    local function fresh(now)
+        local m = sb.raiders_new_mission(7, "k", "l01_escape", "bandit", { 11, 12, 13 }, now or 1000, 3000, 0.5)
+        return m
+    end
+    local EP = 4242
+    local function begin(m, now)
+        eq(sb.raiders_assault_begin(m, now or 2000, 10, { squad_id = 99, section = "stalker_sim_squad_advanced",
+            epoch = EP, proxy = 3, garrison = 4 }), true, "begin")
+    end
+
+    -- start window: travel over, before the deadline, option-independent pure check
+    local m = fresh()                                    -- arrive_sec = 4000, travel over at 2200
+    eq(sb.raiders_assault_start_due(m, 2199), false, "still travelling")
+    eq(sb.raiders_assault_start_due(m, 2200), true, "arrived")
+    eq(sb.raiders_assault_start_due(m, 4000), false, "deadline passed: abstract resolves")
+    begin(m, 2300)
+    eq(m.mode, "real", "real mode"); eq(m.state, "assault", "assault state")
+    eq(sb.raiders_assault_start_due(m, 2400), false, "no second start")
+    eq(sb.raiders_mission_due(m, 9999), false, "abstract timer is not enforced while fighting")
+    eq(sb.raiders_mission_remaining(m, 2500), 1500, "countdown kept")
+
+    local function step(obs, now)
+        obs.epoch = obs.epoch == nil and EP or obs.epoch
+        if obs.player_near == nil then obs.player_near = true end
+        return sb.raiders_assault_step(m, obs, now)
+    end
+    eq(step({ proxy_alive = 3, garrison_alive = 4 }, 2310).act, "wait", "fight goes on")
+    eq(step({ proxy_alive = 3, garrison_alive = 2 }, 2320).act, "wait", "progress")
+    eq(m.real.progress_sec, 2320, "progress mark moves")
+    -- win: the rival tick marked the outpost unoccupied
+    local a = step({ proxy_alive = 2, garrison_alive = 0, target_status = "unoccupied" }, 2330)
+    eq(a.act, "finish", "garrison eliminated"); eq(a.result, "success", "success")
+    a = step({ proxy_alive = 0, garrison_alive = 0, target_status = "unoccupied" }, 2330)
+    eq(a.result, "gone", "someone else cleared it")
+    a = step({ proxy_alive = 2, garrison_alive = 2, target_status = "gone" }, 2330)
+    eq(a.result, "gone", "target vanished")
+    a = step({ proxy_alive = 0, garrison_alive = 3 }, 2330)
+    eq(a.result, "disaster", "band wiped out")
+    -- the player leaves: abstract fallback with the survivors' odds
+    a = step({ proxy_alive = 3, garrison_alive = 2, player_near = false }, 2340)
+    eq(a.act, "fallback", "player left")
+    eq(a.odds > m.odds, true, "odds rise when the garrison is halved")
+    near(a.odds, sb.raiders_fallback_odds(m), "odds match the helper")
+    do
+        local m2 = fresh()
+        begin(m2, 2300); m2.real.proxy_alive, m2.real.garrison_alive = 3, 4
+        near(sb.raiders_fallback_odds(m2), 0.5, "untouched sides keep the shown odds")
+        m2.real.proxy_alive = 1
+        eq(sb.raiders_fallback_odds(m2) < 0.5, true, "losses lower the odds")
+        m2.real.proxy_alive = 0
+        near(sb.raiders_fallback_odds(m2), 0.05, "no attackers: floor")
+        m2.real.proxy_alive, m2.real.garrison_alive = 3, 0
+        near(sb.raiders_fallback_odds(m2), 0.9, "no defenders: cap")
+    end
+
+    -- stalemate: no headcount change for 150 real s (1500 game s at tf 10) while the garrison stands
+    m = fresh(); begin(m, 2300)
+    eq(step({ proxy_alive = 3, garrison_alive = 4 }, 2300 + 1499).act, "wait", "just under the stall limit")
+    a = step({ proxy_alive = 3, garrison_alive = 4 }, 2300 + 1500)
+    eq(a.act, "finish", "stalled"); eq(a.result, "repulsed", "stall with the garrison standing = repulsed")
+    m = fresh(); begin(m, 2300)
+    step({ proxy_alive = 3, garrison_alive = 0 }, 2310)
+    a = step({ proxy_alive = 3, garrison_alive = 0 }, 2310 + 1500)
+    eq(a.result, "success", "stall with an empty garrison = success")
+    m = fresh(); begin(m, 2300)
+    local hard = m.real.hard_sec
+    for t = 2300, hard, 1000 do step({ proxy_alive = 3 - (t % 2), garrison_alive = 4 }, t) end
+    a = step({ proxy_alive = 3, garrison_alive = 4 }, hard)
+    eq(a.result, "repulsed", "hard cap ends the fight")
+
+    -- save/load: the record survives a round trip; a different epoch (a load) resets it to a plain away mission
+    m = fresh(); begin(m, 2300)
+    m = roundtrip(m)
+    eq(step({ proxy_alive = 3, garrison_alive = 4 }, 2400).act, "wait", "same session after a round trip")
+    a = step({ proxy_alive = 3, garrison_alive = 4, epoch = 777 }, 2400)
+    eq(a.act, "reset", "load detected")
+    eq(sb.raiders_assault_reset(m, 2400, sb.raiders_assault_reset_delay(10)), true, "reset")
+    eq(m.mode, "abstract", "abstract again"); eq(m.state, "away", "away again"); eq(m.real, nil, "no fight record")
+    eq(m.arrive_sec, 2700, "30 real s left")
+    eq(sb.raiders_assault_start_due(m, 2400), true, "may start over")
+    eq(sb.raiders_mission_due(m, 2700), true, "or resolves abstractly")
+    eq(sb.raiders_assault_step(fresh(), {}, 0).act, "reset", "a mission that never fought resets safely")
+
+    -- once-only claims across a switch between abstract and real
+    m = fresh(); begin(m, 2300)
+    eq(sb.raiders_mission_claim(m, "loot"), true, "loot claimed")
+    eq(sb.raiders_assault_reset(m, 2400, 0), true, "fell back")
+    eq(sb.raiders_mission_claim(m, "loot"), false, "loot is not paid twice")
+    eq(sb.raiders_mission_claim(m, "goodwill"), true, "goodwill claimed")
+    eq(sb.raiders_mission_claim(m, "goodwill"), false, "goodwill is not paid twice")
+
+    -- recall in the field: back to a returning abstract mission
+    m = fresh(); begin(m, 2300)
+    eq(sb.raiders_mission_recall(m, 2400, 200), true, "recall in assault")
+    eq(m.state, "returning", "returning"); eq(m.mode, "abstract", "abstract"); eq(m.real, nil, "fight dropped")
+    eq(sb.raiders_assault_step(m, {}, 0).act, "reset", "no step on a returning mission")
+    do
+        local away = { raider_missions = nil }
+        local ok = sb.raiders_recall_check(3, 0)
+        eq(ok, true, "bands in the field count as away")
+    end
+end
+
+if fails > 0 then print("test_raiders: " .. fails .. " FAILED"); os.exit(1) end
 print("test_raiders: all passed")

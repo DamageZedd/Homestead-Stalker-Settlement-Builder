@@ -1619,11 +1619,14 @@ function SettlementManagerPDA:RefreshRaidPanel()
         elseif armed then
             text = sformat(tr(st.raid and "st_pda_raid_recall_preview_raid" or "st_pda_raid_recall_preview"),
                 sb.raiders_recall_eta_text())
+        elseif st.field then
+            text = sformat(tr("st_pda_raid_info_field"), st.band, math.floor(st.odds * 100 + 0.5))
         else
             text = sformat(tr("st_pda_raid_info_away"), st.band, math.floor(st.odds * 100 + 0.5), eta_txt)
         end
         if self.rival_banner_lbl then
-            self.rival_banner_lbl:SetText(sformat(tr("st_pda_raid_banner_away"), eta_txt))
+            self.rival_banner_lbl:SetText(st.field and tr("st_pda_raid_banner_field")
+                or sformat(tr("st_pda_raid_banner_away"), eta_txt))
             self.rival_banner_lbl:SetTextColor(hs_theme.argb("warn"))
         end
         if self.rival_banner_bg then hs_theme.banner(self.rival_banner_bg, "neutral") end

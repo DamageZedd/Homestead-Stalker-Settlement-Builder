@@ -33,6 +33,7 @@ local DEFAULTS = {
     raiders_bandit_loot_bonus = 25,        -- percent more cash and items in bandit mode
     raiders_max_per_day = 3,
     raiders_auto_recall = false,
+    raiders_real_assault = false,          -- Phase 5: visible fight when the player is at the outpost
 }
 
 -- cash bounty by camp tier, before the loot multiplier
@@ -359,7 +360,7 @@ end
 
 -- game seconds until the mission is back; nil without an away mission
 function sb.raiders_mission_remaining(m, now_sec)
-    if type(m) ~= "table" or (m.state ~= "away" and m.state ~= "returning") then return nil end
+    if type(m) ~= "table" or (m.state ~= "away" and m.state ~= "returning" and m.state ~= "assault") then return nil end
     return mmax(0, num(m.arrive_sec, 0) - num(now_sec, 0))
 end
 
@@ -386,8 +387,10 @@ end
 -- Turns an away mission into a returning one that reaches camp after delay_sec. No loot, no goodwill, no
 -- cooldown: the record only changes state, so it saves and loads like any other. False when not away.
 function sb.raiders_mission_recall(m, now_sec, delay_sec)
-    if type(m) ~= "table" or m.state ~= "away" then return false end
+    if type(m) ~= "table" or (m.state ~= "away" and m.state ~= "assault") then return false end
     m.state = "returning"
+    m.mode = "abstract"
+    m.real = nil
     m.recalled = true
     m.arrive_sec = num(now_sec, 0) + mmax(0, num(delay_sec, 0))
     return true
@@ -433,6 +436,94 @@ function sb.raiders_mission_finish(m, result)
     m.result = result
     m.state = "done"
     return true
+end
+
+-- ---------------------------------------------------------------- visible assault (phase 5, pure part)
+
+local ASSAULT_STALL_REAL_SEC = 150     -- no change in either side's headcount for this long = a stalemate
+local ASSAULT_HARD_REAL_SEC = 900      -- the longest a visible fight may run
+local ASSAULT_RESET_REAL_SEC = 30      -- after a load the band is "away" again and may start over
+local PROXY_LINGER_REAL_SEC = 90       -- a winning team stays this long before it is released
+
+-- the travel part is over: the band reaches the outpost ASSAULT_WINDOW_SEC before the abstract deadline
+function sb.raiders_assault_start_due(m, now_sec)
+    if type(m) ~= "table" or m.state ~= "away" or m.mode == "real" then return false end
+    now_sec = num(now_sec, 0)
+    return now_sec >= num(m.arrive_sec, math.huge) - ASSAULT_WINDOW_SEC and now_sec < num(m.arrive_sec, 0)
+end
+
+-- the record of a fight that has begun; tf = game seconds per real second
+function sb.raiders_assault_begin(m, now_sec, tf, info)
+    if not sb.raiders_mission_set_mode(m, "real") then return false end
+    info = type(info) == "table" and info or {}
+    tf = num(tf, 10) > 0 and num(tf, 10) or 10
+    now_sec = num(now_sec, 0)
+    m.real = {
+        squad_id = info.squad_id, section = info.section, epoch = info.epoch,
+        proxy_start = mmax(1, num(info.proxy, 1)), proxy_alive = mmax(1, num(info.proxy, 1)),
+        garrison_start = mmax(1, num(info.garrison, 1)), garrison_alive = mmax(1, num(info.garrison, 1)),
+        started_sec = now_sec, progress_sec = now_sec,
+        stall_sec = ASSAULT_STALL_REAL_SEC * tf, hard_sec = now_sec + ASSAULT_HARD_REAL_SEC * tf,
+        linger_sec = PROXY_LINGER_REAL_SEC * tf,
+    }
+    return true
+end
+
+-- the abstract odds for a fight cut short: the shown odds, scaled by what is left of each side
+function sb.raiders_fallback_odds(m)
+    local r = type(m) == "table" and m.real
+    local p0 = clamp(num(m and m.odds, WIN_MIN), WIN_MIN, WIN_MAX)
+    if type(r) ~= "table" then return p0 end
+    local att = clamp(num(r.proxy_alive, 0) / mmax(1, num(r.proxy_start, 1)), 0, 1)
+    local def = clamp(num(r.garrison_alive, 0) / mmax(1, num(r.garrison_start, 1)), 0, 1)
+    if att <= 0 then return WIN_MIN end
+    local ratio0 = math.sqrt(1 / p0 - 1)            -- defense / attack at the start
+    return sb.raid_odds(att, ratio0 * def)
+end
+
+-- Back to a plain away mission (a load, or the fight could not go on); the abstract timer
+-- resumes with `delay_sec` left. The runtime queues the proxy squad for release.
+function sb.raiders_assault_reset(m, now_sec, delay_sec)
+    if type(m) ~= "table" or m.mode ~= "real" then return false end
+    m.mode, m.state, m.real = "abstract", "away", nil
+    m.arrive_sec = num(now_sec, 0) + mmax(0, num(delay_sec, 0))
+    return true
+end
+
+function sb.raiders_assault_reset_delay(tf)
+    tf = num(tf, 10)
+    return ASSAULT_RESET_REAL_SEC * (tf > 0 and tf or 10)
+end
+
+-- One decision for a running visible fight. obs = { epoch, player_near, proxy_alive, garrison_alive,
+-- target_status ("gone" | "unoccupied" | nil) }. Returns { act = "wait" } | { act = "reset" } |
+-- { act = "fallback", odds } | { act = "finish", result }; result "gone" is the target-vanished path.
+-- Updates the progress marks on the record (plain numbers).
+function sb.raiders_assault_step(m, obs, now_sec)
+    if type(m) ~= "table" or m.state ~= "assault" or type(m.real) ~= "table" then return { act = "reset" } end
+    obs = type(obs) == "table" and obs or {}
+    local r = m.real
+    now_sec = num(now_sec, 0)
+    if obs.epoch ~= r.epoch then return { act = "reset" } end
+    if obs.target_status == "gone" then return { act = "finish", result = "gone" } end
+    local proxy, garrison = mmax(0, num(obs.proxy_alive, 0)), mmax(0, num(obs.garrison_alive, 0))
+    if obs.target_status == "unoccupied" then
+        -- the rival tick has eliminated the garrison; the band that did it wins, else it was someone else
+        return { act = "finish", result = proxy > 0 and "success" or "gone" }
+    end
+    if proxy == 0 then return { act = "finish", result = "disaster" } end
+    if not obs.player_near then
+        r.proxy_alive, r.garrison_alive = proxy, garrison
+        return { act = "fallback", odds = sb.raiders_fallback_odds(m) }
+    end
+    if proxy ~= num(r.proxy_alive, -1) or garrison ~= num(r.garrison_alive, -1) then
+        r.proxy_alive, r.garrison_alive, r.progress_sec = proxy, garrison, now_sec
+    end
+    if now_sec >= num(r.hard_sec, 0) or now_sec - num(r.progress_sec, now_sec) >= num(r.stall_sec, math.huge) then
+        -- nothing visible is released while the garrison stands: a stalemate is a repulse
+        return { act = "finish", result = garrison > 0 and "repulsed" or "success" }
+    end
+    return { act = "wait" }
 end
 
 -- ================================================================ runtime (phase 2)
@@ -500,7 +591,7 @@ function sb.raiders_pause_reason(surv, camp)
         -- the time left is shown the way an expedition shows its own (game seconds shown as real time)
         local m = camp and camp.raider_missions and camp.raider_missions[surv.on_mission]
         local left = sb.raiders_mission_remaining(m, game_now())
-        if left and sb.format_expedition_time then
+        if left and sb.format_expedition_time and m.state ~= "assault" then
             local t = sb.format_expedition_time(left)
             if m.state == "returning" then
                 return string.format(tr("st_homestead_raider_recalling_left"), t), string.format(tr("st_homestead_raider_recalling_d"), t)
@@ -509,6 +600,9 @@ function sb.raiders_pause_reason(surv, camp)
         end
         if m and m.state == "returning" then
             return tr("st_homestead_raider_recalling"), tr("st_homestead_raider_recalling_d0")
+        end
+        if m and m.state == "assault" then
+            return tr("st_homestead_raider_in_field"), tr("st_homestead_raider_in_field_d")
         end
         return tr("st_homestead_raider_on_mission"), tr("st_homestead_raider_on_mission_d")
     end
@@ -773,7 +867,7 @@ function sb.raiders_outpost_status(key, prefer_hub)
     local m, mhub = sb.raiders_mission_for(key)
     if m then
         return { state = "away", hub_id = mhub, band = #m.raider_ids, odds = m.odds,
-            returning = m.state == "returning", raid = sb.active_camps[mhub].active_raid ~= nil,
+            returning = m.state == "returning", field = m.state == "assault", raid = sb.active_camps[mhub].active_raid ~= nil,
             eta = mmax(0, m.arrive_sec - now_sec) / game_time_factor() }
     end
     local t, squad = target_info(key, rc, now_sec)
@@ -867,18 +961,21 @@ end
 local function pay_success(hub_id, camp, m, rc, home)
     local tier = rc.tier or 1
     clear_garrison(rc)
-    local split = sb.raiders_loot_split(haul_items(tier))
-    local n = 0
-    for _, it in ipairs(split.taken) do
-        if sb.deposit_item_to_camp and pcall(sb.deposit_item_to_camp, hub_id, camp, it.sec, false, tier, nil, nil, nil, true) then
-            n = n + 1
+    local n, bounty = 0, 0
+    -- once per mission: an abstract and a visible resolver share this path
+    if sb.raiders_mission_claim(m, "loot") then
+        local split = sb.raiders_loot_split(haul_items(tier))
+        for _, it in ipairs(split.taken) do
+            if sb.deposit_item_to_camp and pcall(sb.deposit_item_to_camp, hub_id, camp, it.sec, false, tier, nil, nil, nil, true) then
+                n = n + 1
+            end
         end
-    end
-    local bounty = sb.raiders_bounty(tier)
-    if db.actor and bounty > 0 then pcall(db.actor.give_money, db.actor, bounty) end
-    local cut = sb.raiders_cut(split.taken_value + bounty, false)
-    if #home > 0 and cut > 0 and sb.prosper_credit then
-        for _, s in ipairs(home) do sb.prosper_credit(s, mfloor(cut / #home)) end
+        bounty = sb.raiders_bounty(tier)
+        if db.actor and bounty > 0 then pcall(db.actor.give_money, db.actor, bounty) end
+        local cut = sb.raiders_cut(split.taken_value + bounty, false)
+        if #home > 0 and cut > 0 and sb.prosper_credit then
+            for _, s in ipairs(home) do sb.prosper_credit(s, mfloor(cut / #home)) end
+        end
     end
     local hit = {}
     if sb.raiders_mission_claim(m, "goodwill") then
@@ -889,13 +986,20 @@ local function pay_success(hub_id, camp, m, rc, home)
     return text
 end
 
-local function resolve_mission(hub_id, camp, id, m)
+-- forced = the result a visible fight already decided ("success", "repulsed", "disaster" or "gone"); the abstract
+-- roll and the live-target check are skipped, everything after (casualties, loot, goodwill) is the same path
+local function resolve_mission(hub_id, camp, id, m, forced)
     local st = raider_state(camp)
     local now_sec = game_now()
     local rc = sb.rival_camps and sb.rival_camps[m.target_key]
     local squad = rc and rc.squad_id and alife_object(rc.squad_id)
     local target_ok = rc ~= nil and squad ~= nil and rc.faction == m.faction
-    local result = target_ok and sb.raid_outcome(m.odds, math.random(), math.random()) or "gone"
+    local result
+    if forced then
+        result = rc and forced or "gone"
+    else
+        result = target_ok and sb.raid_outcome(m.odds, math.random(), math.random()) or "gone"
+    end
 
     local rolls = {}
     for i = 1, #m.raider_ids do rolls[i] = math.random() end
@@ -912,11 +1016,223 @@ local function resolve_mission(hub_id, camp, id, m)
     else
         text = string.format(tr("st_homestead_raider_disaster"), tr(m.faction), #cas.dead)
     end
-    if target_ok and result ~= "success" then rc.raid_cooldown_until = now_sec + 24 * 3600 end
+    if rc and (target_ok or forced) and result ~= "success" and result ~= "gone" then
+        rc.raid_cooldown_until = now_sec + 24 * 3600
+    end
     sb.raiders_mission_finish(m, result == "gone" and "repulsed" or result)
     camp.raider_missions[id] = nil
     st.last = text
     tip(text, 12000)
+end
+
+-- ---------------------------------------------------------------- visible assault (phase 5, runtime)
+-- The settlers stay offline as in an abstract mission; a proxy sim squad plays the band in front of the player
+-- (docs/design/raiders.md, section 21). m.real holds plain numbers and the squad id, nothing else.
+
+-- changes on every load (actor_on_first_update), so a fight found with another epoch is a fight from before it
+sb.raiders_epoch = math.random(1, 1073741823)
+
+local function garrison_ids(rc)
+    local ids = {}
+    if rc.squad_id then ids[1] = rc.squad_id end
+    for _, x in ipairs(type(rc.extra_squad_ids) == "table" and rc.extra_squad_ids or {}) do ids[#ids + 1] = x end
+    return ids
+end
+
+local function garrison_alive(rc)
+    local n = 0
+    for _, sid in ipairs(garrison_ids(rc)) do n = n + squad_alive_count(alife_object(sid)) end
+    return n
+end
+
+-- the proxy squad, only when the id still names a squad of the recorded section (ids are reused)
+local function proxy_squad(r)
+    local se = type(r) == "table" and r.squad_id and alife_object(r.squad_id)
+    if se and se.squad_members and se.section_name and se:section_name() == r.section then return se end
+    return nil
+end
+
+local function release_proxy(r)
+    local se = proxy_squad(r)
+    if not se then return end
+    local rel = sb.safe_alife_release or alife_release
+    local ids = {}
+    for k in sb.safe_squad_members(se) do if k.id then ids[#ids + 1] = k.id end end
+    for _, nid in ipairs(ids) do
+        local npc = alife_object(nid)
+        if npc then pcall(rel, npc) end
+    end
+    pcall(rel, se)
+end
+
+-- queue a proxy squad for release; due_sec = earliest, it then waits for the player to look away, up to hard_sec
+local function queue_proxy_release(camp, r, due_sec, hard_sec)
+    if type(r) ~= "table" or not r.squad_id then return end
+    local st = raider_state(camp)
+    st.cleanup = st.cleanup or {}
+    st.cleanup[#st.cleanup + 1] = { squad_id = r.squad_id, section = r.section, level = r.level,
+        due_sec = due_sec, hard_sec = hard_sec }
+end
+
+local function queue_proxy_now(camp, r)
+    local now_sec = game_now()
+    queue_proxy_release(camp, r, now_sec, now_sec)
+end
+
+local function process_cleanup(camp, now_sec)
+    local list = camp.raider_state and camp.raider_state.cleanup
+    if type(list) ~= "table" then return end
+    for i = #list, 1, -1 do
+        local e = list[i]
+        local se = proxy_squad(e)
+        if not se then
+            table.remove(list, i)
+        elseif now_sec >= num(e.due_sec, 0) then
+            local near = e.level == level.name() and sb.is_player_near and sb.is_player_near(e.level, se.position)
+            if not near or now_sec >= num(e.hard_sec, 0) then
+                pcall(release_proxy, e)
+                table.remove(list, i)
+            end
+        end
+    end
+end
+
+-- a mission leaves the camp's list: its proxy squad goes with it
+local function drop_mission(camp, id, m)
+    if m and m.real then queue_proxy_now(camp, m.real) end
+    camp.raider_missions[id] = nil
+end
+
+local function proxy_faction(rc)
+    local f = own_faction()
+    if not f or NOT_A_FACTION[f] or f == rc.faction then f = (rc.faction == "stalker") and "dolg" or "stalker" end
+    return f
+end
+
+local function proxy_section(faction, band)
+    local sum = 0
+    for _, s in ipairs(band) do sum = sum + num(s.tier, 0) end
+    local avg = #band > 0 and sum / #band or 0
+    local tier = avg < 1.5 and "_novice" or avg < 3 and "_advanced" or "_veteran"
+    local sec = sb.get_dynamic_squad_section_for_faction(faction, tier)
+    if not (ini_sys and sec and ini_sys:section_exist(sec)) then sec = sb.get_dynamic_squad_section_for_faction(faction) end
+    return sec
+end
+
+-- a ground spot 65-105 m from the outpost on the player's side, at least 25 m from the player
+local function assault_spawn_point(rc)
+    local ap = db.actor:position()
+    local base = math.atan2(ap.z - rc.position.z, ap.x - rc.position.x)
+    local test_p = vector()
+    for _, off in ipairs({ 0, 0.5, -0.5, 1.0, -1.0, 1.6, -1.6 }) do
+        for _, d in ipairs({ 85, 65, 105 }) do
+            local a = base + off
+            test_p:set(rc.position.x + d * math.cos(a), rc.position.y, rc.position.z + d * math.sin(a))
+            local lvi, p = sb.get_ground_vertex_and_pos(test_p, rc.position.y, 6.0)
+            if lvi and p and p:distance_to(ap) >= 25 then
+                local gvi = level.cross_table and level.cross_table() and level.cross_table():vertex(lvi):game_vertex_id()
+                    or db.actor:game_vertex_id()
+                return p, lvi, gvi
+            end
+        end
+    end
+    return nil
+end
+
+-- the band arrives while the player is at the outpost: play the fight. true when the squad is out
+local function start_assault(camp, m, rc, now_sec)
+    if not (rc.position and rc.smart_name and rc.status == nil and rc.faction == m.faction and db.actor
+        and m.target_level == level.name() and sb.is_player_near and sb.is_player_near(m.target_level, rc.position)
+        and SIMBOARD and SIMBOARD.smarts_by_names and SIMBOARD.smarts_by_names[rc.smart_name]) then
+        return false
+    end
+    local g = garrison_alive(rc)
+    if g < 1 then return false end
+    local band = {}
+    for _, nid in ipairs(m.raider_ids) do band[#band + 1] = surv_of(camp, nid) or {} end
+    local pos, lvi, gvi = assault_spawn_point(rc)
+    if not pos then return false end
+    local sec = proxy_section(proxy_faction(rc), band)
+    local squad = sec and sb.create_squad_at_pos(sec, pos, lvi, gvi, true)
+    if not squad then return false end
+    -- as many fighters as raiders: release the surplus members
+    local ids = {}
+    for k in sb.safe_squad_members(squad) do if k.id then ids[#ids + 1] = k.id end end
+    for i = #m.raider_ids + 1, #ids do
+        local extra = alife_object(ids[i])
+        if extra then pcall(sb.safe_alife_release or alife_release, extra) end
+    end
+    -- a saved string: the simulation sends a squad to a smart terrain, never to another squad
+    squad.scripted_target = rc.smart_name
+    sb.raiders_assault_begin(m, now_sec, game_time_factor(), { squad_id = squad.id, section = sec,
+        epoch = sb.raiders_epoch, proxy = mmin(#ids, #m.raider_ids), garrison = g })
+    m.real.level = m.target_level
+    tip(string.format(tr("st_homestead_raider_assault_start"), #m.raider_ids, tr(m.faction)), 12000)
+    return true
+end
+
+-- both sides hostile to each other, for the members that are online right now
+local function enforce_hostility(squad, rc)
+    local mine, theirs = {}, {}
+    for k in sb.safe_squad_members(squad) do
+        local o = k.id and level.object_by_id(k.id)
+        if o then mine[#mine + 1] = o end
+    end
+    for _, sid in ipairs(garrison_ids(rc)) do
+        local gs = alife_object(sid)
+        if gs then
+            for k in sb.safe_squad_members(gs) do
+                local o = k.id and level.object_by_id(k.id)
+                if o then theirs[#theirs + 1] = o end
+            end
+        end
+    end
+    for _, a in ipairs(mine) do
+        pcall(a.set_relation, a, game_object.friend, db.actor)
+        for _, b in ipairs(theirs) do
+            pcall(a.set_relation, a, game_object.enemy, b)
+            pcall(b.set_relation, b, game_object.enemy, a)
+        end
+    end
+end
+
+local function target_status(rc, m)
+    if type(rc) ~= "table" then return "gone" end
+    if rc.status == "unoccupied" then return "unoccupied" end
+    if rc.status ~= nil or rc.faction ~= m.faction then return "gone" end
+    return nil
+end
+
+-- one look at a running fight; every exit goes through the pure step and the shared resolver
+local function assault_tick(hub_id, camp, id, m, now_sec)
+    local rc = sb.rival_camps and sb.rival_camps[m.target_key]
+    local r = m.real
+    local squad = proxy_squad(r)
+    local act = sb.raiders_assault_step(m, {
+        epoch = sb.raiders_epoch,
+        target_status = target_status(rc, m),
+        proxy_alive = squad and squad_alive_count(squad) or 0,
+        garrison_alive = rc and garrison_alive(rc) or 0,
+        player_near = rc and rc.position and sb.is_player_near and sb.is_player_near(m.target_level, rc.position) or false,
+    }, now_sec)
+    if act.act == "wait" then
+        if squad and rc then enforce_hostility(squad, rc) end
+    elseif act.act == "reset" then
+        -- after a load, or with nothing to play: a plain away mission again, which may start over
+        if r then queue_proxy_now(camp, r) end
+        sb.raiders_assault_reset(m, now_sec, sb.raiders_assault_reset_delay(game_time_factor()))
+    elseif act.act == "fallback" then
+        -- the player left: the abstract roll, with what is left of each side
+        queue_proxy_now(camp, r)
+        m.odds = act.odds
+        sb.raiders_assault_reset(m, now_sec, 0)
+        resolve_mission(hub_id, camp, id, m)
+    else
+        local won = act.result == "success"
+        queue_proxy_release(camp, r, now_sec + (won and num(r.linger_sec, 0) or 0), now_sec + 600 * game_time_factor())
+        m.real = nil
+        resolve_mission(hub_id, camp, id, m, act.result)
+    end
 end
 
 -- ---------------------------------------------------------------- recall (phase 4)
@@ -926,7 +1242,7 @@ function sb.raiders_recall_status(camp)
     local away, returning, eta = 0, 0, nil
     local now_sec = game_now()
     for _, m in pairs(camp and camp.raider_missions or {}) do
-        if m.state == "away" then
+        if m.state == "away" or m.state == "assault" then
             away = away + #m.raider_ids
         elseif m.state == "returning" then
             returning = returning + #m.raider_ids
@@ -949,8 +1265,10 @@ function sb.raiders_recall(hub_id, camp, how, only_id)
     local delay = sb.raiders_recall_delay(game_time_factor())
     local n = 0
     for id, m in pairs(camp.raider_missions) do
+        local real = m.real
         if (only_id == nil or id == only_id) and sb.raiders_mission_recall(m, now_sec, delay) then
             n = n + #m.raider_ids
+            queue_proxy_now(camp, real)
         end
     end
     if n > 0 then
@@ -972,7 +1290,7 @@ function sb.raiders_recall_for(npc_id)
         if s then
             local m = s.on_mission and camp.raider_missions and camp.raider_missions[s.on_mission]
             if not m then return nil end
-            local away = m.state == "away"
+            local away = m.state == "away" or m.state == "assault"
             return { ok = away, reason = not away and "returning" or nil, hub_id = hub_id, camp = camp, mission = m.id }
         end
     end
@@ -1024,13 +1342,14 @@ function sb.raiders_cancel_for(hub_id, npc_id)
         for i = #m.raider_ids, 1, -1 do
             if m.raider_ids[i] == nid then table.remove(m.raider_ids, i) end
         end
-        if #m.raider_ids == 0 then camp.raider_missions[m.id] = nil end
+        if #m.raider_ids == 0 then drop_mission(camp, m.id, m) end
     end
 end
 
 -- resolve due missions; free settlers whose mission record is gone (an old save, a cancelled mission)
 function sb.raiders_process()
     local now_sec = game_now()
+    local real_assault_on = cfgv("raiders_real_assault") == true
     for hub_id, camp in pairs(sb.active_camps or {}) do
         -- an attack on the camp with the option on: every band still away comes home to defend
         -- (recalling is idempotent: a recalled mission is no longer "away")
@@ -1039,11 +1358,17 @@ function sb.raiders_process()
         end
         for id, m in pairs(camp.raider_missions or {}) do
             if sb.raiders_recall_due(m, now_sec) then
-                if not pcall(finish_recall, camp, id, m) then camp.raider_missions[id] = nil end
+                if not pcall(finish_recall, camp, id, m) then drop_mission(camp, id, m) end
+            elseif m.state == "assault" then
+                if not pcall(assault_tick, hub_id, camp, id, m, now_sec) then drop_mission(camp, id, m) end
             elseif sb.raiders_mission_due(m, now_sec) then
-                if not pcall(resolve_mission, hub_id, camp, id, m) then camp.raider_missions[id] = nil end
+                if not pcall(resolve_mission, hub_id, camp, id, m) then drop_mission(camp, id, m) end
+            elseif real_assault_on and sb.raiders_assault_start_due(m, now_sec) then
+                local rc = sb.rival_camps and sb.rival_camps[m.target_key]
+                if rc then pcall(start_assault, camp, m, rc, now_sec) end
             end
         end
+        process_cleanup(camp, now_sec)
         if not camp.active_raid then stand_down(camp) end
         for npc_id, s in pairs(camp.survivors or {}) do
             if s.on_mission and not (camp.raider_missions and camp.raider_missions[s.on_mission]) then
@@ -1061,6 +1386,12 @@ local function on_update()
     pcall(sb.raiders_process)
 end
 
+-- every load and level change: a fight still on record belongs to the session before
+local function on_first_update()
+    sb.raiders_epoch = math.random(1, 1073741823)
+end
+
 function on_game_start()
     RegisterScriptCallback("actor_on_update", on_update)
+    RegisterScriptCallback("actor_on_first_update", on_first_update)
 end

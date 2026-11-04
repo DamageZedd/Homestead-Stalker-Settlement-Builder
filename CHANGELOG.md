@@ -1,5 +1,10 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## Unreleased
+
+### Raiders: Visible Raid Fights
+- **Visible raid fights** (MCM: Visible Raid Fights, Raids and events, default off): when your raiders reach an outpost while you are nearby, a squad of fighters appears on your side of it and attacks the garrison where you can see it. Clearing the garrison wins the raid; losing the whole squad is a disaster. The result goes through the same loot, bounty, goodwill and wounded rules as a timed raid, paid once. If you leave, change level or load a save, or the fight stalls, the raid is settled by the usual odds (scaled by who is left). The Outposts card says when the band is fighting. Recalling or changing the job of raiders in the field stops the fight.
+
 ## v1.4.0 — Raiders, Living Needs, PDA Overhaul & Kit Texture Fix (2026-11-04)
 
 ### ⚔️ Raiders: Raid Rival Outposts
