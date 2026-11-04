@@ -355,3 +355,9 @@ Labels: verified (read in code), inferred (follows from code), unknown (needs th
 1. **Do not call `mark_rival_garrison_eliminated`.** Clear a camp by releasing its garrison squads and letting the rival tick eliminate it (section 5.2, step 5 and section 13 updated by this finding). This is simpler and keeps one code path.
 2. **Abstract loot is synthetic by default** (no offline chest reads exist in the code). The "take 60% of the chest" rule applies only when the chest is online.
 3. **Goodwill clamping stays unknown**; the plan keeps the daily cap in the pure code so it is bounded either way.
+
+## 19. Implementation status (phases 0-1 done, not wired, not play-tested)
+
+- Phase 0: audit in section 18. Biggest change: clear a camp by releasing its garrison squads, not by calling the local `mark_rival_garrison_eliminated`.
+- Phase 1: pure rules in `00_Core/gamedata/scripts/stalker_camp_builder_raiders.script` (`raiders_can_send`, `raid_odds`, `raid_outcome`, `raid_casualties`, `raiders_loot_split`, `raiders_goodwill_plan`, mission-record helpers), tests in `tools/tests/test_raiders.lua` (run with Lua 5.1 from the repo root). No MCM, PDA, XML or callback wiring; `raiders_enabled` defaults to off and `raiders_can_send` refuses while it is off. The rank gate reads `survivor.tier` (the prosper tier).
+- Not decided in code yet: how `has_weapon`/`has_ammo`/guard counts are gathered from a live camp (phase 2).
