@@ -17,8 +17,8 @@ local mfloor = math.floor
 local DEFAULTS = {
     raiders_min_guards = 1,
     raiders_idle_guard_weight = 50,        -- percent of a guard
-    raiders_wounded_hours = 12,
-    raiders_rest_hours = 6,
+    raiders_wounded_minutes = 40,          -- real minutes, whatever the time factor or Real Time Zones do
+    raiders_rest_minutes = 20,
     raiders_disaster_death_chance = 50,    -- percent per raider
     raiders_loot_fraction = 60,            -- percent of the chest by count
     raiders_cut_percent = 15,
@@ -247,12 +247,33 @@ function sb.raid_casualties(result, count, rolls, cfg)
     return out
 end
 
-function sb.raiders_wounded_until(now_sec, cfg)
-    return num(now_sec, 0) + num(cfgv("raiders_wounded_hours", cfg), 12) * 3600
+-- Wounded and rest times are REAL minutes: the mission clock runs tf mission seconds per real second (tf = the
+-- settlement's nominal factor, default 10), so the wait and the countdown the PDA shows are the same real time
+-- whatever the time factor or Real Time Zones do.
+local function real_min_sec(minutes, tf)
+    tf = num(tf, 10)
+    if tf <= 0 then tf = 10 end
+    return mmax(0, num(minutes, 0)) * 60 * tf
 end
 
-function sb.raiders_rest_until(now_sec, cfg)
-    return num(now_sec, 0) + num(cfgv("raiders_rest_hours", cfg), 6) * 3600
+function sb.raiders_wounded_until(now_sec, cfg, tf)
+    return num(now_sec, 0) + real_min_sec(cfgv("raiders_wounded_minutes", cfg), tf)
+end
+
+function sb.raiders_rest_until(now_sec, cfg, tf)
+    return num(now_sec, 0) + real_min_sec(cfgv("raiders_rest_minutes", cfg), tf)
+end
+
+-- Old records (and a shortened MCM setting) may hold longer waits than the current ones: nobody waits longer than
+-- the setting says. Returns true when something was clamped.
+function sb.raiders_clamp_timers(r, now_sec, cfg, tf)
+    if type(r) ~= "table" then return false end
+    local now, changed = num(now_sec, 0), false
+    local wmax = now + real_min_sec(cfgv("raiders_wounded_minutes", cfg), tf)
+    local rmax = now + real_min_sec(cfgv("raiders_rest_minutes", cfg), tf)
+    if num(r.wounded_until, 0) > wmax then r.wounded_until = wmax; changed = true end
+    if num(r.rest_until, 0) > rmax then r.rest_until = rmax; changed = true end
+    return changed
 end
 
 -- game seconds for a mission: travel plus the assault window, capped
@@ -1115,8 +1136,8 @@ local function return_band(hub_id, camp, m, cas, now_sec)
                 bring_home(npc_id, s)
                 s.raider = type(s.raider) == "table" and s.raider or {}
                 s.raider.missions_done = (s.raider.missions_done or 0) + 1
-                s.raider.rest_until = sb.raiders_rest_until(now_sec)
-                if wounded[i] then s.raider.wounded_until = sb.raiders_wounded_until(now_sec) end
+                s.raider.rest_until = sb.raiders_rest_until(now_sec, nil, game_time_factor())
+                if wounded[i] then s.raider.wounded_until = sb.raiders_wounded_until(now_sec, nil, game_time_factor()) end
                 home[#home + 1] = s
             end
         end
@@ -1549,6 +1570,9 @@ function sb.raiders_process()
                     pcall(start_assault, camp, m, rc, now_sec)
                 end
             end
+        end
+        for _, s in pairs(camp.survivors or {}) do
+            if type(s) == "table" and type(s.raider) == "table" then sb.raiders_clamp_timers(s.raider, now_sec, nil, game_time_factor()) end
         end
         process_cleanup(camp, now_sec)
         if not camp.active_raid then stand_down(camp) end

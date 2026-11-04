@@ -14,6 +14,7 @@
 
 ### ⚔️ Raiders: Clearer Feedback
 - **Wounded and cooldown timers**: a wounded raider shows "Wounded, 1h 12m" and a raider resting after a raid shows "Cooldown, 36m 00s" on the Survivors roster, the dossier and the Job page, counting down live at the same real-time pace as the raid timers. Trying to send one tells you how long is left.
+- **Shorter waits, in real minutes**: raiders rest for **20 real minutes** after a mission and stay wounded for **40 real minutes** after a failed raid, whatever the time factor or Real Time Zones do (they were 6 and 12 game hours). Both are MCM tracks (Raider Cooldown, Raider Wounded Time, in real minutes); waits already running in older saves are cut down to the new times.
 - **Why you cannot raid**: when the Raid button is greyed out on the Outposts tab the panel under it now lists who is held back (wounded, cooldown, already on a mission, defending, no weapon or ammo) with their timers and when the next raider is ready, shows the outpost's own cooldown timer, the daily limit (for example 3 of 3), a missing guard, or tells you that nobody has the Raider job yet.
 
 ### ⚔️ Raiders: Visible Raid Fights

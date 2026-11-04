@@ -77,7 +77,7 @@ Guard accounting: a raider away or wounded counts as no guard in `stats.defense`
 
 Band: 1 to 4 raiders sent together (default size 3). Odds and loot scale with the band. Phase 2 may ship lone-wolf only.
 
-Wounded state: a raider back from a failed raid has `survivor.raider.wounded_until` (game seconds). While wounded they cannot be sent and count as no guard. Default 12 game hours (MCM `raiders_wounded_hours`).
+Wounded state: a raider back from a failed raid has `survivor.raider.wounded_until` (mission-clock seconds). While wounded they cannot be sent and count as no guard. Default **40 real minutes** (MCM `raiders_wounded_minutes`, owner decision 2026-11-04: hours were far too long in real time).
 
 ## 4. Target selection (player-directed only)
 
@@ -117,7 +117,7 @@ The record lives on the camp (not the NPC), so it survives NPC re-creation (`res
 1. Dispatch: raiders are teleported off like `teleport_scavenger_on_departure` (`exp` 1238) and flagged `surv.on_mission = id`.
 2. Duration: game-graph distance (as `get_self_contained_distance`, `exp` 608) plus a 30 game-minute assault window; capped like expeditions.
 3. At the end, `raid_outcome(band, target, rng)` (pure function) returns `success | repulsed | disaster` from attacker strength (rank, weapon and armor tier) against garrison size x tier factor plus the camp's defenses. Win chance is a logistic of the ratio, clamped 5%-90%, shown before sending.
-4. Casualties (Q9): on **success** none. On **repulsed**, every raider returns **wounded** and unavailable for `raiders_wounded_hours`, no loot. On **disaster**, each raider has `raiders_disaster_death_chance` (default 50%) to be lost permanently; survivors return wounded. Lost raiders leave through the same path as a killed settler (`settler_lookup`, relations, "settler killed" bookkeeping).
+4. Casualties (Q9): on **success** none. On **repulsed**, every raider returns **wounded** and unavailable for `raiders_wounded_minutes`, no loot. On **disaster**, each raider has `raiders_disaster_death_chance` (default 50%) to be lost permanently; survivors return wounded. Lost raiders leave through the same path as a killed settler (`settler_lookup`, relations, "settler killed" bookkeeping).
 5. On success: release the garrison squads (`camp.squad_id`, `camp.extra_squad_ids`) with `alife_release`; the next rival tick then runs `mark_rival_garrison_eliminated` itself (it is a local function and is not called directly, see the Phase 0 audit), so map spot, ruins decay, `cleared` and the faction retaliation timers (Q11) follow the existing code, undamped.
 
 ### 5.3 Resolver B: real assault (phase 4)
@@ -143,7 +143,7 @@ Cleared only (Q1): garrison gone, chest looted, the camp left in the existing un
 - Money: rival chests do not hold cash today, so cash is a flat bounty by tier (default 500/1500/3000 for tiers 1-3, scaled by an MCM multiplier).
 - Weight/space: if the settlement has no room (existing storage-full pause), the mission still resolves but the surplus is dropped to a "loot pile" (a stash at the camp) rather than lost; Phase 1 may simply pause dispatch when storage is nearly full.
 - **Weapon and armor toggle (Q10):** MCM `raiders_forbid_weapon_armor` (default off). When on, weapon and armor items are excluded from both the live chest pick and the synthetic haul; they stay in the rival chest for the player.
-- Cooldowns: a raider returns, rests (`raiders_rest_hours`, default 6 game hours; wounded raiders use `raiders_wounded_hours` instead) before the next mission, and a given target camp cannot be raided again for `raiders_target_cooldown_hours` (default 24; on top, rival camps already respawn/decay on their own timers).
+- Cooldowns: a raider returns, rests (`raiders_rest_minutes`, default **20 real minutes**; wounded raiders use `raiders_wounded_minutes`, default **40 real minutes**, instead) before the next mission, and a given target camp cannot be raided again for `raiders_target_cooldown_hours` (default 24; on top, rival camps already respawn/decay on their own timers).
 - Anti-exploit: loot value per mission is capped, per-day missions are capped (`raiders_max_per_day`, default 3 per camp), and a cleared camp yields nothing on a second visit.
 
 ## 7. Goodwill and the bandit option
@@ -227,7 +227,8 @@ No new top tab, no new panel, no change to list widths or the left container. Ra
 | `raiders_min_guards` | track 0-4 | 1 | Guards that must stay home. |
 | `raiders_idle_guard_weight` | track 0-100 | 50 | Percent of a guard an idle raider at home counts for. |
 | `raiders_disaster_death_chance` | track 0-100 | 50 | Per-raider permanent-death chance on a disaster (a failed raid only wounds). |
-| `raiders_wounded_hours` | track 1-72 | 12 | Game hours a wounded raider is unavailable. |
+| `raiders_wounded_minutes` | track 5-240 | 40 | Real minutes a wounded raider is unavailable. |
+| `raiders_rest_minutes` | track 0-120 | 20 | Real minutes a raider rests after any mission before they can be sent again. |
 | `raiders_forbid_weapon_armor` | check | false | Raiders never take weapons or armor from a chest. |
 | `raiders_loot_fraction` | track 10-100 | 60 | Percent of the chest taken. |
 | `raiders_cut_percent` | track 0-50 | 15 | Raiders' share into savings. |
@@ -385,3 +386,5 @@ No MCM option (owner decision 2026-11-04): visible fights are always on when the
 ## PDA feedback: why a raider cannot go, and for how long
 
 Pure rules in `stalker_camp_builder_raiders.script` (tested in `tools/tests/test_raiders.lua`): `sb.raiders_survivor_timer` (wounded wins over rest, mission seconds left), `sb.raiders_timer_text` (mission seconds to the real-time countdown, rounded up), `sb.raiders_blockers` (every raider of a camp that is not free: key plus timer, soonest first) and `sb.raiders_blocker_lines` (up to 3 lines, `+N more`, `next ready in`). Shown where: `sb.raiders_pause_reason` gives the roster/dossier/Job-page pause label "Wounded, <time>" or "Cooldown, <time>" (a live countdown on the mission clock, like the raid timers); `sb.raiders_send` appends the time left to its tip; `sb.raiders_outpost_status` returns `{ state = "blocked", reason, lines }` and the Outposts-tab info box prints the lines under the greyed button (refreshed every 2 s): who is blocked and for how long, the target's own cooldown, the daily cap as used/limit, no guard, or no raider job assigned. Times are mission-clock seconds divided by the nominal factor, so they match the raid countdowns under Real Time Zones. Strings: `st_pda_raid_blk_*`, `st_homestead_raider_wounded_left/_d2`, `_resting_left/_d2`, `_time_left` (eng ASCII, rus carries English).
+
+- **Real-minute waits (2026-11-04).** Wounded (40) and cooldown (20) are real minutes: `sb.raiders_wounded_until` / `sb.raiders_rest_until` take the nominal factor (`sb.time_factor()`) and store `minutes * 60 * tf` mission seconds, and the mission clock runs `tf` mission seconds per real second, so the wait and the PDA countdown agree whatever the time factor or Real Time Zones do. The settings are renamed (`raiders_wounded_hours` / `raiders_rest_hours` are gone; the old MCM values are simply not read). `sb.raiders_clamp_timers` runs every `raiders_process` pass: any stored `wounded_until` / `rest_until` beyond now + the setting (old saves with hours-long waits, or a shortened MCM value) is cut down, never extended.

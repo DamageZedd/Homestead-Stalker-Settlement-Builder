@@ -84,7 +84,20 @@ eq(#c.wounded, 3, "repulsed: all wounded"); eq(#c.dead, 0, "repulsed: nobody die
 c = sb.raid_casualties("disaster", 3, { 0.1, 0.9, 0.49 })
 eq(#c.dead, 2, "disaster: two die at 50%"); eq(c.wounded[1], 2, "disaster: the survivor is wounded")
 c = sb.raid_casualties("disaster", 0, nil); eq(#c.dead + #c.wounded + #c.ok, 0, "empty band")
-eq(sb.raiders_wounded_until(1000), 1000 + 12 * 3600, "wounded 12h default")
+eq(sb.raiders_wounded_until(1000), 1000 + 40 * 60 * 10, "wounded 40 real minutes at tf 10")
+eq(sb.raiders_rest_until(1000), 1000 + 20 * 60 * 10, "rest 20 real minutes at tf 10")
+eq(sb.raiders_wounded_until(1000, nil, 1), 1000 + 40 * 60, "wounded 40 real minutes at tf 1")
+eq(sb.raiders_rest_until(1000, nil, 0.1), 1000 + 20 * 60 * 0.1, "rest follows the factor given")
+eq(sb.raiders_rest_until(1000, nil, 0), 1000 + 20 * 60 * 10, "bad factor falls back to 10")
+eq(sb.raiders_rest_until(1000, { raiders_rest_minutes = 0 }), 1000, "rest 0 means no cooldown")
+do  -- old records: waits above the setting are cut down, shorter ones stay, nothing is ever extended
+    local r = { wounded_until = 1000 + 12 * 3600, rest_until = 1000 + 6 * 3600 }
+    eq(sb.raiders_clamp_timers(r, 1000, nil, 10), true, "old hours-based record clamped")
+    eq(r.wounded_until, 1000 + 40 * 600, "wounded clamped to 40 real minutes"); eq(r.rest_until, 1000 + 20 * 600, "rest clamped to 20 real minutes")
+    local short = { wounded_until = 1500, rest_until = 1200 }
+    eq(sb.raiders_clamp_timers(short, 1000, nil, 10), false, "short waits untouched")
+    eq(short.wounded_until, 1500, "short wounded stays"); eq(sb.raiders_clamp_timers(nil, 1000), false, "nil record")
+end
 eq(sb.raiders_mission_duration(0), 1800, "min duration")
 eq(sb.raiders_mission_duration(1e9), 4 * 3600, "max duration")
 
@@ -652,6 +665,8 @@ do
     eq(sb.raiders_timer_text(43200, 10), "1h 12m", "wounded 12h at tf 10")
     eq(sb.raiders_timer_text(21600, 10), "36m 00s", "rest 6h at tf 10")
     eq(sb.raiders_timer_text(43200, 1), "12h 00m", "tf 1 (real time zones nominal 1)")
+    eq(sb.raiders_timer_text(sb.raiders_wounded_until(0, nil, 10), 10), "40m 00s", "a fresh wound reads 40 real minutes")
+    eq(sb.raiders_timer_text(sb.raiders_rest_until(0, nil, 10), 10), "20m 00s", "a fresh cooldown reads 20 real minutes")
     eq(sb.raiders_timer_text(5, 10), "1s", "rounds up")
     eq(sb.raiders_timer_text(0, 10), "0s", "zero")
     eq(sb.raiders_timer_text(100, 0), "10s", "bad factor falls back to 10")

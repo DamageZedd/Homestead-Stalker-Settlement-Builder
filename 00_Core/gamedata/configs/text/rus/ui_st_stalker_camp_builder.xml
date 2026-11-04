@@ -3224,17 +3224,17 @@
     <string id="ui_mcm_stalker_camp_builder_raiders_idle_guard_weight_desc">
         <text>How much of a guard an idle raider at home counts for.</text>
     </string>
-    <string id="ui_mcm_stalker_camp_builder_raiders_wounded_hours">
-        <text>Raider Wounded Hours</text>
+    <string id="ui_mcm_stalker_camp_builder_raiders_wounded_minutes">
+        <text>Raider Wounded Time (real minutes)</text>
     </string>
-    <string id="ui_mcm_stalker_camp_builder_raiders_wounded_hours_desc">
-        <text>How long raiders are unavailable after a failed raid.</text>
+    <string id="ui_mcm_stalker_camp_builder_raiders_wounded_minutes_desc">
+        <text>Real minutes raiders are unavailable after a failed raid, whatever the time factor.</text>
     </string>
-    <string id="ui_mcm_stalker_camp_builder_raiders_rest_hours">
-        <text>Raider Rest Hours</text>
+    <string id="ui_mcm_stalker_camp_builder_raiders_rest_minutes">
+        <text>Raider Cooldown (real minutes)</text>
     </string>
-    <string id="ui_mcm_stalker_camp_builder_raiders_rest_hours_desc">
-        <text>How long raiders rest after any mission before they can be sent again.</text>
+    <string id="ui_mcm_stalker_camp_builder_raiders_rest_minutes_desc">
+        <text>Real minutes raiders rest after any mission before they can be sent again, whatever the time factor.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_disaster_death_chance">
         <text>Disaster Death Chance %</text>
