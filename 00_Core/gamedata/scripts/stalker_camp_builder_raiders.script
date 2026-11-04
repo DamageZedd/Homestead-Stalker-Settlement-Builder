@@ -421,9 +421,9 @@ end
 -- game_sec lives in the stalker_camp_builder namespace, not in _G (expeditions wrap it the same way)
 local function game_now() return num(sb.game_sec and sb.game_sec(), 0) end
 
--- game seconds per real second, as the expeditions' countdown uses it
+-- game seconds per real second: the settlement's floored factor (Real Time Zones drops the raw one to 0.1 while catching up)
 local function game_time_factor()
-    local tf = level and level.get_time_factor and level.get_time_factor() or 10
+    local tf = sb.time_factor and sb.time_factor() or 10
     return tf > 0 and tf or 10
 end
 
