@@ -124,6 +124,11 @@ function stalker_camp_builder.set_survivor_job(npc_id, job)
                 or (camp.survivors[id_str] and id_str)
             if matched_id then
                 local surv = camp.survivors[matched_id]
+                -- a raider away on a mission stays on it; any other job pulls them off it (no loot, no goodwill)
+                if surv.on_mission then
+                    if job == "raider" then return end
+                    if sb.raiders_cancel_for then sb.raiders_cancel_for(hub_id, matched_id) end
+                end
                 local was_companion = (surv.job == "companion") or surv.is_companion or (sb.is_companion and sb.is_companion(id_num or matched_id))
                 -- the current job again (its PDA button or dialog) keeps the cycle's progress;
                 -- companions and scavengers on an expedition still need the handling below
@@ -1257,6 +1262,12 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         return false, nil, nil
     end
 
+    if job == "raider" and sb.raiders_pause_reason then
+        local label, detail = sb.raiders_pause_reason(survivor)
+        if label then return true, label, detail end
+        return false, nil, nil
+    end
+
     -- living needs: a settler who went without today will not take up work (farmers, hunters, cooks and
     -- scavengers are exempt, they are the way out of a shortage)
     if sb.needs_job_refused and sb.needs_job_refused(survivor) then
@@ -1766,6 +1777,12 @@ function stalker_camp_builder.get_job_paused_status(survivor, camp, hub_id, max_
     end
 
     if job == "idle" or job == "guard" then
+        return false, nil, nil
+    end
+
+    if job == "raider" and stalker_camp_builder.raiders_pause_reason then
+        local label, detail = stalker_camp_builder.raiders_pause_reason(survivor)
+        if label then return true, label, detail end
         return false, nil, nil
     end
 

@@ -216,7 +216,7 @@ function stalker_camp_builder.get_available_scavengers()
                 local is_scav = (j:find("scav") ~= nil)
 
                 local active_exp = sb.get_scavenger_expedition_for_survivor and sb.get_scavenger_expedition_for_survivor(surv, n_id)
-                if surv.on_expedition and not active_exp then
+                if surv.on_expedition and not active_exp and not surv.on_mission then
                     surv.on_expedition = nil
                     local se_npc = alife_object(n_id)
                     local hub_obj = alife_object(hub_id)
