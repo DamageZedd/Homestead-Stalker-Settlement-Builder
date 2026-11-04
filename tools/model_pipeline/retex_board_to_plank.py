@@ -21,7 +21,7 @@ def rewrite(b, off, end, children=False):
         data = b[d:d + sz]
         if c == 2 and data.startswith(OLD):
             data = NEW + data[len(OLD):]
-        elif c == 9:
+        elif c == 9 and not children:        # OGF_CHILDREN; inside it, 9 is just the tenth sub-mesh
             data = bytes(rewrite(b, d, d + sz, True))
         elif children:                       # the numbered sub-meshes inside OGF_CHILDREN
             data = bytes(rewrite(b, d, d + sz))
