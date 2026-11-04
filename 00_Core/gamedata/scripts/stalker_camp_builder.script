@@ -555,7 +555,7 @@ function is_valid_camp_box(box_id, hub_id, camp, personal)
     if outpost_piece_ids()[box_id] then
         return false
     end
-    if not is_actual_container(box_id) then
+    if not stalker_camp_builder.is_actual_container(box_id) then
         return false
     end
 
@@ -682,7 +682,7 @@ local RIVAL_SPAWN_SCAN_INTERVAL_MS = 60000  -- 60 real seconds
 -- "work" (the default), "expedition", "combat" or "general". Verbose Notifications off
 -- holds back a routine report's toast; an alert (always) shows either way.
 function camp_send_tip(actor, text, snd_type, category, duration, hub_id, radio_category, always)
-    if always or cfg.verbose_notifications ~= false then
+    if always or stalker_camp_builder.cfg.verbose_notifications ~= false then
         pcall(news_manager.send_tip, actor, text, snd_type, category, duration)
     end
     add_camp_log_entry(text, "info")
