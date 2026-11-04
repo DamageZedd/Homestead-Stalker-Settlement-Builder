@@ -785,7 +785,7 @@ end
 
 local next_tick_tg = 0
 local function on_update()
-    if not sb.raiders_enabled() then return end
+    -- runs even while the feature is switched off, so raiders already away are still brought home
     local tg = time_global()
     if tg < next_tick_tg then return end
     next_tick_tg = tg + TICK_MS
