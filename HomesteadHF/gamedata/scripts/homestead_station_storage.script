@@ -34,7 +34,7 @@ function get_stash(station_id)
         local lvid = (obj and obj:level_vertex_id()) or (se_station and se_station.m_level_vertex_id)
         local gvid = (obj and obj:game_vertex_id()) or (se_station and se_station.m_game_vertex_id)
         if not (src_pos and lvid and gvid) then return nil end
-        local pos = vec_set(src_pos)
+        local pos = vector():set(src_pos)
         pos.y = pos.y - 50
         se_box = alife_create("station_stash", pos, lvid, gvid)
         if not se_box then return nil end
