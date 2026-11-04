@@ -145,6 +145,9 @@ function alarm_has_targets(alarm_obj, radius, rp)
     -- returns those whose bounding sphere reaches the radius, so the distance test stays
     level.iterate_nearest(pos, radius, function(o)
         local cls = o:clsid()
+        -- perf: only stalkers and mutants can be threats; placed pieces and items around the alarm
+        -- are skipped before their position (a new vector each) is read
+        if cls ~= clsid.script_stalker and not monster_classes[cls] then return end
         local opos = o:position()
 
         if opos:distance_to(pos) <= radius then
@@ -207,8 +210,6 @@ function alarm_system_pda_wrapper:update(delta)
     local data = hf_obj_manager.get_data(self.object:id()) or {}
     local is_on = data.is_on or false
 
-    local pos = self.object:position()
-
     self.scan_t = (self.scan_t or 0) - dt
     if self.scan_t <= 0 then
         self.scan_t = ALARM_SCAN_INTERVAL
@@ -227,11 +228,12 @@ function alarm_system_pda_wrapper:update(delta)
     end
 
     if self.last_state ~= is_on then
+        -- perf: the position (a new vector) is read only when a sound starts, not every frame
         self.snd_switch:play_no_feedback(
             self.object,
             sound_object.s3d,
             0,
-            pos,
+            self.object:position(),
             1,
             random_float(0.9, 1.1)
         )

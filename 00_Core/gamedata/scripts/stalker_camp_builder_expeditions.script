@@ -1517,9 +1517,21 @@ local function emit_expedition_chatter(actor, exp, progress, target_lvl_name, ca
     end
 end
 
+-- whether emit_expedition_chatter has a radio line to send (one of its three checks holds): the
+-- level and camp names are looked up only then, not on every 1-second tick (perf)
+local function expedition_chatter_due(chatter, progress)
+    return (progress >= 0.25 and not chatter[25])
+        or (progress >= 0.50 and not chatter[50])
+        or (progress >= 0.75 and not chatter[75])
+        or false
+end
+stalker_camp_builder.expedition_chatter_due = expedition_chatter_due
+
 local function loot_due_stashes(exp, stash_id, progress)
-    local stashes = exp.all_stashes or { stash_id }
-    if exp.is_sweep and #stashes > 1 then
+    -- perf: no { stash_id } list built per tick; with all_stashes unset that list had one entry,
+    -- which always took the single-stash branch below
+    local stashes = exp.all_stashes
+    if exp.is_sweep and stashes and #stashes > 1 then
         for i, s_id in ipairs_(stashes) do
             local threshold = 0.25 + (0.50 * (i / #stashes))
             if progress >= threshold and not exp.looted_stashes[s_id] then
@@ -1959,11 +1971,13 @@ function stalker_camp_builder.process_stash_expeditions()
         exp.looted_stashes = exp.looted_stashes or {}
         exp.haul           = exp.haul or {}
 
-        local target_lvl_name = game.translate_string(exp.target_level or "unknown")
-        local home_camp = sb.active_camps and sb.active_camps[exp.hub_id]
-        local camp_name = (home_camp and sb.get_camp_label(home_camp)) or game.translate_string("st_scavenger_camp_gone")
+        if expedition_chatter_due(exp.chatter, progress) then
+            local target_lvl_name = game.translate_string(exp.target_level or "unknown")
+            local home_camp = sb.active_camps and sb.active_camps[exp.hub_id]
+            local camp_name = (home_camp and sb.get_camp_label(home_camp)) or game.translate_string("st_scavenger_camp_gone")
 
-        emit_expedition_chatter(actor, exp, progress, target_lvl_name, camp_name)
+            emit_expedition_chatter(actor, exp, progress, target_lvl_name, camp_name)
+        end
         loot_due_stashes(exp, stash_id, progress)
 
         if elapsed >= dur then

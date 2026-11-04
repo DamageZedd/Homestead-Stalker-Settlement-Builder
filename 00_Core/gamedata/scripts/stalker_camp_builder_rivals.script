@@ -26,10 +26,17 @@ local msqrt = math.sqrt
 -- G.A.M.M.A.'s 450m. An object that came online goes offline only beyond
 -- switch_distance * (1 + switch_factor), so squads and events do not spawn, transform, or
 -- despawn within that radius. The engine doesn't export the factor; it is in alife.ltx.
+-- perf: alife.ltx does not change in a session, so switch_factor is read from it once (the first call
+-- with ini_sys there); the switch distance itself stays live, scripts may change it
+local switch_factor_cache = nil
 local function get_safe_switch_distance()
     local sim = alife()
     local sd = sim and sim.switch_distance and sim:switch_distance()
-    local factor = ini_sys and ini_sys.r_float_ex and ini_sys:r_float_ex("alife", "switch_factor") or 0.1
+    local factor = switch_factor_cache
+    if factor == nil then
+        factor = ini_sys and ini_sys.r_float_ex and ini_sys:r_float_ex("alife", "switch_factor") or 0.1
+        if ini_sys and ini_sys.r_float_ex then switch_factor_cache = factor end
+    end
     return mmax(150, sd or 150) * (1 + factor)
 end
 

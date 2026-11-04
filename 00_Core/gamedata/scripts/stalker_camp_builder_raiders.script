@@ -1571,8 +1571,10 @@ function sb.raiders_process()
                 end
             end
         end
+        -- perf: the factor once per camp, not per survivor (with Real Time Zones it is up to three MCM reads)
+        local tf = game_time_factor()
         for _, s in pairs(camp.survivors or {}) do
-            if type(s) == "table" and type(s.raider) == "table" then sb.raiders_clamp_timers(s.raider, now_sec, nil, game_time_factor()) end
+            if type(s) == "table" and type(s.raider) == "table" then sb.raiders_clamp_timers(s.raider, now_sec, nil, tf) end
         end
         process_cleanup(camp, now_sec)
         if not camp.active_raid then stand_down(camp) end

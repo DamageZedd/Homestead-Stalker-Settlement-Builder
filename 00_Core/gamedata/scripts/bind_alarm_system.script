@@ -131,13 +131,15 @@ local function is_enemy_stalker_to_actor(o)
         return false
     end
 
-    local ok_oid, oid = pcall(function() return o:id() end)
-    local ok_aid, aid = pcall(function() return db.actor:id() end)
+    -- perf: pcall the methods directly (same protection, no closure built per object per scan)
+    local actor = db.actor
+    local ok_oid, oid = pcall(o.id, o)
+    local ok_aid, aid = pcall(actor.id, actor)
     if ok_oid and ok_aid and oid == aid then
         return false
     end
 
-    local ok, rel = pcall(function() return o:relation(db.actor) end)
+    local ok, rel = pcall(o.relation, o, actor)
     return ok and rel == game_object.enemy
 end
 
@@ -158,6 +160,9 @@ function alarm_has_targets(alarm_obj, radius, rp)
     -- returns those whose bounding sphere reaches the radius, so the distance test stays
     level.iterate_nearest(pos, radius, function(o)
         local cls = o:clsid()
+        -- perf: only stalkers and mutants can be targets; placed pieces and items around the alarm
+        -- are skipped before their position (a new vector each) is read
+        if cls ~= clsid.script_stalker and not monster_classes[cls] then return end
         local opos = o:position()
 
         if opos:distance_to(pos) <= radius then
@@ -219,8 +224,6 @@ function alarm_system_wrapper:update(delta)
     local data = hf_obj_manager.get_data(self.object:id()) or {}
     local is_on = data.is_on or false
 
-    local pos = self.object:position()
-
     self.scan_t = (self.scan_t or 0) - dt
     if self.scan_t <= 0 then
         self.scan_t = ALARM_SCAN_INTERVAL
@@ -237,11 +240,12 @@ function alarm_system_wrapper:update(delta)
     end
 
     if self.last_state ~= is_on then
+        -- perf: the position (a new vector) is read only when a sound starts, not every frame
         self.snd_switch:play_no_feedback(
             self.object,
             sound_object.s3d,
             0,
-            pos,
+            self.object:position(),
             1,
             random_float(0.9, 1.1)
         )
@@ -251,7 +255,7 @@ function alarm_system_wrapper:update(delta)
         if not self.snd_idle:playing() then
             self.snd_idle:play_at_pos(
                 self.object,
-                pos,
+                self.object:position(),
                 0,
                 sound_object.s3d + sound_object.looped
             )

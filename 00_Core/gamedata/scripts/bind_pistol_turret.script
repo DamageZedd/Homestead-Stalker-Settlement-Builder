@@ -129,19 +129,17 @@ end
 -- SAFE object helpers
 --------------------------------------------------------------------------------
 
+-- perf: the pcalls below call the function directly (same protection, no closure built per call;
+-- these run every frame while a turret tracks, and per nearby object on each cache rebuild)
 local function get_obj_by_id_safe(id)
     if not id then return nil end
-    local ok, obj = pcall(function() return level.object_by_id(id) end)
+    local ok, obj = pcall(level.object_by_id, id)
     if ok then return obj end
     return nil
 end
 
-local function can_check_relation(o)
-    if not o then return false end
-    local ok_cls, cls = pcall(function() return o:clsid() end)
-    if not ok_cls or not cls then
-        return false
-    end
+-- whether an object of class cls has a relation to check (the actor, stalkers, mutants)
+local function relation_class(cls)
     if cls == clsid.actor or cls == clsid.script_stalker then
         return true
     end
@@ -149,6 +147,15 @@ local function can_check_relation(o)
         return true
     end
     return false
+end
+
+local function can_check_relation(o)
+    if not o then return false end
+    local ok_cls, cls = pcall(o.clsid, o)
+    if not ok_cls or not cls then
+        return false
+    end
+    return relation_class(cls)
 end
 
 -- Helper: ray / animation helpers
@@ -313,13 +320,19 @@ local function apply_pitch_step_budget(self, dt, target_step, steps_per_sec)
     return clamp(self.cur_pitch_step or 0, PITCH_MIN_DEG, PITCH_MAX_DEG)
 end
 
+-- perf: the name is asked for every frame; whole degrees in [-180, 180] are remembered (at most 361)
+local yaw_anim_names = {}
 local function yaw_idle_anim_name(yaw_deg)
     yaw_deg = clamp(yaw_deg, YAW_MIN_DEG, YAW_MAX_DEG)
+    local name = yaw_anim_names[yaw_deg]
+    if name then return name end
     if yaw_deg < 0 then
-        return string.format("yaw_idle_m%03d", math.abs(yaw_deg))
+        name = string.format("yaw_idle_m%03d", math.abs(yaw_deg))
     else
-        return string.format("yaw_idle_p%03d", yaw_deg)
+        name = string.format("yaw_idle_p%03d", yaw_deg)
     end
+    if yaw_deg == math.floor(yaw_deg) then yaw_anim_names[yaw_deg] = name end
+    return name
 end
 
 local function pitch_deg_to_index(pitch_deg)
@@ -678,12 +691,13 @@ end
 local function is_enemy_to_actor(o)
     if not o or not db.actor then return false end
     if not can_check_relation(o) then return false end
-    local ok_oid, oid = pcall(function() return o:id() end)
-    local ok_aid, aid = pcall(function() return db.actor:id() end)
+    local actor = db.actor
+    local ok_oid, oid = pcall(o.id, o)
+    local ok_aid, aid = pcall(actor.id, actor)
     if ok_oid and ok_aid and oid == aid then
         return false
     end
-    local ok, rel = pcall(function() return o:relation(db.actor) end)
+    local ok, rel = pcall(o.relation, o, actor)
     return ok and rel == game_object.enemy
 end
 
@@ -727,7 +741,9 @@ local function rebuild_hostile_cache(self)
     local t = {}
     -- only the objects around the turret, not every online object in db.storage
     level.iterate_nearest(self.object:position(), HOSTILE_CACHE_RADIUS, function(o)
-        if is_valid_target(o) then
+        -- perf: placed pieces and items (most of what stands near a turret in a settlement) can
+        -- never be targets; skip them on the class id before the full check
+        if relation_class(o:clsid()) and is_valid_target(o) then
             t[#t + 1] = o:id()
         end
     end)

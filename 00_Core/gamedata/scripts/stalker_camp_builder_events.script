@@ -412,18 +412,14 @@ function process_camp_raids()
     end
 
     local player_pos = db.actor:position()
+    local cur_lvl = level.name()
     for hub_id, camp in pairs(stalker_camp_builder.active_camps) do
-        local survivor_count = 0
-        if camp.survivors then
-            for _ in pairs(camp.survivors) do
-                survivor_count = survivor_count + 1
-            end
-        end
-        local cur_lvl = level.name()
+        -- perf: only whether the camp has a survivor matters, not how many (no full count per camp)
+        local has_survivor = camp.survivors and next(camp.survivors) ~= nil
         -- a camp gets one raid cooldown of peace after it is founded
         local is_new = camp.created_time and (current_sec - camp.created_time) < cfg.raid_cooldown
         -- one raid at a time: a second would leave the first squad its "actor" target
-        if survivor_count > 0 and not is_new and not camp.active_raid and (not camp.level or camp.level == cur_lvl) then
+        if has_survivor and not is_new and not camp.active_raid and (not camp.level or camp.level == cur_lvl) then
             local check_interval = cfg.raid_check_interval or defaults.raid_check_interval or 3600
             if not camp.last_raid_check_time or (current_sec - camp.last_raid_check_time) >= check_interval then
                 camp.last_raid_check_time = current_sec
