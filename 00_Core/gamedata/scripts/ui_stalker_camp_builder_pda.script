@@ -2570,7 +2570,10 @@ function SettlementManagerPDA:RefreshRecallButton(survivor_id)
     local label = "st_pda_btn_position_recall"
     if rf then label = rf.ok and "st_pda_raid_btn_recall" or ("st_pda_raid_recall_why_" .. tostring(rf.reason)) end
     btn:Enable(not rf or rf.ok)
-    btn:TextControl():SetText(game.translate_string(label))
+    if self.recall_btn_label ~= label then
+        self.recall_btn_label = label
+        btn:TextControl():SetText(game.translate_string(label))
+    end
 end
 
 function SettlementManagerPDA:OnPositionRecallClicked()
@@ -2790,10 +2793,20 @@ function SettlementManagerPDA:OnRecallSettlersClicked()
     local s_item = self.settlement_list:GetSelectedItem()
     local hub_id = s_item and s_item.hub_id
     local count = stalker_camp_builder.recall_all_settlers(hub_id)
+    -- raiders away on a raid are not teleported like the rest: their mission ends and they come home
+    -- (the recall tells the player itself); a recall already under way is said so
+    local raiders, returning = 0, false
+    local sb = stalker_camp_builder
+    for hid, camp in pairs(sb.active_camps or {}) do
+        if (hub_id == nil or hid == hub_id) and sb.raiders_recall then
+            raiders = raiders + sb.raiders_recall(hid, camp)
+            returning = returning or sb.raiders_recall_status(camp).reason == "returning"
+        end
+    end
     if count > 0 then
         actor_menu.set_msg(1, string.format(game.translate_string("st_pda_recalled_count"), count), 4)
-    else
-        actor_menu.set_msg(1, game.translate_string("st_pda_all_stationed"), 4)
+    elseif raiders == 0 then
+        actor_menu.set_msg(1, game.translate_string(returning and "st_pda_raid_recall_why_returning" or "st_pda_all_stationed"), 4)
     end
     self:OnSettlementSelected()
 end
