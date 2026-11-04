@@ -31,18 +31,44 @@ local GIMBAL = math.pi / 2 - 0.001  -- beyond this pitch obj:angle() is too coar
 
 local SWEEP_MS = 2000          -- how often pieces that HF's freeze hook missed are looked for
 local SWEEP_RADIUS = 80        -- metres around the player
-local HEAL_BUDGET = 40         -- frozen pieces checked against their spot per sweep
+local HEAL_MS = 500            -- how often a slice of frozen pieces is checked against their spot
+local HEAL_BUDGET = 10         -- pieces per slice: 20 a second, the rate of the old 40 per 2 s sweep
 
 local next_sweep = 0
+local next_heal = 0
 local online = {}              -- id of an online frozen piece -> true
 local put_back_count = 0
+
+-- Per-section answers read from the configs once (they can't change while the game runs); one
+-- entry per section seen, so they stay small.
+local solid_sec = {}           -- section -> stays solid (homestead_snap foundation / floor)
+local hf_sec = {}              -- section -> bound by a Hideout Furniture binder
 
 local function report(err)
     printf("homestead_lock: %s", tostring(err))
 end
 
+local function is_solid(sec)
+    local v = solid_sec[sec]
+    if v == nil then
+        v = SOLID[ini_sys:r_string_ex(sec, "homestead_snap") or ""] or false
+        solid_sec[sec] = v
+    end
+    return v
+end
+
+local function is_hf_bound(sec)
+    local v = hf_sec[sec]
+    if v == nil then
+        local bind = ini_sys:r_string_ex(sec, "script_binding") or ""
+        v = string.find(bind, "bind_hf", 1, true) ~= nil
+        hf_sec[sec] = v
+    end
+    return v
+end
+
 local function set_static(obj, static)
-    if SOLID[ini_sys:r_string_ex(obj:section(), "homestead_snap") or ""] then return end
+    if is_solid(obj:section()) then return end
     local po = obj:get_physics_object()
     if not (po and obj:get_physics_shell()) then return end
     if static then
@@ -96,6 +122,23 @@ local function keeps_rotation(spot)
     return math.abs(spot[5]) < GIMBAL
 end
 
+-- Whether a piece at heading/pitch/bank h, p, b is turned more than TURN_TOL off its spot. The turn
+-- between two heading/pitch/bank triples is at most |dh| + |dp| + |db| (each is a turn about one
+-- axis), so a piece whose angles are all within half the tolerance can't be turned past it and the
+-- trigonometry is skipped; every other piece gets the exact check. Same answer, cheaper for the
+-- pieces that sit still (nearly all of them).
+local NEAR_TURN = TURN_TOL * 0.5
+local function turned_off(h, p, b, spot)
+    local sh, sp, sb = spot[4], spot[5], spot[6]
+    local dh, dp, db = h - sh, p - sp, b - sb
+    if dh < 0 then dh = -dh end
+    if dp < 0 then dp = -dp end
+    if db < 0 then db = -db end
+    if dh + dp + db <= NEAR_TURN then return false end
+    return turn_between(h, p, b, sh, sp, sb) > TURN_TOL
+end
+spot_turned = turned_off       -- for tools/tests/test_furniture_perf.lua
+
 local function report_put_back()
     printf("homestead_lock: put %s piece(s) back on their spots", put_back_count)
     put_back_count = 0
@@ -110,7 +153,7 @@ local function put_back(obj, spot)
     local turned = false
     if keeps_rotation(spot) then
         local a = obj:angle()
-        turned = turn_between(a.x, a.y, a.z, spot[4], spot[5], spot[6]) > TURN_TOL
+        turned = turned_off(a.x, a.y, a.z, spot)
     end
     if not (moved or turned) then return end
     if turned then
@@ -169,9 +212,7 @@ end
 local function sweep_piece(o)
     local id = o:id()
     if online[id] then return end
-    local sec = o:section()
-    local bind = ini_sys:r_string_ex(sec, "script_binding") or ""
-    if not string.find(bind, "bind_hf", 1, true) then return end
+    if not is_hf_bound(o:section()) then return end
     local wrapper = bind_hf_base.get_wrapper(id)
     if not wrapper or wrapper.is_frozen == false then return end
     local ps = o:get_physics_shell()
@@ -185,7 +226,8 @@ end
 -- door mode is not set, a slab it overlaps after the save's rotation rounding) can shove a piece that was
 -- already frozen and put back. Fixed bodies hang on a soft joint, so the shove stays: a foundation or
 -- floor slab ends up floating above its spot. Every frozen piece is therefore checked against its spot
--- again, a few per sweep, and put back if it has drifted. A piece the player unfroze is left alone.
+-- again, a few at a time (HEAL_BUDGET every HEAL_MS), and put back if it has drifted. A piece the
+-- player unfroze is left alone.
 local heal_queue = {}
 
 local function heal_pieces()
@@ -208,16 +250,27 @@ local function heal_pieces()
     end
 end
 
+-- one object of the sweep (one function for every sweep, no closure each time)
+local function sweep_visit(o)
+    local ok, err = pcall(sweep_piece, o)
+    if not ok then report(err) end
+end
+
+-- Runs every frame, so it only compares times until a sweep or a heal slice is due. A frame never
+-- does both: a heal slice due on a sweep frame waits for the next frame.
 local function sweep_update()
     local now = time_global()
-    if now < next_sweep or not db.actor then return end
-    next_sweep = now + SWEEP_MS
-    level.iterate_nearest(db.actor:position(), SWEEP_RADIUS, function(o)
-        local ok, err = pcall(sweep_piece, o)
+    if not db.actor then return end
+    if now >= next_sweep then
+        next_sweep = now + SWEEP_MS
+        level.iterate_nearest(db.actor:position(), SWEEP_RADIUS, sweep_visit)
+        return
+    end
+    if now >= next_heal then
+        next_heal = now + HEAL_MS
+        local ok, err = pcall(heal_pieces)
         if not ok then report(err) end
-    end)
-    local ok, err = pcall(heal_pieces)
-    if not ok then report(err) end
+    end
 end
 
 -- HF's net_spawn looks freeze_obj up when it runs, so replacing it here covers every piece.
