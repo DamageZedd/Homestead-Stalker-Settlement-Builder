@@ -216,7 +216,7 @@ Off by default (MCM, Needs group); with it off, Homestead behaves exactly as bef
 - A raid in progress can be recalled early (no loot, no goodwill change) from the Outposts card, the Survivors Orders page or the Overview's Recall Settlers button; the band reaches camp about 20 seconds later
 - Raiders recalled while the settlement is under attack arrive as defenders and count as full guards until it is over; no raid can be sent during an attack
 - MCM **Auto-Recall Raiders** (off by default) brings bands home to defend automatically when a raid hits the settlement
-- Optional **Visible Raid Fights** (MCM, off by default): when your raiders reach an outpost while you are nearby, a squad appears on your side of it and attacks the garrison where you can see it; clearing the garrison wins, losing the whole squad is a disaster. If you leave, change level, load a save or the fight stalls, the raid is settled by the usual odds. Recalling or changing the job of raiders stops the fight
+- **Visible raid fights** (always on): when your raiders reach an outpost while you are nearby, a squad appears on your side of it and attacks the garrison where you can see it; clearing the garrison wins, losing the whole squad is a disaster. If you leave, change level, load a save or the fight stalls, the raid is settled by the usual odds. Recalling or changing the job of raiders stops the fight
 - The loot is a generated haul for now, not the outpost's real chest
 
 ## 🔧 Camp Technician & WPO
