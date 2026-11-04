@@ -7,7 +7,7 @@
 
 *Build camps. Recruit survivors. Automate production. Hold the line.*
 
-![Version](https://img.shields.io/badge/version-v1.3.5-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-v1.3.6-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
 
 **[GAMMA Discord Thread](https://discord.com/channels/912320241713958912/1515669053606334504/1542893750408315030)** · **[Full Changelog](CHANGELOG.md)** · **[ModDB](https://www.moddb.com/mods/stalker-anomaly/addons/homestead-stalker-settlement-builder)** · **[Latest Release](https://github.com/DamageZedd/Homestead-Stalker-Settlement-Builder/releases/latest)**
 
@@ -22,22 +22,16 @@ Plant a Settlement Flag to establish a 50-meter settlement boundary. Construct b
 
 ---
 
-## 🆕 New in v1.3.5
+## 🆕 New in v1.3.6
 
-### 🧱 14 New Building Pieces
-SCUM-style modular pieces: low and loophole walls, wide doorway, support post, triangular floor, foundation and tin roof, entry steps, ramp, L-, U- and spiral stairs, and a plank floor with a spiral opening. They snap like the existing kit and have real wood or scrap recipes. The triangle foundation was rebuilt and the foundation concrete is lighter.
+### ⚔️ Raiders
+A new Raider job. Send raiders against the nearest rival outpost from the Job page, or pick a target and press **Send raiders** on the PDA Outposts tab (a preview shows the band, the odds and the goodwill cost first). A win clears the outpost and brings loot, a cash bounty and a savings cut; it costs goodwill with the robbed faction and its allies. A failed raid leaves the raiders wounded. Tuning is in MCM (Raids and events).
 
-### 🏴 One Flag, Auto-Switching Banner
-The Settlement Flag is a single model whose banner follows your faction, including Factions of the Zone patches.
+### 🕒 Real Time Zones
+Jobs, expeditions and raids no longer run ten times too fast or too short while Real Time Zones catches up its clock.
 
-### 🎨 All Models on Vanilla Textures
-The custom atlas textures are gone from every furniture model, so the download is smaller and textures no longer go missing.
-
-### ⚔️ Raid Reputation
-Settlers killed by raiders cost goodwill with the raiders' enemies (MCM options in Raids & Events).
-
-### 🛠️ Fixes
-The PDA no longer shows a duplicate Settlements tab with Mod App Creator, the Water Purifier can be picked up again (now 2x size, no storage), and missing Russian strings were added. See the changelog.
+### 🪵 Building Kit Textures
+The kit's floors, stairs, ramp, posts and the Hunter's Station use the same plank texture as the Hideout Furniture walls, and the pieces added in v1.3.5 are rebuilt with all faces outward, so no more blotchy wood or see-through faces.
 
 
 ---
@@ -96,7 +90,7 @@ Full 5-tab tactical interface accessible from anywhere in the Zone. The top stat
 
 <p align="center"><img src="docs/images/pda_survivors.jpg?v=1" alt="PDA Survivors" width="100%"></p>
 
-**Tab 3 - Outposts.** Rival camps with real landscape photos and HOSTILE / ALLY tags. A hero header and stat tiles show faction, garrison and distance, plus tactical intel and Show on Map.
+**Tab 3 - Outposts.** Rival camps with real landscape photos and HOSTILE / ALLY tags. A hero header and stat tiles show faction, garrison and distance, plus tactical intel and Show on Map. **Send raiders** previews the band, the odds and the goodwill cost, then sends your Raiders against the outpost, with a countdown on the card and a RAID pill in the list.
 
 <p align="center"><img src="docs/images/pda_outposts.jpg?v=1" alt="PDA Outposts" width="100%"></p>
 
@@ -113,7 +107,7 @@ Full 5-tab tactical interface accessible from anywhere in the Zone. The top stat
 
 ## 👷 Settlement Jobs
 
-14 jobs, all intervals configurable in MCM. Job progress persists across levels, fast travel, and sleep. Settlers keep working while you're away.
+15 jobs, all intervals configurable in MCM. Job progress persists across levels, fast travel, and sleep. Settlers keep working while you're away.
 
 | Job | What it does | Workstation |
 |---|---|---|
@@ -130,6 +124,7 @@ Full 5-tab tactical interface accessible from anywhere in the Zone. The top stat
 | **Hunter** | Butchers and tans mutant carcasses | Hunter Butchering Station |
 | **Farmer** 🆕 | Potatoes, grain and bread | Farmer Station |
 | **Trader** 🆕 | Sells your goods for RU | Market Stall |
+| **Raider** 🆕 | Raids rival outposts for loot, a cash bounty and a savings cut | — |
 | **Idle** | Available for reassignment or dispatch | — |
 
 ---
@@ -193,6 +188,16 @@ Build real houses, Fallout 4 style. The new HomesteadHF building pieces and the 
 - Mid-mission radio chatter at 25% / 50% / 75%
 - Detailed loot receipts with White vs Yellow stash breakdown (full GAMMA compatibility)
 - Emergency radio recall
+
+## ⚔️ Raiders
+
+- Any settler can take the Raider job; higher ranks raise the odds of success, so low ranks are a risk, never a block
+- Send raiders (plus up to two more free raiders) from the Job page against the nearest rival outpost, or from the PDA Outposts tab against a chosen one
+- A mission runs for up to 24 real minutes; needs one guard at home; at most 3 raids a day
+- A win clears the outpost, brings loot to your storage, pays a cash bounty and a savings cut to the raiders, and costs goodwill with the robbed faction and its allies; friendly factions can be raided too, with a red warning in the preview
+- A failed raid leaves the raiders wounded; only a disaster kills
+- Raiders on a raid show their time left live in the roster, dossier and Job page
+- The loot is a generated haul for now, not the outpost's real chest
 
 ## 🔧 Camp Technician & WPO
 
