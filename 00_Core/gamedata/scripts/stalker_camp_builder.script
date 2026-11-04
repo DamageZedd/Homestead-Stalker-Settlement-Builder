@@ -2315,7 +2315,8 @@ local function run_periodic_actor_tasks(in_teardown_grace, first, last)
     for i = first or 1, last or #PERIODIC_ACTOR_TASKS do
         local task = PERIODIC_ACTOR_TASKS[i]
         if not (task.skip_during_grace and in_teardown_grace) then
-            local fn = stalker_camp_builder[task.name]
+            -- four of these are plain globals (task.global), not module members: fall back to _G
+            local fn = stalker_camp_builder[task.name] or _G[task.name]
             if fn then guarded_call(task.name, fn) end
         end
     end
