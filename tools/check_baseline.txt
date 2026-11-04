@@ -21,8 +21,6 @@ LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder_recruit.script|W113 acces
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder_recruit.script|W113 accessing undefined variable 'save_var'
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder_recruit.script|W113 accessing undefined variable 'stalker_generic'
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder_recruit.script|W113 accessing undefined variable 'upgrade_rank_pricing'
-LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder_rivals.script|W112 mutating non-standard global variable 'm_data'
-LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder_rivals.script|W113 accessing undefined variable 'm_data'
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder_rivals.script|W113 accessing undefined variable 'stalker_camp_builder_gamma_flag'
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder_rivals.script|W113 accessing undefined variable 'warfare'
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder_rivals.script|W512 loop is executed at most once

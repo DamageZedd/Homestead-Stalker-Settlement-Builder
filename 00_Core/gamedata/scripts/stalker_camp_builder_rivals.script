@@ -8,6 +8,15 @@ local function rival_decor_enabled()
     return true
 end
 
+-- m_data is a local of alife_storage_manager (and of this file's callers), not a global here: read the
+-- state through its module so a released rival chest actually leaves player_created_stashes
+local function forget_player_stash(chest_id)
+    local m_data = alife_storage_manager and alife_storage_manager.get_state and alife_storage_manager.get_state()
+    if m_data and m_data.player_created_stashes then
+        m_data.player_created_stashes[chest_id] = nil
+    end
+end
+
 local sformat = string.format
 local pairs_ = pairs
 local ipairs_ = ipairs
@@ -1272,9 +1281,7 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                 end
                 camp.extra_squad_ids = nil
             end
-            if m_data and m_data.player_created_stashes then
-                m_data.player_created_stashes[camp.chest_id] = nil
-            end
+            forget_player_stash(camp.chest_id)
             alife_release(se_chest)
             sb.rival_camps[key] = nil
             return
@@ -1478,9 +1485,7 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                     for _, ex_id in ipairs_(camp.extra_squad_ids or {}) do
                         release_rival_hold(sb, alife_object(ex_id))
                     end
-                    if m_data and m_data.player_created_stashes then
-                        m_data.player_created_stashes[camp.chest_id] = nil
-                    end
+                    forget_player_stash(camp.chest_id)
                     local se_chest_to_del = alife_object(camp.chest_id)
                     if se_chest_to_del then
                         alife_release(se_chest_to_del)
@@ -1507,9 +1512,7 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
             release_rival_hold(sb, alife_object(ex_id))
         end
 
-        if m_data and m_data.player_created_stashes then
-            m_data.player_created_stashes[camp.chest_id] = nil
-        end
+        forget_player_stash(camp.chest_id)
 
         if actor then
             stalker_camp_builder.camp_send_tip(actor, sformat(game.translate_string("st_recon_camp_destroyed"), camp.name), nil, "general_stalker", 10000, nil, "general")
@@ -1819,9 +1822,7 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
                 end
                 local se_c = sim:object(camp.chest_id)
                 if se_c then alife_release(se_c) end
-                if m_data and m_data.player_created_stashes then
-                    m_data.player_created_stashes[camp.chest_id] = nil
-                end
+                forget_player_stash(camp.chest_id)
                 sb.rival_camps[key] = nil
                 purged_any = true
             else
@@ -2656,9 +2657,7 @@ function stalker_camp_builder.force_respawn_all_rival_camps()
                 alife_release(se_chest)
             end
 
-            if m_data and m_data.player_created_stashes then
-                m_data.player_created_stashes[camp.chest_id] = nil
-            end
+            forget_player_stash(camp.chest_id)
 
             sb.release_camp_decorations(camp)
             cleanup_camp_convoys(camp.chest_id)
