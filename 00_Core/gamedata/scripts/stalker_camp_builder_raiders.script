@@ -1,0 +1,378 @@
+-- stalker_camp_builder_raiders.script
+-- Raiders (docs/design/raiders.md, phase 1): the pure rules for the Raider job. Nothing here is wired
+-- into the game yet: no callback, no MCM option, no PDA widget, no state on the camp. The rules never
+-- touch the engine, so tools/tests/test_raiders.lua can run them under a plain Lua 5.1.
+-- The feature is behind raiders_enabled (default OFF); raiders_can_send refuses while it is off.
+--
+-- Owner decisions built in (docs/design/raiders.md, "Decisions"): player-directed sends only, rank 2+
+-- and one guard stays home, an idle raider at home is half a guard, a failed raid leaves the raiders
+-- wounded and only a disaster kills, 60% of the chest / 15% cut, weapon and armor loot can be forbidden,
+-- -60 goodwill per robbed camp and -100 more for a friendly faction with a daily cap of 150.
+
+local sb = stalker_camp_builder
+local mmin = math.min
+local mmax = math.max
+local mfloor = math.floor
+
+-- the defaults the MCM group will carry later; cfg values (sb.cfg) win over these once they exist
+local DEFAULTS = {
+    raiders_enabled = false,
+    raiders_min_rank = 2,
+    raiders_band_size = 3,
+    raiders_min_guards = 1,
+    raiders_idle_guard_weight = 50,        -- percent of a guard
+    raiders_wounded_hours = 12,
+    raiders_rest_hours = 6,
+    raiders_disaster_death_chance = 50,    -- percent per raider
+    raiders_loot_fraction = 60,            -- percent of the chest by count
+    raiders_cut_percent = 15,
+    raiders_forbid_weapon_armor = false,
+    raiders_goodwill_loot = 60,
+    raiders_goodwill_betrayal = 100,
+    raiders_goodwill_daily_cap = 150,
+    raiders_goodwill_enemy_bonus = 0,      -- optional, off
+    raiders_spare_friends = true,
+    raiders_bandit_mode = false,
+    raiders_bandit_penalty_mult = 50,      -- percent of the normal goodwill loss in bandit mode
+    raiders_bandit_rep = 20,
+    raiders_bandit_loot_bonus = 25,        -- percent more cash and items in bandit mode
+    raiders_max_per_day = 3,
+}
+
+-- cash bounty by camp tier, before the loot multiplier
+local TIER_BOUNTY = { 500, 1500, 3000 }
+-- garrison weight of one tier
+local TIER_FACTOR = { 1.0, 1.4, 2.0 }
+local ASSAULT_WINDOW_SEC = 1800
+local MAX_MISSION_SEC = 4 * 3600
+local WIN_MIN, WIN_MAX = 0.05, 0.90
+local FRIEND_GOODWILL = 500      -- goodwill with the player at or above this = a friendly faction
+
+local BANDIT_FACTIONS = { bandit = true, renegade = true }
+local NOT_A_FACTION = { monster = true, zombied = true, trader = true, none = true, arena_enemy = true, actor = true }
+
+local function cfgv(key, cfg)
+    if type(cfg) == "table" and cfg[key] ~= nil then return cfg[key] end
+    local c = sb and sb.cfg
+    if type(c) == "table" and c[key] ~= nil then return c[key] end
+    return DEFAULTS[key]
+end
+
+local function num(v, fallback)
+    v = tonumber(v)
+    if v == nil or v ~= v then return fallback end
+    return v
+end
+
+local function clamp(v, lo, hi) return mmin(hi, mmax(lo, v)) end
+
+function sb.raiders_enabled(cfg)
+    return cfgv("raiders_enabled", cfg) == true
+end
+
+-- ---------------------------------------------------------------- guards and eligibility
+
+-- guards a camp can count on: real guards, plus the idle raiders at home at their weight;
+-- raiders on a mission or wounded count as none
+function sb.raiders_effective_guards(guards, raiders_home_idle, cfg)
+    local w = clamp(num(cfgv("raiders_idle_guard_weight", cfg), 50), 0, 100) / 100
+    return mmax(0, num(guards, 0)) + mmax(0, num(raiders_home_idle, 0)) * w
+end
+
+function sb.raiders_is_wounded(surv, now_sec)
+    local r = type(surv) == "table" and surv.raider
+    if type(r) ~= "table" then return false end
+    return num(r.wounded_until, 0) > num(now_sec, 0)
+end
+
+-- can this survivor be put on a mission now? returns true, or false and a reason key
+function sb.raiders_survivor_ready(surv, now_sec, cfg)
+    if type(surv) ~= "table" then return false, "none" end
+    if surv.on_mission or surv.on_expedition then return false, "busy" end
+    if sb.raiders_is_wounded(surv, now_sec) then return false, "wounded" end
+    if num(surv.rank_tier, num(surv.tier, 0)) < num(cfgv("raiders_min_rank", cfg), 2) then
+        return false, "rank"
+    end
+    if surv.has_weapon == false then return false, "no_weapon" end
+    if surv.has_ammo == false then return false, "no_ammo" end
+    local r = type(surv.raider) == "table" and surv.raider
+    if r and num(r.rest_until, 0) > num(now_sec, 0) then return false, "resting" end
+    return true
+end
+
+-- Can this camp send raiders at this target? info = { guards, ready, missions_today, now }
+-- target = { occupied, faction, story, nest, own, on_cooldown, busy, friendly }
+-- returns true, or false and a reason key for the PDA
+function sb.raiders_can_send(info, target, cfg)
+    if not sb.raiders_enabled(cfg) then return false, "disabled" end
+    if type(info) ~= "table" or type(target) ~= "table" then return false, "none" end
+    if target.own then return false, "own" end
+    if target.story then return false, "story" end
+    if target.nest then return false, "nest" end
+    local f = target.faction
+    if not target.occupied or type(f) ~= "string" or NOT_A_FACTION[f] then return false, "empty" end
+    if target.busy then return false, "busy" end
+    if target.on_cooldown then return false, "cooldown" end
+    if target.friendly and cfgv("raiders_spare_friends", cfg) == true
+        and cfgv("raiders_bandit_mode", cfg) ~= true then
+        return false, "friendly"
+    end
+    if num(info.ready, 0) < 1 then return false, "no_raider" end
+    if num(info.guards, 0) < num(cfgv("raiders_min_guards", cfg), 1) then return false, "no_guard" end
+    if num(info.missions_today, 0) >= num(cfgv("raiders_max_per_day", cfg), 3) then return false, "daily" end
+    return true
+end
+
+-- ---------------------------------------------------------------- odds and outcome
+
+-- one raider's strength: rank, weapon tier and armor tier (all small integers, 0 when unknown)
+function sb.raiders_member_strength(m)
+    m = type(m) == "table" and m or {}
+    return (1 + 0.5 * mmax(0, num(m.rank, 0))) * (1 + 0.15 * mmax(0, num(m.weapon_tier, 0)))
+        * (1 + 0.1 * mmax(0, num(m.armor_tier, 0)))
+end
+
+function sb.raiders_band_strength(band)
+    local total = 0
+    for _, m in ipairs(type(band) == "table" and band or {}) do
+        total = total + sb.raiders_member_strength(m)
+    end
+    return total
+end
+
+-- the garrison: size x tier factor, plus half a point per defense piece (turrets, decor emplacements)
+function sb.raiders_defender_strength(garrison, tier, defenses)
+    local t = clamp(mfloor(num(tier, 1)), 1, 3)
+    return mmax(0, num(garrison, 0)) * TIER_FACTOR[t] + 0.5 * mmax(0, num(defenses, 0))
+end
+
+-- chance the band takes the camp: 1 / (1 + (defense / attack)^2), clamped to 5%..90%
+function sb.raid_odds(attack, defense)
+    attack, defense = num(attack, 0), num(defense, 0)
+    if attack <= 0 then return WIN_MIN end
+    if defense <= 0 then return WIN_MAX end
+    local ratio = defense / attack
+    return clamp(1 / (1 + ratio * ratio), WIN_MIN, WIN_MAX)
+end
+
+-- result from two rolls in [0,1): roll decides win or loss; on a loss roll2 decides a disaster
+-- (a clean rout) against a repulse. The worse the odds, the likelier the disaster: 15% to 60% of losses.
+function sb.raid_outcome(win_chance, roll, roll2)
+    local p = clamp(num(win_chance, WIN_MIN), 0, 1)
+    if num(roll, 1) < p then return "success" end
+    local disaster = clamp(0.15 + 0.45 * (1 - p), 0.15, 0.60)
+    if num(roll2, 1) < disaster then return "disaster" end
+    return "repulsed"
+end
+
+-- Who comes back. rolls = one number in [0,1) per raider. Returns
+-- { dead = {index...}, wounded = {index...}, ok = {index...} }.
+-- success: all fine; repulsed: all wounded, none dead; disaster: each has the death chance, the rest wounded.
+function sb.raid_casualties(result, count, rolls, cfg)
+    local out = { dead = {}, wounded = {}, ok = {} }
+    count = mmax(0, mfloor(num(count, 0)))
+    local death = clamp(num(cfgv("raiders_disaster_death_chance", cfg), 50), 0, 100) / 100
+    for i = 1, count do
+        if result == "success" then
+            out.ok[#out.ok + 1] = i
+        elseif result == "disaster" and num(type(rolls) == "table" and rolls[i], 1) < death then
+            out.dead[#out.dead + 1] = i
+        else
+            out.wounded[#out.wounded + 1] = i
+        end
+    end
+    return out
+end
+
+function sb.raiders_wounded_until(now_sec, cfg)
+    return num(now_sec, 0) + num(cfgv("raiders_wounded_hours", cfg), 12) * 3600
+end
+
+function sb.raiders_rest_until(now_sec, cfg)
+    return num(now_sec, 0) + num(cfgv("raiders_rest_hours", cfg), 6) * 3600
+end
+
+-- game seconds for a mission: travel plus the assault window, capped
+function sb.raiders_mission_duration(dist_m, speed_mps)
+    local speed = mmax(0.5, num(speed_mps, 3))
+    return clamp(mmax(0, num(dist_m, 0)) / speed + ASSAULT_WINDOW_SEC, ASSAULT_WINDOW_SEC, MAX_MISSION_SEC)
+end
+
+-- ---------------------------------------------------------------- loot
+
+-- item kinds in the order raiders prefer them
+local KIND_ORDER = { ammo = 1, med = 2, food = 3, other = 4, weapon = 5, armor = 6 }
+
+local function kind_of(item)
+    local k = type(item) == "table" and item.kind
+    return KIND_ORDER[k] and k or "other"
+end
+
+-- Split a chest's items. items = list of { sec, kind, value, count? }. Takes loot_fraction of the item
+-- count in preference order (ammo, meds, food, other, weapons, armor); weapons and armor are left out
+-- when forbidden. Returns { taken = {...}, left = {...}, taken_value }.
+function sb.raiders_loot_split(items, cfg)
+    local fraction = clamp(num(cfgv("raiders_loot_fraction", cfg), 60), 0, 100) / 100
+    if cfgv("raiders_bandit_mode", cfg) == true then
+        fraction = mmin(1, fraction * (1 + num(cfgv("raiders_bandit_loot_bonus", cfg), 25) / 100))
+    end
+    local forbid = cfgv("raiders_forbid_weapon_armor", cfg) == true
+    local pool, left = {}, {}
+    for _, it in ipairs(type(items) == "table" and items or {}) do
+        local k = kind_of(it)
+        if forbid and (k == "weapon" or k == "armor") then
+            left[#left + 1] = it
+        else
+            pool[#pool + 1] = { item = it, kind = k, order = #pool }
+        end
+    end
+    table.sort(pool, function(a, b)
+        if KIND_ORDER[a.kind] ~= KIND_ORDER[b.kind] then return KIND_ORDER[a.kind] < KIND_ORDER[b.kind] end
+        return a.order < b.order
+    end)
+    local want = mfloor(#pool * fraction + 0.5)
+    local taken, value = {}, 0
+    for i, e in ipairs(pool) do
+        if i <= want then
+            taken[#taken + 1] = e.item
+            value = value + mmax(0, num(e.item.value, 0))
+        else
+            left[#left + 1] = e.item
+        end
+    end
+    return { taken = taken, left = left, taken_value = value }
+end
+
+-- the raiders' cut of the haul value (rubles), spread by the caller; Starving camps pay none
+function sb.raiders_cut(haul_value, starving, cfg)
+    if starving then return 0 end
+    local pct = clamp(num(cfgv("raiders_cut_percent", cfg), 15), 0, 50) / 100
+    return mfloor(mmax(0, num(haul_value, 0)) * pct)
+end
+
+-- cash bounty for clearing a camp of this tier
+function sb.raiders_bounty(tier, cfg)
+    local t = clamp(mfloor(num(tier, 1)), 1, 3)
+    local v = TIER_BOUNTY[t]
+    if cfgv("raiders_bandit_mode", cfg) == true then
+        v = v * (1 + num(cfgv("raiders_bandit_loot_bonus", cfg), 25) / 100)
+    end
+    return mfloor(v)
+end
+
+-- ---------------------------------------------------------------- goodwill
+
+-- Goodwill changes for a robbed camp. a = {
+--   faction = robbed faction, own = the player's own faction, friendly = bool (friendly to the player),
+--   allies = { faction... } (friends of the robbed faction), enemies = { faction... },
+--   spent = { [faction] = goodwill lost today } }
+-- Returns a list of { faction, delta } with losses capped so that spent + loss <= the daily cap.
+-- The caller applies each delta (one helper, change_community_goodwill) and adds the loss to spent.
+function sb.raiders_goodwill_plan(a, cfg)
+    local plan = {}
+    if type(a) ~= "table" or type(a.faction) ~= "string" or NOT_A_FACTION[a.faction] then return plan end
+    local loot = mmax(0, num(cfgv("raiders_goodwill_loot", cfg), 60))
+    local betrayal = mmax(0, num(cfgv("raiders_goodwill_betrayal", cfg), 100))
+    local cap = mmax(0, num(cfgv("raiders_goodwill_daily_cap", cfg), 150))
+    local bandit = cfgv("raiders_bandit_mode", cfg) == true
+    local mult = bandit and clamp(num(cfgv("raiders_bandit_penalty_mult", cfg), 50), 0, 100) / 100 or 1
+    local spent = type(a.spent) == "table" and a.spent or {}
+    local seen = {}
+
+    local function add(f, delta)
+        if type(f) ~= "string" or NOT_A_FACTION[f] or f == a.own or delta == 0 then return end
+        if delta < 0 then
+            local room = mmax(0, cap - num(spent[f], 0))
+            delta = -mmin(-delta, room)
+            if delta == 0 then return end
+        end
+        if seen[f] then
+            plan[seen[f]].delta = plan[seen[f]].delta + delta
+        else
+            plan[#plan + 1] = { faction = f, delta = delta }
+            seen[f] = #plan
+        end
+    end
+
+    -- the robbed faction: the loss, plus the betrayal penalty when it was friendly to the player
+    local loss = loot + (a.friendly and betrayal or 0)
+    add(a.faction, -mfloor(loss * mult + 0.5))
+    -- its allies take half the base loss
+    for _, f in ipairs(type(a.allies) == "table" and a.allies or {}) do
+        if f ~= a.faction then add(f, -mfloor(loot * 0.5 * mult + 0.5)) end
+    end
+    -- its enemies may like it (optional, default 0)
+    local bonus = num(cfgv("raiders_goodwill_enemy_bonus", cfg), 0)
+    if bonus > 0 then
+        for _, f in ipairs(type(a.enemies) == "table" and a.enemies or {}) do
+            if f ~= a.faction then add(f, mfloor(bonus)) end
+        end
+    end
+    -- bandit play: standing with the bandit-aligned factions, except the one just robbed
+    if bandit then
+        local rep = num(cfgv("raiders_bandit_rep", cfg), 20)
+        for f in pairs(BANDIT_FACTIONS) do
+            if f ~= a.faction then add(f, rep) end
+        end
+    end
+    table.sort(plan, function(x, y) return x.faction < y.faction end)
+    return plan
+end
+
+function sb.raiders_is_friendly(goodwill_with_player)
+    return num(goodwill_with_player, 0) >= FRIEND_GOODWILL
+end
+
+-- ---------------------------------------------------------------- mission record
+
+-- the shared record of the design doc (5.1); plain numbers, strings and tables only
+function sb.raiders_new_mission(id, target_key, target_level, faction, raider_ids, now_sec, duration, odds)
+    local ids = {}
+    for i, v in ipairs(type(raider_ids) == "table" and raider_ids or {}) do ids[i] = v end
+    return {
+        id = id, state = "away", mode = "abstract",
+        target_key = target_key, target_level = target_level, faction = faction,
+        raider_ids = ids,
+        start_sec = num(now_sec, 0), duration = num(duration, ASSAULT_WINDOW_SEC),
+        arrive_sec = num(now_sec, 0) + num(duration, ASSAULT_WINDOW_SEC),
+        odds = num(odds, WIN_MIN),
+        result = nil, loot_rolled = false, goodwill_paid = false,
+    }
+end
+
+function sb.raiders_mission_due(m, now_sec)
+    return type(m) == "table" and m.state == "away" and num(now_sec, 0) >= num(m.arrive_sec, math.huge)
+end
+
+-- the one-shot guards of finish_mission: true the first time for a step ("loot" or "goodwill"),
+-- false after, so a mission that switched between abstract and real never pays twice
+function sb.raiders_mission_claim(m, step)
+    if type(m) ~= "table" then return false end
+    if step == "loot" then
+        if m.loot_rolled then return false end
+        m.loot_rolled = true
+        return true
+    elseif step == "goodwill" then
+        if m.goodwill_paid then return false end
+        m.goodwill_paid = true
+        return true
+    end
+    return false
+end
+
+-- abstract <-> real; real is allowed only while the mission is still away or in assault
+function sb.raiders_mission_set_mode(m, mode)
+    if type(m) ~= "table" or (mode ~= "abstract" and mode ~= "real") then return false end
+    if m.state ~= "away" and m.state ~= "assault" then return false end
+    m.mode = mode
+    m.state = (mode == "real") and "assault" or "away"
+    return true
+end
+
+function sb.raiders_mission_finish(m, result)
+    if type(m) ~= "table" or m.result ~= nil then return false end
+    if result ~= "success" and result ~= "repulsed" and result ~= "disaster" then return false end
+    m.result = result
+    m.state = "done"
+    return true
+end
