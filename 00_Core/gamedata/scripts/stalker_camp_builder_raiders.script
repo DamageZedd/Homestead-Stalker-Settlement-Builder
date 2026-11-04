@@ -589,7 +589,7 @@ local function clear_garrison(rc)
     for _, x in ipairs(rc.extra_squad_ids or {}) do ids[#ids + 1] = x end
     for _, sid in ipairs(ids) do
         local sq = alife_object(sid)
-        if sq then pcall(alife_release, sq) end
+        if sq then pcall(sb.safe_alife_release or alife_release, sq) end
     end
 end
 
@@ -638,13 +638,12 @@ local function apply_goodwill(st, faction, friendly)
     return hit
 end
 
-local function remove_dead_raider(hub_id, camp, npc_id)
+local function remove_dead_raider(camp, npc_id)
     camp.survivors[npc_id] = nil
     camp.survivors[tonumber(npc_id) or -1] = nil
     if sb.settler_lookup then sb.settler_lookup[npc_id] = nil end
-    if sb.set_camp_settler_relations then pcall(sb.set_camp_settler_relations, hub_id, npc_id, false) end
     local se = alife_object(npc_id)
-    if se then pcall(alife_release, se) end
+    if se then pcall(sb.safe_alife_release or alife_release, se) end
 end
 
 -- returns the raiders home; wounded ones get the wounded timer, dead ones leave the camp
@@ -656,7 +655,7 @@ local function return_band(hub_id, camp, m, cas, now_sec)
         local s = surv_of(camp, npc_id)
         if s then
             if dead[i] then
-                remove_dead_raider(hub_id, camp, npc_id)
+                remove_dead_raider(camp, npc_id)
             else
                 bring_home(npc_id, s)
                 s.raider = type(s.raider) == "table" and s.raider or {}
