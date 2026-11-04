@@ -1491,7 +1491,7 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         if not has_damaged then
             return true, "No Damaged Gear", "No damaged weapons or armor (<95%) to repair"
         end
-        if has_fee == false then
+        if has_fee == false and not has_repair_bench then
             return true, "Needs Vodka/Food", "Technician requires vodka or canned food provisions"
         end
         return false, nil, nil
