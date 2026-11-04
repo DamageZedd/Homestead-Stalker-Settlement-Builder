@@ -7,7 +7,7 @@
 
 *Build camps. Recruit survivors. Automate production. Hold the line.*
 
-![Version](https://img.shields.io/badge/version-v1.3.6-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-v1.4.0-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
 
 **[GAMMA Discord Thread](https://discord.com/channels/912320241713958912/1515669053606334504/1542893750408315030)** · **[Full Changelog](CHANGELOG.md)** · **[ModDB](https://www.moddb.com/mods/stalker-anomaly/addons/homestead-stalker-settlement-builder)** · **[Latest Release](https://github.com/DamageZedd/Homestead-Stalker-Settlement-Builder/releases/latest)**
 
@@ -22,10 +22,16 @@ Plant a Settlement Flag to establish a 50-meter settlement boundary. Construct b
 
 ---
 
-## 🆕 New in v1.3.6
+## 🆕 New in v1.4.0
 
 ### ⚔️ Raiders
 A new Raider job. Send raiders against the nearest rival outpost from the Job page, or pick a target and press **Send raiders** on the PDA Outposts tab (a preview shows the band, the odds and the goodwill cost first). A win clears the outpost and brings loot, a cash bounty and a savings cut; it costs goodwill with the robbed faction and its allies. A failed raid leaves the raiders wounded. Tuning is in MCM (Raids and events).
+
+### 🍞 Living Needs (off by default)
+Settlers can need food and water. Switch it on in MCM (Needs): a camp is Fed, Short or Starving; settlers who went without lose morale, refuse demanding jobs until fed, a starving camp's guards defend worse, and low morale can drive settlers away (each consequence has its own switch). Eating from several food classes gives a bonus, and a water pump supplies water.
+
+### 📟 PDA Overhaul
+Redesigned tabs: Overview with Status, Defense, Supplies and Orders mini tabs, a Survivors table with Job, Orders, Transfer and Stats tabs and a real XP bar, Outposts with a hero header, a Radio Feed with channels and type ticks, and a quick-start How to Play.
 
 ### 🕒 Real Time Zones
 Jobs, expeditions and raids no longer run ten times too fast or too short while Real Time Zones catches up its clock.
@@ -179,6 +185,16 @@ Build real houses, Fallout 4 style. The new HomesteadHF building pieces and the 
 - Skill tiers: Novice → Skilled (**1.5x**) → Expert (**2x**) → Master (**3x** production)
 - Rename settlers and settlements
 - Territory-safe assignment (blocks hostile zones and incompatible factions)
+
+## 🍞 Living Needs
+
+Off by default (MCM, Needs group); with it off, Homestead behaves exactly as before.
+
+- Settlers need food and water each food interval; food comes in staple, fresh and comfort classes and water is its own need (a camp with a water pump counts as supplied)
+- Camp tiers: Fed, Short and Starving, shown as `Needs: <tier>, Variety n/3` in the Overview's Provisions line; a grace period after enabling it or loading an older save means no penalties at first
+- Settlers who went without cost happiness (capped at -35); eating from three classes gives +5 happiness and +25% savings cut
+- Switchable consequences: hungry settlers pause demanding jobs (farmers, hunters, cooks and scavengers keep working), starving guards count 0.6x in defense, starving camps pay no savings, shortage-driven low morale can make settlers leave
+- Options: consumption multiplier, grace days, catch-up cap and the switches above
 
 ## 🔍 Scavenger Expeditions
 
