@@ -25,7 +25,7 @@ Plant a Settlement Flag to establish a 50-meter settlement boundary. Construct b
 ## 🆕 New in v1.4.0
 
 ### ⚔️ Raiders
-A new Raider job. Send raiders against the nearest rival outpost from the Job page, or pick a target and press **Send raiders** on the PDA Outposts tab (a preview shows the band, the odds and the goodwill cost first). A win clears the outpost and brings loot, a cash bounty and a savings cut; it costs goodwill with the robbed faction and its allies. A failed raid leaves the raiders wounded. Tuning is in MCM (Raids and events).
+A new Raider job. Send raiders against the nearest rival outpost from the Job page, or pick a target and press **Send raiders** on the PDA Outposts tab (a preview shows the band, the odds and the goodwill cost first). A win clears the outpost and brings loot, a cash bounty and a savings cut; it costs goodwill with the robbed faction and its allies. A failed raid leaves the raiders wounded, and a raid can be recalled early. Tuning is in MCM (Raids and events).
 
 ### 🍞 Living Needs (off by default)
 Settlers can need food and water. Switch it on in MCM (Needs): a camp is Fed, Short or Starving; settlers who went without lose morale, refuse demanding jobs until fed, a starving camp's guards defend worse, and low morale can drive settlers away (each consequence has its own switch). Eating from several food classes gives a bonus, and a water pump supplies water.
@@ -213,6 +213,9 @@ Off by default (MCM, Needs group); with it off, Homestead behaves exactly as bef
 - A win clears the outpost, brings loot to your storage, pays a cash bounty and a savings cut to the raiders, and costs goodwill with the robbed faction and its allies; friendly factions can be raided too, with a red warning in the preview
 - A failed raid leaves the raiders wounded; only a disaster kills
 - Raiders on a raid show their time left live in the roster, dossier and Job page
+- A raid in progress can be recalled early (no loot, no goodwill change) from the Outposts card, the Survivors Orders page or the Overview's Recall Settlers button; the band reaches camp about 20 seconds later
+- Raiders recalled while the settlement is under attack arrive as defenders and count as full guards until it is over; no raid can be sent during an attack
+- MCM **Auto-Recall Raiders** (off by default) brings bands home to defend automatically when a raid hits the settlement
 - The loot is a generated haul for now, not the outpost's real chest
 
 ## 🔧 Camp Technician & WPO
