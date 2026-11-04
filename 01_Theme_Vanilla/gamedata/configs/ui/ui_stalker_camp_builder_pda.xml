@@ -504,6 +504,10 @@
             <texture>ui_button_ordinary</texture>
             <text font="letterica16" align="c" vert_align="c">st_job_trader_btn</text>
         </btn_job_trader>
+        <btn_job_raider x="168" y="362" width="83" height="24" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_job_raider_btn</text>
+        </btn_job_raider>
 
         <!-- Module 4: Field Station & Orders -->
         <pos_header_bg x="0" y="385" width="350" height="1" stretch="1">

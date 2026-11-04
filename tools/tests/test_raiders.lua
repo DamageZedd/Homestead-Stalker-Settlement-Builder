@@ -142,5 +142,98 @@ eq(sb.raiders_mission_finish(m, "bogus"), false, "bad result"); eq(sb.raiders_mi
 eq(sb.raiders_mission_finish(m, "disaster"), false, "finish twice"); eq(m.result, "success", "result kept")
 eq(sb.raiders_mission_set_mode(m, "real"), false, "no mode change when done")
 
+-- runtime layer with the engine stubbed: send, save/load, resolve
+do
+    local NOW = 1000000
+    local released, goodwill, deposited, tips, moved = {}, {}, {}, {}, {}
+    game_sec = function() return NOW end
+    time_global = function() return NOW * 1000 end
+    game = { translate_string = function(id) return id end }
+    level = { name = function() return "l01_escape" end }
+    db = { actor = { id = function() return 1 end, give_money = function(_, n) moved.money = (moved.money or 0) + n end } }
+    local objs = { [10] = { alive = true }, [11] = { alive = true }, [50] = {}, [51] = {}, [900] = {} }
+    for id in pairs(objs) do objs[id].can_switch_online = function() return false end end
+    local sim = { set_switch_online = function(_, id, v) moved["on" .. id] = v end, set_switch_offline = function() end }
+    alife = function() return sim end
+    alife_object = function(id) return objs[id] end
+    alife_release = function(o) released[#released + 1] = o end
+    utils_obj = { switch_online = function(id) moved["home" .. id] = true end }
+    relation_registry = { community_relation = function() return 0 end, change_community_goodwill = function(f, _, d) goodwill[#goodwill + 1] = { f, d }; return true end,
+                          community_goodwill = function() return 0 end }
+    RegisterScriptCallback = function() end
+    sb.camp_send_tip = function(_, t) tips[#tips + 1] = t end
+    sb.add_radio_feed_entry = function() end
+    sb.allow_home_squad_online = function() end
+    sb.prosper_credit = function(sv, n) sv.savings = (sv.savings or 0) + n end
+    sb.safe_squad_members = function() local done; return function() if not done then done = true; return { id = 50, object = objs[50] } end end end
+    sb.deposit_item_to_camp = function(_, _, sec) deposited[#deposited + 1] = sec; return true end
+    sb.get_player_faction = function() return "actor_stalker" end
+    sb.cfg.raiders_enabled = true
+    sb.rival_camps = { k1 = { chest_id = 900, squad_id = 900, extra_squad_ids = { 51 }, faction = "bandit", tier = 1,
+        position = { x = 100, z = 0 }, level = "l01_escape" } }
+    local function fresh_camp()
+        return { survivors = {
+            [10] = { job = "raider", tier = 3 }, [11] = { job = "raider", tier = 2 },
+            [12] = { job = "guard", tier = 1 },
+        } }
+    end
+    local camp = fresh_camp()
+    sb.active_camps = { [7] = camp }
+    objs[7] = { position = { x = 0, z = 0 } }
+
+    eq(sb.raiders_send_for(12), nil, "guard is not a raider (assign normally)")
+    eq(sb.raiders_send_for(10), true, "send lead raider")
+    eq(camp.raider_missions[1].state, "away", "mission recorded")
+    eq(#camp.raider_missions[1].raider_ids, 2, "both raiders go")
+    eq(camp.survivors[10].on_mission, 1, "flag on lead"); eq(camp.survivors[11].on_expedition, true, "expedition guard set")
+    eq(camp.raider_state.missions_today, 1, "counted for today")
+    eq(sb.raiders_send_for(10), false, "already away: no second send")
+    local l1 = sb.raiders_pause_reason(camp.survivors[10]); eq(l1, "st_homestead_raider_on_mission", "pause reason")
+
+    -- save/load: only plain data survives
+    local function roundtrip(t)
+        local function ser(v)
+            if type(v) == "table" then
+                local o = {}
+                for k, x in pairs(v) do o[#o + 1] = "[" .. ser(k) .. "]=" .. ser(x) end
+                return "{" .. table.concat(o, ",") .. "}"
+            elseif type(v) == "string" then return string.format("%q", v)
+            else return tostring(v) end
+        end
+        return loadstring("return " .. ser(t))()
+    end
+    sb.active_camps = { [7] = roundtrip(camp) }
+    camp = sb.active_camps[7]
+    eq(camp.raider_missions[1].faction, "bandit", "mission survives save/load")
+
+    sb.raiders_process(); eq(camp.raider_missions[1] ~= nil, true, "not due yet")
+    NOW = NOW + 6 * 3600
+    local rnd = math.random; math.random = function(n) if n then return 1 end return 0.01 end
+    sb.raiders_process(); math.random = rnd
+    eq(camp.raider_missions[1], nil, "mission resolved and removed")
+    eq(camp.survivors[10].on_mission, nil, "lead is home"); eq(camp.survivors[10].on_expedition, nil, "expedition flag cleared")
+    eq(moved.home10, true, "lead switched back online")
+    eq(#released, 2, "both garrison squads released"); eq(#deposited > 0, true, "loot deposited")
+    eq(moved.money, 500, "bounty paid"); eq((camp.survivors[10].savings or 0) > 0, true, "savings cut paid")
+    eq(goodwill[1][1], "bandit", "goodwill hit the robbed faction")
+    eq(camp.survivors[10].raider.rest_until > NOW, true, "raiders rest after a mission")
+    sb.rival_camps.k1 = nil
+
+    -- cancel: a raider who changes job leaves the mission
+    camp = fresh_camp(); sb.active_camps = { [7] = camp }
+    sb.rival_camps.k2 = { chest_id = 900, squad_id = 900, faction = "bandit", tier = 1, position = { x = 100, z = 0 } }
+    NOW = NOW + 7 * 24 * 3600
+    eq(sb.raiders_send_for(10), true, "second send")
+    sb.raiders_cancel_for(7, 10)
+    eq(camp.survivors[10].on_mission, nil, "cancelled raider is home")
+    eq(#camp.raider_missions[1].raider_ids, 1, "mission keeps the other raider")
+    -- an orphaned flag (mission record gone) is repaired
+    camp.raider_missions = {}
+    sb.raiders_process(); eq(camp.survivors[11].on_mission, nil, "orphaned mission flag repaired")
+    -- disabled stops sends
+    sb.cfg.raiders_enabled = false
+    eq(sb.raiders_send_for(10), false, "no send when off")
+end
+
 if fails > 0 then print(fails .. " FAILED"); os.exit(1) end
 print("test_raiders: all passed")

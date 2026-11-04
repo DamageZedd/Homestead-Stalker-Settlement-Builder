@@ -567,6 +567,20 @@ function sb.raiders_send(hub_id, camp, npc_id)
     return true
 end
 
+-- the Job page sends a settler who already holds the Raider job; nil when they are not a raider
+-- (the caller then assigns the job as usual), else whether a mission left
+function sb.raiders_send_for(npc_id)
+    for hub_id, camp in pairs(sb.active_camps or {}) do
+        local s = surv_of(camp, npc_id)
+        if s then
+            if s.job ~= "raider" then return nil end
+            if s.on_mission then return false end
+            return sb.raiders_send(hub_id, camp, npc_id)
+        end
+    end
+    return nil
+end
+
 -- ---------------------------------------------------------------- resolve
 
 -- clearing a camp: release its garrison squads; the rival tick then runs the elimination itself
@@ -603,7 +617,12 @@ local function apply_goodwill(st, faction, friendly)
     for _, f in ipairs(list) do
         local friends = false
         pcall(function()
-            friends = game_relations.is_factions_friends(faction, f) and true or false
+            if game_relations and game_relations.is_factions_friends then
+                friends = game_relations.is_factions_friends(faction, f) and true or false
+            else
+                local rel = relation_registry.community_relation(faction, f)
+                friends = rel ~= nil and rel >= 500
+            end
         end)
         if friends and f ~= faction then allies[#allies + 1] = f end
     end
