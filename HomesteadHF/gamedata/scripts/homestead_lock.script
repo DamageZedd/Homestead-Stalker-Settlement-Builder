@@ -31,6 +31,7 @@ local GIMBAL = math.pi / 2 - 0.001  -- beyond this pitch obj:angle() is too coar
 
 local SWEEP_MS = 2000          -- how often pieces that HF's freeze hook missed are looked for
 local SWEEP_RADIUS = 80        -- metres around the player
+local HEAL_BUDGET = 40         -- frozen pieces checked against their spot per sweep
 
 local next_sweep = 0
 local online = {}              -- id of an online frozen piece -> true
@@ -179,6 +180,34 @@ local function sweep_piece(o)
     on_piece_frozen(id)
 end
 
+-- A piece is put back on its spot once, when it comes online. Pieces that spawn in the same load are free
+-- bodies until their own freeze runs, so a neighbour that was not frozen yet (a wall or doorway whose
+-- door mode is not set, a slab it overlaps after the save's rotation rounding) can shove a piece that was
+-- already frozen and put back. Fixed bodies hang on a soft joint, so the shove stays: a foundation or
+-- floor slab ends up floating above its spot. Every frozen piece is therefore checked against its spot
+-- again, a few per sweep, and put back if it has drifted. A piece the player unfroze is left alone.
+local heal_queue = {}
+
+local function heal_pieces()
+    if #heal_queue == 0 then
+        for id in pairs(online) do heal_queue[#heal_queue + 1] = id end
+    end
+    for _ = 1, HEAL_BUDGET do
+        local id = table.remove(heal_queue)
+        if not id then return end
+        if online[id] then
+            local obj = level.object_by_id(id)
+            if not obj then
+                online[id] = nil   -- went offline: the freeze hook adds it again when it comes back
+            else
+                local wrapper = bind_hf_base.get_wrapper(id)
+                local spot = not (wrapper and wrapper.is_frozen == false) and se_load_var(id, nil, VAR)
+                if spot then put_back(obj, spot) end
+            end
+        end
+    end
+end
+
 local function sweep_update()
     local now = time_global()
     if now < next_sweep or not db.actor then return end
@@ -187,6 +216,8 @@ local function sweep_update()
         local ok, err = pcall(sweep_piece, o)
         if not ok then report(err) end
     end)
+    local ok, err = pcall(heal_pieces)
+    if not ok then report(err) end
 end
 
 -- HF's net_spawn looks freeze_obj up when it runs, so replacing it here covers every piece.
