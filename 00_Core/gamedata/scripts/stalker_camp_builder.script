@@ -2232,9 +2232,9 @@ local function process_boundary_rescan(actor)
             end
         end
         if #camps_to_scan == 1 then
-            scan_camp_structures(camps_to_scan[1])
+            stalker_camp_builder.scan_camp_structures(camps_to_scan[1])
         elseif #camps_to_scan > 1 then
-            scan_multiple_camp_structures(camps_to_scan)
+            stalker_camp_builder.scan_multiple_camp_structures(camps_to_scan)
         end
         camp_send_tip(actor, game.translate_string("st_mcm_boundary_rescanned"),
                       nil, "general_stalker", 8000, nil, "general")
@@ -2250,7 +2250,7 @@ local function process_proximity_structure_rescan(tg)
         return
     end
     near_camp._last_periodic_scan = tg
-    scan_camp_structures(near_hub_id)
+    stalker_camp_builder.scan_camp_structures(near_hub_id)
 end
 
 -- An outpost chest's treasure-manager entry only lists its loot. Once the player has taken from the
@@ -2279,7 +2279,7 @@ local function populate_gamma_rival_chests(in_teardown_grace)
                     and type(treasure_manager.caches[camp.chest_id]) == "string"
                 if box_obj and has_cache then
                     treasure_manager.try_spawn_treasure(box_obj)
-                    safe_iterate_inventory_box(box_obj, function(_, item)
+                    stalker_camp_builder.safe_iterate_inventory_box(box_obj, function(_, item)
                         local ok_w = IsWeapon and IsWeapon(item)
                         local ok_o = IsOutfit and IsOutfit(item)
                         if (ok_w or ok_o) and item and item.set_condition then
@@ -3600,7 +3600,7 @@ function hf_on_furniture_place(obj_id)
                 end
             end
 
-            scan_camp_structures(obj_id)
+            stalker_camp_builder.scan_camp_structures(obj_id)
         end
         return
     end
@@ -4671,7 +4671,7 @@ local function populate_gamma_rival_chests_on_load()
                     and type(treasure_manager.caches[camp.chest_id]) == "string"
                 if box_obj and has_cache then
                     treasure_manager.try_spawn_treasure(box_obj)
-                    safe_iterate_inventory_box(box_obj, function(_, item)
+                    stalker_camp_builder.safe_iterate_inventory_box(box_obj, function(_, item)
                         local ok_w = IsWeapon and IsWeapon(item)
                         local ok_o = IsOutfit and IsOutfit(item)
                         if (ok_w or ok_o) and item and item.set_condition then
@@ -5026,9 +5026,9 @@ function actor_on_first_update()
         end
     end
     if #camps_to_scan == 1 then
-        scan_camp_structures(camps_to_scan[1], true)
+        stalker_camp_builder.scan_camp_structures(camps_to_scan[1], true)
     elseif #camps_to_scan > 1 then
-        scan_multiple_camp_structures(camps_to_scan, true)
+        stalker_camp_builder.scan_multiple_camp_structures(camps_to_scan, true)
     end
 end
 
@@ -5137,7 +5137,7 @@ end
 function get_camp_stats(camp, hub_obj)
     if camp and (not camp._structures_scanned) and hub_obj then
         camp._structures_scanned = true
-        scan_camp_structures(hub_obj.id, false)
+        stalker_camp_builder.scan_camp_structures(hub_obj.id, false)
     end
 
     local mmin = math.min
@@ -7073,7 +7073,7 @@ function get_camp_storage_metrics(camp, hub_obj)
         end
     end
     if (camp._structures_scanned == nil) and scan_camp_structures then
-        scan_camp_structures(hub_id, false)
+        stalker_camp_builder.scan_camp_structures(hub_id, false)
     end
     local boxes = (get_camp_containers and get_camp_containers(hub_id, camp)) or {}
     -- each box's own capacity, the one deposits stop at (box_has_room_for); a box without one
