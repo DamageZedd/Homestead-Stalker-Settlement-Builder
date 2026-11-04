@@ -1,5 +1,9 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## Unreleased
+
+- **Fix: building kit wood looked blotchy and some faces were see-through**: the kit used `wood_board_01` for its big surfaces, and GAMMA's texture packs paint that texture as high-contrast peeling white paint; the Hideout Furniture walls use it only for thin trim and put their large faces on `wood_plank6_bar_b`. The floors, stairs, ramp, posts and the Hunter's Station now use the same plank texture as the Hideout walls (tiled the same size), and only the wall trim keeps the board texture. The 13 pieces added in v1.3.5 also had the top and bottom of every box facing the wrong way, so wall tops, steps, post tops and similar faces vanished when seen from outside; they are rebuilt with all faces outward.
+
 ## v1.3.5 — 14 New Building Pieces, One Auto-Switching Flag & Vanilla Textures (2026-11-03)
 
 ### More Building Kit Pieces
