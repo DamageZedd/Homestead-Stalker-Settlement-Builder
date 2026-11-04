@@ -3469,7 +3469,7 @@ function hf_on_furniture_place(obj_id)
         if not camp.level or camp.level == cur_lvl then
             local hub_se = alife_object(hub_id)
             if hub_se and hub_se.position and se_obj.position and hub_se.position:distance_to(se_obj.position) <= cfg.boundary_dist then
-                invalidate_scan_camp_structures_cache(hub_id)
+                stalker_camp_builder.invalidate_scan_camp_structures_cache(hub_id)
             end
         end
     end
@@ -3516,7 +3516,7 @@ function hf_on_furniture_place(obj_id)
             if camp then
                 camp.structures = camp.structures or {}
                 camp.structures[obj_id] = "workbench"
-                invalidate_scan_camp_structures_cache(inside_camp_id)
+                stalker_camp_builder.invalidate_scan_camp_structures_cache(inside_camp_id)
             end
             actor_menu.set_msg(1, game.translate_string("st_hub_workbench_added"), 3)
             return
@@ -3678,7 +3678,7 @@ function hf_on_before_furniture_release(obj_id)
                 stalker_camp_builder.remove_all_camp_map_spots(obj_id)
             end
         end)
-        invalidate_scan_camp_structures_cache(obj_id)
+        stalker_camp_builder.invalidate_scan_camp_structures_cache(obj_id)
         stalker_camp_builder.active_camps[obj_id] = nil
         pcall(function()
             if actor_menu and actor_menu.set_msg and game and game.translate_string then
@@ -3691,7 +3691,7 @@ function hf_on_before_furniture_release(obj_id)
     for hub_id, camp in pairs_(stalker_camp_builder.active_camps) do
         if camp.structures and camp.structures[obj_id] then
             camp.structures[obj_id] = nil
-            invalidate_scan_camp_structures_cache(hub_id)
+            stalker_camp_builder.invalidate_scan_camp_structures_cache(hub_id)
             if camp.survivors then
                 for _, survivor in pairs_(camp.survivors) do
                     if survivor.assigned_furniture then
@@ -3750,7 +3750,7 @@ function server_object_on_unregister(se_obj)
     for hub_id, camp in pairs(stalker_camp_builder.active_camps) do
         if camp.structures and camp.structures[obj_id] then
             camp.structures[obj_id] = nil
-            invalidate_scan_camp_structures_cache(hub_id)
+            stalker_camp_builder.invalidate_scan_camp_structures_cache(hub_id)
             for _, survivor in pairs(camp.survivors or {}) do
                 for stype, aid in pairs(survivor.assigned_furniture or {}) do
                     if aid == obj_id then
@@ -3989,7 +3989,7 @@ function load_state(m_data)
 
     if save_version < 2 then
         for hub_id, camp in pairs_(stalker_camp_builder.active_camps) do
-            invalidate_scan_camp_structures_cache(hub_id)
+            stalker_camp_builder.invalidate_scan_camp_structures_cache(hub_id)
         end
     end
 
@@ -5687,7 +5687,7 @@ function server_entity_on_unregister(se_obj, type_name)
             local zid = camp.zone_id
             safe_deferred_release(zid)
         end
-        invalidate_scan_camp_structures_cache(obj_id)
+        stalker_camp_builder.invalidate_scan_camp_structures_cache(obj_id)
         stalker_camp_builder.end_camp_raid(camp)
         stalker_camp_builder.active_camps[obj_id] = nil
         pcall(function()
@@ -5701,7 +5701,7 @@ function server_entity_on_unregister(se_obj, type_name)
     for hub_id, camp in pairs(stalker_camp_builder.active_camps) do
         if camp.structures and camp.structures[obj_id] then
             camp.structures[obj_id] = nil
-            invalidate_scan_camp_structures_cache(hub_id)
+            stalker_camp_builder.invalidate_scan_camp_structures_cache(hub_id)
         end
         if camp.survivors and camp.survivors[obj_id] then
             stalker_camp_builder.settler_lookup[obj_id] = nil
