@@ -5140,6 +5140,10 @@ function get_camp_stats(camp, hub_obj)
         local j = survivor.job and tostring(survivor.job):lower():match("^%s*(.-)%s*$")
         if j == "guard" then
             stats.guards = stats.guards + 1
+        elseif j == "raider" then
+            -- an idle raider at home counts as part of a guard in the defense (raiders: design Q7)
+            local rd = stalker_camp_builder.raiders_defense_share
+            stats.raider_guards = (stats.raider_guards or 0) + (rd and rd(survivor) or 0)
         elseif j == "scavenge" or j == "scavenger" then
             stats.scavengers = stats.scavengers + 1
         elseif j == "craft" then
@@ -5201,7 +5205,7 @@ function get_camp_stats(camp, hub_obj)
         end
     end
 
-    stats.defense = mmin(cfg.defense_cap, ((stats.barricades * 2) + (stats.guards * 5 * (stalker_camp_builder.needs_guard_mult and stalker_camp_builder.needs_guard_mult(camp) or 1)) + (stats.gadgets * 15) + (stats.alarms * 10)) * get_specialization_mult(camp, "defense"))
+    stats.defense = mmin(cfg.defense_cap, ((stats.barricades * 2) + ((stats.guards + (stats.raider_guards or 0)) * 5 * (stalker_camp_builder.needs_guard_mult and stalker_camp_builder.needs_guard_mult(camp) or 1)) + (stats.gadgets * 15) + (stats.alarms * 10)) * get_specialization_mult(camp, "defense"))
 
     local score = 50
     if stats.population > 0 then

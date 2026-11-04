@@ -77,6 +77,13 @@ function sb.raiders_effective_guards(guards, raiders_home_idle, cfg)
     return mmax(0, num(guards, 0)) + mmax(0, num(raiders_home_idle, 0)) * w
 end
 
+-- what one raider adds to the camp's guard count: the idle weight when they are home and fit, else 0
+function sb.raiders_defense_share(surv, now_sec, cfg)
+    if not sb.raiders_enabled(cfg) or type(surv) ~= "table" then return 0 end
+    if surv.on_mission or sb.raiders_is_wounded(surv, now_sec or (game_sec and game_sec()) or 0) then return 0 end
+    return sb.raiders_effective_guards(0, 1, cfg)
+end
+
 function sb.raiders_is_wounded(surv, now_sec)
     local r = type(surv) == "table" and surv.raider
     if type(r) ~= "table" then return false end
@@ -379,7 +386,7 @@ end
 -- ================================================================ runtime (phase 2)
 -- Everything below talks to the game. It only runs while raiders_enabled is on (default off).
 -- State: camp.raider_missions[id] (the shared mission record), camp.raider_state = { next_id, day,
--- spent = { [faction] = goodwill lost today }, missions_today, last = "text" }, and per survivor
+-- spent = { [faction] = goodwill lost today, same in every camp }, missions_today, last = "text" }, and per survivor
 -- surv.on_mission = mission id (+ surv.on_expedition = true, so the expedition guards keep the settler
 -- away from jobs and healing), surv.raider = { wounded_until, rest_until, missions_done }.
 -- Abstract missions only (design 5.2): the band is taken offline at the camp while the timer runs.
@@ -605,7 +612,24 @@ local function haul_items(tier)
     return items
 end
 
-local function apply_goodwill(st, faction, friendly)
+-- the daily goodwill cap is per player, not per camp: every camp's record keeps the same running totals
+-- (the largest seen), so several camps cannot each spend a full cap
+local function spent_today()
+    local merged = {}
+    for _, c in pairs(sb.active_camps or {}) do
+        for f, v in pairs(raider_state(c).spent) do merged[f] = mmax(merged[f] or 0, v) end
+    end
+    return merged
+end
+
+local function share_spent(merged)
+    for _, c in pairs(sb.active_camps or {}) do
+        local sp = raider_state(c).spent
+        for f, v in pairs(merged) do sp[f] = v end
+    end
+end
+
+local function apply_goodwill(faction, friendly)
     local own = sb.get_player_faction and sb.get_player_faction()
     own = type(own) == "string" and (string.gsub(own, "^actor_", "")) or nil
     local list = FALLBACK_FACTIONS
@@ -626,15 +650,17 @@ local function apply_goodwill(st, faction, friendly)
         end)
         if friends and f ~= faction then allies[#allies + 1] = f end
     end
+    local spent = spent_today()
     local plan = sb.raiders_goodwill_plan({ faction = faction, own = own, friendly = friendly, allies = allies,
-        spent = st.spent })
+        spent = spent })
     local hit = {}
     for _, p in ipairs(plan) do
         if pcall(relation_registry.change_community_goodwill, p.faction, db.actor:id(), p.delta) then
-            if p.delta < 0 then st.spent[p.faction] = (st.spent[p.faction] or 0) - p.delta end
+            if p.delta < 0 then spent[p.faction] = (spent[p.faction] or 0) - p.delta end
             hit[#hit + 1] = p.faction
         end
     end
+    share_spent(spent)
     return hit
 end
 
@@ -669,7 +695,7 @@ local function return_band(hub_id, camp, m, cas, now_sec)
     return home
 end
 
-local function pay_success(hub_id, camp, st, m, rc, home)
+local function pay_success(hub_id, camp, m, rc, home)
     local tier = rc.tier or 1
     clear_garrison(rc)
     local split = sb.raiders_loot_split(haul_items(tier))
@@ -687,7 +713,7 @@ local function pay_success(hub_id, camp, st, m, rc, home)
     end
     local hit = {}
     if sb.raiders_mission_claim(m, "goodwill") then
-        hit = apply_goodwill(st, m.faction, sb.raiders_is_friendly(faction_goodwill(m.faction)))
+        hit = apply_goodwill(m.faction, sb.raiders_is_friendly(faction_goodwill(m.faction)))
     end
     local text = string.format(tr("st_homestead_raider_success"), tr(m.faction), n, bounty)
     if #hit > 0 then text = text .. " " .. string.format(tr("st_homestead_raider_goodwill"), table.concat(hit, ", ")) end
@@ -711,7 +737,7 @@ local function resolve_mission(hub_id, camp, id, m)
     if result == "gone" then
         text = tr("st_homestead_raider_target_gone")
     elseif result == "success" then
-        text = pay_success(hub_id, camp, st, m, rc, home)
+        text = pay_success(hub_id, camp, m, rc, home)
     elseif result == "repulsed" then
         text = string.format(tr("st_homestead_raider_repulsed"), tr(m.faction))
     else

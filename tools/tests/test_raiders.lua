@@ -230,6 +230,27 @@ do
     -- an orphaned flag (mission record gone) is repaired
     camp.raider_missions = {}
     sb.raiders_process(); eq(camp.survivors[11].on_mission, nil, "orphaned mission flag repaired")
+    -- idle raider at home = half a guard; away, wounded or disabled = none
+    sb.cfg.raiders_enabled = true
+    near(sb.raiders_defense_share({ job = "raider" }, NOW), 0.5, "idle raider half a guard")
+    near(sb.raiders_defense_share({ job = "raider", on_mission = 1 }, NOW), 0, "away raider adds none")
+    near(sb.raiders_defense_share({ job = "raider", raider = { wounded_until = NOW + 5 } }, NOW), 0, "wounded raider adds none")
+    -- the daily goodwill cap is shared by every camp
+    goodwill = {}
+    local c1, c2 = fresh_camp(), fresh_camp()
+    sb.active_camps = { [7] = c1, [8] = c2 }
+    sb.rival_camps.k3 = { chest_id = 900, squad_id = 900, faction = "bandit", tier = 1, position = { x = 100, z = 0 } }
+    local function lost() local t = 0; for _, g in ipairs(goodwill) do if g[1] == "bandit" and g[2] < 0 then t = t - g[2] end end; return t end
+    local m1 = sb.raiders_new_mission(1, "k3", nil, "bandit", { 10 }, NOW, 60, 1)
+    local m2 = sb.raiders_new_mission(1, "k3", nil, "bandit", { 10 }, NOW, 60, 1)
+    c1.raider_missions = { [1] = m1 }; c2.raider_missions = { [1] = m2 }
+    c1.raider_state = nil; c2.raider_state = nil
+    NOW = NOW + 100
+    math.random = function(n) if n then return 1 end return 0.01 end
+    sb.cfg.raiders_goodwill_daily_cap = 70
+    sb.raiders_process(); math.random = rnd
+    eq(lost(), 70, "two camps share one daily cap")
+    sb.cfg.raiders_goodwill_daily_cap = nil
     -- disabled stops sends
     sb.cfg.raiders_enabled = false
     eq(sb.raiders_send_for(10), false, "no send when off")
