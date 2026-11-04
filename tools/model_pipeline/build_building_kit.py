@@ -69,7 +69,7 @@ def retex(m, tex):
     return n
 
 
-def reproject(f, uv):
+def reproject(f, uv, grain_y=False):
     """Texture axes in the face plane: u along the horizontal tangent (grain runs along walls, treads, ramp
     width), v up the face / along the slope, both in metres, so no face is stretched or sheared."""
     f.normal_update()
@@ -77,7 +77,7 @@ def reproject(f, uv):
     up = Vector((0, 0, 1))
     u = n.cross(up)
     if u.length < 1e-4:
-        u = Vector((1, 0, 0))
+        u = Vector((0, 1, 0)) if grain_y else Vector((1, 0, 0))   # flat faces: floors run the planks along Y like hs_floor
     u.normalize()
     v = n.cross(u).normalized()
     if v.z < 0 and abs(n.z) < 0.99:
@@ -93,6 +93,7 @@ class Mesh:
         self.bm = bmesh.new()
         self.uv = self.bm.loops.layers.uv.new("Texture")
         self._grp, self._vc = 0, {}
+        self.floor_grain = False         # True: flat faces get their grain along Y (floor pieces); False: along X (treads, rails)
 
     def _begin(self):
         """Start a new closed shape: its faces share vertices (so recalc_face_normals can turn the whole shape
@@ -172,7 +173,7 @@ class Mesh:
     def finish(self, pivot_to_origin=True):
         bmesh.ops.recalc_face_normals(self.bm, faces=self.bm.faces)
         for f in self.bm.faces:                  # texture axes follow the final (outward) normal
-            reproject(f, self.uv)
+            reproject(f, self.uv, self.floor_grain)
         me = bpy.data.meshes.new(self.name + "_visual")
         self.bm.to_mesh(me)
         self.bm.free()
@@ -284,6 +285,7 @@ def triangle_of(src_name, name, cap_mat=0, keep_uv=False):
 def floor_triangle():
     """Half a floor tile (right angle at -X,-Y): plank underside, board top, same 10 cm slab as the floor."""
     m = new("hsk_floor_triangle")
+    m.floor_grain = True
     tri = [(-HALF, -HALF), (HALF, -HALF), (-HALF, HALF)]
     m.prism(tri, 0, 0.06, PLANK)
     m.prism([(-HALF + 0.02, -HALF + 0.02), (HALF - 0.04, -HALF + 0.02), (-HALF + 0.02, HALF - 0.04)], 0.06, 0.1, BOARD, side=BOARD)
@@ -359,6 +361,7 @@ def roof_triangle():
 def spiral_end():
     """Floor tile with a round opening for the spiral stairs, railed round the opening except where the stairs arrive."""
     m = new("hsk_stairs_spiral_end")
+    m.floor_grain = True
     seg, r = 48, 2.2
     z0, z1 = 0.0, 0.1
     m._begin()
