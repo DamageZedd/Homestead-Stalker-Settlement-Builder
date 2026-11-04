@@ -138,13 +138,8 @@ eq(sb.raiders_is_friendly(500), true, "friendly at 500"); eq(sb.raiders_is_frien
 
 -- mission record
 local m = sb.raiders_new_mission(1, "k", "l01_escape", "duty", { 10, 11 }, 1000, 3600, 0.6)
-eq(m.arrive_sec, 4600, "arrive"); eq(m.left, 360, "real countdown is the duration at the stock factor")
-eq(sb.raiders_mission_due(m, 1000), false, "not due"); m.left = 0; eq(sb.raiders_mission_due(m, 1000), true, "due")
--- a mission saved before the real-time countdown gets it from arrive_sec
-local old = { state = "away", arrive_sec = 5000 }
-eq(sb.raiders_mission_left(old, 1000), 400, "old save: left from arrive_sec"); eq(old.left, 400, "old save: migrated")
-eq(sb.raiders_mission_due({ state = "away", arrive_sec = 900 }, 1000), true, "old save already past due")
-eq(sb.raiders_mission_due({ state = "away", arrive_sec = 5000 }, 1000), false, "old save not due")
+eq(m.arrive_sec, 4600, "arrive")
+eq(sb.raiders_mission_due(m, 4599), false, "not due"); eq(sb.raiders_mission_due(m, 4600), true, "due")
 eq(sb.raiders_mission_set_mode(m, "real"), true, "to real"); eq(m.state, "assault", "assault state")
 eq(sb.raiders_mission_set_mode(m, "abstract"), true, "back to abstract"); eq(m.state, "away", "away state")
 eq(sb.raiders_mission_set_mode(m, "bogus"), false, "bad mode")
@@ -158,7 +153,7 @@ eq(sb.raiders_mission_set_mode(m, "real"), false, "no mode change when done")
 do
     local NOW = 1000000
     local released, goodwill, deposited, tips, moved = {}, {}, {}, {}, {}
-    game_sec = function() return NOW end
+    sb.game_sec = function() return NOW end
     time_global = function() return NOW * 1000 end
     game = { translate_string = function(id) return id end }
     level = { name = function() return "l01_escape" end }
@@ -217,10 +212,10 @@ do
     camp = sb.active_camps[7]
     eq(camp.raider_missions[1].faction, "bandit", "mission survives save/load")
 
-    sb.raiders_process(0); eq(camp.raider_missions[1] ~= nil, true, "not due yet")
+    sb.raiders_process(); eq(camp.raider_missions[1] ~= nil, true, "not due yet")
     NOW = NOW + 6 * 3600
     local rnd = math.random; math.random = function(n) if n then return 1 end return 0.01 end
-    sb.raiders_process(6 * 3600); math.random = rnd
+    sb.raiders_process(); math.random = rnd
     eq(camp.raider_missions[1], nil, "mission resolved and removed")
     eq(camp.survivors[10].on_mission, nil, "lead is home"); eq(camp.survivors[10].on_expedition, nil, "expedition flag cleared")
     eq(moved.home10, true, "lead switched back online")
@@ -240,7 +235,7 @@ do
     eq(#camp.raider_missions[1].raider_ids, 1, "mission keeps the other raider")
     -- an orphaned flag (mission record gone) is repaired
     camp.raider_missions = {}
-    sb.raiders_process(0); eq(camp.survivors[11].on_mission, nil, "orphaned mission flag repaired")
+    sb.raiders_process(); eq(camp.survivors[11].on_mission, nil, "orphaned mission flag repaired")
     -- failure paths: repulsed wounds everyone; disaster kills at the death chance and leaves the target alone
     local function run_loss(rolls)
         local c = fresh_camp(); sb.active_camps = { [7] = c }
@@ -251,7 +246,7 @@ do
         local i = 0
         math.random = function(n) if n then return 1 end i = i + 1; return rolls[i] or rolls[#rolls] end
         local rel = #released
-        sb.raiders_process(6 * 3600); math.random = rnd
+        sb.raiders_process(); math.random = rnd
         return c, #released - rel
     end
     local c = run_loss({ 0.99, 0.99 })
@@ -278,7 +273,7 @@ do
     NOW = NOW + 100
     math.random = function(n) if n then return 1 end return 0.01 end
     sb.cfg.raiders_goodwill_daily_cap = 70
-    sb.raiders_process(100); math.random = rnd
+    sb.raiders_process(); math.random = rnd
     eq(lost(), 70, "two camps share one daily cap")
     sb.cfg.raiders_goodwill_daily_cap = nil
 
@@ -330,31 +325,19 @@ do
     eq(sb.raiders_send(7, camp3, nil, "gone"), false, "cleared outpost refused")
 end
 
--- the mission clock: real seconds, whatever the game clock does
+-- the freeze: game_sec lives in the stalker_camp_builder namespace, so a bare global game_sec is nil in
+-- the raiders script. The clock must come from sb.game_sec and move the countdown and the due test.
 do
-    local tgms, gsec = 5000000, 1000000
-    time_global = function() return tgms end
-    game_sec = function() return gsec end
-    sb.raiders_reset_clock()
-    eq(sb.raiders_step(), 0, "first call after a load counts nothing")
-    tgms = tgms + 60000
-    eq(sb.raiders_step(), 60, "frozen game clock: real time still counts")
-    tgms = tgms + 3000; gsec = gsec + 30
-    eq(sb.raiders_step(), 3, "time factor 10: real and game agree")
-    tgms = tgms + 3000; gsec = gsec + 3000
-    eq(sb.raiders_step(), 300, "sleeping: the fast game clock counts at the stock factor")
-    tgms = tgms + 3000; gsec = gsec + 10 * 86400
-    eq(sb.raiders_step(), 3600, "one call is capped")
-    tgms = 1000; gsec = 1
-    eq(sb.raiders_step(), 0, "clock went backwards (a load): nothing counts")
-    -- countdown through raiders_process with a frozen game clock
-    local mm = sb.raiders_new_mission(1, "k", nil, "duty", {}, gsec, 3000, 0.5)   -- 300 real seconds
-    sb.active_camps = { [1] = { survivors = {}, raider_missions = { [1] = mm } } }
-    sb.raiders_reset_clock(); sb.raiders_step()
-    tgms = tgms + 120000
-    sb.raiders_process()
-    near(mm.left, 180, "left counts down in real seconds")
-    eq(sb.raiders_mission_due(mm, gsec), false, "not due while time is left")
+    local gsec = 1000000
+    game_sec = nil
+    sb.game_sec = function() return gsec end
+    level = { get_time_factor = function() return 10 end }
+    local mm = sb.raiders_new_mission(1, "k", nil, "duty", {}, gsec, 3000, 0.5)
+    gsec = gsec + 1200
+    near(sb.raiders_eta_parts and (mm.arrive_sec - gsec) / 10, 180, "eta ticks with the game clock")
+    eq(sb.raiders_mission_due(mm, gsec), false, "not due yet")
+    gsec = gsec + 1800
+    eq(sb.raiders_mission_due(mm, gsec), true, "due once the clock reaches arrive_sec")
 end
 
 -- pure PDA helpers

@@ -41,11 +41,6 @@ local TIER_FACTOR = { 1.0, 1.4, 2.0 }
 local ASSAULT_WINDOW_SEC = 1800
 local MAX_MISSION_SEC = 4 * 3600
 local WIN_MIN, WIN_MAX = 0.05, 0.90
--- Mission timers count real seconds: the game clock can run at any factor (a time mod may lock it to 1:1 or
--- hold it), so a mission's `left` is a real-time countdown, fed by raiders_step. A game-second duration is
--- converted at the stock factor, so a mission lasts as long as it did at the base game's clock.
-local REF_TIME_FACTOR = 10
-local MAX_STEP_SEC = 3600
 local FRIEND_GOODWILL = 500      -- goodwill with the player at or above this = a friendly faction
 
 local BANDIT_FACTIONS = { bandit = true, renegade = true }
@@ -78,7 +73,7 @@ end
 -- what one raider adds to the camp's guard count: the idle weight when they are home and fit, else 0
 function sb.raiders_defense_share(surv, now_sec, cfg)
     if type(surv) ~= "table" then return 0 end
-    if surv.on_mission or sb.raiders_is_wounded(surv, now_sec or (game_sec and game_sec()) or 0) then return 0 end
+    if surv.on_mission or sb.raiders_is_wounded(surv, now_sec or (sb.game_sec and sb.game_sec()) or 0) then return 0 end
     return sb.raiders_effective_guards(0, 1, cfg)
 end
 
@@ -348,23 +343,13 @@ function sb.raiders_new_mission(id, target_key, target_level, faction, raider_id
         raider_ids = ids,
         start_sec = num(now_sec, 0), duration = num(duration, ASSAULT_WINDOW_SEC),
         arrive_sec = num(now_sec, 0) + num(duration, ASSAULT_WINDOW_SEC),
-        left = num(duration, ASSAULT_WINDOW_SEC) / REF_TIME_FACTOR,
         odds = num(odds, WIN_MIN),
         result = nil, loot_rolled = false, goodwill_paid = false,
     }
 end
 
--- real seconds left on a mission; one saved with only a game-time arrive_sec gets its countdown from it
-function sb.raiders_mission_left(m, now_sec)
-    if type(m) ~= "table" then return 0 end
-    if type(m.left) ~= "number" then
-        m.left = mmax(0, (num(m.arrive_sec, 0) - num(now_sec, 0)) / REF_TIME_FACTOR)
-    end
-    return m.left
-end
-
 function sb.raiders_mission_due(m, now_sec)
-    return type(m) == "table" and m.state == "away" and sb.raiders_mission_left(m, now_sec) <= 0
+    return type(m) == "table" and m.state == "away" and num(now_sec, 0) >= num(m.arrive_sec, math.huge)
 end
 
 -- the one-shot guards of finish_mission: true the first time for a step ("loot" or "goodwill"),
@@ -433,7 +418,14 @@ local function tip(text, ms)
     if sb.add_radio_feed_entry then pcall(sb.add_radio_feed_entry, "settlement", text) end
 end
 
-local function game_now() return num(game_sec and game_sec(), 0) end
+-- game_sec lives in the stalker_camp_builder namespace, not in _G (expeditions wrap it the same way)
+local function game_now() return num(sb.game_sec and sb.game_sec(), 0) end
+
+-- game seconds per real second, as the expeditions' countdown uses it
+local function game_time_factor()
+    local tf = level and level.get_time_factor and level.get_time_factor() or 10
+    return tf > 0 and tf or 10
+end
 
 local function surv_of(camp, npc_id)
     local s = camp and camp.survivors
@@ -711,7 +703,7 @@ function sb.raiders_outpost_status(key, prefer_hub)
     local m, mhub = sb.raiders_mission_for(key)
     if m then
         return { state = "away", hub_id = mhub, band = #m.raider_ids, odds = m.odds,
-            eta = mmax(0, sb.raiders_mission_left(m, now_sec)) }
+            eta = mmax(0, m.arrive_sec - now_sec) / game_time_factor() }
     end
     local t, squad = target_info(key, rc, now_sec)
     local order = {}
@@ -872,30 +864,11 @@ function sb.raiders_cancel_for(hub_id, npc_id)
     end
 end
 
--- Real seconds of mission progress since the last call: wall time on the engine clock, or the game clock
--- scaled to the stock factor if that is more (sleeping and waiting fast-forward it), capped per call.
--- The first call after a load gives 0, so time away from the game never counts.
-local last_tg, last_gs
-function sb.raiders_step()
-    local tg, gs = time_global(), game_now()
-    local step = 0
-    if last_tg and tg >= last_tg and gs >= last_gs then
-        step = mmin(MAX_STEP_SEC, mmax((tg - last_tg) / 1000, (gs - last_gs) / REF_TIME_FACTOR))
-    end
-    last_tg, last_gs = tg, gs
-    return step
-end
-
-function sb.raiders_reset_clock() last_tg, last_gs = nil, nil end
-
--- count the missions down and resolve the due ones; free settlers whose mission record is gone
--- (an old save, a cancelled mission). step = real seconds to count (default: raiders_step)
-function sb.raiders_process(step)
+-- resolve due missions; free settlers whose mission record is gone (an old save, a cancelled mission)
+function sb.raiders_process()
     local now_sec = game_now()
-    step = step or sb.raiders_step()
     for hub_id, camp in pairs(sb.active_camps or {}) do
         for id, m in pairs(camp.raider_missions or {}) do
-            if m.state == "away" then m.left = sb.raiders_mission_left(m, now_sec) - step end
             if sb.raiders_mission_due(m, now_sec) then
                 if not pcall(resolve_mission, hub_id, camp, id, m) then camp.raider_missions[id] = nil end
             end
