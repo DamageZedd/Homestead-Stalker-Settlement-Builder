@@ -1071,11 +1071,13 @@ function stalker_camp_builder.calculate_regional_sweep_duration(hub_id, all_stas
     return get_self_contained_duration_sec(total_sweep_dist, is_same_level, survivor, total_search_sec)
 end
 
-function stalker_camp_builder.format_expedition_time(game_sec)
+-- tf: game seconds per real second to divide by (default: the live clock rate)
+function stalker_camp_builder.format_expedition_time(game_sec, tf)
     local mfloor = math.floor
     if not game_sec or game_sec <= 0 then return string.format(game.translate_string("st_expedition_time_s"), 0) end
     -- live clock rate: the floored settlement factor reads 10 under Real Time Zones while the clock runs at 1
-    local tf = tonumber(level and level.get_time_factor and level.get_time_factor())
+    tf = tonumber(tf)
+    if not tf or tf <= 0 then tf = tonumber(level and level.get_time_factor and level.get_time_factor()) end
     if not tf or tf <= 0 then tf = stalker_camp_builder.time_factor() end
 
     local real_sec = mfloor(game_sec / tf)

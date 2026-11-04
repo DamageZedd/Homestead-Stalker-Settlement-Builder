@@ -594,5 +594,41 @@ do
     eq(sb.raiders_recall_check(3, 0), true, "bands in the field count as away")
 end
 
+-- mission clock (Real Time Zones proof): clock = game_sec + off
+do
+    local adv = sb.raiders_clock_advance
+    -- no RTZ: the offset never moves, the mission clock is the game clock
+    near(adv(0, 100, 5000, 3, 10, false), 0, "no rtz: off unchanged")
+    near(adv(nil, nil, 5000, 3, 10, false), 0, "no rtz: first use, nil off is 0")
+    -- first step with RTZ (old save / just loaded): nothing to cancel yet
+    near(adv(0, nil, 5000, 3, 10, true), 0, "rtz first step")
+    -- one tick of 2 real seconds, nominal 10: clock must move 20 whatever the game clock did
+    local function clock(off, last_g, g, dt, tf) return g + adv(off, last_g, g, dt, tf, true) end
+    near(clock(0, 1000, 1020, 2, 10) - 1000, 20, "rtz clock at 10x game clock")
+    near(clock(0, 1000, 1002, 2, 10) - 1000, 20, "rtz clock at 1x game clock (RTZ running real time)")
+    near(clock(0, 1000, 1000.2, 2, 10) - 1000, 20, "rtz clock at 0.1x game clock (catch-up)")
+    -- a forward game-clock jump (sync, +84 min) does not complete or skip anything
+    near(clock(0, 1000, 1000 + 5040 * 60, 2, 10) - 1000, 20, "rtz clock ignores a clock jump")
+    -- the first tick after a load has no real delta: the clock holds, even across a jump
+    near(clock(37, 1000, 90000, 0, 10) - (1000 + 37), 0, "rtz load step holds the clock")
+    -- a huge real delta (long pause) is clamped to one minute
+    near(clock(0, 1000, 1001, 100000, 10) - 1000, 600, "rtz clamps a long real delta")
+    -- bad factor falls back to 10, a negative delta counts as 0
+    near(clock(0, 1000, 1001, 1, 0) - 1000, 10, "rtz zero factor")
+    near(clock(0, 1000, 1001, -5, 10) - 1000, 0, "rtz negative delta")
+    -- a ten real-minute countdown: 300 ticks of 2 s at game rates 0.1x and 1x both land on 6000 mission seconds
+    for _, rate in ipairs({ 0.1, 1, 10 }) do
+        local off, g, c0 = 0, 50000, 50000
+        for _ = 1, 300 do
+            local ng = g + 2 * rate
+            off = adv(off, g, ng, 2, 10, true); g = ng
+        end
+        near(g + off - c0, 6000, "ten real minutes at game rate " .. rate)
+    end
+    -- an old record (arrive_sec in game seconds, off nil) stays valid: first step keeps clock == game_sec
+    local m = sb.raiders_new_mission(1, "k", "l_x", "duty", { 1 }, 40000, 600, 0.5)
+    near(sb.raiders_mission_remaining(m, 40000 + adv(nil, nil, 40000, 0, 10, true)), 600, "old record remaining")
+end
+
 if fails > 0 then print("test_raiders: " .. fails .. " FAILED"); os.exit(1) end
 print("test_raiders: all passed")

@@ -30,6 +30,7 @@
 - **How to Play**: a quick-start home with topic tiles and a one-topic reader with a Back button.
 
 ### 🕒 Real Time Zones Support
+- **Raid timers run on real time under Real Time Zones**: raid countdowns, recall, rest and wounded times follow a mission clock that moves at the same real pace whatever Real Time Zones does to the game clock (0.1x catch-up, clock syncs). Without Real Time Zones they behave as before.
 - **Jobs and expeditions no longer run at the wrong speed**: Real Time Zones drops the game time factor to 0.1 while its clock catches up, and Homestead used that factor to turn game time into real time, so a job looked ten times further along and an expedition or raid ten times shorter. Time spans now use the configured Real Time Zones factor as a floor, and under its clock sync a job's elapsed time is counted on the real clock only, so the load-time jump of the game clock no longer hands out a backlog of finished job cycles.
 
 ### 🪵 Building Kit Textures

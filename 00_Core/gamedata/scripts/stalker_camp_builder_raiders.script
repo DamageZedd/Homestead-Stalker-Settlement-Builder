@@ -75,7 +75,7 @@ end
 -- what one raider adds to the camp's guard count: the idle weight when they are home and fit, else 0
 function sb.raiders_defense_share(surv, now_sec, cfg)
     if type(surv) ~= "table" then return 0 end
-    if surv.on_mission or sb.raiders_is_wounded(surv, now_sec or (sb.game_sec and sb.game_sec()) or 0) then return 0 end
+    if surv.on_mission or sb.raiders_is_wounded(surv, now_sec or (sb.raiders_now and sb.raiders_now()) or 0) then return 0 end
     -- a raider called home to fight an attack is a full guard until the attack is over
     if type(surv.raider) == "table" and surv.raider.defending then return 1 end
     return sb.raiders_effective_guards(0, 1, cfg)
@@ -340,6 +340,24 @@ function sb.raiders_is_friendly(goodwill_with_player)
     return num(goodwill_with_player, 0) >= FRIEND_GOODWILL
 end
 
+-- ---------------------------------------------------------------- mission clock
+
+-- Missions run on their own clock so a countdown ticks the same real time whatever Real Time Zones does to the game
+-- clock (0.1x while it catches up after a load, 1x otherwise). clock = game_sec + off. Without RTZ off stays put, so
+-- the mission clock IS the game clock (old saves and plain games behave as before). With RTZ the clock moves by real
+-- seconds x the nominal factor instead, and whatever the game clock does (slow, jumps, syncs) is cancelled out of off.
+-- off: the stored offset; last_g: game_sec at the previous step (nil on first use); real_dt: real seconds since it
+-- (0 when unknown, e.g. the first step after a load); nominal: mission seconds per real second. Returns the new off.
+local MAX_STEP_REAL_SEC = 60
+function sb.raiders_clock_advance(off, last_g, g, real_dt, nominal, rtz)
+    off = num(off, 0)
+    if not rtz or last_g == nil then return off end
+    local dt = clamp(num(real_dt, 0), 0, MAX_STEP_REAL_SEC)
+    local tf = num(nominal, 0)
+    if tf <= 0 then tf = 10 end
+    return off + dt * tf - (num(g, 0) - num(last_g, 0))
+end
+
 -- ---------------------------------------------------------------- mission record
 
 -- the shared record of the design doc (5.1); plain numbers, strings and tables only
@@ -563,14 +581,45 @@ local function tip(text, ms)
 end
 
 -- game_sec lives in the stalker_camp_builder namespace, not in _G (expeditions wrap it the same way)
-local function game_now() return num(sb.game_sec and sb.game_sec(), 0) end
+local function raw_game_now() return num(sb.game_sec and sb.game_sec(), 0) end
 
--- game seconds per real second, as the clock actually runs. Mission timers are plain game seconds, so a countdown
--- in real time must divide by the live rate: the settlement's floored factor (sb.time_factor) reads 10 while Real
--- Time Zones runs the clock at 1, which made the timer fall 1 s per 10 real seconds.
+-- the mission clock (see sb.raiders_clock_advance). MC lives in memory; its offset is saved on every camp's
+-- raider_state (mc_off, mc_g) and read back from there after a load, before the first step.
+local MC = { off = nil, g = nil, r = nil }
+local function mc_load()
+    if MC.off ~= nil then return end
+    MC.off = 0
+    for _, camp in pairs(sb.active_camps or {}) do
+        local st = camp.raider_state
+        if type(st) == "table" and st.mc_g ~= nil then MC.off, MC.g = num(st.mc_off, 0), num(st.mc_g, 0); break end
+    end
+end
+local function game_now() mc_load(); return raw_game_now() + MC.off end
+function sb.raiders_now() return game_now() end
+
+local function rtz_on()
+    return (rtz_mcm and rtz_mcm.get_config and rtz_mcm.get_config("enabled")) and true or false
+end
+
+local function mc_step()
+    mc_load()
+    local g = raw_game_now()
+    local r = (time_global and time_global() or 0) / 1000
+    local dt = MC.r and (r - MC.r) or 0
+    MC.r = r
+    MC.off = sb.raiders_clock_advance(MC.off, MC.g, g, dt, sb.time_factor and sb.time_factor() or 10, rtz_on())
+    MC.g = g
+    for _, camp in pairs(sb.active_camps or {}) do
+        local st = type(camp.raider_state) == "table" and camp.raider_state or nil
+        if not st then st = {}; camp.raider_state = st end
+        st.mc_off, st.mc_g = MC.off, MC.g
+    end
+end
+
+-- mission seconds per real second: the mission clock moves at the settlement's nominal factor (the floored one),
+-- whatever Real Time Zones does to the game clock (see sb.raiders_clock_advance)
 local function game_time_factor()
-    local tf = tonumber(level and level.get_time_factor and level.get_time_factor())
-    if not tf or tf <= 0 then tf = sb.time_factor and sb.time_factor() or 10 end
+    local tf = sb.time_factor and sb.time_factor() or 10
     return tf > 0 and tf or 10
 end
 
@@ -583,7 +632,7 @@ end
 local function raider_state(camp)
     local st = camp.raider_state
     if type(st) ~= "table" then st = {}; camp.raider_state = st end
-    local day = mfloor(game_now() / DAY_SEC)
+    local day = mfloor(raw_game_now() / DAY_SEC)
     if st.day ~= day then st.day = day; st.spent = {}; st.missions_today = 0 end
     st.spent = st.spent or {}
     st.next_id = st.next_id or 1
@@ -598,7 +647,7 @@ function sb.raiders_pause_reason(surv, camp)
         local m = camp and camp.raider_missions and camp.raider_missions[surv.on_mission]
         local left = sb.raiders_mission_remaining(m, game_now())
         if left and sb.format_expedition_time and m.state ~= "assault" then
-            local t = sb.format_expedition_time(left)
+            local t = sb.format_expedition_time(left, game_time_factor())
             if m.state == "returning" then
                 return string.format(tr("st_homestead_raider_recalling_left"), t), string.format(tr("st_homestead_raider_recalling_d"), t)
             end
@@ -1405,6 +1454,7 @@ local function on_update()
     local tg = time_global()
     if tg < next_tick_tg then return end
     next_tick_tg = tg + TICK_MS
+    pcall(mc_step)
     pcall(sb.raiders_process)
 end
 
