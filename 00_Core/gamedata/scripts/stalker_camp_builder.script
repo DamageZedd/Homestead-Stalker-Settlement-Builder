@@ -313,6 +313,10 @@ function job_game_elapsed_sec(survivor, current_sec, tf)
     end
     return math.max(0, (current_sec - (survivor.job_start_time or current_sec)) / tf)
 end
+-- the sibling scripts call these through the module table
+stalker_camp_builder.game_sec = game_sec
+stalker_camp_builder.time_factor = time_factor
+stalker_camp_builder.job_game_elapsed_sec = job_game_elapsed_sec
 
 local _suppress_news_intercept = false
 stalker_camp_builder._suppress_news_intercept = false
@@ -704,6 +708,7 @@ function get_time_of_day_mult(job)
     if job == "medic" then return 1.2 end
     return 1.0
 end
+stalker_camp_builder.get_time_of_day_mult = get_time_of_day_mult
 
 
 local defaults = {
