@@ -108,7 +108,6 @@ Full 5-tab tactical interface accessible from anywhere in the Zone. The top stat
 
 <p align="center"><img src="docs/images/pda_howtoplay.jpg?v=1" alt="PDA How to Play" width="100%"></p>
 
-![Field Survival Guide](https://media.moddb.com/images/members/5/4662/4661404/profile/ss_player_09-03-26_22-16-52_l03.png)
 
 ---
 
