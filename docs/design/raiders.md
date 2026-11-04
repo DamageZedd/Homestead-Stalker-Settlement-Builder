@@ -359,3 +359,10 @@ Labels: verified (read in code), inferred (follows from code), unknown (needs th
 - Phase 2: job `raider`, abstract missions (Resolver A), jobs hooks (pause reason, mission cancel on job change), MCM group, strings; no master toggle; no rank gate; friendly camps always sendable.
 - Phase 3: PDA Outposts Send raiders (preview then confirm, right-click preview, RAID pill), Raider job button in all four XML copies, live time-left on roster, dossier, Job page and Outposts card.
 - Not started: phase 4 (real assault) and phase 5 (bandit-mode balance pass).
+
+## 20. Phase 4 status: reinforcement (done, committed locally, not yet play-tested)
+
+- Recall: `sb.raiders_recall(hub_id, camp, how, only_mission)` turns `away` missions into `returning` (arrive after 20 real seconds, `m.recalled = true`), with no loot, goodwill or cooldown; `raiders_process` finishes them. PDA: Outposts button (two-click), Survivors Orders button, Overview Recall Settlers. Reasons: recall already in progress.
+- Defenders: a band that arrives during `camp.active_raid` gets `surv.raider.defending`; it counts as a full guard, cannot be sent, and clears when the raid ends (`stand_down`). No new mission starts while a raid is active (`raid` reason).
+- `raiders_auto_recall` (MCM, default off) is checked by `raiders_process` every tick against `camp.active_raid`; no timer events, all state in the saved mission and survivor records.
+- Not done: real arriving squads (Q12 chose abstract), Overview Orders "Recall raiders" row (the existing Recall Settlers button covers it), refund of the daily raid count on recall (deliberate).

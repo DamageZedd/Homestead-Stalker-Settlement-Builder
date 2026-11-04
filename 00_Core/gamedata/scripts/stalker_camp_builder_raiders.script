@@ -972,8 +972,8 @@ function sb.raiders_recall_for(npc_id)
         if s then
             local m = s.on_mission and camp.raider_missions and camp.raider_missions[s.on_mission]
             if not m then return nil end
-            local ok, why = sb.raiders_recall_check(m.state == "away" and 1 or 0, m.state == "returning" and 1 or 0)
-            return { ok = ok, reason = why, hub_id = hub_id, camp = camp, mission = m.id }
+            local away = m.state == "away"
+            return { ok = away, reason = not away and "returning" or nil, hub_id = hub_id, camp = camp, mission = m.id }
         end
     end
     return nil

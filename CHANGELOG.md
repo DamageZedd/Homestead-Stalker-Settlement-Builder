@@ -1,5 +1,12 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## Unreleased
+
+### ⚔️ Raiders: Recall and Reinforcement
+- **Recall raiders**: a raid in progress can be ended early. On the Outposts tab the button of the raided outpost becomes Recall raiders (click twice to confirm, the preview says no loot and no goodwill change); on the Survivors tab the Orders page button of a raider who is away reads Recall raiders and recalls their whole band; the Recall Settlers button on the Overview also calls home any raiders that are away. The band reaches camp about 20 seconds later, and a recall already under way is shown with its reason instead of a button.
+- **Defenders**: raiders recalled while the settlement is under attack arrive at camp as defenders, count as full guards in the camp's defense until the attack is over and cannot be sent out meanwhile (wounded and resting raiders still sit it out). No raid can be sent while the settlement is under attack. Each recall and arrival shows a tip and a radio line.
+- **MCM: Auto-Recall Raiders** (Raids and events, default off): when a raid hits the settlement, bands that are away come home to defend automatically.
+
 ## v1.4.0 — Raiders, Living Needs, PDA Overhaul & Kit Texture Fix (2026-11-04)
 
 ### ⚔️ Raiders: Raid Rival Outposts
