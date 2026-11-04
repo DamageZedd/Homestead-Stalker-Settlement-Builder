@@ -45,6 +45,15 @@
 - **Plank texture and outward faces**: the kit used `wood_board_01` for its big surfaces, and GAMMA's texture packs paint that texture as high-contrast peeling white paint; the Hideout Furniture walls use it only for thin trim and put their large faces on `wood_plank6_bar_b`. The floors, stairs, ramp, posts and the Hunter's Station now use the same plank texture as the Hideout walls (tiled the same size), and only the wall trim keeps the board texture. The 13 pieces added in v1.3.5 also had the top and bottom of every box facing the wrong way, so wall tops, steps, post tops and similar faces vanished when seen from outside; they are rebuilt with all faces outward.
 - **Floors and the Hunter's Station A-frame**: the plank texture on the floor, triangle floor and spiral-stair floor ran across the planks and showed a seam down the middle; it is now one continuous mapping with the grain along the planks. Two legs of the Hunter's Station A-frame were inside out (see-through from outside) and the beams of the A-frame now use the same plank texture as the rest of the kit with the grain along each beam (the pegs and side racks are unchanged). The back of the wolf pelt no longer shows a ring pattern, and the small log lying on the floor is now bark with a round end-grain cut instead of black and fur.
 
+### 🛠️ Fixes
+- **Camp dialog actions**: the job and status actions of the camp dialog were not exported on the script's module table, so the dialog could not reach them. They are exported now.
+- **Calls left dangling by the script split**: several calls named a function that exists only under another name or scope. The scan, iterate and cache-invalidate helpers, the time helpers (`game_sec`, `time_factor`, `job_game_elapsed_sec`, `get_time_of_day_mult`) and `get_specialization_mult` are now called through the module table, and four periodic actor tasks that are plain globals now run.
+- **Repair Bench without a fee**: the repair pause ignored a Repair Bench that charges no fee.
+- **Job pause reason**: a multiple assignment kept only the first value, so the paused reason was always empty and the Storage Full cut never applied.
+- **Rival chests**: released rival chests are cleared from the player's created stashes again, so the entries no longer leak.
+- **Station storage**: stashing items at a settler station no longer fails on an undefined vector helper.
+- **Checks**: `tools/check.ps1` now runs luacheck with a tuned `.luacheckrc`; the 46 findings that remain are recorded in the baseline.
+
 ## v1.3.5 — 14 New Building Pieces, One Auto-Switching Flag & Vanilla Textures (2026-11-03)
 
 ### More Building Kit Pieces
