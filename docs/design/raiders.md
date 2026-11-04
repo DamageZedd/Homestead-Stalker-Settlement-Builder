@@ -118,7 +118,7 @@ The record lives on the camp (not the NPC), so it survives NPC re-creation (`res
 2. Duration: game-graph distance (as `get_self_contained_distance`, `exp` 608) plus a 30 game-minute assault window; capped like expeditions.
 3. At the end, `raid_outcome(band, target, rng)` (pure function) returns `success | repulsed | disaster` from attacker strength (rank, weapon and armor tier) against garrison size x tier factor plus the camp's defenses. Win chance is a logistic of the ratio, clamped 5%-90%, shown before sending.
 4. Casualties (Q9): on **success** none. On **repulsed**, every raider returns **wounded** and unavailable for `raiders_wounded_hours`, no loot. On **disaster**, each raider has `raiders_disaster_death_chance` (default 50%) to be lost permanently; survivors return wounded. Lost raiders leave through the same path as a killed settler (`settler_lookup`, relations, "settler killed" bookkeeping).
-5. On success: remove the garrison through `mark_rival_garrison_eliminated` (`rivals` 1201) with a nil actor, so map spot, ruins decay, `cleared` and the faction retaliation timers (Q11) follow the existing code, undamped.
+5. On success: release the garrison squads (`camp.squad_id`, `camp.extra_squad_ids`) with `alife_release`; the next rival tick then runs `mark_rival_garrison_eliminated` itself (it is a local function and is not called directly, see the Phase 0 audit), so map spot, ruins decay, `cleared` and the faction retaliation timers (Q11) follow the existing code, undamped.
 
 ### 5.3 Resolver B: real assault (phase 4)
 
@@ -267,7 +267,7 @@ Each key needs: the defaults table (`sb` ~690), key -> path map (~870), `mcm` gr
 | New job + MCM + PDA label | Easy | Jobs are strings; counted in `get_camp_stats`; the pattern is copied from other jobs. |
 | Abstract mission (Resolver A), odds, loot, goodwill | Easy-medium | Copies expeditions; pure functions are unit-testable. Risk is the number balance, not the code. |
 | Goodwill via `change_community_goodwill` | Easy | Already used (`events` 520). |
-| Calling `mark_rival_garrison_eliminated` from a raid | Medium | It assumes the rival squad and chest exist; need a nil `actor` path and care that the garrison squad is released from the sim (`rivals` 1233-1273 deletes camps whose chest is gone). Needs read-through before use. |
+| Clearing a camp by releasing its garrison squads (the local `mark_rival_garrison_eliminated` is not called) | Medium | It assumes the rival squad and chest exist; need a nil `actor` path and care that the garrison squad is released from the sim (`rivals` 1233-1273 deletes camps whose chest is gone). Needs read-through before use. |
 | Teleport raiders away / back | Medium | `teleport_scavenger_on_departure` and `restore_missing_settler` already do it; mission lifecycle after load is the risk. |
 | Reinforce during a raid (abstract recall) | Medium | Spawn/appear at camp is fine; the raid only exists while the player is there. |
 | Real assault with the player present (phase 4, shared record) | Hard | Squad AI control (`scripted_target`), companion-squad collisions, garrison judgment races; cannot be verified without play-testing. |
@@ -334,3 +334,24 @@ Added after loading the `anomaly-modding` skill. Labels: verified (read in this 
 - **MCM** (verified pattern in `mcm`): options are read at runtime through the `cfg` map, never inside `on_mcm_load`; new keys need defaults, path map, MCM group and localization, as listed in section 10. `ui_mcm` stays optional.
 - **Unknowns to resolve in Phase 0 (and for the real-assault phase: squad control via `scripted_target` and the mission/level-leave race are unknown until play-tested):** whether `mark_rival_garrison_eliminated` is safe with a nil actor and an unloaded squad; whether a rival chest can be read or edited while offline; whether `change_community_goodwill` is clamped by the engine (the existing raid reputation relies on it); whether teleporting a settler off-level and back leaves a stale `settler_lookup` entry (expeditions suggest not, not proven for a band).
 - **Validation for the later code:** `luac -p`, `luac -l -l` to confirm every function stays under 200 locals (a reason for the separate file), unit tests in `tools/tests`, then the in-game checks: fresh start, first update, save and reload mid-mission, level transition during a mission, toggle off during a mission.
+
+## 18. Phase 0 audit findings (read-only, 2026-11-03)
+
+Labels: verified (read in code), inferred (follows from code), unknown (needs the game).
+
+| # | Question | Finding | Label |
+|---|---|---|---|
+| a | Read a rival chest that is not loaded | The code reads chests only through `level.object_by_id` (online) in `rivals` (~1450). Nothing reads or edits an offline rival chest's contents. The expedition code never touches an unloaded stash: it synthesizes the loot (`generate_gamma_stash_loot`) and only removes the stash object (`loot_and_clear_stash`, `exp` 824+). | verified |
+| a2 | So how does an abstract raid get loot? | Roll a synthetic haul from the target's tier (the same approach as expeditions), and if the chest is online take a share of its real contents. The doc's section 6 already says this; the synthetic path is now the default and the live-chest path the bonus. | inferred |
+| b | `mark_rival_garrison_eliminated` with a nil actor | It is a `local function` in `rivals` (1201), so it **cannot be called from the raiders script**. It is called from one place only: `process_single_rival_camp` when no garrison squad has a living member (1393). The function itself guards `if actor` for the tip, and the retaliation block uses `actor` only for its community. **Design change:** do not call it. To clear a camp, release the garrison squads (`alife_release` on `camp.squad_id` and `camp.extra_squad_ids`, the same call the underground branch uses, `rivals` ~1250), and the next 10 s rival tick runs the elimination itself, with the real `db.actor`, so the tip, map spot, ruins timer and retaliation all fire as for a player kill. | verified |
+| b2 | Retaliation on a raider kill | Retaliation fires only when the faction's relation to the actor is <= -1000 (`rivals` 1201+). Faction goodwill the raiders cost is applied separately; order matters: pay goodwill after the elimination tick, or the hostility check sees the old value. | verified |
+| c | Rival chest loot tables | Initial chest loot is a fixed list plus rank-based tables in `spawn_single_rival_camp` (`rivals` ~2487-2520); resupply uses a seven-item list (`rivals` ~944). `generate_gamma_stash_loot(tier, is_yellow, target_level)` (`exp` 755) is reusable for the synthetic haul. | verified |
+| d | Survivor "available" checks | `survivor_se(npc_id, survivor)` (`sb` 4649) checks only that the server object is a stalker with the saved section. "On expedition" is the survivor flag `on_expedition`; scavenger dispatch also requires `job` scavenge. `raider` needs its own flag (`on_mission`) and must be added anywhere `on_expedition` is read. | verified |
+| e | Teleport a band away and back | `teleport_scavenger_on_departure` (`exp` 1238): `set_switch_online(false)`, `set_switch_offline(true)`, the home squad is made non-online, then `sim:teleport_object` for the NPC and squad. Return is `reposition_survivor_at_camp` (`exp` 1577). It is proven for one NPC; a band of up to 4 repeats it per NPC and is not tested. | verified for one, unknown for a band |
+| f | `change_community_goodwill` clamping | Called in `events` 520 and `prosper` 317 under `pcall`; no Lua code clamps it. The engine bound is not visible from the scripts. | unknown |
+| g | Mission and load | `active_camps` saves wholesale; `normalize_camps` fills defaults; new camp fields need no migration. | verified |
+
+### Surprises that change the design
+1. **Do not call `mark_rival_garrison_eliminated`.** Clear a camp by releasing its garrison squads and letting the rival tick eliminate it (section 5.2, step 5 and section 13 updated by this finding). This is simpler and keeps one code path.
+2. **Abstract loot is synthetic by default** (no offline chest reads exist in the code). The "take 60% of the chest" rule applies only when the chest is online.
+3. **Goodwill clamping stays unknown**; the plan keeps the daily cap in the pure code so it is bounded either way.
