@@ -548,10 +548,15 @@ function sb.raiders_send(hub_id, camp, npc_id)
         if s.job == "guard" then guards = guards + 1 end
     end
     local info = { guards = guards, ready = #band, missions_today = st.missions_today or 0 }
-    if guards < num(cfgv("raiders_min_guards"), 1) then tip(tr("st_homestead_raider_cannot_no_guard")); return false end
-    if info.missions_today >= num(cfgv("raiders_max_per_day"), 3) then tip(tr("st_homestead_raider_cannot_daily")); return false end
     local rc, key, dist, squad = pick_target(hub_id, info, now_sec)
-    if not rc then tip(tr("st_homestead_raider_no_target")); return false end
+    if not rc then
+        -- say why: the camp's own limits first (no guard, daily cap), else there is simply nothing to hit
+        local _, reason = sb.raiders_can_send(info, { occupied = true, faction = "stalker" })
+        tip(tr(reason == "no_guard" and "st_homestead_raider_cannot_no_guard"
+            or reason == "daily" and "st_homestead_raider_cannot_daily"
+            or "st_homestead_raider_no_target"))
+        return false
+    end
 
     local members = {}
     for i, s in ipairs(band) do members[i] = { rank = s.tier or 0 } end

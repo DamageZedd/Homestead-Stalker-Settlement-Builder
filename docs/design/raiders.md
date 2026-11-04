@@ -357,5 +357,5 @@ Labels: verified (read in code), inferred (follows from code), unknown (needs th
 ## 19. Implementation status (phases 0-1 done, not wired, not play-tested)
 
 - Phase 0: audit in section 18. Biggest change: clear a camp by releasing its garrison squads, not by calling the local `mark_rival_garrison_eliminated`.
-- Phase 1: pure rules in `00_Core/gamedata/scripts/stalker_camp_builder_raiders.script` (`raiders_can_send`, `raid_odds`, `raid_outcome`, `raid_casualties`, `raiders_loot_split`, `raiders_goodwill_plan`, mission-record helpers), tests in `tools/tests/test_raiders.lua` (run with Lua 5.1 from the repo root). No MCM, PDA, XML or callback wiring; the toggle `raiders_enabled` was later removed (always on). The rank gate reads `survivor.tier` (the prosper tier).
+- Phase 1: pure rules in `00_Core/gamedata/scripts/stalker_camp_builder_raiders.script` (`raiders_can_send`, `raid_odds`, `raid_outcome`, `raid_casualties`, `raiders_loot_split`, `raiders_goodwill_plan`, mission-record helpers), tests in `tools/tests/test_raiders.lua` (run with Lua 5.1 from the repo root). No MCM, PDA, XML or callback wiring; the master toggle was later removed (always on). The rank gate reads `survivor.tier` (the prosper tier).
 - Not decided in code yet: how `has_weapon`/`has_ammo`/guard counts are gathered from a live camp (phase 2).

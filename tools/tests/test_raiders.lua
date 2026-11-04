@@ -224,6 +224,26 @@ do
     -- an orphaned flag (mission record gone) is repaired
     camp.raider_missions = {}
     sb.raiders_process(); eq(camp.survivors[11].on_mission, nil, "orphaned mission flag repaired")
+    -- failure paths: repulsed wounds everyone; disaster kills at the death chance and leaves the target alone
+    local function run_loss(rolls)
+        local c = fresh_camp(); sb.active_camps = { [7] = c }
+        sb.rival_camps.k4 = { chest_id = 900, squad_id = 900, faction = "bandit", tier = 1, position = { x = 100, z = 0 } }
+        NOW = NOW + 2 * 24 * 3600
+        eq(sb.raiders_send_for(10), true, "send for loss test")
+        NOW = NOW + 6 * 3600
+        local i = 0
+        math.random = function(n) if n then return 1 end i = i + 1; return rolls[i] or rolls[#rolls] end
+        local rel = #released
+        sb.raiders_process(); math.random = rnd
+        return c, #released - rel
+    end
+    local c = run_loss({ 0.99, 0.99 })
+    eq(c.survivors[10].raider.wounded_until > NOW, true, "repulsed: wounded"); eq(c.survivors[11] ~= nil, true, "repulsed: nobody dies")
+    local c2, rel2 = run_loss({ 0.99, 0.01, 0.01, 0.99 })
+    eq(c2.survivors[10], nil, "disaster: low roll dies"); eq(c2.survivors[11] ~= nil, true, "disaster: high roll lives")
+    eq(rel2 >= 1, true, "disaster: dead raider's record released"); eq(c2.survivors[11].raider.wounded_until > NOW, true, "disaster: survivor wounded")
+    eq(sb.rival_camps.k4.raid_cooldown_until > NOW, true, "failed raid puts the target on cooldown")
+
     -- idle raider at home = half a guard; away or wounded = none
     near(sb.raiders_defense_share({ job = "raider" }, NOW), 0.5, "idle raider half a guard")
     near(sb.raiders_defense_share({ job = "raider", on_mission = 1 }, NOW), 0, "away raider adds none")
