@@ -3432,4 +3432,55 @@ Click again to confirm.</text>
     <string id="st_pda_raid_info_recalling">
         <text>%d raiders are coming home. Back in about %s.</text>
     </string>
+    <string id="st_homestead_raider_wounded_left">
+        <text>Wounded, %s</text>
+    </string>
+    <string id="st_homestead_raider_wounded_d2">
+        <text>Recovering from a failed raid. Fit to be sent again in %s.</text>
+    </string>
+    <string id="st_homestead_raider_resting_left">
+        <text>Cooldown, %s</text>
+    </string>
+    <string id="st_homestead_raider_resting_d2">
+        <text>Resting after a raid. Can be sent again in %s.</text>
+    </string>
+    <string id="st_homestead_raider_time_left">
+        <text>(%s left)</text>
+    </string>
+    <string id="st_pda_raid_blk_wounded">
+        <text>%s - wounded, %s left</text>
+    </string>
+    <string id="st_pda_raid_blk_resting">
+        <text>%s - cooldown, %s left</text>
+    </string>
+    <string id="st_pda_raid_blk_busy">
+        <text>%s - already on a mission</text>
+    </string>
+    <string id="st_pda_raid_blk_defending">
+        <text>%s - defending the camp</text>
+    </string>
+    <string id="st_pda_raid_blk_no_weapon">
+        <text>%s - has no weapon</text>
+    </string>
+    <string id="st_pda_raid_blk_no_ammo">
+        <text>%s - has no ammo</text>
+    </string>
+    <string id="st_pda_raid_blk_more">
+        <text>+%d more raiders not ready</text>
+    </string>
+    <string id="st_pda_raid_blk_next">
+        <text>Next raider ready in %s</text>
+    </string>
+    <string id="st_pda_raid_blk_none">
+        <text>No settler has the Raider job yet. Give one on the Job page.</text>
+    </string>
+    <string id="st_pda_raid_blk_cooldown">
+        <text>This outpost was raided recently. Raidable again in %s.</text>
+    </string>
+    <string id="st_pda_raid_blk_daily">
+        <text>Daily raid limit reached (%d of %d). Try again tomorrow.</text>
+    </string>
+    <string id="st_pda_raid_blk_no_guard">
+        <text>Keep at least one guard at home before sending raiders.</text>
+    </string>
 </string_table>

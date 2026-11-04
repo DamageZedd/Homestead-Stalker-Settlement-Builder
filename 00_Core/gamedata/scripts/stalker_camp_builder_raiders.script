@@ -100,6 +100,72 @@ function sb.raiders_survivor_ready(surv, now_sec, cfg)
     return true
 end
 
+-- the timer that holds a raider back and what is left of it: "wounded" or "resting", seconds on the mission clock
+-- (wounded wins: the wounded time is the longer one); nil when no timer runs
+function sb.raiders_survivor_timer(surv, now_sec)
+    local r = type(surv) == "table" and surv.raider
+    if type(r) ~= "table" then return nil end
+    local now = num(now_sec, 0)
+    local w = num(r.wounded_until, 0) - now
+    if w > 0 then return "wounded", w end
+    local c = num(r.rest_until, 0) - now
+    if c > 0 then return "resting", c end
+    return nil
+end
+
+-- mission seconds as the real-time countdown the PDA shows ("1h 05m", "12m 05s"); tf = mission seconds per real second.
+-- Rounded up so a running timer never reads 0s
+function sb.raiders_timer_text(left, tf)
+    tf = num(tf, 10)
+    if tf <= 0 then tf = 10 end
+    return sb.raiders_eta_text(math.ceil(mmax(0, num(left, 0)) / tf))
+end
+
+-- Why each raider of a camp is not free right now, for the PDA: { { id, name, key, left }, ... } soonest first.
+-- key is a raiders_survivor_ready reason; left (mission seconds) only for the two timers
+function sb.raiders_blockers(survivors, now_sec, cfg)
+    local out = {}
+    for id, s in pairs(type(survivors) == "table" and survivors or {}) do
+        if type(s) == "table" and s.job == "raider" then
+            local ok, why = sb.raiders_survivor_ready(s, now_sec, cfg)
+            if not ok then
+                local kind, left = sb.raiders_survivor_timer(s, now_sec)
+                out[#out + 1] = { id = id, name = s.name, key = why, left = (kind and kind == why) and left or nil }
+            end
+        end
+    end
+    table.sort(out, function(a, b)
+        local la, lb = a.left or math.huge, b.left or math.huge
+        if la ~= lb then return la < lb end
+        return tostring(a.name or a.id) < tostring(b.name or b.id)
+    end)
+    return out
+end
+
+-- the PDA lines for a blocker list: one per raider, at most `max`, then "+N more" and when the first one is free again.
+-- fmt = { wounded, resting, busy, defending, no_weapon, no_ammo (each "%s ... %s"), more ("%d"), next ("%s") }
+function sb.raiders_blocker_lines(list, tf, fmt, max)
+    local lines = {}
+    if type(list) ~= "table" or type(fmt) ~= "table" then return lines end
+    max = num(max, 3)
+    local soonest
+    for i, b in ipairs(list) do
+        if b.left and (not soonest or b.left < soonest) then soonest = b.left end
+        if i <= max then
+            local f = fmt[b.key] or fmt.busy or "%s"
+            local name = tostring(b.name or "Raider")
+            if b.left then
+                lines[#lines + 1] = string.format(f, name, sb.raiders_timer_text(b.left, tf))
+            else
+                lines[#lines + 1] = string.format(f, name)
+            end
+        end
+    end
+    if #list > max and fmt.more then lines[#lines + 1] = string.format(fmt.more, #list - max) end
+    if soonest and fmt.next then lines[#lines + 1] = string.format(fmt.next, sb.raiders_timer_text(soonest, tf)) end
+    return lines
+end
+
 -- Can this camp send raiders at this target? info = { guards, ready, missions_today, now }
 -- target = { occupied, faction, story, nest, own, on_cooldown, busy }; a friendly faction is a valid target
 -- (the PDA warns, the goodwill plan prices it)
@@ -661,11 +727,18 @@ function sb.raiders_pause_reason(surv, camp)
         end
         return tr("st_homestead_raider_on_mission"), tr("st_homestead_raider_on_mission_d")
     end
-    if sb.raiders_is_wounded(surv, game_now()) then
-        return tr("st_homestead_raider_wounded"), tr("st_homestead_raider_wounded_d")
+    -- wounded and cooling down both show a live countdown on the same clock as the raid timers
+    local kind, left = sb.raiders_survivor_timer(surv, game_now())
+    if kind == "wounded" then
+        local t = sb.raiders_timer_text(left, game_time_factor())
+        return string.format(tr("st_homestead_raider_wounded_left"), t), string.format(tr("st_homestead_raider_wounded_d2"), t)
     end
     if type(surv.raider) == "table" and surv.raider.defending then
         return tr("st_homestead_raider_defending"), tr("st_homestead_raider_defending_d")
+    end
+    if kind == "resting" then
+        local t = sb.raiders_timer_text(left, game_time_factor())
+        return string.format(tr("st_homestead_raider_resting_left"), t), string.format(tr("st_homestead_raider_resting_d2"), t)
     end
     return nil
 end
@@ -726,6 +799,7 @@ local function target_info(key, rc, now_sec)
         nest = rc.status == "mutant_nest",
         busy = busy,
         on_cooldown = num(rc.raid_cooldown_until, 0) > now_sec,
+        cooldown_left = mmax(0, num(rc.raid_cooldown_until, 0) - now_sec),
         friendly = rc.faction ~= nil and sb.raiders_is_friendly(faction_goodwill(rc.faction)),
     }, squad
 end
@@ -802,7 +876,15 @@ function sb.raiders_send(hub_id, camp, npc_id, key)
         local lead = surv_of(camp, npc_id)
         if not lead or lead.job ~= "raider" then return false end
         local ok, why = sb.raiders_survivor_ready(lead, now_sec)
-        if not ok then tip(tr("st_homestead_raider_cannot_" .. why)); return false end
+        if not ok then
+            local msg = tr("st_homestead_raider_cannot_" .. why)
+            local kind, left = sb.raiders_survivor_timer(lead, now_sec)
+            if kind == why then
+                msg = msg .. " " .. string.format(tr("st_homestead_raider_time_left"), sb.raiders_timer_text(left, game_time_factor()))
+            end
+            tip(msg)
+            return false
+        end
         lead_id = tonumber(npc_id) or npc_id
     end
     local band, ids = ready_band(camp, lead_id, now_sec)
@@ -911,6 +993,35 @@ function sb.raiders_mission_for(key)
     return nil
 end
 
+-- the PDA's explanation under a blocked Raid button: the reason, and for the reasons a timer or a list explains,
+-- the lines saying who is held back and for how long (all times on the mission clock, shown as real time)
+--   { state = "blocked", reason, lines = { text, ... } }
+local function blocked_status(reason, camp, t, now_sec)
+    local st = { state = "blocked", reason = reason, lines = {} }
+    local tf = game_time_factor()
+    if reason == "no_raider" and camp then
+        local list = sb.raiders_blockers(camp.survivors, now_sec)
+        if #list == 0 then
+            st.lines[1] = tr("st_pda_raid_blk_none")
+        else
+            st.lines = sb.raiders_blocker_lines(list, tf, {
+                wounded = tr("st_pda_raid_blk_wounded"), resting = tr("st_pda_raid_blk_resting"),
+                busy = tr("st_pda_raid_blk_busy"), defending = tr("st_pda_raid_blk_defending"),
+                no_weapon = tr("st_pda_raid_blk_no_weapon"), no_ammo = tr("st_pda_raid_blk_no_ammo"),
+                more = tr("st_pda_raid_blk_more"), next = tr("st_pda_raid_blk_next"),
+            }, 3)
+        end
+    elseif reason == "cooldown" and t and (t.cooldown_left or 0) > 0 then
+        st.lines[1] = string.format(tr("st_pda_raid_blk_cooldown"), sb.raiders_timer_text(t.cooldown_left, tf))
+    elseif reason == "daily" and camp then
+        st.lines[1] = string.format(tr("st_pda_raid_blk_daily"), raider_state(camp).missions_today or 0,
+            num(cfgv("raiders_max_per_day"), 3))
+    elseif reason == "no_guard" then
+        st.lines[1] = tr("st_pda_raid_blk_no_guard")
+    end
+    return st
+end
+
 -- What the Raid button on an outpost card shows. prefer_hub = the settlement selected in the PDA.
 --   { state = "away", hub_id, band, odds, eta }  a raid against it is running
 --   { state = "ready", hub_id, band, odds, faction, friendly, loss }  it can be sent; odds and loss are the preview
@@ -931,7 +1042,7 @@ function sb.raiders_outpost_status(key, prefer_hub)
     for hub_id in pairs(sb.active_camps or {}) do
         if hub_id ~= prefer_hub then order[#order + 1] = hub_id end
     end
-    local first_why
+    local first_why, first_camp
     for _, hub_id in ipairs(order) do
         local camp = sb.active_camps[hub_id]
         local band = ready_band(camp, nil, now_sec)
@@ -943,9 +1054,9 @@ function sb.raiders_outpost_status(key, prefer_hub)
                 faction = rc.faction, friendly = t.friendly,
                 loss = sb.raiders_faction_loss(rc.faction, t.friendly, spent_today(), own_faction()) }
         end
-        first_why = first_why or why
+        if not first_why then first_why, first_camp = why, camp end
     end
-    return { state = "blocked", reason = first_why or "no_raider" }
+    return blocked_status(first_why or "no_raider", first_camp, t, now_sec)
 end
 
 local function apply_goodwill(faction, friendly)

@@ -12,6 +12,10 @@
 - **Defenders**: raiders recalled while the settlement is under attack arrive at camp as defenders, count as full guards in the camp's defense until the attack is over and cannot be sent out meanwhile (wounded and resting raiders still sit it out). No raid can be sent while the settlement is under attack. Each recall and arrival shows a tip and a radio line.
 - **MCM: Auto-Recall Raiders** (Raids and events, default off): when a raid hits the settlement, bands that are away come home to defend automatically.
 
+### ⚔️ Raiders: Clearer Feedback
+- **Wounded and cooldown timers**: a wounded raider shows "Wounded, 1h 12m" and a raider resting after a raid shows "Cooldown, 36m 00s" on the Survivors roster, the dossier and the Job page, counting down live at the same real-time pace as the raid timers. Trying to send one tells you how long is left.
+- **Why you cannot raid**: when the Raid button is greyed out on the Outposts tab the panel under it now lists who is held back (wounded, cooldown, already on a mission, defending, no weapon or ammo) with their timers and when the next raider is ready, shows the outpost's own cooldown timer, the daily limit (for example 3 of 3), a missing guard, or tells you that nobody has the Raider job yet.
+
 ### ⚔️ Raiders: Visible Raid Fights
 - **Visible raid fights** (always on, no option): when your raiders reach an outpost while you are nearby, a squad of fighters appears on your side of it and attacks the garrison where you can see it. Clearing the garrison wins the raid; losing the whole squad is a disaster. The result goes through the same loot, bounty, goodwill and wounded rules as a timed raid, paid once. If you leave, change level or load a save, or the fight stalls, the raid is settled by the usual odds (scaled by who is left). The Outposts card says when the band is fighting. Recalling or changing the job of raiders in the field stops the fight.
 

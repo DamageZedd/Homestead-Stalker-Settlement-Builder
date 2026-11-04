@@ -630,5 +630,50 @@ do
     near(sb.raiders_mission_remaining(m, 40000 + adv(nil, nil, 40000, 0, 10, true)), 600, "old record remaining")
 end
 
+-- wounded / cooldown feedback: reason keys, timers and the PDA lines
+do
+    local now = 1000
+    local fit = { job = "raider", name = "Fit", raider = {} }
+    local wnd = { job = "raider", name = "Hurt", raider = { wounded_until = now + 43200, rest_until = now + 21600 } }
+    local rst = { job = "raider", name = "Tired", raider = { rest_until = now + 3600 } }
+    local away = { job = "raider", name = "Gone", on_mission = 1 }
+    local nw = { job = "raider", name = "Bare", has_weapon = false, raider = {} }
+    local guard = { job = "guard", name = "Guard", raider = { wounded_until = now + 99 } }
+
+    local k, l = sb.raiders_survivor_timer(wnd, now)
+    eq(k, "wounded", "wounded timer wins over rest"); near(l, 43200, "wounded left")
+    k, l = sb.raiders_survivor_timer(rst, now)
+    eq(k, "resting", "rest timer"); near(l, 3600, "rest left")
+    eq(sb.raiders_survivor_timer(fit, now), nil, "no timer when fit")
+    eq(sb.raiders_survivor_timer(wnd, now + 43200), nil, "timer gone once both ended")
+    eq(sb.raiders_survivor_timer(nil, now), nil, "nil survivor")
+
+    -- real-time text: 12 game hours at factor 10 is 72 real minutes; rounded up, never 0s while running
+    eq(sb.raiders_timer_text(43200, 10), "1h 12m", "wounded 12h at tf 10")
+    eq(sb.raiders_timer_text(21600, 10), "36m 00s", "rest 6h at tf 10")
+    eq(sb.raiders_timer_text(43200, 1), "12h 00m", "tf 1 (real time zones nominal 1)")
+    eq(sb.raiders_timer_text(5, 10), "1s", "rounds up")
+    eq(sb.raiders_timer_text(0, 10), "0s", "zero")
+    eq(sb.raiders_timer_text(100, 0), "10s", "bad factor falls back to 10")
+
+    local list = sb.raiders_blockers({ a = fit, b = wnd, c = rst, d = away, e = nw, f = guard }, now)
+    eq(#list, 4, "four raiders held back, the fit one and the guard are not")
+    eq(list[1].key, "resting", "soonest first"); near(list[1].left, 3600, "rest left in list")
+    eq(list[2].key, "wounded", "wounded second"); near(list[2].left, 43200, "wounded left in list")
+    -- the two without a timer follow, by name
+    eq(list[3].name, "Bare", "no weapon"); eq(list[3].key, "no_weapon", "no weapon key"); eq(list[3].left, nil, "no timer")
+    eq(list[4].key, "busy", "on a mission"); eq(list[4].left, nil, "mission has its own timer")
+    eq(#sb.raiders_blockers({}, now), 0, "no raiders no blockers")
+    eq(#sb.raiders_blockers(nil, now), 0, "nil table")
+
+    local fmt = { wounded = "%s W %s", resting = "%s R %s", busy = "%s B", no_weapon = "%s NW", more = "+%d", next = "next %s" }
+    local lines = sb.raiders_blocker_lines(list, 10, fmt, 3)
+    eq(#lines, 5, "three raiders, more, next")
+    eq(lines[1], "Tired R 6m 00s", "rest line"); eq(lines[2], "Hurt W 1h 12m", "wounded line"); eq(lines[3], "Bare NW", "weapon line")
+    eq(lines[4], "+1", "more line"); eq(lines[5], "next 6m 00s", "next line is the soonest timer")
+    eq(#sb.raiders_blocker_lines({ list[3] }, 10, fmt, 3), 1, "no timer, no next line")
+    eq(#sb.raiders_blocker_lines(nil, 10, fmt), 0, "nil list")
+end
+
 if fails > 0 then print("test_raiders: " .. fails .. " FAILED"); os.exit(1) end
 print("test_raiders: all passed")
