@@ -2398,9 +2398,6 @@ function SettlementManagerPDA:AssignJob(job)
 
     local survivor_id = item.survivor_id
     -- a raider picking Raider again is sent on a raid (temporary home for the send until the Outposts tab)
-    if job == "raider" and not (stalker_camp_builder.raiders_enabled and stalker_camp_builder.raiders_enabled()) then
-        return -- the Raider job exists only while Raiders is on in MCM
-    end
     if job == "raider" and stalker_camp_builder.raiders_send_for and stalker_camp_builder.raiders_send_for(survivor_id) ~= nil then
         self:OnSettlementSelected()
         return

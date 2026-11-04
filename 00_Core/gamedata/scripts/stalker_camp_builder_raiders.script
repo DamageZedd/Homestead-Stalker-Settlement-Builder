@@ -1,7 +1,7 @@
 -- stalker_camp_builder_raiders.script
 -- Raiders (docs/design/raiders.md): the pure rules for the Raider job (phase 1, no engine access, run by
 -- tools/tests/test_raiders.lua) and, below the "runtime" banner, the abstract-mission layer (phase 2).
--- The feature is behind raiders_enabled (default OFF); raiders_can_send refuses while it is off.
+-- The feature is always on; the raiders_* MCM options only tune it.
 --
 -- Owner decisions built in (docs/design/raiders.md, "Decisions"): player-directed sends only, rank 2+
 -- and one guard stays home, an idle raider at home is half a guard, a failed raid leaves the raiders
@@ -15,7 +15,6 @@ local mfloor = math.floor
 
 -- the defaults the MCM group will carry later; cfg values (sb.cfg) win over these once they exist
 local DEFAULTS = {
-    raiders_enabled = false,
     raiders_min_rank = 2,
     raiders_min_guards = 1,
     raiders_idle_guard_weight = 50,        -- percent of a guard
@@ -64,10 +63,6 @@ end
 
 local function clamp(v, lo, hi) return mmin(hi, mmax(lo, v)) end
 
-function sb.raiders_enabled(cfg)
-    return cfgv("raiders_enabled", cfg) == true
-end
-
 -- ---------------------------------------------------------------- guards and eligibility
 
 -- guards a camp can count on: real guards, plus the idle raiders at home at their weight;
@@ -79,7 +74,7 @@ end
 
 -- what one raider adds to the camp's guard count: the idle weight when they are home and fit, else 0
 function sb.raiders_defense_share(surv, now_sec, cfg)
-    if not sb.raiders_enabled(cfg) or type(surv) ~= "table" then return 0 end
+    if type(surv) ~= "table" then return 0 end
     if surv.on_mission or sb.raiders_is_wounded(surv, now_sec or (game_sec and game_sec()) or 0) then return 0 end
     return sb.raiders_effective_guards(0, 1, cfg)
 end
@@ -109,7 +104,6 @@ end
 -- target = { occupied, faction, story, nest, own, on_cooldown, busy, friendly }
 -- returns true, or false and a reason key for the PDA
 function sb.raiders_can_send(info, target, cfg)
-    if not sb.raiders_enabled(cfg) then return false, "disabled" end
     if type(info) ~= "table" or type(target) ~= "table" then return false, "none" end
     if target.own then return false, "own" end
     if target.story then return false, "story" end
@@ -384,7 +378,7 @@ function sb.raiders_mission_finish(m, result)
 end
 
 -- ================================================================ runtime (phase 2)
--- Everything below talks to the game. It only runs while raiders_enabled is on (default off).
+-- Everything below talks to the game.
 -- State: camp.raider_missions[id] (the shared mission record), camp.raider_state = { next_id, day,
 -- spent = { [faction] = goodwill lost today, same in every camp }, missions_today, last = "text" }, and per survivor
 -- surv.on_mission = mission id (+ surv.on_expedition = true, so the expedition guards keep the settler
@@ -533,7 +527,7 @@ end
 
 -- player-directed send from the Job page: the raider npc_id and every other free raider (up to 3) go
 function sb.raiders_send(hub_id, camp, npc_id)
-    if not (sb.raiders_enabled() and camp and camp.survivors and db.actor) then return false end
+    if not (camp and camp.survivors and db.actor) then return false end
     local now_sec = game_now()
     local st = raider_state(camp)
     local lead = surv_of(camp, npc_id)
@@ -785,7 +779,6 @@ end
 
 local next_tick_tg = 0
 local function on_update()
-    -- runs even while the feature is switched off, so raiders already away are still brought home
     local tg = time_global()
     if tg < next_tick_tg then return end
     next_tick_tg = tg + TICK_MS

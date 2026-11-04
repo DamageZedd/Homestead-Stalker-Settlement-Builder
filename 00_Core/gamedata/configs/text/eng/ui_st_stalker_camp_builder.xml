@@ -3206,12 +3206,6 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_homestead_raider_disaster">
         <text>Disaster at the %s outpost. %d raiders did not come back.</text>
     </string>
-    <string id="ui_mcm_stalker_camp_builder_raiders_enabled">
-        <text>Raiders (Raider Job)</text>
-    </string>
-    <string id="ui_mcm_stalker_camp_builder_raiders_enabled_desc">
-        <text>Adds the Raider job. Raiders (rank 2+) can be sent from the Job page to clear a rival outpost; the loot goes to your storage. Off by default.</text>
-    </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_min_rank">
         <text>Raider Minimum Rank</text>
     </string>

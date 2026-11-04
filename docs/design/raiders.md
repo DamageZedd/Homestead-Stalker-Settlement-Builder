@@ -56,7 +56,7 @@ Two facts shape the whole design:
 
 ## 2. Design principles
 
-1. Default OFF. Master toggle `raiders_enabled = false`; with it off nothing changes, and a settler can never be given the job.
+1. Always on (owner decision, 2026-11-03): there is no master toggle. The Raider job is always available; nothing happens unless the player gives the job and sends a band. The `raiders_*` MCM options only tune the feature.
 2. Abstract first, real combat later. Phase 1 resolves a raid on a timer with odds (like expeditions). Real fights are only used where the player is already present.
 3. Never block the player. A Raider is always recallable, and the camp always keeps its guards (a camp needs a guard minimum before it may send raiders).
 4. Add fields, not formulas. `camp.defense` / `camp.happiness` math stays as is; a raider away simply is not counted as a guard.
@@ -185,7 +185,7 @@ Recall button plus optional auto-recall; no real arriving squads.
 
 ## 9. PDA surface: exactly where Raiders hooks in
 
-Based on `00_Core/gamedata/configs/ui/ui_stalker_camp_builder_pda.xml` and `ui_stalker_camp_builder_pda.script`. Four copies of the XML exist (`00_Core`, `01_Theme_Modern`, `01_Theme_ModernVanilla`, `01_Theme_Vanilla`); every XML change below is made in all four. Everything is hidden when `raiders_enabled` is off.
+Based on `00_Core/gamedata/configs/ui/ui_stalker_camp_builder_pda.xml` and `ui_stalker_camp_builder_pda.script`. Four copies of the XML exist (`00_Core`, `01_Theme_Modern`, `01_Theme_ModernVanilla`, `01_Theme_Vanilla`); every XML change below is made in all four. (The master toggle was dropped on 2026-11-03: the Raider button is always shown.)
 
 ### 9.1 Survivors tab: job list and roster
 - **Job button.** The Job page lays the job buttons in a 4-column grid (83x24 buttons, 89 px column pitch, 28 px row pitch; `LayoutSurvivorPages`, `SV_JOB_ORDER`). That is 16 slots for 14 jobs, so **`btn_job_raider` takes slot 15 (column 3, last row) with no layout change**. Add:
@@ -222,7 +222,6 @@ No new top tab, no new panel, no change to list widths or the left container. Ra
 
 | Key | Type | Default | Purpose |
 |---|---|---|---|
-| `raiders_enabled` | check | **false** | Master toggle; off = job hidden, no missions, no goodwill code runs. |
 | `raiders_bandit_mode` | check | false | Section 7 bandit-style rules. |
 | `raiders_spare_friends` | check | true | Disable Send raiders for factions friendly to the player (ignored in bandit mode). |
 | `raiders_min_rank` | track 0-4 | 2 | Minimum prosper rank. |
@@ -249,7 +248,6 @@ Each key needs: the defaults table (`sb` ~690), key -> path map (~870), `mcm` gr
 - No `SAVE_STATE_VERSION` bump unless a migration step is added.
 - Mission state is derived from game seconds, not `time_global()`, so a sleep/load keeps it; resolution on load runs at most one mission per camp per tick (avoid a pile-up like the sleep catch-up problem in Living Needs).
 - Raider NPCs that are teleported away during a mission can be lost across a save/load (the same hazard `restore_missing_settler` handles for expeditions). The mission record is the source of truth, and `verify_and_heal_settlers` (`sb` ~5800) must finish a mission or a recall after a load.
-- Turning `raiders_enabled` off: missions in flight are cancelled and raiders recalled at the next tick; no data is deleted.
 - The rival camp mutation (`mark_rival_garrison_eliminated`) is already save-safe; the new code only calls it.
 - Uninstalling the mod leaves unknown fields as inert tables.
 
@@ -289,7 +287,7 @@ Each key needs: the defaults table (`sb` ~690), key -> path map (~870), `mcm` gr
 
 ## 15. Phased plan
 
-Each phase ships behind `raiders_enabled` (default off) and can be checked without launching the game via Lua 5.1 unit tests and `tools/check_lua.ps1`. Player-directed sends only throughout.
+Each phase ships always on (no master toggle) and can be checked without launching the game via Lua 5.1 unit tests and `tools/check_lua.ps1`. Player-directed sends only throughout.
 
 0. **Audit (no behavior change).** Confirm: (a) reading chest contents on an unloaded rival chest; (b) what `mark_rival_garrison_eliminated` needs with a nil actor and an unloaded squad; (c) how rival chest loot is generated, to pick a synthetic-haul table; (d) the survivor "available" checks (`on_expedition`); (e) teleporting a band away and back. Findings appended here.
 1. **Pure raider engine.** New `stalker_camp_builder_raiders.script`: `raid_odds`, `raid_outcome`, `loot_split`, `goodwill_plan`, mission-record helpers (pure); tests in `tools/tests/test_raiders.lua`; not wired.
@@ -359,5 +357,5 @@ Labels: verified (read in code), inferred (follows from code), unknown (needs th
 ## 19. Implementation status (phases 0-1 done, not wired, not play-tested)
 
 - Phase 0: audit in section 18. Biggest change: clear a camp by releasing its garrison squads, not by calling the local `mark_rival_garrison_eliminated`.
-- Phase 1: pure rules in `00_Core/gamedata/scripts/stalker_camp_builder_raiders.script` (`raiders_can_send`, `raid_odds`, `raid_outcome`, `raid_casualties`, `raiders_loot_split`, `raiders_goodwill_plan`, mission-record helpers), tests in `tools/tests/test_raiders.lua` (run with Lua 5.1 from the repo root). No MCM, PDA, XML or callback wiring; `raiders_enabled` defaults to off and `raiders_can_send` refuses while it is off. The rank gate reads `survivor.tier` (the prosper tier).
+- Phase 1: pure rules in `00_Core/gamedata/scripts/stalker_camp_builder_raiders.script` (`raiders_can_send`, `raid_odds`, `raid_outcome`, `raid_casualties`, `raiders_loot_split`, `raiders_goodwill_plan`, mission-record helpers), tests in `tools/tests/test_raiders.lua` (run with Lua 5.1 from the repo root). No MCM, PDA, XML or callback wiring; the toggle `raiders_enabled` was later removed (always on). The rank gate reads `survivor.tier` (the prosper tier).
 - Not decided in code yet: how `has_weapon`/`has_ammo`/guard counts are gathered from a live camp (phase 2).

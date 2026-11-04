@@ -13,14 +13,9 @@ local function near(a, b, msg)
     end
 end
 
--- off by default
-eq(sb.raiders_enabled(), false, "default off")
 local info = { guards = 2, ready = 2, missions_today = 0 }
 local target = { occupied = true, faction = "duty" }
-local ok, why = sb.raiders_can_send(info, target)
-eq(ok, false, "refused while off"); eq(why, "disabled", "reason disabled")
-sb.cfg.raiders_enabled = true
-eq(sb.raiders_can_send(info, target), true, "sendable when on")
+eq(sb.raiders_can_send(info, target), true, "sendable")
 
 -- target refusals
 local function refused(t, i, reason, msg)
@@ -168,7 +163,6 @@ do
     sb.safe_squad_members = function() local done; return function() if not done then done = true; return { id = 50, object = objs[50] } end end end
     sb.deposit_item_to_camp = function(_, _, sec) deposited[#deposited + 1] = sec; return true end
     sb.get_player_faction = function() return "actor_stalker" end
-    sb.cfg.raiders_enabled = true
     sb.rival_camps = { k1 = { chest_id = 900, squad_id = 900, extra_squad_ids = { 51 }, faction = "bandit", tier = 1,
         position = { x = 100, z = 0 }, level = "l01_escape" } }
     local function fresh_camp()
@@ -230,8 +224,7 @@ do
     -- an orphaned flag (mission record gone) is repaired
     camp.raider_missions = {}
     sb.raiders_process(); eq(camp.survivors[11].on_mission, nil, "orphaned mission flag repaired")
-    -- idle raider at home = half a guard; away, wounded or disabled = none
-    sb.cfg.raiders_enabled = true
+    -- idle raider at home = half a guard; away or wounded = none
     near(sb.raiders_defense_share({ job = "raider" }, NOW), 0.5, "idle raider half a guard")
     near(sb.raiders_defense_share({ job = "raider", on_mission = 1 }, NOW), 0, "away raider adds none")
     near(sb.raiders_defense_share({ job = "raider", raider = { wounded_until = NOW + 5 } }, NOW), 0, "wounded raider adds none")
@@ -251,9 +244,6 @@ do
     sb.raiders_process(); math.random = rnd
     eq(lost(), 70, "two camps share one daily cap")
     sb.cfg.raiders_goodwill_daily_cap = nil
-    -- disabled stops sends
-    sb.cfg.raiders_enabled = false
-    eq(sb.raiders_send_for(10), false, "no send when off")
 end
 
 if fails > 0 then print(fails .. " FAILED"); os.exit(1) end
