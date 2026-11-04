@@ -18,7 +18,7 @@ H = 2.58663          # wall height
 T = 0.114076         # wall thickness
 STOREY = 2.68663
 HALF = TILE / 2
-UV_SCALE = 1.0       # texture repeats per metre
+UV_SCALE = 0.6       # texture repeats per metre (the Hideout Furniture walls use about 0.6 too)
 
 
 def mat(name):
@@ -28,7 +28,35 @@ def mat(name):
             for m in o.data.materials:
                 if m.name == name or m.name.rsplit(".", 1)[0] == name:
                     return m
-    raise KeyError(name)
+    return make_mat(name)
+
+
+_TEX_DIRS = (r"C:\Users\hocke\AppData\Local\Temp\claude_sp\vtex\textures", r"C:\anomaly\tools\_test_unpack\textures",
+             r"C:\GAMMA\mods\385- Even More Hideout Furnitures - facelessez\gamedata\textures")
+
+
+def make_mat(name):
+    """Material named after a game texture path (used when no shipped piece is loaded in the scene)."""
+    import os
+    m = bpy.data.materials.get(name)
+    if m:
+        return m
+    rel = name.replace("\\", os.sep) + ".dds"
+    path = next((os.path.join(d, rel) for d in _TEX_DIRS if os.path.exists(os.path.join(d, rel))), None)
+    if path is None:
+        raise KeyError(name)
+    m = bpy.data.materials.new(name)
+    m.use_nodes = True
+    nt = m.node_tree
+    bsdf = next(n for n in nt.nodes if n.type == 'BSDF_PRINCIPLED')
+    ti = nt.nodes.new('ShaderNodeTexImage')
+    ti.image = bpy.data.images.load(path, check_existing=True)
+    ti.name = ti.label = name
+    nt.links.new(ti.outputs['Color'], bsdf.inputs['Base Color'])
+    m.xray.eshader = "models\\model"
+    m.xray.cshader = "default"
+    m.xray.gamemtl = "default_object"
+    return m
 
 
 def retex(m, tex):
@@ -64,9 +92,22 @@ class Mesh:
         self.name, self.mats = name, mats
         self.bm = bmesh.new()
         self.uv = self.bm.loops.layers.uv.new("Texture")
+        self._grp, self._vc = 0, {}
+
+    def _begin(self):
+        """Start a new closed shape: its faces share vertices (so recalc_face_normals can turn the whole shape
+        outward) but never weld to another shape's vertices."""
+        self._grp += 1
+
+    def _vert(self, p):
+        key = (self._grp,) + tuple(round(c, 5) for c in p)
+        v = self._vc.get(key)
+        if v is None:
+            v = self._vc[key] = self.bm.verts.new(p)
+        return v
 
     def _face(self, pts, mi):
-        vs = [self.bm.verts.new(p) for p in pts]
+        vs = [self._vert(p) for p in pts]
         try:
             f = self.bm.faces.new(vs)
         except ValueError:
@@ -80,6 +121,7 @@ class Mesh:
 
     def prism(self, base, z0, z1, mi=0, side=None):
         """Extruded polygon: base = [(x,y)...] counter-clockwise from above."""
+        self._begin()
         side = mi if side is None else side
         n = len(base)
         self._face([(x, y, z1) for x, y in base], mi)
@@ -89,6 +131,7 @@ class Mesh:
             self._face([(a[0], a[1], z0), (b[0], b[1], z0), (b[0], b[1], z1), (a[0], a[1], z1)], side)
 
     def box(self, x0, x1, y0, y1, z0, z1, mi=0, top=None):
+        self._begin()
         top = mi if top is None else top
         self._face([(x0, y1, z1), (x0, y0, z1), (x1, y0, z1), (x1, y1, z1)][::-1], top)
         self._face([(x0, y0, z0), (x0, y1, z0), (x1, y1, z0), (x1, y0, z0)][::-1], mi)
@@ -99,6 +142,7 @@ class Mesh:
 
     def rbox(self, p, q, z0, z1, w, mi=0):
         """Box along the ground line p -> q, w wide, z0..z1 tall (rails that follow a curve)."""
+        self._begin()
         d = Vector((q[0] - p[0], q[1] - p[1], 0))
         ln = d.length
         d.normalize()
@@ -115,6 +159,7 @@ class Mesh:
 
     def wedge(self, x0, x1, ya, za, yb, zb, z_base=0.0, mi=0):
         """Slab between x0..x1 whose side profile runs from (ya, za) up to (yb, zb), solid down to z_base."""
+        self._begin()
         prof = [(ya, z_base), (yb, z_base), (yb, zb), (ya, za)]
         # side faces (x0 side facing -X, x1 side facing +X)
         self._face([(x1, y, z) for y, z in prof], mi)
@@ -126,6 +171,8 @@ class Mesh:
 
     def finish(self, pivot_to_origin=True):
         bmesh.ops.recalc_face_normals(self.bm, faces=self.bm.faces)
+        for f in self.bm.faces:                  # texture axes follow the final (outward) normal
+            reproject(f, self.uv)
         me = bpy.data.meshes.new(self.name + "_visual")
         self.bm.to_mesh(me)
         self.bm.free()
@@ -142,7 +189,8 @@ def kit_mats():
     return mat("wood\\wood_plank6_bar_b"), mat("wood\\wood_board_01")
 
 
-PLANK, BOARD = 0, 1
+PLANK, TRIM = 0, 1
+BOARD = PLANK       # treads, floors, posts, rails: the plank texture (wood_board_01 is repainted by GAMMA texture packs)
 
 
 def new(name):
@@ -155,14 +203,14 @@ def wall_frame(m, x0, x1, z0, z1, trim=0.12, out=0.03):
     m.box(x0, x1, -T / 2, T / 2, z0, z1, PLANK, top=BOARD)
     for (a, b, c, d) in ((x0, x0 + trim, z0, z1), (x1 - trim, x1, z0, z1),
                          (x0 + trim, x1 - trim, z0, z0 + trim), (x0 + trim, x1 - trim, z1 - trim, z1)):
-        m.box(a, b, -T / 2 - out, T / 2 + out, c, d, BOARD)
+        m.box(a, b, -T / 2 - out, T / 2 + out, c, d, TRIM)
 
 
 def wall_low():
     m = new("hsk_wall_low")
     h = 1.2
     wall_frame(m, -HALF, HALF, 0, h)
-    m.box(-HALF, HALF, -T / 2 - 0.05, T / 2 + 0.05, h, h + 0.06, BOARD)   # cap rail
+    m.box(-HALF, HALF, -T / 2 - 0.05, T / 2 + 0.05, h, h + 0.06, TRIM)   # cap rail
     return m.finish()
 
 
@@ -176,10 +224,10 @@ def wall_loophole():
     m.box(sx, x1, -T / 2, T / 2, sz0, sz1, PLANK)
     for (a, b, c, d) in ((x0, x0 + 0.12, 0, H), (x1 - 0.12, x1, 0, H), (x0, x1, 0, 0.12), (x0, x1, H - 0.12, H),
                          (-sx - 0.08, sx + 0.08, sz0 - 0.08, sz0), (-sx - 0.08, sx + 0.08, sz1, sz1 + 0.08)):
-        m.box(a, b, -T / 2 - 0.03, T / 2 + 0.03, c, d, BOARD)
+        m.box(a, b, -T / 2 - 0.03, T / 2 + 0.03, c, d, TRIM)
     for sgn in (-1, 1):
         m.box(sgn * (sx + 0.08) - 0.04 + (0.04 if sgn < 0 else 0), sgn * (sx + 0.08) + 0.04 - (0.04 if sgn > 0 else 0),
-              -T / 2 - 0.03, T / 2 + 0.03, sz0 - 0.08, sz1 + 0.08, BOARD)
+              -T / 2 - 0.03, T / 2 + 0.03, sz0 - 0.08, sz1 + 0.08, TRIM)
     return m.finish()
 
 
@@ -191,7 +239,7 @@ def doorway_double():
     m.box(-d, d, -T / 2, T / 2, dh, H, PLANK)
     for (a, b, c, e) in ((-HALF, -HALF + 0.12, 0, H), (HALF - 0.12, HALF, 0, H), (-HALF, HALF, H - 0.12, H),
                          (-d - 0.12, -d, 0, dh + 0.12), (d, d + 0.12, 0, dh + 0.12), (-d - 0.12, d + 0.12, dh, dh + 0.12)):
-        m.box(a, b, -T / 2 - 0.03, T / 2 + 0.03, c, e, BOARD)
+        m.box(a, b, -T / 2 - 0.03, T / 2 + 0.03, c, e, TRIM)
     return m.finish()
 
 
@@ -313,6 +361,7 @@ def spiral_end():
     m = new("hsk_stairs_spiral_end")
     seg, r = 48, 2.2
     z0, z1 = 0.0, 0.1
+    m._begin()
 
     def edge_pt(a):
         c, s = math.cos(a), math.sin(a)
@@ -355,6 +404,7 @@ TREAD = 0.07         # tread / landing board thickness: the underside stays open
 
 def strip(m, c0, c1, ta, za, tb, zb, th, mi, axis_y=True):
     """Sloped board between c0..c1 across, running from (ta, za) to (tb, zb) with top on that line, th thick."""
+    m._begin()
     prof = [(ta, za - th), (tb, zb - th), (tb, zb), (ta, za)]
     pt = (lambda c, t, z: (c, t, z)) if axis_y else (lambda c, t, z: (t, c, z))
     m._face([pt(c1, t, z) for t, z in prof], mi)
