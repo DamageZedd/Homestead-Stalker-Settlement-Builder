@@ -1370,6 +1370,9 @@ function SettlementManagerPDA:ClearRivalDetails()
     self.rival_camp_location:SetText("")
     self.rival_camp_garrison:SetText("")
     self.rival_camp_intel:SetText("")
+    if self.btn_rival_raid then self.btn_rival_raid:Show(false) end
+    if self.rival_raid_info then self.rival_raid_info:SetText("") end
+    self.raid_armed = nil
 end
 
 function SettlementManagerPDA:OnRivalSelected()
@@ -1593,11 +1596,11 @@ function SettlementManagerPDA:RefreshRaidPanel()
     local tr = game.translate_string
     local key = item.smart
     local st = sb.raiders_outpost_status(key, selected_value(self.settlement_list, "hub_id"))
-    local was_away = self.raid_was_away
-    self.raid_was_away = (st.state == "away")
-    if was_away and not self.raid_was_away then
-        -- the raid just ended: the outpost, its pill and the banner changed
-        self.raid_armed = nil
+    if st.state == "away" then
+        self.raid_away_key = key
+    elseif self.raid_away_key == key then
+        -- the raid on this outpost just ended: the outpost, its pill and the banner changed
+        self.raid_away_key, self.raid_armed = nil, nil
         self:Reset("rivals")
         return
     end
@@ -1654,7 +1657,9 @@ end
 
 -- right-click on an outpost row: select it and arm the raid preview (the button still confirms)
 function SettlementManagerPDA:OnRivalRightClick()
-    if self.current_tab ~= "rivals" or not self.rival_list:IsShown() then return end
+    if self.current_tab ~= "rivals" or not self.rival_list:IsShown() or not self.rival_list:IsCursorOverWindow() then
+        return
+    end
     for i = 0, self.rival_list:GetSize() - 1 do
         local it = self.rival_list:GetItemByIndex(i)
         if it and it.smart ~= nil and it:IsCursorOverWindow() then
