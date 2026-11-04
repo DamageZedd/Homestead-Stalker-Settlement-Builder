@@ -3884,7 +3884,6 @@ function stalker_camp_builder.update_camp_jobs()
                 else
                     local tg = time_global()
                     local tf = stalker_camp_builder.time_factor()
-                    if tf <= 0 then tf = 10 end
 
                     local tod_mult = sb.get_time_of_day_mult and sb.get_time_of_day_mult(job) or 1.0
                     local effective_interval = rt_interval / (tod_mult > 0 and tod_mult or 1.0)
@@ -3899,7 +3898,7 @@ function stalker_camp_builder.update_camp_jobs()
                     end
 
                     local rt_elapsed_sec = mmax(0, (tg - survivor.job_start_realtime) / 1000)
-                    local game_elapsed_sec = mmax(0, (current_sec - (survivor.job_start_time or current_sec)) / tf)
+                    local game_elapsed_sec = stalker_camp_builder.job_game_elapsed_sec(survivor, current_sec, tf)
                     local effective_elapsed = mmax(rt_elapsed_sec, game_elapsed_sec)
 
                     -- Cap excessive backlog from long sleeps / absences (max 6 cycles backlog)
@@ -4238,7 +4237,6 @@ function stalker_camp_builder.get_job_progress(survivor, camp, hub_id)
     local tg = time_global()
     local current_sec = sb.game_sec()
     local tf = stalker_camp_builder.time_factor()
-    if tf <= 0 then tf = 10 end
 
     local tod_mult = sb.get_time_of_day_mult and sb.get_time_of_day_mult(job) or 1.0
     local effective_interval = rt_interval / (tod_mult > 0 and tod_mult or 1.0)
@@ -4253,7 +4251,7 @@ function stalker_camp_builder.get_job_progress(survivor, camp, hub_id)
     end
 
     local rt_elapsed_sec = mmax(0, (tg - survivor.job_start_realtime) / 1000)
-    local game_elapsed_sec = mmax(0, (current_sec - (survivor.job_start_time or current_sec)) / tf)
+    local game_elapsed_sec = stalker_camp_builder.job_game_elapsed_sec(survivor, current_sec, tf)
     local effective_elapsed = mmax(rt_elapsed_sec, game_elapsed_sec)
     if survivor.paused_elapsed then
         local is_p = sb.get_job_paused_status and sb.get_job_paused_status(survivor, camp, hub_id)
@@ -4293,7 +4291,6 @@ function stalker_camp_builder.get_job_time_remaining(survivor, camp, hub_id)
                 local current_sec = sb.game_sec()
                 local game_elapsed = current_sec - exp.start_sec
                 local tf = stalker_camp_builder.time_factor()
-                if tf <= 0 then tf = 10 end
                 local rem_game_sec = mmax(0, exp.duration - game_elapsed)
                 return mmax(0, math.floor(rem_game_sec / tf))
             end

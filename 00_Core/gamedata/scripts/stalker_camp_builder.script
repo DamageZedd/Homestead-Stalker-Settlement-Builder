@@ -305,6 +305,15 @@ function time_factor()
     return tf
 end
 
+-- A job's elapsed time in real seconds by the game clock. Real Time Zones keeps that clock on the wall
+-- clock and jumps it forward on a load, so there it is no measure of time played: only the real clock counts.
+function job_game_elapsed_sec(survivor, current_sec, tf)
+    if rtz_mcm and rtz_mcm.get_config and rtz_mcm.get_config("enabled") and rtz_mcm.get_config("sync_clock") then
+        return 0
+    end
+    return math.max(0, (current_sec - (survivor.job_start_time or current_sec)) / tf)
+end
+
 local _suppress_news_intercept = false
 stalker_camp_builder._suppress_news_intercept = false
 
@@ -3996,7 +4005,6 @@ function load_state(m_data)
                 if rt_interval and rt_interval > 0 then
                     local current_sec = game_sec()
                     local tf = stalker_camp_builder.time_factor()
-                    if tf <= 0 then tf = 10 end
                     local tod_mult = stalker_camp_builder.get_time_of_day_mult and stalker_camp_builder.get_time_of_day_mult(job) or 1.0
                     local effective_interval = rt_interval / (tod_mult > 0 and tod_mult or 1.0)
                     local game_elapsed = current_sec - (survivor.job_start_time or current_sec)
@@ -4954,7 +4962,6 @@ function actor_on_first_update()
     local cur_tg = time_global()
     local cur_gsec = game_sec()
     local tf = stalker_camp_builder.time_factor()
-    if tf <= 0 then tf = 10 end
 
     guarded_call("process_stash_expeditions", stalker_camp_builder.process_stash_expeditions)
     rebase_all_survivor_jobs(cur_tg, cur_gsec, tf)

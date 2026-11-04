@@ -26,5 +26,16 @@ eq(run(0.1, on), 1, "RTZ catch-up 0.1 floors at the configured factor")
 eq(run(10, on), 10, "RTZ emission factor passes")
 eq(run(0.1, { enabled = false, lock_time_factor = true, time_factor_val = 1.0 }), 0.1, "RTZ disabled")
 eq(run(0.1, { enabled = true, lock_time_factor = false, time_factor_val = 1.0 }), 0.1, "RTZ factor not locked")
+
+local function elapsed(rtz)
+    rtz_mcm = rtz and { get_config = function(k) return rtz[k] end } or nil
+    local env = setmetatable({}, { __index = _G })
+    setfenv(loadstring(jbody), env)()
+    return env.job_game_elapsed_sec({ job_start_time = 1000 }, 1600, 2)
+end
+eq(elapsed(nil), 300, "no RTZ: game span / factor")
+eq(elapsed({ enabled = true, sync_clock = true }), 0, "RTZ clock sync: game span ignored")
+eq(elapsed({ enabled = true, sync_clock = false }), 300, "RTZ without sync")
+eq(elapsed({ enabled = false, sync_clock = true }), 300, "RTZ disabled")
 if fails > 0 then print(fails .. " failure(s)"); os.exit(1) end
 print("test_time_factor: ok")
