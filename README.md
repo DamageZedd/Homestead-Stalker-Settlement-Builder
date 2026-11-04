@@ -190,9 +190,9 @@ Build real houses, Fallout 4 style. The new HomesteadHF building pieces and the 
 
 Off by default (MCM, Needs group); with it off, Homestead behaves exactly as before.
 
-- Settlers need food and water each food interval; food comes in staple, fresh and comfort classes and water is its own need (a camp with a water pump counts as supplied)
+- Settlers need food and water each food interval; food comes in staple, protein and comfort classes and water is its own need (a camp with a water pump counts as supplied)
 - Camp tiers: Fed, Short and Starving, shown as `Needs: <tier>, Variety n/3` in the Overview's Provisions line; a grace period after enabling it or loading an older save means no penalties at first
-- Settlers who went without cost happiness (capped at -35); eating from three classes gives +5 happiness and +25% savings cut
+- Settlers who went without cost happiness (capped at -35); eating from all three food classes within three rounds gives +5 happiness
 - Switchable consequences: hungry settlers pause demanding jobs (farmers, hunters, cooks and scavengers keep working), starving guards count 0.6x in defense, starving camps pay no savings, shortage-driven low morale can make settlers leave
 - Options: consumption multiplier, grace days, catch-up cap and the switches above
 
