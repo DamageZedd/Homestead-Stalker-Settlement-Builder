@@ -3290,12 +3290,6 @@
     <string id="ui_mcm_stalker_camp_builder_raiders_auto_recall_desc">
         <text>When a raid hits the settlement, raiders that are away on a mission come home at once and defend. The mission ends with no loot and no goodwill change.</text>
     </string>
-    <string id="ui_mcm_stalker_camp_builder_raiders_real_assault">
-        <text>Visible Raid Fights</text>
-    </string>
-    <string id="ui_mcm_stalker_camp_builder_raiders_real_assault_desc">
-        <text>When your raiders reach an outpost while you are nearby, a squad fights its garrison in front of you and the result decides the raid. If you leave or the fight stalls, the raid is settled by the usual odds. Off by default: the fights are new and untested in your game.</text>
-    </string>
     <string id="st_homestead_raider_assault_start">
         <text>Your %d raiders are attacking the %s outpost.</text>
     </string>

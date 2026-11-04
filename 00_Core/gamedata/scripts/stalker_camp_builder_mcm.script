@@ -166,7 +166,6 @@ function on_mcm_load()
             { id = "raiders_goodwill_daily_cap", type = "track", val = 2, min = 0, max = 1000, step = 10, def = 150 },
             { id = "raiders_max_per_day", type = "track", val = 2, min = 1, max = 10, step = 1, def = 3 },
             { id = "raiders_auto_recall", type = "check", val = 1, def = false },
-            { id = "raiders_real_assault", type = "check", val = 1, def = false },
             { id = "raiders_bandit_mode", type = "check", val = 1, def = false },
             { id = "line_ambushes", type = "line" },
             { id = "scavenger_ambush_chance", type = "track", val = 2, min = 0, max = 100, step = 5, def = 20 },

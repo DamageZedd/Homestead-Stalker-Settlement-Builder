@@ -33,7 +33,6 @@ local DEFAULTS = {
     raiders_bandit_loot_bonus = 25,        -- percent more cash and items in bandit mode
     raiders_max_per_day = 3,
     raiders_auto_recall = false,
-    raiders_real_assault = false,          -- Phase 5: visible fight when the player is at the outpost
 }
 
 -- cash bounty by camp tier, before the loot multiplier
@@ -447,7 +446,7 @@ local PROXY_LINGER_REAL_SEC = 90       -- a winning team stays this long before 
 
 -- the travel part is over: the band reaches the outpost ASSAULT_WINDOW_SEC before the abstract deadline
 function sb.raiders_assault_start_due(m, now_sec)
-    if type(m) ~= "table" or m.state ~= "away" or m.mode == "real" then return false end
+    if type(m) ~= "table" or m.state ~= "away" or m.mode == "real" or m.no_visible then return false end
     now_sec = num(now_sec, 0)
     return now_sec >= num(m.arrive_sec, math.huge) - ASSAULT_WINDOW_SEC and now_sec < num(m.arrive_sec, 0)
 end
@@ -497,7 +496,7 @@ end
 
 -- One decision for a running visible fight. obs = { epoch, player_near, proxy_alive, garrison_alive,
 -- target_status ("gone" | "unoccupied" | nil) }. Returns { act = "wait" } | { act = "reset" } |
--- { act = "fallback", odds } | { act = "finish", result }; result "gone" is the target-vanished path.
+-- { act = "abstain" } | { act = "fallback", odds } | { act = "finish", result }; result "gone" is the target-vanished path.
 -- Updates the progress marks on the record (plain numbers).
 function sb.raiders_assault_step(m, obs, now_sec)
     if type(m) ~= "table" or m.state ~= "assault" or type(m.real) ~= "table" then return { act = "reset" } end
@@ -518,8 +517,12 @@ function sb.raiders_assault_step(m, obs, now_sec)
     end
     if proxy ~= num(r.proxy_alive, -1) or garrison ~= num(r.garrison_alive, -1) then
         r.proxy_alive, r.garrison_alive, r.progress_sec = proxy, garrison, now_sec
+        r.engaged = true
     end
     if now_sec >= num(r.hard_sec, 0) or now_sec - num(r.progress_sec, now_sec) >= num(r.stall_sec, math.huge) then
+        -- nobody ever fell: the fight never started (the squad could not reach or see the garrison). That is not
+        -- the band's failure, so it is not punished: the abstract timer decides, and no second fight is tried
+        if not r.engaged then return { act = "abstain" } end
         -- nothing visible is released while the garrison stands: a stalemate is a repulse
         return { act = "finish", result = garrison > 0 and "repulsed" or "success" }
     end
@@ -1091,8 +1094,10 @@ local function process_cleanup(camp, now_sec)
         elseif now_sec >= num(e.due_sec, 0) then
             local near = e.level == level.name() and sb.is_player_near and sb.is_player_near(e.level, se.position)
             if not near or now_sec >= num(e.hard_sec, 0) then
+                -- gone next tick (the entry then leaves above); a release that keeps failing is given up on
+                e.tries = (e.tries or 0) + 1
                 pcall(release_proxy, e)
-                table.remove(list, i)
+                if e.tries >= 5 then table.remove(list, i) end
             end
         end
     end
@@ -1228,6 +1233,10 @@ local function assault_tick(hub_id, camp, id, m, now_sec)
         -- after a load, or with nothing to play: a plain away mission again, which may start over
         if r then queue_proxy_now(camp, r) end
         sb.raiders_assault_reset(m, now_sec, sb.raiders_assault_reset_delay(game_time_factor()))
+    elseif act.act == "abstain" then
+        queue_proxy_now(camp, r)
+        sb.raiders_assault_reset(m, now_sec, sb.raiders_assault_reset_delay(game_time_factor()))
+        m.no_visible = true
     elseif act.act == "fallback" then
         -- the player left: the abstract roll, with what is left of each side
         queue_proxy_now(camp, r)
@@ -1356,7 +1365,6 @@ end
 -- resolve due missions; free settlers whose mission record is gone (an old save, a cancelled mission)
 function sb.raiders_process()
     local now_sec = game_now()
-    local real_assault_on = cfgv("raiders_real_assault") == true
     for hub_id, camp in pairs(sb.active_camps or {}) do
         -- an attack on the camp with the option on: every band still away comes home to defend
         -- (recalling is idempotent: a recalled mission is no longer "away")
@@ -1370,7 +1378,7 @@ function sb.raiders_process()
                 if not pcall(assault_tick, hub_id, camp, id, m, now_sec) then drop_mission(camp, id, m) end
             elseif sb.raiders_mission_due(m, now_sec) then
                 if not pcall(resolve_mission, hub_id, camp, id, m) then drop_mission(camp, id, m) end
-            elseif real_assault_on and sb.raiders_assault_start_due(m, now_sec) then
+            elseif sb.raiders_assault_start_due(m, now_sec) then
                 local rc = sb.rival_camps and sb.rival_camps[m.target_key]
                 if rc and now_sec >= num(m.assault_retry_sec, 0) then
                     -- a start that does not happen (no spot, no smart terrain) is retried later, not every tick

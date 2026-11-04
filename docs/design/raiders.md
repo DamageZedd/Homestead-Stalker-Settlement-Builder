@@ -127,7 +127,7 @@ If when the band arrives the player is on the target's level (and within about 3
 2. The existing garrison logic judges the fight; the mission polls the squad every few seconds (the alive-count pattern of `check_completed_raids`, `events` 546).
 3. Result: garrison gone and some raiders alive = `success`; band gone = `disaster` (those deaths are real, no extra roll); a stalemate timeout (default 6 game minutes without progress) or the player leaving the level = fall back to Resolver A's roll using the raiders still alive, so a half-finished fight never leaves a mission hanging.
 4. The player can join the fight. Loot comes from the live chest (section 6).
-5. This is the highest-risk piece: squad AI control, companion-squad id collisions (see `end_camp_raid`), and the mission/level-leave race. It ships behind `raiders_real_assault` (default off), and Resolver A stays the fallback for every failure.
+5. This is the highest-risk piece: squad AI control, companion-squad id collisions (see `end_camp_raid`), and the mission/level-leave race. It is always on (owner decision 2026-11-04), and Resolver A stays the fallback for every failure.
 
 A `real` mission found on load has no live squad: it is converted to `abstract` and re-rolled from the raiders still alive, never resumed mid-fight.
 
@@ -229,7 +229,6 @@ No new top tab, no new panel, no change to list widths or the left container. Ra
 | `raiders_disaster_death_chance` | track 0-100 | 50 | Per-raider permanent-death chance on a disaster (a failed raid only wounds). |
 | `raiders_wounded_hours` | track 1-72 | 12 | Game hours a wounded raider is unavailable. |
 | `raiders_forbid_weapon_armor` | check | false | Raiders never take weapons or armor from a chest. |
-| `raiders_real_assault` | check | false | Phase 5: visible fight when the player is at the outpost (section 21). |
 | `raiders_loot_fraction` | track 10-100 | 60 | Percent of the chest taken. |
 | `raiders_cut_percent` | track 0-50 | 15 | Raiders' share into savings. |
 | `raiders_goodwill_loot` | track 0-300 | 60 | Goodwill lost with the robbed faction. |
@@ -291,7 +290,7 @@ Each phase ships always on (no master toggle) and can be checked without launchi
 1. **Pure raider engine.** New `stalker_camp_builder_raiders.script`: `raid_odds`, `raid_outcome`, `loot_split`, `goodwill_plan`, mission-record helpers (pure); tests in `tools/tests/test_raiders.lua`; not wired.
 2. **Job + abstract mission (Resolver A).** Job `raider`, dispatch and resolve, wounded state, loot to storage, savings cut, weapon/armor toggle, goodwill wrapper, MCM group, tips and radio. Dispatch by a temporary Job-page action until phase 3.
 3. **PDA hooks (section 9).** Job button, roster state, summary banner, Outposts "Send raiders" with confirm, Overview line and Recall button, in all four theme XML copies. Abstract recall and optional auto-recall come with it.
-4. **Real assault (Resolver B)**, built as phase 5 (section 21), recall as phase 4. The shared mission record switches to real when the player is on the level; behind `raiders_real_assault` (default off); abstract fallback on level leave or timeout.
+4. **Real assault (Resolver B)**, built as phase 5 (section 21), recall as phase 4. The shared mission record switches to real when the player is on the level; always on (no option); abstract fallback on level leave or timeout.
 5. **Bandit mode** (reduced penalties, bandit/renegade reputation, richer loot) and a balance pass from play-test numbers.
 
 Nothing can be play-tested from here; every phase ends with a short in-game checklist for the owner.
@@ -369,7 +368,7 @@ Labels: verified (read in code), inferred (follows from code), unknown (needs th
 
 ## 21. Phase 5 design: visible assault (Resolver B), 2026-11-04
 
-Key `raiders_real_assault` (the doc's name, kept), default **off**: the state machine is unit-tested, but squad control, releasing a squad in front of the player and ids after a load cannot be proven without playing.
+No MCM option (owner decision 2026-11-04): visible fights are always on when the player is on the target's level and in range. Squad control, releasing a squad in front of the player and ids after a load cannot be proven without playing, so every exit falls back to the abstract resolution. A fight in which nobody ever fell (the squad never engaged) is not punished: the band abstains, the abstract timer decides and no second visible try is made (`m.no_visible`).
 
 - **Proxy strike team, not the settlers.** The real settlers stay offline exactly as in an abstract mission (their home squads, `settler_lookup`, the invincible-respawn death hook and `camp.survivors` stay untouched). The fight is played by a fresh sim squad of the player's faction (another faction when that is the garrison's), spawned 60-110 m from the outpost on the player's side, trimmed to the band size, `scripted_target = rc.smart_name` (a saved string, the proven heat-pack pattern), no pin. Hostility to the garrison is forced with `set_relation` both ways each tick on online objects only.
 - **One record.** `m.mode = "real"`, `m.state = "assault"`, `m.real = { squad_id, section, epoch, proxy_start, proxy_alive, garrison_start, garrison_alive, progress_sec, stall_sec, hard_sec }`. `arrive_sec` is kept as the abstract deadline, so the countdown semantics do not change; it is not enforced while the fight runs. The PDA still sees `state = "away"` plus `field = true`.

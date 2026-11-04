@@ -544,16 +544,24 @@ do
 
     -- stalemate: no headcount change for 150 real s (1500 game s at tf 10) while the garrison stands
     m = fresh(); begin(m, 2300)
-    eq(step({ proxy_alive = 3, garrison_alive = 4 }, 2300 + 1499).act, "wait", "just under the stall limit")
-    a = step({ proxy_alive = 3, garrison_alive = 4 }, 2300 + 1500)
+    step({ proxy_alive = 3, garrison_alive = 3 }, 2310)            -- first blood: the fight is on
+    eq(step({ proxy_alive = 3, garrison_alive = 3 }, 2310 + 1499).act, "wait", "just under the stall limit")
+    a = step({ proxy_alive = 3, garrison_alive = 3 }, 2310 + 1500)
     eq(a.act, "finish", "stalled"); eq(a.result, "repulsed", "stall with the garrison standing = repulsed")
     m = fresh(); begin(m, 2300)
     step({ proxy_alive = 3, garrison_alive = 0 }, 2310)
     a = step({ proxy_alive = 3, garrison_alive = 0 }, 2310 + 1500)
     eq(a.result, "success", "stall with an empty garrison = success")
+    -- a fight where nobody ever fell never started: no punishment, no second try
+    m = fresh(); begin(m, 2300)
+    a = step({ proxy_alive = 3, garrison_alive = 4 }, 2300 + 1500)
+    eq(a.act, "abstain", "never engaged")
+    eq(sb.raiders_assault_reset(m, 3800, 300), true, "reset"); m.no_visible = true
+    eq(sb.raiders_assault_start_due(m, 3900), false, "no second visible try")
+    eq(sb.raiders_mission_due(m, 4100), true, "the abstract timer decides")
     m = fresh(); begin(m, 2300)
     local hard = m.real.hard_sec
-    for t = 2300, hard, 1000 do step({ proxy_alive = 3 - (t % 2), garrison_alive = 4 }, t) end
+    for t = 2300, hard, 1000 do step({ proxy_alive = 3 - (t / 1000) % 2, garrison_alive = 4 }, t) end
     a = step({ proxy_alive = 3, garrison_alive = 4 }, hard)
     eq(a.result, "repulsed", "hard cap ends the fight")
 
