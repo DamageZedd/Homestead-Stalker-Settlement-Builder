@@ -18,7 +18,6 @@ local mfloor = math.floor
 local DEFAULTS = {
     raiders_enabled = false,
     raiders_min_rank = 2,
-    raiders_band_size = 3,
     raiders_min_guards = 1,
     raiders_idle_guard_weight = 50,        -- percent of a guard
     raiders_wounded_hours = 12,
@@ -90,7 +89,7 @@ function sb.raiders_survivor_ready(surv, now_sec, cfg)
     if type(surv) ~= "table" then return false, "none" end
     if surv.on_mission or surv.on_expedition then return false, "busy" end
     if sb.raiders_is_wounded(surv, now_sec) then return false, "wounded" end
-    if num(surv.rank_tier, num(surv.tier, 0)) < num(cfgv("raiders_min_rank", cfg), 2) then
+    if num(surv.tier, 0) < num(cfgv("raiders_min_rank", cfg), 2) then
         return false, "rank"
     end
     if surv.has_weapon == false then return false, "no_weapon" end
@@ -208,7 +207,7 @@ local function kind_of(item)
     return KIND_ORDER[k] and k or "other"
 end
 
--- Split a chest's items. items = list of { sec, kind, value, count? }. Takes loot_fraction of the item
+-- Split a chest's items. items = list of { sec, kind, value }. Takes loot_fraction of the item
 -- count in preference order (ammo, meds, food, other, weapons, armor); weapons and armor are left out
 -- when forbidden. Returns { taken = {...}, left = {...}, taken_value }.
 function sb.raiders_loot_split(items, cfg)
@@ -277,13 +276,14 @@ function sb.raiders_goodwill_plan(a, cfg)
     local bandit = cfgv("raiders_bandit_mode", cfg) == true
     local mult = bandit and clamp(num(cfgv("raiders_bandit_penalty_mult", cfg), 50), 0, 100) / 100 or 1
     local spent = type(a.spent) == "table" and a.spent or {}
-    local seen = {}
+    local seen, lost = {}, {}
 
     local function add(f, delta)
         if type(f) ~= "string" or NOT_A_FACTION[f] or f == a.own or delta == 0 then return end
         if delta < 0 then
-            local room = mmax(0, cap - num(spent[f], 0))
+            local room = mmax(0, cap - num(spent[f], 0) - (lost[f] or 0))
             delta = -mmin(-delta, room)
+            lost[f] = (lost[f] or 0) - delta
             if delta == 0 then return end
         end
         if seen[f] then

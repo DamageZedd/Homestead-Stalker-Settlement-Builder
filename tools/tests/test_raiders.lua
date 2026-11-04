@@ -42,13 +42,13 @@ eq(sb.raiders_can_send(info, { occupied = true, faction = "duty", friendly = tru
 sb.cfg.raiders_bandit_mode = nil
 
 -- survivor readiness
-eq(sb.raiders_survivor_ready({ rank_tier = 2 }, 100), true, "rank 2 ok")
-local o, r = sb.raiders_survivor_ready({ rank_tier = 1 }, 100); eq(r, "rank", "rank 1 too low")
-o, r = sb.raiders_survivor_ready({ rank_tier = 3, raider = { wounded_until = 500 } }, 100); eq(r, "wounded", "wounded")
-eq(sb.raiders_survivor_ready({ rank_tier = 3, raider = { wounded_until = 50 } }, 100), true, "healed")
-o, r = sb.raiders_survivor_ready({ rank_tier = 3, on_expedition = true }, 100); eq(r, "busy", "on expedition")
-o, r = sb.raiders_survivor_ready({ rank_tier = 3, has_ammo = false }, 100); eq(r, "no_ammo", "no ammo")
-o, r = sb.raiders_survivor_ready({ rank_tier = 3, raider = { rest_until = 200 } }, 100); eq(r, "resting", "resting")
+eq(sb.raiders_survivor_ready({ tier = 2 }, 100), true, "rank 2 ok")
+local o, r = sb.raiders_survivor_ready({ tier = 1 }, 100); eq(r, "rank", "rank 1 too low")
+o, r = sb.raiders_survivor_ready({ tier = 3, raider = { wounded_until = 500 } }, 100); eq(r, "wounded", "wounded")
+eq(sb.raiders_survivor_ready({ tier = 3, raider = { wounded_until = 50 } }, 100), true, "healed")
+o, r = sb.raiders_survivor_ready({ tier = 3, on_expedition = true }, 100); eq(r, "busy", "on expedition")
+o, r = sb.raiders_survivor_ready({ tier = 3, has_ammo = false }, 100); eq(r, "no_ammo", "no ammo")
+o, r = sb.raiders_survivor_ready({ tier = 3, raider = { rest_until = 200 } }, 100); eq(r, "resting", "resting")
 
 -- guards: idle raider is half a guard
 near(sb.raiders_effective_guards(2, 3), 3.5, "2 guards + 3 idle raiders")
@@ -118,6 +118,8 @@ plan = sb.raiders_goodwill_plan({ faction = "duty", own = "stalker", spent = { d
 eq(find(plan, "duty"), nil, "capped faction not charged")
 plan = sb.raiders_goodwill_plan({ faction = "duty", own = "ecolog", allies = { "ecolog", "monster" } })
 eq(find(plan, "ecolog"), nil, "own faction never charged"); eq(find(plan, "monster"), nil, "non-faction skipped")
+plan = sb.raiders_goodwill_plan({ faction = "duty", own = "stalker", allies = { "ecolog", "ecolog", "ecolog", "ecolog", "ecolog", "ecolog" } })
+eq(find(plan, "ecolog"), -150, "repeated ally stays within the daily cap")
 eq(#sb.raiders_goodwill_plan(nil), 0, "nil args"); eq(#sb.raiders_goodwill_plan({ faction = "monster" }), 0, "monster")
 sb.cfg.raiders_bandit_mode = true
 plan = sb.raiders_goodwill_plan({ faction = "duty", own = "stalker", friendly = true })
