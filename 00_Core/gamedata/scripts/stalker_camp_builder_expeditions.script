@@ -625,7 +625,7 @@ end
 local function get_self_contained_duration_sec(dist, is_same_level, survivor, search_time_sec)
     local mfloor = math.floor
     local d = dist or 100
-    local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
+    local tf = stalker_camp_builder.time_factor()
     if tf <= 0 then tf = 10 end
 
     local kmh = (stalker_camp_builder.cfg and stalker_camp_builder.cfg.scavenger_walk_speed_kmh) or 1.2
@@ -1012,7 +1012,7 @@ function stalker_camp_builder.calculate_single_stash_duration(hub_id, stash_id, 
     local one_way_dist = get_self_contained_distance(p1, lid1, lvl1, p2, lid2, lvl2)
     local round_trip_dist = one_way_dist * 2
 
-    local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
+    local tf = stalker_camp_builder.time_factor()
     if tf <= 0 then tf = 10 end
     return get_self_contained_duration_sec(round_trip_dist, is_same_level, survivor, 60 * tf)
 end
@@ -1068,7 +1068,7 @@ function stalker_camp_builder.calculate_regional_sweep_duration(hub_id, all_stas
         total_sweep_dist = count * 350
     end
 
-    local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
+    local tf = stalker_camp_builder.time_factor()
     if tf <= 0 then tf = 10 end
     local total_search_sec = count * (45 * tf) -- 45 real sec search per stash
     return get_self_contained_duration_sec(total_sweep_dist, is_same_level, survivor, total_search_sec)
@@ -1077,7 +1077,7 @@ end
 function stalker_camp_builder.format_expedition_time(game_sec)
     local mfloor = math.floor
     if not game_sec or game_sec <= 0 then return string.format(game.translate_string("st_expedition_time_s"), 0) end
-    local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
+    local tf = stalker_camp_builder.time_factor()
     if tf <= 0 then tf = 10 end
 
     local real_sec = mfloor(game_sec / tf)
@@ -1097,7 +1097,7 @@ end
 
 function stalker_camp_builder.format_expedition_real_mins(game_sec)
     if not game_sec or game_sec <= 0 then return string.format(game.translate_string("st_expedition_real_min"), 1) end
-    local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
+    local tf = stalker_camp_builder.time_factor()
     if tf <= 0 then tf = 10 end
     local real_mins = math.ceil(game_sec / (tf * 60))
     return string.format(game.translate_string(real_mins == 1 and "st_expedition_real_min" or "st_expedition_real_mins"), real_mins)

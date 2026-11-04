@@ -1074,7 +1074,7 @@ local function roll_rival_heat_mutants(sb, camp, sim, level_name, same_level, v_
 end
 
 local function trigger_rival_skirmish_sos(sb, camp, actor, level_name, same_level, current_sec, skirmish_cooldown_sec)
-    local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
+    local tf = stalker_camp_builder.time_factor()
     if tf <= 0 then tf = 10 end
     camp.skirmish_cooldown_until = current_sec + skirmish_cooldown_sec
     camp.pending_skirmish = true

@@ -3883,7 +3883,7 @@ function stalker_camp_builder.update_camp_jobs()
                     survivor.job_start_realtime = nil
                 else
                     local tg = time_global()
-                    local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
+                    local tf = stalker_camp_builder.time_factor()
                     if tf <= 0 then tf = 10 end
 
                     local tod_mult = sb.get_time_of_day_mult and sb.get_time_of_day_mult(job) or 1.0
@@ -4237,7 +4237,7 @@ function stalker_camp_builder.get_job_progress(survivor, camp, hub_id)
 
     local tg = time_global()
     local current_sec = sb.game_sec()
-    local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
+    local tf = stalker_camp_builder.time_factor()
     if tf <= 0 then tf = 10 end
 
     local tod_mult = sb.get_time_of_day_mult and sb.get_time_of_day_mult(job) or 1.0
@@ -4292,7 +4292,7 @@ function stalker_camp_builder.get_job_time_remaining(survivor, camp, hub_id)
             if exp then
                 local current_sec = sb.game_sec()
                 local game_elapsed = current_sec - exp.start_sec
-                local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
+                local tf = stalker_camp_builder.time_factor()
                 if tf <= 0 then tf = 10 end
                 local rem_game_sec = mmax(0, exp.duration - game_elapsed)
                 return mmax(0, math.floor(rem_game_sec / tf))

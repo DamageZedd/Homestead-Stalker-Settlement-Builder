@@ -2895,7 +2895,7 @@ function SettlementManagerPDA:FormatSurvivorStatus(survivor, camp, hub_id)
         if exp then
             local current_sec = stalker_camp_builder.game_sec()
             local game_elapsed = current_sec - (exp.start_sec or current_sec)
-            local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
+            local tf = stalker_camp_builder.time_factor()
             if tf <= 0 then tf = 10 end
             local effective_elapsed = mmax(0, game_elapsed)
             local dur = mmax(1, exp.duration or 1)
@@ -3130,7 +3130,7 @@ function SettlementManagerPDA:RefreshJobProgress(force, hub_id_override)
                         if exp then
                             local current_sec = stalker_camp_builder.game_sec()
                             local game_elapsed = current_sec - (exp.start_sec or current_sec)
-                            local tf = (level and level.get_time_factor and level.get_time_factor()) or 10
+                            local tf = stalker_camp_builder.time_factor()
                             if tf <= 0 then tf = 10 end
                             local effective_elapsed = mmax(0, game_elapsed)
                             local dur = mmax(1, exp.duration or 1)
