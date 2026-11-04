@@ -3272,12 +3272,6 @@
     <string id="ui_mcm_stalker_camp_builder_raiders_goodwill_daily_cap_desc">
         <text>Most goodwill raids can cost you with one faction in a day.</text>
     </string>
-    <string id="ui_mcm_stalker_camp_builder_raiders_spare_friends">
-        <text>Spare Friendly Outposts</text>
-    </string>
-    <string id="ui_mcm_stalker_camp_builder_raiders_spare_friends_desc">
-        <text>Raiders refuse to hit outposts of factions friendly to you.</text>
-    </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_max_per_day">
         <text>Raids per Day</text>
     </string>
@@ -3322,9 +3316,6 @@
     </string>
     <string id="st_pda_raid_why_cooldown">
         <text>Already hit: wait a day</text>
-    </string>
-    <string id="st_pda_raid_why_friendly">
-        <text>Friendly faction: spared</text>
     </string>
     <string id="st_pda_raid_why_no_raider">
         <text>No eligible raiders</text>

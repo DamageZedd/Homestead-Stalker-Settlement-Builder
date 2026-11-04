@@ -27,7 +27,6 @@ local DEFAULTS = {
     raiders_goodwill_betrayal = 100,
     raiders_goodwill_daily_cap = 150,
     raiders_goodwill_enemy_bonus = 0,      -- optional, off
-    raiders_spare_friends = true,
     raiders_bandit_mode = false,
     raiders_bandit_penalty_mult = 50,      -- percent of the normal goodwill loss in bandit mode
     raiders_bandit_rep = 20,
@@ -42,6 +41,11 @@ local TIER_FACTOR = { 1.0, 1.4, 2.0 }
 local ASSAULT_WINDOW_SEC = 1800
 local MAX_MISSION_SEC = 4 * 3600
 local WIN_MIN, WIN_MAX = 0.05, 0.90
+-- Mission timers count real seconds: the game clock can run at any factor (a time mod may lock it to 1:1 or
+-- hold it), so a mission's `left` is a real-time countdown, fed by raiders_step. A game-second duration is
+-- converted at the stock factor, so a mission lasts as long as it did at the base game's clock.
+local REF_TIME_FACTOR = 10
+local MAX_STEP_SEC = 3600
 local FRIEND_GOODWILL = 500      -- goodwill with the player at or above this = a friendly faction
 
 local BANDIT_FACTIONS = { bandit = true, renegade = true }
@@ -97,7 +101,8 @@ function sb.raiders_survivor_ready(surv, now_sec, cfg)
 end
 
 -- Can this camp send raiders at this target? info = { guards, ready, missions_today, now }
--- target = { occupied, faction, story, nest, own, on_cooldown, busy, friendly }
+-- target = { occupied, faction, story, nest, own, on_cooldown, busy }; a friendly faction is a valid target
+-- (the PDA warns, the goodwill plan prices it)
 -- returns true, or false and a reason key for the PDA
 function sb.raiders_can_send(info, target, cfg)
     if type(info) ~= "table" or type(target) ~= "table" then return false, "none" end
@@ -108,10 +113,6 @@ function sb.raiders_can_send(info, target, cfg)
     if not target.occupied or type(f) ~= "string" or NOT_A_FACTION[f] then return false, "empty" end
     if target.busy then return false, "busy" end
     if target.on_cooldown then return false, "cooldown" end
-    if target.friendly and cfgv("raiders_spare_friends", cfg) == true
-        and cfgv("raiders_bandit_mode", cfg) ~= true then
-        return false, "friendly"
-    end
     if num(info.ready, 0) < 1 then return false, "no_raider" end
     if num(info.guards, 0) < num(cfgv("raiders_min_guards", cfg), 1) then return false, "no_guard" end
     if num(info.missions_today, 0) >= num(cfgv("raiders_max_per_day", cfg), 3) then return false, "daily" end
@@ -347,13 +348,23 @@ function sb.raiders_new_mission(id, target_key, target_level, faction, raider_id
         raider_ids = ids,
         start_sec = num(now_sec, 0), duration = num(duration, ASSAULT_WINDOW_SEC),
         arrive_sec = num(now_sec, 0) + num(duration, ASSAULT_WINDOW_SEC),
+        left = num(duration, ASSAULT_WINDOW_SEC) / REF_TIME_FACTOR,
         odds = num(odds, WIN_MIN),
         result = nil, loot_rolled = false, goodwill_paid = false,
     }
 end
 
+-- real seconds left on a mission; one saved with only a game-time arrive_sec gets its countdown from it
+function sb.raiders_mission_left(m, now_sec)
+    if type(m) ~= "table" then return 0 end
+    if type(m.left) ~= "number" then
+        m.left = mmax(0, (num(m.arrive_sec, 0) - num(now_sec, 0)) / REF_TIME_FACTOR)
+    end
+    return m.left
+end
+
 function sb.raiders_mission_due(m, now_sec)
-    return type(m) == "table" and m.state == "away" and num(now_sec, 0) >= num(m.arrive_sec, math.huge)
+    return type(m) == "table" and m.state == "away" and sb.raiders_mission_left(m, now_sec) <= 0
 end
 
 -- the one-shot guards of finish_mission: true the first time for a step ("loot" or "goodwill"),
@@ -700,7 +711,7 @@ function sb.raiders_outpost_status(key, prefer_hub)
     local m, mhub = sb.raiders_mission_for(key)
     if m then
         return { state = "away", hub_id = mhub, band = #m.raider_ids, odds = m.odds,
-            eta = mmax(0, m.arrive_sec - now_sec) }
+            eta = mmax(0, sb.raiders_mission_left(m, now_sec)) }
     end
     local t, squad = target_info(key, rc, now_sec)
     local order = {}
@@ -861,11 +872,30 @@ function sb.raiders_cancel_for(hub_id, npc_id)
     end
 end
 
--- resolve due missions; free settlers whose mission record is gone (an old save, a cancelled mission)
-function sb.raiders_process()
+-- Real seconds of mission progress since the last call: wall time on the engine clock, or the game clock
+-- scaled to the stock factor if that is more (sleeping and waiting fast-forward it), capped per call.
+-- The first call after a load gives 0, so time away from the game never counts.
+local last_tg, last_gs
+function sb.raiders_step()
+    local tg, gs = time_global(), game_now()
+    local step = 0
+    if last_tg and tg >= last_tg and gs >= last_gs then
+        step = mmin(MAX_STEP_SEC, mmax((tg - last_tg) / 1000, (gs - last_gs) / REF_TIME_FACTOR))
+    end
+    last_tg, last_gs = tg, gs
+    return step
+end
+
+function sb.raiders_reset_clock() last_tg, last_gs = nil, nil end
+
+-- count the missions down and resolve the due ones; free settlers whose mission record is gone
+-- (an old save, a cancelled mission). step = real seconds to count (default: raiders_step)
+function sb.raiders_process(step)
     local now_sec = game_now()
+    step = step or sb.raiders_step()
     for hub_id, camp in pairs(sb.active_camps or {}) do
         for id, m in pairs(camp.raider_missions or {}) do
+            if m.state == "away" then m.left = sb.raiders_mission_left(m, now_sec) - step end
             if sb.raiders_mission_due(m, now_sec) then
                 if not pcall(resolve_mission, hub_id, camp, id, m) then camp.raider_missions[id] = nil end
             end

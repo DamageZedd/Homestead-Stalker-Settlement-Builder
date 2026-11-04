@@ -88,7 +88,7 @@ Valid target: an occupied rival camp in `sb.rival_camps` (`camp.status == nil`, 
 - camps whose garrison holds a story NPC (`squad_has_story_npc`, `rivals` 731);
 - mutant nests and zombified camps.
 
-Friendly factions: a camp of a faction friendly to the player is **allowed**, because the goodwill system prices it (section 7). The confirm panel warns in red and shows the cost. With `raiders_spare_friends` on (default) the button is disabled for friendly camps unless bandit mode is on.
+Friendly factions: a camp of a faction friendly to the player is **allowed**, because the goodwill system prices it (section 7). The confirm panel warns in red and shows the cost. Owner decision 2026-11-04: friendly camps are always sendable (button and right-click); the two-click preview shows the red warning with the exact loss (base plus betrayal, held to the daily cap). There is no "spare friends" option.
 
 ## 5. Travel, combat, capture: one mission record, two resolvers
 
@@ -201,7 +201,7 @@ Based on `00_Core/gamedata/configs/ui/ui_stalker_camp_builder_pda.xml` and `ui_s
 ### 9.2 Outposts tab (`rivals`): the Send raiders button
 The detail panel `rival_content` is a fixed 350 px stack: hero 0-118, banner 124, faction/garrison/distance tiles 154-212, status line 216, Intel box 240-392, buttons `btn_rival_locate` (x 0, w 170) and `btn_refresh` (x 180, w 170) at y 400, content height 490.
 - **Add one full-width button `btn_rival_raid`** (350 x 28) at **y 432**, under the existing two, inside the 490 px content so nothing is resized. Shown only when the toggle is on and the selected card is an occupied rival camp. Init in the same block as `btn_rival_locate` (script ~481).
-- **States** (set where `OnRivalSelected` fills the panel): enabled "Send raiders" when a raider is free and the camp is valid; disabled with the reason in `rival_banner_lbl` for: no free raider, cooldown, story camp, nest, friendly faction while `raiders_spare_friends` is on, mission in progress.
+- **States** (set where `OnRivalSelected` fills the panel): enabled "Send raiders" when a raider is free and the camp is valid; disabled with the reason in `rival_banner_lbl` for: no free raider, cooldown, story camp, nest, mission in progress.
 - **Confirm.** The click opens a confirm in the style of the banish and rename confirms, listing band, win chance, estimated loot and goodwill cost, plus "retaliation likely" when the faction hates the player. A friendly faction gets a red line with the -60 and -100.
 - **Banner and Intel.** While a mission targets the camp, `rival_banner_lbl` shows "Raid in progress, back in Xh" (role warn) and `rival_camp_intel` appends one line with band size and odds.
 - **Recall.** With a mission active the same button becomes "Recall raiders" (no loot, no goodwill).
@@ -223,7 +223,6 @@ No new top tab, no new panel, no change to list widths or the left container. Ra
 | Key | Type | Default | Purpose |
 |---|---|---|---|
 | `raiders_bandit_mode` | check | false | Section 7 bandit-style rules. |
-| `raiders_spare_friends` | check | true | Disable Send raiders for factions friendly to the player (ignored in bandit mode). |
 | `raiders_band_size` | track 1-4 | 3 | Raiders per mission. |
 | `raiders_min_guards` | track 0-4 | 1 | Guards that must stay home. |
 | `raiders_idle_guard_weight` | track 0-100 | 50 | Percent of a guard an idle raider at home counts for. |
@@ -245,7 +244,7 @@ Each key needs: the defaults table (`sb` ~690), key -> path map (~870), `mcm` gr
 
 - Camp-level only: `camp.raider_missions` (the shared record of 5.1), `camp.raider_state` (per-faction goodwill spent today, last mission day). Per-survivor: `survivor.raider = { rest_until, missions_done, kills }`. All plain numbers/strings/tables, no engine objects (ids only). nil = "never raided", so old saves load unchanged; `normalize_camps` (`sb` 3987) fills defaults.
 - No `SAVE_STATE_VERSION` bump unless a migration step is added.
-- Mission state is derived from game seconds, not `time_global()`, so a sleep/load keeps it; resolution on load runs at most one mission per camp per tick (avoid a pile-up like the sleep catch-up problem in Living Needs).
+- Mission timers are a real-second countdown (`mission.left`, fed by `raiders_step`: engine wall time, or the game clock at the stock factor of 10 if that is more, so sleeping still counts; capped at 1 h per call; the first call after a load counts 0). The game clock is not trusted because a time mod such as Real Time Zones locks it to 1:1 or holds it, which froze the countdown. Missions saved with only `arrive_sec` are migrated to `left` on first read; resolution on load runs at most one mission per camp per tick (avoid a pile-up like the sleep catch-up problem in Living Needs).
 - Raider NPCs that are teleported away during a mission can be lost across a save/load (the same hazard `restore_missing_settler` handles for expeditions). The mission record is the source of truth, and `verify_and_heal_settlers` (`sb` ~5800) must finish a mission or a recall after a load.
 - The rival camp mutation (`mark_rival_garrison_eliminated`) is already save-safe; the new code only calls it.
 - Uninstalling the mod leaves unknown fields as inert tables.
