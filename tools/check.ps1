@@ -92,7 +92,7 @@ if ($Skip -notcontains 'luacheck') {
         Write-Host '  SKIPPED: luacheck is not installed (luarocks install luacheck, or pass -Luacheck <path>).'
     } else {
         $mods = @($scripts | ForEach-Object { [IO.Path]::GetFileNameWithoutExtension($_) } | Sort-Object -Unique)
-        $lcArgs = @('--config', (Join-Path $root '.luacheckrc'), '--formatter', 'plain', '--codes', '--no-color', '--read-globals') + $mods + @('--') + $scripts
+        $lcArgs = @('--config', (Join-Path $root '.luacheckrc'), '--formatter', 'plain', '--codes', '--no-color') + @('--') + $scripts
         $lc = & $Luacheck @lcArgs 2>&1 | ForEach-Object { "$_" }
         foreach ($l in $lc) {
             # path:line:col: (Wcode) message
