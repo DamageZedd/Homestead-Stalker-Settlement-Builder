@@ -264,6 +264,69 @@ do
     sb.raiders_process(); math.random = rnd
     eq(lost(), 70, "two camps share one daily cap")
     sb.cfg.raiders_goodwill_daily_cap = nil
+
+    -- Outposts tab: button status, preview and the send to a chosen outpost
+    NOW = NOW + 3 * 86400
+    goodwill = {}
+    local camp3 = fresh_camp()
+    camp3.survivors[12].job = "guard"
+    sb.active_camps = { [7] = camp3 }
+    sb.rival_camps = { k1 = { chest_id = 900, squad_id = 900, faction = "bandit", tier = 1,
+            position = { x = 100, z = 0 }, level = "l01_escape" },
+        k2 = { chest_id = 900, squad_id = 900, faction = "duty", tier = 2, position = { x = 50, z = 0 } },
+        gone = { chest_id = 900, squad_id = 900, faction = "duty", status = "unoccupied" } }
+    local s = sb.raiders_outpost_status("k1", 7)
+    eq(s.state, "ready", "outpost ready"); eq(s.band, 2, "preview band"); eq(s.faction, "bandit", "preview faction")
+    eq(s.loss, 60, "preview goodwill loss"); eq(s.friendly, false, "not friendly")
+    eq(s.odds >= 0.05 and s.odds <= 0.9, true, "preview odds in range")
+    eq(sb.raiders_outpost_status("gone", 7).reason, "empty", "cleared outpost is not a target")
+    eq(sb.raiders_outpost_status("nokey", 7).reason, "empty", "unknown outpost")
+    camp3.survivors[12].job = "idle"
+    eq(sb.raiders_outpost_status("k1", 7).reason, "no_guard", "no guard home")
+    camp3.survivors[12].job = "guard"
+    camp3.raider_state = { day = math.floor(NOW / 86400), spent = {}, missions_today = 3 }
+    eq(sb.raiders_outpost_status("k1", 7).reason, "daily", "daily cap")
+    camp3.raider_state.missions_today = 0
+    sb.rival_camps.k1.raid_cooldown_until = NOW + 100
+    eq(sb.raiders_outpost_status("k1", 7).reason, "cooldown", "already hit")
+    sb.rival_camps.k1.raid_cooldown_until = nil
+    relation_registry.community_goodwill = function() return 800 end
+    local fs = sb.raiders_outpost_status("k1", 7)
+    eq(fs.reason, "friendly", "friendly outpost blocked while spare friends is on")
+    sb.cfg.raiders_spare_friends = false
+    fs = sb.raiders_outpost_status("k1", 7)
+    eq(fs.state, "ready", "friendly allowed with spare friends off"); eq(fs.friendly, true, "friendly flagged")
+    eq(fs.loss, 150, "friendly loss held to the daily cap")
+    sb.cfg.raiders_spare_friends = nil
+    relation_registry.community_goodwill = function() return 0 end
+
+    -- sending to a chosen outpost: the far one, not the nearest
+    eq(sb.raiders_send(7, camp3, nil, "k1"), true, "send to the chosen outpost")
+    eq(camp3.raider_missions[1].target_key, "k1", "mission targets the chosen outpost")
+    eq(#camp3.raider_missions[1].raider_ids, 2, "free raiders go without a lead")
+    local a = sb.raiders_outpost_status("k1", 7)
+    eq(a.state, "away", "status away while the raid runs"); eq(a.band, 2, "away band"); eq(a.eta > 0, true, "eta counts down")
+    eq(sb.raiders_mission_for("k1") ~= nil, true, "mission found for the card")
+    eq(sb.raiders_mission_for("k2"), nil, "no mission on the other outpost")
+    tips = {}
+    eq(sb.raiders_send(7, camp3, nil, "k2"), false, "no raider left for a second send")
+    eq(tips[1], "st_pda_raid_why_no_raider", "reason tip")
+    eq(sb.raiders_send(7, camp3, nil, "gone"), false, "cleared outpost refused")
+end
+
+-- pure PDA helpers
+do
+    sb.cfg = {}
+    eq(sb.raiders_faction_loss("duty", false, {}, "stalker"), 60, "plain loss")
+    eq(sb.raiders_faction_loss("duty", true, {}, "stalker"), 150, "friendly loss capped at 150")
+    eq(sb.raiders_faction_loss("duty", false, { duty = 120 }, "stalker"), 30, "loss left under the cap")
+    eq(sb.raiders_faction_loss("duty", false, { duty = 150 }, "stalker"), 0, "cap used up")
+    eq(sb.raiders_faction_loss("stalker", false, {}, "stalker"), 0, "never the player's own faction")
+    eq(sb.raiders_faction_loss("monster", false, {}, "stalker"), 0, "not a faction")
+    local h, m = sb.raiders_eta_parts(3600 * 2 + 61); eq(h, 2, "eta hours"); eq(m, 2, "eta minutes round up")
+    h, m = sb.raiders_eta_parts(0); eq(h + m, 0, "eta zero")
+    h, m = sb.raiders_eta_parts(-5); eq(h + m, 0, "eta negative")
+    h, m = sb.raiders_eta_parts(59); eq(m, 1, "under a minute counts as one")
 end
 
 if fails > 0 then print(fails .. " FAILED"); os.exit(1) end

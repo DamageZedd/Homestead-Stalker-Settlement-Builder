@@ -319,6 +319,22 @@ function sb.raiders_goodwill_plan(a, cfg)
     return plan
 end
 
+-- the goodwill the robbed faction itself loses, for the PDA preview: the base loss plus the betrayal
+-- penalty for a friendly faction, bandit-mode reduced, held to what is left of the daily cap
+function sb.raiders_faction_loss(faction, friendly, spent, own, cfg)
+    for _, p in ipairs(sb.raiders_goodwill_plan({ faction = faction, own = own, friendly = friendly,
+        spent = spent }, cfg)) do
+        if p.faction == faction then return mmax(0, -p.delta) end
+    end
+    return 0
+end
+
+-- whole hours and minutes (rounded up) left on a timer in game seconds
+function sb.raiders_eta_parts(sec)
+    local mins = mfloor((mmax(0, num(sec, 0)) + 59) / 60)
+    return mfloor(mins / 60), mins % 60
+end
+
 function sb.raiders_is_friendly(goodwill_with_player)
     return num(goodwill_with_player, 0) >= FRIEND_GOODWILL
 end
@@ -525,30 +541,68 @@ end
 
 -- ---------------------------------------------------------------- send
 
--- player-directed send from the Job page: the raider npc_id and every other free raider (up to 3) go
-function sb.raiders_send(hub_id, camp, npc_id)
+local BAND_MAX = 3
+
+-- the free raiders of a camp (up to BAND_MAX, the lead first when given) as survivors and ids;
+-- sorted so the PDA preview and the send pick the same band
+local function ready_band(camp, lead_id, now_sec)
+    local ids = {}
+    for id, s in pairs(camp.survivors or {}) do
+        local nid = tonumber(id) or id
+        if nid ~= lead_id and s.job == "raider" and sb.raiders_survivor_ready(s, now_sec) then ids[#ids + 1] = nid end
+    end
+    table.sort(ids, function(a, b) return tostring(a) < tostring(b) end)
+    local band, out = {}, {}
+    if lead_id then band[1] = surv_of(camp, lead_id); out[1] = lead_id end
+    for _, nid in ipairs(ids) do
+        if #band < BAND_MAX then band[#band + 1] = surv_of(camp, nid); out[#out + 1] = nid end
+    end
+    return band, out
+end
+
+local function guard_count(camp)
+    local n = 0
+    for _, s in pairs(camp.survivors or {}) do
+        if s.job == "guard" then n = n + 1 end
+    end
+    return n
+end
+
+local function band_odds(band, rc, squad)
+    local members = {}
+    for i, s in ipairs(band) do members[i] = { rank = s.tier or 0 } end
+    return sb.raid_odds(sb.raiders_band_strength(members),
+        sb.raiders_defender_strength(squad_alive_count(squad), rc.tier or 1, 0))
+end
+
+-- Player-directed send. npc_id = the raider picked on the Job page (nil: the first free raiders go);
+-- key = the outpost chosen on the Outposts tab (nil: the nearest valid one). Up to three free raiders go.
+function sb.raiders_send(hub_id, camp, npc_id, key)
     if not (camp and camp.survivors and db.actor) then return false end
     local now_sec = game_now()
     local st = raider_state(camp)
-    local lead = surv_of(camp, npc_id)
-    if not lead or lead.job ~= "raider" then return false end
-    local ok, why = sb.raiders_survivor_ready(lead, now_sec)
-    if not ok then tip(tr("st_homestead_raider_cannot_" .. why)); return false end
-
-    local lead_id = tonumber(npc_id) or npc_id
-    local band, ids = { lead }, { lead_id }
-    for id, s in pairs(camp.survivors) do
-        local nid = tonumber(id) or id
-        if #band < 3 and nid ~= lead_id and s.job == "raider" and sb.raiders_survivor_ready(s, now_sec) then
-            band[#band + 1] = s; ids[#ids + 1] = nid
-        end
+    local lead_id
+    if npc_id ~= nil then
+        local lead = surv_of(camp, npc_id)
+        if not lead or lead.job ~= "raider" then return false end
+        local ok, why = sb.raiders_survivor_ready(lead, now_sec)
+        if not ok then tip(tr("st_homestead_raider_cannot_" .. why)); return false end
+        lead_id = tonumber(npc_id) or npc_id
     end
-    local guards = 0
-    for _, s in pairs(camp.survivors) do
-        if s.job == "guard" then guards = guards + 1 end
+    local band, ids = ready_band(camp, lead_id, now_sec)
+    local info = { guards = guard_count(camp), ready = #band, missions_today = st.missions_today or 0 }
+    local rc, dist, squad
+    if key ~= nil then
+        rc = sb.rival_camps and sb.rival_camps[key]
+        if type(rc) ~= "table" then tip(tr("st_homestead_raider_no_target")); return false end
+        local t
+        t, squad = target_info(key, rc, now_sec)
+        local ok, why = sb.raiders_can_send(info, t)
+        if not ok then tip(tr("st_pda_raid_why_" .. why)); return false end
+        dist = distance_to(alife_object(hub_id), rc)
+    else
+        rc, key, dist, squad = pick_target(hub_id, info, now_sec)
     end
-    local info = { guards = guards, ready = #band, missions_today = st.missions_today or 0 }
-    local rc, key, dist, squad = pick_target(hub_id, info, now_sec)
     if not rc then
         -- say why: the camp's own limits first (no guard, daily cap), else there is simply nothing to hit
         local _, reason = sb.raiders_can_send(info, { occupied = true, faction = "stalker" })
@@ -558,11 +612,7 @@ function sb.raiders_send(hub_id, camp, npc_id)
         return false
     end
 
-    local members = {}
-    for i, s in ipairs(band) do members[i] = { rank = s.tier or 0 } end
-    local attack = sb.raiders_band_strength(members)
-    local defense = sb.raiders_defender_strength(squad_alive_count(squad), rc.tier or 1, 0)
-    local odds = sb.raid_odds(attack, defense)
+    local odds = band_odds(band, rc, squad)
     local id = st.next_id; st.next_id = id + 1
     local m = sb.raiders_new_mission(id, key, rc.level, rc.faction, ids, now_sec, sb.raiders_mission_duration(dist), odds)
     camp.raider_missions = camp.raider_missions or {}
@@ -628,9 +678,59 @@ local function share_spent(merged)
     end
 end
 
-local function apply_goodwill(faction, friendly)
+local function own_faction()
     local own = sb.get_player_faction and sb.get_player_faction()
-    own = type(own) == "string" and (string.gsub(own, "^actor_", "")) or nil
+    return type(own) == "string" and (string.gsub(own, "^actor_", "")) or nil
+end
+
+-- the running mission against an outpost, and the camp it left from
+function sb.raiders_mission_for(key)
+    for hub_id, c in pairs(sb.active_camps or {}) do
+        for _, m in pairs(c.raider_missions or {}) do
+            if m.target_key == key then return m, hub_id end
+        end
+    end
+    return nil
+end
+
+-- What the Raid button on an outpost card shows. prefer_hub = the settlement selected in the PDA.
+--   { state = "away", hub_id, band, odds, eta }  a raid against it is running
+--   { state = "ready", hub_id, band, odds, faction, friendly, loss }  it can be sent; odds and loss are the preview
+--   { state = "blocked", reason }  reason is a raiders_can_send key
+function sb.raiders_outpost_status(key, prefer_hub)
+    local rc = sb.rival_camps and sb.rival_camps[key]
+    if type(rc) ~= "table" then return { state = "blocked", reason = "empty" } end
+    local now_sec = game_now()
+    local m, mhub = sb.raiders_mission_for(key)
+    if m then
+        return { state = "away", hub_id = mhub, band = #m.raider_ids, odds = m.odds,
+            eta = mmax(0, m.arrive_sec - now_sec) }
+    end
+    local t, squad = target_info(key, rc, now_sec)
+    local order = {}
+    if prefer_hub and sb.active_camps and sb.active_camps[prefer_hub] then order[1] = prefer_hub end
+    for hub_id in pairs(sb.active_camps or {}) do
+        if hub_id ~= prefer_hub then order[#order + 1] = hub_id end
+    end
+    local first_why
+    for _, hub_id in ipairs(order) do
+        local camp = sb.active_camps[hub_id]
+        local band = ready_band(camp, nil, now_sec)
+        local info = { guards = guard_count(camp), ready = #band,
+            missions_today = raider_state(camp).missions_today or 0 }
+        local ok, why = sb.raiders_can_send(info, t)
+        if ok then
+            return { state = "ready", hub_id = hub_id, band = #band, odds = band_odds(band, rc, squad),
+                faction = rc.faction, friendly = t.friendly,
+                loss = sb.raiders_faction_loss(rc.faction, t.friendly, spent_today(), own_faction()) }
+        end
+        first_why = first_why or why
+    end
+    return { state = "blocked", reason = first_why or "no_raider" }
+end
+
+local function apply_goodwill(faction, friendly)
+    local own = own_faction()
     local list = FALLBACK_FACTIONS
     pcall(function()
         local t = game_relations and game_relations.factions_table
