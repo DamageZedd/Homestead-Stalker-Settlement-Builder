@@ -3167,9 +3167,6 @@
     <string id="st_homestead_raider_cannot_busy">
         <text>That raider is busy.</text>
     </string>
-    <string id="st_homestead_raider_cannot_rank">
-        <text>That raider's rank is too low for a raid.</text>
-    </string>
     <string id="st_homestead_raider_cannot_no_weapon">
         <text>That raider has no weapon.</text>
     </string>
@@ -3208,12 +3205,6 @@
     </string>
     <string id="st_homestead_raider_disaster">
         <text>Disaster at the %s outpost. %d raiders did not come back.</text>
-    </string>
-    <string id="ui_mcm_stalker_camp_builder_raiders_min_rank">
-        <text>Raider Minimum Rank</text>
-    </string>
-    <string id="ui_mcm_stalker_camp_builder_raiders_min_rank_desc">
-        <text>Lowest settler rank (0-3) that may go on a raid.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_min_guards">
         <text>Guards Kept at Home</text>

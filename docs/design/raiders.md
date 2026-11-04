@@ -20,7 +20,7 @@ These override anything below that disagrees. Question numbers refer to the orig
 | 5 | Keep the numbers: -60 goodwill per robbed camp, an extra -100 for a faction friendly to the player, daily cap 150 per faction. |
 | 6 | **Bandit mode:** reduced penalties, bandit/renegade reputation, richer loot. It does not change the player's faction. |
 | 7 | An idle raider at home counts as **half a guard**. |
-| 8 | **Rank 2+**, and at least one guard stays home. |
+| 8 | **Any rank** may go (changed 2026-11-03, was rank 2+). Rank only changes the odds: each raider's strength scales with rank, so a rank 0-1 band is clearly worse than rank 4. At least one guard stays home. |
 | 9 | A failed raid: raiders **return wounded** and unavailable for a while. **Permanent death only on a disaster outcome.** The flat 25% death chance is dropped. |
 | 10 | Keep 60% of the chest, 15% cut, cash bounty by tier. **Add an MCM toggle to forbid weapon/armor loot.** |
 | 11 | Use the **existing retaliation timers**, no extra damper. |
@@ -70,7 +70,7 @@ A new survivor job `raider`, assigned like the others (PDA Survivors tab, Job pa
 
 Requirements to take the job (checked when assigning and again before each dispatch):
 - not wounded, not on another expedition or mission, has a weapon and ammo in inventory (the `survivor_se` checks scavengers use);
-- **rank 2 or higher** (default; MCM `raiders_min_rank`);
+- any rank (no rank gate; rank scales the raider's strength in `raid_odds`);
 - the camp keeps **at least one guard** at home (`raiders_min_guards`, default 1).
 
 Guard accounting: a raider away or wounded counts as no guard in `stats.defense`; an **idle raider at home counts as half a guard**.
@@ -194,7 +194,7 @@ Based on `00_Core/gamedata/configs/ui/ui_stalker_camp_builder_pda.xml` and `ui_s
   - when the toggle is off the button is not initialised and the grid looks as today.
 - **Roster rows** (`survivor_list`; columns Name / Job / Rank / Needs): the Job column prints the localized job label; add `st_job_raider` ("Raider") and, on a mission, a short state suffix ("Raider (away)", "Raider (wounded)"), kept under about 16 characters for the 130 px column.
 - **Summary banner** (`sv_sum_bg` / `sv_sum_lbl`, filled in `UpdateSurvivorHeader`, script ~2275): reuse the existing banner kinds: dim while resting, `secure`/good while away ("Raiding: <outpost>, back ~2h"), `threat`/warn while wounded ("Wounded, back in 8h"). No new widget.
-- **Waiting reason** (the "Waiting:" line, `_calc_job_paused_status`, `jobs` 1246): new reasons: no weapon, no ammo, rank too low, wounded, camp needs a guard.
+- **Waiting reason** (the "Waiting:" line, `_calc_job_paused_status`, `jobs` 1246): new reasons: no weapon, no ammo, wounded, camp needs a guard.
 - **Stats page** (`sv_stat_lbl_1..4`): all four rows are used; while the job is `raider` the least useful row is replaced by mission count and last haul. No fifth row.
 - **Orders page**: unchanged.
 
@@ -224,7 +224,6 @@ No new top tab, no new panel, no change to list widths or the left container. Ra
 |---|---|---|---|
 | `raiders_bandit_mode` | check | false | Section 7 bandit-style rules. |
 | `raiders_spare_friends` | check | true | Disable Send raiders for factions friendly to the player (ignored in bandit mode). |
-| `raiders_min_rank` | track 0-4 | 2 | Minimum prosper rank. |
 | `raiders_band_size` | track 1-4 | 3 | Raiders per mission. |
 | `raiders_min_guards` | track 0-4 | 1 | Guards that must stay home. |
 | `raiders_idle_guard_weight` | track 0-100 | 50 | Percent of a guard an idle raider at home counts for. |
@@ -307,7 +306,7 @@ Nothing can be play-tested from here; every phase ends with a short in-game chec
 5. Goodwill numbers: answered, keep -60 / -100 / 150.
 6. Bandit mode: answered, no faction change.
 7. Idle raider at home: answered, half a guard.
-8. Rank gate: answered, rank 2+, one guard stays.
+8. Rank gate: answered, rank 2+ and one guard stays; later changed by the owner: no rank gate, rank only scales the odds.
 9. Death risk: answered, wounded on failure, death only on disaster.
 10. Loot: answered, keep 60/15/bounty; weapon/armor toggle added.
 11. Retaliation: answered, existing timers.

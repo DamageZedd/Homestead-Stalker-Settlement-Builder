@@ -3,8 +3,8 @@
 -- tools/tests/test_raiders.lua) and, below the "runtime" banner, the abstract-mission layer (phase 2).
 -- The feature is always on; the raiders_* MCM options only tune it.
 --
--- Owner decisions built in (docs/design/raiders.md, "Decisions"): player-directed sends only, rank 2+
--- and one guard stays home, an idle raider at home is half a guard, a failed raid leaves the raiders
+-- Owner decisions built in (docs/design/raiders.md, "Decisions"): player-directed sends only, any rank
+-- (rank only moves the odds) and one guard stays home, an idle raider at home is half a guard, a failed raid leaves the raiders
 -- wounded and only a disaster kills, 60% of the chest / 15% cut, weapon and armor loot can be forbidden,
 -- -60 goodwill per robbed camp and -100 more for a friendly faction with a daily cap of 150.
 
@@ -15,7 +15,6 @@ local mfloor = math.floor
 
 -- the defaults the MCM group will carry later; cfg values (sb.cfg) win over these once they exist
 local DEFAULTS = {
-    raiders_min_rank = 2,
     raiders_min_guards = 1,
     raiders_idle_guard_weight = 50,        -- percent of a guard
     raiders_wounded_hours = 12,
@@ -90,9 +89,6 @@ function sb.raiders_survivor_ready(surv, now_sec, cfg)
     if type(surv) ~= "table" then return false, "none" end
     if surv.on_mission or surv.on_expedition then return false, "busy" end
     if sb.raiders_is_wounded(surv, now_sec) then return false, "wounded" end
-    if num(surv.tier, 0) < num(cfgv("raiders_min_rank", cfg), 2) then
-        return false, "rank"
-    end
     if surv.has_weapon == false then return false, "no_weapon" end
     if surv.has_ammo == false then return false, "no_ammo" end
     local r = type(surv.raider) == "table" and surv.raider

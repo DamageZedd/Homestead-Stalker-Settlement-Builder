@@ -37,8 +37,20 @@ eq(sb.raiders_can_send(info, { occupied = true, faction = "duty", friendly = tru
 sb.cfg.raiders_bandit_mode = nil
 
 -- survivor readiness
-eq(sb.raiders_survivor_ready({ tier = 2 }, 100), true, "rank 2 ok")
-local o, r = sb.raiders_survivor_ready({ tier = 1 }, 100); eq(r, "rank", "rank 1 too low")
+for rk = 0, 4 do eq(sb.raiders_survivor_ready({ tier = rk }, 100), true, "any rank may go: " .. rk) end
+local o, r
+-- odds rise with rank, smoothly, and stay inside the clamps
+do
+    local prev = -1
+    for rk = 0, 4 do
+        local p = sb.raid_odds(sb.raiders_band_strength({ { rank = rk }, { rank = rk }, { rank = rk } }), 4)
+        eq(p > prev, true, "odds rise with rank " .. rk); eq(p >= 0.05 and p <= 0.9, true, "odds in bounds " .. rk)
+        prev = p
+    end
+    local lo = sb.raid_odds(sb.raiders_band_strength({ { rank = 1 }, { rank = 1 }, { rank = 1 } }), 4)
+    local hi = sb.raid_odds(sb.raiders_band_strength({ { rank = 4 }, { rank = 4 }, { rank = 4 } }), 4)
+    eq(hi - lo > 0.25, true, "rank 4 clearly beats rank 1")
+end
 o, r = sb.raiders_survivor_ready({ tier = 3, raider = { wounded_until = 500 } }, 100); eq(r, "wounded", "wounded")
 eq(sb.raiders_survivor_ready({ tier = 3, raider = { wounded_until = 50 } }, 100), true, "healed")
 o, r = sb.raiders_survivor_ready({ tier = 3, on_expedition = true }, 100); eq(r, "busy", "on expedition")

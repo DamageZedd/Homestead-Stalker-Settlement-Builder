@@ -806,7 +806,6 @@ local defaults = {
     raid_rep_enabled = true,          -- Settlers killed by a raiding faction cost reputation with that faction's enemies.
     raid_rep_per_settler = 25,        -- Goodwill lost with each of the raiders' enemies per settler killed by the raiders.
     raid_rep_cap = 100,               -- Most goodwill a single raid can cost with any one faction.
-    raiders_min_rank = 2,                 -- Raiders: Lowest settler rank (0-3) that may go on a raid
     raiders_min_guards = 1,               -- Raiders: Guards that must stay at the settlement for a raid to be sent
     raiders_idle_guard_weight = 50,       -- Raiders: How much of a guard an idle raider at home counts for
     raiders_wounded_hours = 12,           -- Raiders: How long raiders are unavailable after a failed raid
