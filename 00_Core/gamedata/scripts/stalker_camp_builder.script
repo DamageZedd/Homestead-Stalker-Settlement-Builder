@@ -7022,6 +7022,16 @@ stalker_camp_builder.set_brewer_job = set_brewer_job
 stalker_camp_builder.set_scrapper_job = set_scrapper_job
 stalker_camp_builder.set_farmer_job = set_farmer_job
 stalker_camp_builder.set_trader_job = set_trader_job
+stalker_camp_builder.set_scavenge_job = set_scavenge_job
+stalker_camp_builder.set_hunter_job = set_hunter_job
+stalker_camp_builder.set_craft_job = set_craft_job
+stalker_camp_builder.set_repair_job = set_repair_job
+stalker_camp_builder.set_idle_job = set_idle_job
+stalker_camp_builder.set_guard_job = set_guard_job
+stalker_camp_builder.set_cook_job = set_cook_job
+stalker_camp_builder.set_medic_job = set_medic_job
+stalker_camp_builder.set_electrician_job = set_electrician_job
+stalker_camp_builder.get_camp_status_text = get_camp_status_text
 
 
 stalker_camp_builder.is_actor_healthy = is_actor_healthy
