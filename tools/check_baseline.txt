@@ -9,7 +9,6 @@ LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder.script|W113 accessing und
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder.script|W411 variable 'pairs_' was previously defined on line 3
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder_events.script|W113 accessing undefined variable 'AC_ID'
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder_expeditions.script|W411 variable 'is_level_vertex' was previously defined on line 18
-LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder_jobs.script|W221 variable 'reason_short' is never set
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder_npc.script|W112 mutating non-standard global variable 'schemes'
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder_npc.script|W112 mutating non-standard global variable 'schemes_by_stype'
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder_npc.script|W113 accessing undefined variable 'modules'

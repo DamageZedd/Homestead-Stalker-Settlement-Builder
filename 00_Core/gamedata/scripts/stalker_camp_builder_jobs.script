@@ -3909,7 +3909,11 @@ function stalker_camp_builder.update_camp_jobs()
                         survivor.job_start_time = current_sec - (max_backlog_sec * tf)
                     end
 
-                    local is_paused, reason_short, reason_detail = sb.get_job_paused_status and sb.get_job_paused_status(survivor, camp, hub_id, 10000, camp_snap)
+                    -- (an `a and f()` keeps only f's first result, which dropped the reason)
+                    local is_paused, reason_short, reason_detail
+                    if sb.get_job_paused_status then
+                        is_paused, reason_short, reason_detail = sb.get_job_paused_status(survivor, camp, hub_id, 10000, camp_snap)
+                    end
                     -- the settler's cut keeps a job with no room for its output earning, instead of pausing it
                     local cut_on = is_paused and reason_short == "Storage Full" and sb.prosper_overflow_allowed and sb.prosper_overflow_allowed(survivor)
                     if cut_on then
