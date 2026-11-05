@@ -7,6 +7,7 @@ MCM default only applies to a fresh profile.
 Clock column: **R** = real seconds (`time_global`), **G** = game seconds (`game_sec()`), **R x tf** = a real-time
 quantity stored as game seconds by multiplying with `time_factor()`. `time_factor()` floors at the RTZ configured
 factor, and under RTZ clock sync `job_game_elapsed_sec` returns 0, so only the real clock counts for job cycles there.
+Game-time timers (pump, fridge, meals, needs, raid and event cooldowns and checks, caravan, convoy, rival setup/tier/skirmish, equipment check, expedition walk) are multiplied by `game_timer_scale()` (tf/6 while RTZ locks the factor below 6, else 1); the values below are the unscaled ones.
 File references are in `00_Core/gamedata/scripts/`; `main` = `stalker_camp_builder.script`.
 
 ## 1. Settler job cycles
@@ -68,7 +69,7 @@ x1.10 (`recruit:2841`), `craft_output_multiplier` (MCM 1-3, default 1), ambush 2
 
 | System | Value | Clock | Source |
 |---|---|---|---|
-| scavenger walk speed | 1.2 km/h | **G** | MCM `scavenger_walk_speed_kmh`, expeditions:630 |
+| scavenger walk speed | 1.2 km/h, x game_timer_scale() | G (real under RTZ) | MCM `scavenger_walk_speed_kmh`, expeditions:630 |
 | expedition search time | 60 s per stash, 45 s per sweep stash | R x tf | expeditions:640, :1070 |
 | expedition minimum | 180 s same level, 360 s cross level | R x tf | expeditions:646 |
 | tier walk reduction | 10 % per tier | - | expeditions:637 |
@@ -103,7 +104,7 @@ x1.10 (`recruit:2841`), `craft_output_multiplier` (MCM 1-3, default 1), ambush 2
 
 | System | Value | Clock | Source |
 |---|---|---|---|
-| needs round (only with `needs_enabled`, default off) | 24 h, consumption x1.0, grace 3 days, catch-up cap 1 | G | needs:40, main:851-854 |
+| needs round (`needs_enabled`, default on) | 24 h, consumption x1.0, grace 3 days, catch-up cap 1 | G | needs:40, main:851-854 |
 | needs penalties | 5 per unserved settler (cap 20), +25 starving, cap 35, variety +5 | - | needs:19-24 |
 | guard strength when starving | x0.6 | - | needs:210 |
 | settler cut | 60 RU per cycle x tier mult (guard: none), cap 20000 | per cycle | main:826-827, prosper:62 |

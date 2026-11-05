@@ -120,15 +120,27 @@ unchanged); the intervals are what shrink, so a camp near a due timer may fire o
 Living-needs defaults rechecked: off by default, multiplier 1.0, grace 3 days (now 12 real hours under RTZ), catch-up cap 1.
 Raider rest 20 and wounded 40 real minutes untouched. Without RTZ nothing changes.
 
+## 5c. Third round
+
+| # | Change | Before | After | Where |
+|---|---|---|---|---|
+| 6 | Stored timers rescaled when the scale changes | an old save under RTZ: a half-done 24 h meal round (12 h elapsed) counted as 3 scaled rounds, so it fired at once | `camp.timer_scale` (absent = 1) records the scale; elapsed time of last-run stamps and remaining time of due stamps are multiplied by new/old scale, so a half-done round stays half done (2 of 4 real hours) | `main` `sync_timer_scale`, called per camp from jobs, needs, events, rivals |
+| 7 | Rival tier hours (4 h, 8 h), skirmish cooldown (6 h), equipment check (30 min) scaled | raw game time | x game_timer_scale() (under RTZ: 40 min, 1 h, 1 h, 5 min) | rivals, jobs |
+| 8 | Expedition walk uses the scale | 400 m stash: 41 real min at factor 1, 7.7 at factor 6 | 7.7 min at both; unchanged without RTZ; trips under way keep their share (`exp.timer_scale`) | expeditions |
+| 9 | Living Needs default | off | on (code default and MCM); saved MCM value wins; grace 3 days (12 real hours under RTZ) | main, mcm, needs |
+
+Needs on by default, numbers: 12 settlers need 12 food items and 12 water uses per game day. Under RTZ that is
+3 items and 3 uses an hour; a novice farmer makes 6 bread an hour and one pump makes 1 flask (3 uses) an hour. A camp
+with neither a cook, a farmer nor stock gets the tier 2/3 penalties after the grace period. Without RTZ at factor 6 the
+same arithmetic holds (the scale is 1 and the day is 4 real hours).
+
 Measured by `test_balance_numbers.lua` (medic ceiling 95000 to 46000, food ratio under RTZ), `test_medic_batch.lua`,
 `test_repair_fee.lua`, `test_game_timer_scale.lua`.
 
 ## 6. Flagged, left alone
 
-* Expedition walk time is game time (section 3); a fix is a change to the duration formula.
-* (Fixed in the second round: medic batches, repair fee, game-time timers under RTZ; see 5b.)
+* (Fixed in later rounds: medic batches, repair fee, game-time timers under RTZ, early rounds, rival and equipment timers, expedition walk, needs default; see 5b and 5c.)
 * Hunter Station double bonus, uncapped scavenge tier multiplier, three pumps for the price of one filter.
-* Rival tier hours, skirmish cooldown and equipment check still run on raw game time.
 * Raid cooldown (20 real minutes rest, 40 wounded, 3 a day), build kit, furniture lock, performance work: untouched.
 * Players with a saved MCM profile keep their old Trader price of 60 until they press Default.
 
