@@ -22,7 +22,7 @@ runs the game; it is static checking plus packaging checks.
      feature-detecting `on_game_start` in `homestead_hologram.script`.
 5. **English text stays ASCII**: no byte above 127 in `configs/text/eng/*.xml`.
 6. **Zip layout** (see the packaging notes; never a raw `git archive`): top-level folders `00_Core`,
-   `01_Theme_*`, `02_GAMMA`, `04_HideoutGadgetsGammaPatch`, `HomesteadHF`, `fomod`, plus `CHANGELOG.md` and
+   `01_Theme_*`, `02_GAMMA`, `04_HideoutGadgetsGammaPatch`, `05_HDIcons_Patch`, `HomesteadHF`, `fomod`, plus `CHANGELOG.md` and
    `README.md`. Leave out every `.object` file and every 04 file that is byte-identical in GAMMA's
    `470- Gadgets for Hideout Furniture`. Compare the file list with the previous zip (only intended additions),
    check the size is near the previous release, `hunter_station.ogf` is about 2.0 MB, no `.object`, and
