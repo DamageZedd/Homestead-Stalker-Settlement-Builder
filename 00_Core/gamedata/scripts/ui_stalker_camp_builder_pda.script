@@ -903,6 +903,7 @@ function SettlementManagerPDA:InitControls()
         { header = "st_guide_build_header",     body = "st_guide_build_body"     },  -- 2. Building Kit, Snapping & Placement
         { header = "st_guide_s2_header",        body = "st_guide_s2_body"        },  -- 3. Recruitment & Housing
         { header = "st_guide_s3_header",        body = "st_guide_s3_body"        },  -- 4. Professions Overview
+        { header = "st_guide_s3_chains_header", body = "st_guide_s3_chains_body" },  -- 4b. Closed-Loop Production Chains
         { header = "st_guide_s3a_header",       body = "st_guide_s3a_body",       is_job = true },  -- Job: Idle & Recreation
         { header = "st_guide_s3b_header",       body = "st_guide_s3b_body",       is_job = true },  -- Job: Guard & Defense
         { header = "st_guide_s3c_header",       body = "st_guide_s3c_body",       is_job = true },  -- Job: Scavenger & Expeditions
@@ -917,6 +918,7 @@ function SettlementManagerPDA:InitControls()
         { header = "st_guide_s3k_header",       body = "st_guide_s3k_body",       is_job = true },  -- Job: Scrapper & Metal Salvage
         { header = "st_guide_s3l_header",       body = "st_guide_s3l_body",       is_job = true },  -- Job: Farmer & Bakery
         { header = "st_guide_s3m_header",       body = "st_guide_s3m_body",       is_job = true },  -- Job: Trader & Market Stall
+        { header = "st_guide_s3n_header",       body = "st_guide_s3n_body",       is_job = true },  -- Job: Raider & Outpost Assaults
         { header = "st_guide_s4_header",        body = "st_guide_s4_body"        },  -- 5. Smart Storage Routing, Auto-Sort & Water/Fridges
         { header = "st_guide_s5_header",        body = "st_guide_s5_body"        },  -- 6. Base Defense & Raids
         { header = "st_guide_s6_header",        body = "st_guide_s6_body"        },  -- 7. Rival Wilderness Camps
@@ -932,13 +934,13 @@ function SettlementManagerPDA:InitControls()
         { str = "st_pda_guide_t_settle",  secs = { 1 } },
         { str = "st_pda_guide_t_build",   secs = { 2 } },
         { str = "st_pda_guide_t_settlers", secs = { 3 } },
-        { str = "st_pda_guide_t_jobs",    secs = { 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18 } },
-        { str = "st_pda_guide_t_storage", secs = { 19 } },
-        { str = "st_pda_guide_t_defense", secs = { 20 } },
-        { str = "st_pda_guide_t_rivals",  secs = { 21 } },
-        { str = "st_pda_guide_t_radio",   secs = { 22 } },
-        { str = "st_pda_guide_t_morale",  secs = { 23, 24 } },
-        { str = "st_pda_guide_t_mcm",     secs = { 25 } },
+        { str = "st_pda_guide_t_jobs",    secs = { 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 } },
+        { str = "st_pda_guide_t_storage", secs = { 21 } },
+        { str = "st_pda_guide_t_defense", secs = { 22 } },
+        { str = "st_pda_guide_t_rivals",  secs = { 23 } },
+        { str = "st_pda_guide_t_radio",   secs = { 24 } },
+        { str = "st_pda_guide_t_morale",  secs = { 25, 26 } },
+        { str = "st_pda_guide_t_mcm",     secs = { 27 } },
     }
 
     -- home view: quick start text + topic tiles; reader view: back button + one topic in the scroll

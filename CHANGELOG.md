@@ -16,6 +16,7 @@
 - **Charcoal Stove Priority & Canned Rations (`process_cook_job`)**: Cooks now recognize `homestead_field_kitchen` as a full stove, burn renewable `charcoal` before `kerosene`/`gasoline` (preserving liquid fuel for the Generator Station), and pack a bonus canned ration (`tushonka`/`conserva`, which also pays the Technician's repair fee) when cooking with clean water and surplus Farmer potatoes (`> 6` stored).
 - **Medic Trophy Bio-Synthesis (`process_medic_job`)**: Tier 2+ Medics working at a Field Infirmary (`medstation`) consume a non-meat Hunter mutant trophy (`mutant_part_*`) when synthesizing medkits to upgrade the lead unit into a `stimpack` or `medkit_army`.
 - **Automated Trophy & Pelt Routing to Market Stall (`spawn_hunted_meat`)**: once camp storage holds a reserve of 4 mutant pelts or 4 hunting trophies for the Scrapper and Medic, excess pelts and trophies from the Hunter Station are automatically routed into the Market Stall's `market_stash` for the Trader to sell for RU.
+- **PDA How to Play Guide — Complete Production Chain Ecosystem (`ui_stalker_camp_builder_pda.script`, `ui_st_stalker_camp_builder.xml`)**: added a dedicated *Closed-Loop Production Chains (Complete Economy Ecosystem)* guide section under **Jobs & Chains** detailing all 3 stages (Primary Harvesters, Secondary Refining & Utilities, and Endgame Goods / Market Income), added the Raider job section (`st_guide_s3n`), and updated all 14 job entries and housing capacity notes.
 
 ## v1.4.0 — Raiders, Living Needs, PDA Overhaul & Kit Texture Fix (2026-11-05)
 
