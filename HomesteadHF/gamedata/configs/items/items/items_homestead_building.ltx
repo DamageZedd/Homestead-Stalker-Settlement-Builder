@@ -1109,3 +1109,118 @@ remove_time                             = 10
 hit_break_threthhold                    = 0.
 collision_break_threthhold              = 2000.f
 immunity_factor                         = 1.3
+
+[hs_collider_wall]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_wall.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_wall_low]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_wall_low.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_wall_half]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_wall_half.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_post]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_post.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_dd_post]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_dd_post.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_dd_lintel]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_dd_lintel.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_hfd_left]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_hfd_left.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_hfd_right]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_hfd_right.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_hfd_lintel]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_hfd_lintel.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+; which static boxes a wall, doorway or post gets (read by homestead_lock.script): one section per piece section,
+; homestead_collider_<n> = collider section, x, y, z (the box centre in the piece's frame).
+; Written by tools/model_pipeline/build_floor_collision.py; the Hideout Furniture walls are listed too.
+
+[hs_colliders_placeable_hs_wall_window]
+homestead_collider_1 = hs_collider_wall, 0.000000, 1.293000, -0.008000
+
+[hs_colliders_placeable_hs_wall_loophole]
+homestead_collider_1 = hs_collider_wall, 0.000000, 1.293000, 0.000000
+
+[hs_colliders_placeable_hs_wall_low]
+homestead_collider_1 = hs_collider_wall_low, 0.000000, 0.630000, 0.000000
+
+[hs_colliders_placeable_hs_support_frame]
+homestead_collider_1 = hs_collider_post, 0.000000, 1.293000, 0.000000
+
+[hs_colliders_placeable_hs_doorway_double]
+homestead_collider_1 = hs_collider_dd_post, -1.977000, 1.293000, 0.000000
+homestead_collider_2 = hs_collider_dd_post, 1.977000, 1.293000, 0.000000
+homestead_collider_3 = hs_collider_dd_lintel, 0.000000, 2.418000, 0.000000
+
+[hs_colliders_placeable_wall]
+homestead_collider_1 = hs_collider_wall, 0.005000, 1.293000, -0.008000
+
+[hs_colliders_placeable_wall_metal]
+homestead_collider_1 = hs_collider_wall, 0.005000, 1.293000, -0.008000
+
+[hs_colliders_placeable_wall02]
+homestead_collider_1 = hs_collider_wall_half, -0.022000, 1.294000, -0.008000
+
+[hs_colliders_placeable_wall02_metal]
+homestead_collider_1 = hs_collider_wall_half, -0.022000, 1.294000, -0.008000
+
+[hs_colliders_placeable_wall_doorway]
+homestead_collider_1 = hs_collider_hfd_left, -1.119500, 1.000000, -0.006000
+homestead_collider_2 = hs_collider_hfd_right, 1.739500, 1.000000, -0.006000
+homestead_collider_3 = hs_collider_hfd_lintel, 0.000000, 2.290500, -0.006000
+
+[hs_colliders_placeable_wall_doorway_metal]
+homestead_collider_1 = hs_collider_hfd_left, -1.119500, 1.000000, -0.006000
+homestead_collider_2 = hs_collider_hfd_right, 1.739500, 1.000000, -0.006000
+homestead_collider_3 = hs_collider_hfd_lintel, 0.000000, 2.290500, -0.006000

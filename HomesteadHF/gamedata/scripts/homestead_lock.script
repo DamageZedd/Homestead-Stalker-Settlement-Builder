@@ -11,9 +11,13 @@
 -- other piece, on top of an invisible collider: a breakable_object is only a box with no physics body,
 -- so nothing can wake or move it. A triangle is not a box: it gets one collider per stepped strip
 -- (homestead_collider_1..N in its section, each "section, x, y, z" with the offset of the box centre in
--- the piece's frame). The ones with no collider (the spiral stair landing, whose shape a box doesn't fit)
--- stay solid: their collision is inset 5 mm so snapped neighbours don't overlap, and their models ignore
--- ragdolls ([collide] ignore_ragdoll), so bodies fall through them instead of waking them.
+-- the piece's frame). Walls, doorways and posts get theirs the same way: door mode lets NPCs and mutants
+-- walk through a piece, so without a collider a mutant passes through every wall. Their boxes are listed
+-- per piece section in [hs_colliders_<section>] blocks (items_homestead_building.ltx), the Hideout
+-- Furniture walls included, and leave a doorway's opening free. The ones with no collider (the spiral
+-- stair landing) stay solid: their collision is inset 5 mm so snapped neighbours don't overlap, and their
+-- models ignore ragdolls ([collide] ignore_ragdoll), so bodies fall through them instead of waking them.
+-- Stairs and ramps (tilted slabs, which an upright box can't follow) just stay in door mode.
 -- See tools/model_pipeline/build_floor_collision.py.
 --
 -- Saving moves pieces too: the engine stores an online physics object's rotation with 8 bits per
@@ -103,8 +107,9 @@ local function collider_of(sec)
         if name then
             v[1] = { sec = name, x = 0, y = ini_sys:r_float_ex(sec, "homestead_collider_y") or 0, z = 0 }
         else
+            local from = ini_sys:r_string_ex(sec, "homestead_collider_1") and sec or "hs_colliders_" .. sec
             for i = 1, MAX_PARTS do
-                local line = ini_sys:r_string_ex(sec, "homestead_collider_" .. i)
+                local line = ini_sys:r_string_ex(from, "homestead_collider_" .. i)
                 if not line then break end
                 local name_i, x, y, z = string.match(line,
                     "^%s*([%w_]+)%s*,%s*([%-%d%.]+)%s*,%s*([%-%d%.]+)%s*,%s*([%-%d%.]+)")
@@ -229,8 +234,8 @@ end
 -- Returns true when the piece is now in door mode.
 local function set_static(obj, static)
     local sec = obj:section()
-    if is_solid(sec) then
-        local rec = collider_of(sec)
+    local rec = collider_of(sec)
+    if rec or is_solid(sec) then
         if not rec then return false end
         if static then
             if not ensure_collider(obj, obj:id(), rec) then return false end
@@ -382,7 +387,8 @@ local function on_piece_frozen(id)
     local obj = level.object_by_id(id)
     if not obj then return end
     online[id] = true
-    solid_online[id] = is_solid(obj:section()) or nil
+    local sec = obj:section()
+    solid_online[id] = (is_solid(sec) or collider_of(sec)) and true or nil
     hook_set_frozen(id)
     if se_load_var(id, nil, OLD_VAR) then
         se_save_var(id, nil, OLD_VAR, nil)

@@ -542,6 +542,38 @@ end)()
     ok(live ~= nil, "test piece")
 end)()
 
+-- walls: boxes listed in a [hs_colliders_<section>] block of the config, door mode only when all are online
+;(function()
+    ini_data.placeable_test_wall = { script_binding = "bind_hf_base.bind" }
+    ini_data.hs_colliders_placeable_test_wall = {
+        homestead_collider_1 = "hs_collider_wall, 0.005, 1.293, -0.008" }
+    ini_data.placeable_test_doorway = { script_binding = "bind_hf_base.bind" }
+    ini_data.hs_colliders_placeable_test_doorway = {
+        homestead_collider_1 = "hs_collider_hfd_left, -1.1195, 1.0, -0.006",
+        homestead_collider_2 = "hs_collider_hfd_right, 1.7395, 1.0, -0.006",
+        homestead_collider_3 = "hs_collider_hfd_lintel, 0.0, 2.2905, -0.006" }
+    ini_data.placeable_test_chair = { script_binding = "bind_hf_base.bind" }
+    local wall = make_obj(930, "placeable_test_wall", 10, 3, 20, 0)
+    bind_hf_base.freeze_obj(930)
+    local wid = se_vars[930] and se_vars[930].hs_collider
+    ok(type(wid) == "number" and server[wid] and server[wid].sec == "hs_collider_wall", "a wall gets a collider")
+    ok(math.abs(server[wid].position.y - 4.293) < 1e-6 and math.abs(server[wid].position.x - 10.005) < 1e-6
+        and math.abs(server[wid].position.z - 19.992) < 1e-6, "wall collider centred on the wall's box")
+    ok(not wall.in_door, "a wall stays solid until its collider is online")
+    objects[wid] = { get_physics_shell = function() return nil end, id = function() return wid end,
+        section = function() return "hs_collider_wall" end }
+    for _ = 1, 20 do now = now + 500; tick() end
+    ok(wall.in_door == true, "a wall goes in door mode once its collider is online")
+    local door = make_obj(931, "placeable_test_doorway", 0, 0, 0, 0)
+    bind_hf_base.freeze_obj(931)
+    local dids = se_vars[931].hs_collider
+    ok(type(dids) == "table" and #dids == 3 and server[dids[3]].sec == "hs_collider_hfd_lintel",
+        "a doorway gets a box per solid part, none in its opening")
+    local chair = make_obj(932, "placeable_test_chair", 0, 0, 0, 0)
+    bind_hf_base.freeze_obj(932)
+    ok(se_vars[932].hs_collider == nil and chair.in_door == true, "other furniture is in door mode with no collider")
+end)()
+
 ok(errors == 0, "no lock errors after the death burst (" .. errors .. ")")
 
 print(fails == 0 and ("all furniture perf tests passed (" .. checks .. " checks)") or (fails .. " FAILED"))

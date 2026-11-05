@@ -28,6 +28,36 @@ COLLIDERS = {"hs_collider_foundation": "hs_foundation", "hs_collider_floor": "hs
 # name -> (section of the placed piece, lowest y, highest y of its boxes: the square colliders' heights)
 TRIANGLES = {"hs_collider_floor_tri": ("placeable_hs_floor_triangle", 0.005, 0.095),
              "hs_collider_foundation_tri": ("placeable_hs_foundation_triangle", -0.995, 0.395)}
+# Walls, doorways and posts (door mode lets NPCs and mutants through a piece, so it gets static boxes too).
+# model -> half sizes; thickness is padded to 0.10 each side (the walls are 0.10 to 0.114 m thick) so a charging
+# mutant can't skip over the box in one physics step.
+WALL_MODELS = {
+    "hs_collider_wall": (2.349, 1.288, 0.06),         # 4.7 m wall: hs window / loophole, Hideout Furniture wall(_metal)
+    "hs_collider_wall_low": (2.349, 0.625, 0.06),
+    "hs_collider_wall_half": (1.172, 1.289, 0.06),    # Hideout Furniture wall02(_metal)
+    "hs_collider_post": (0.195, 1.288, 0.195),
+    "hs_collider_dd_post": (0.372, 1.288, 0.06),      # double doorway: two posts and a lintel, opening 3.2 x 2.25 m
+    "hs_collider_dd_lintel": (1.600, 0.163, 0.06),
+    "hs_collider_hfd_left": (1.2295, 0.995, 0.06),    # Hideout Furniture doorway: opening x 0.12..1.12, up to 2.0 m
+    "hs_collider_hfd_right": (0.6095, 0.995, 0.06),
+    "hs_collider_hfd_lintel": (2.349, 0.29, 0.06),
+}
+# piece section -> boxes (model, centre x, y, z in the piece's frame)
+WALLS = {
+    "placeable_hs_wall_window": [("hs_collider_wall", 0.0, 1.293, -0.008)],
+    "placeable_hs_wall_loophole": [("hs_collider_wall", 0.0, 1.293, 0.0)],
+    "placeable_hs_wall_low": [("hs_collider_wall_low", 0.0, 0.63, 0.0)],
+    "placeable_hs_support_frame": [("hs_collider_post", 0.0, 1.293, 0.0)],
+    "placeable_hs_doorway_double": [("hs_collider_dd_post", -1.977, 1.293, 0.0), ("hs_collider_dd_post", 1.977, 1.293, 0.0),
+                                    ("hs_collider_dd_lintel", 0.0, 2.418, 0.0)],
+}
+for _s in ("placeable_wall", "placeable_wall_metal"):
+    WALLS[_s] = [("hs_collider_wall", 0.005, 1.293, -0.008)]
+for _s in ("placeable_wall02", "placeable_wall02_metal"):
+    WALLS[_s] = [("hs_collider_wall_half", -0.022, 1.294, -0.008)]
+for _s in ("placeable_wall_doorway", "placeable_wall_doorway_metal"):
+    WALLS[_s] = [("hs_collider_hfd_left", -1.1195, 1.0, -0.006), ("hs_collider_hfd_right", 1.7395, 1.0, -0.006),
+                 ("hs_collider_hfd_lintel", 0.0, 2.2905, -0.006)]
 TRI_STRIPS = 8
 LEG = 2.349                    # the square pieces' collider half size
 INSET = 0.005                  # as the square colliders: 5 mm inside the model, so snapped neighbours don't overlap
@@ -139,6 +169,15 @@ def main():
             data, _ = make_collider(half=(hx, hy, hz))
             (DIR / f"{name}_{k + 1}.ogf").write_bytes(data)
             print(f"  [{section}] homestead_collider_{k + 1} = {name}_{k + 1}, {cx:.6f}, {cy:.6f}, {cz:.6f}")
+    for name, half in WALL_MODELS.items():
+        data, _ = make_collider(half=half)
+        (DIR / (name + ".ogf")).write_bytes(data)
+        print(f"{name}: {len(data)} bytes, half {half}")
+    print("; --- hs_colliders_<piece section> blocks for items_homestead_building.ltx")
+    for sec, boxes in WALLS.items():
+        print(f"[hs_colliders_{sec}]")
+        for k, (model, x, y, z) in enumerate(boxes):
+            print(f"homestead_collider_{k + 1} = {model}, {x:.6f}, {y:.6f}, {z:.6f}")
     for name in SOLID:
         path = DIR / (name + ".ogf")
         chunks = [c for c in read_chunks(path.read_bytes()) if c[0] != OGF_USERDATA]
