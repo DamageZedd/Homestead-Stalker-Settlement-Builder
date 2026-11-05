@@ -1,5 +1,5 @@
 -- Medic batches pay for their own inputs. Run: lua tools/tests/test_medic_batch.lua (from the repo root)
-local src = io.open("00_Core/gamedata/scripts/stalker_camp_builder_jobs.script", "rb"):read("*a")
+local src = (io.open("00_Core/gamedata/scripts/stalker_camp_builder_jobs.script", "rb"):read("*a"):gsub("\r", ""))
 local body = src:match("(stalker_camp_builder%.MEDIC_RARE_BATCH_MAX = 4.-\nend)\n")
 assert(body, "medic_batch_size not found")
 stalker_camp_builder = {}

@@ -1,5 +1,5 @@
 -- Repair fee scales with the value restored. Run: lua tools/tests/test_repair_fee.lua (from the repo root)
-local src = io.open("00_Core/gamedata/scripts/stalker_camp_builder_jobs.script", "rb"):read("*a")
+local src = (io.open("00_Core/gamedata/scripts/stalker_camp_builder_jobs.script", "rb"):read("*a"):gsub("\r", ""))
 local consts = src:match("(local REPAIR_FEE_RU_PER_USE.-\nend)\n")
 assert(consts, "repair_fee_uses not found")
 stalker_camp_builder = {}
