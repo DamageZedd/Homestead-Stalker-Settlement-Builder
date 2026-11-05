@@ -5997,6 +5997,32 @@ function npc_on_hit_callback(npc, amount, local_direction, who, bone_index)
         pcall(function() npc:set_health_ex(1.0) end)
     end
 end
+
+-- npc_on_before_hit -- a settler takes no damage from placed base pieces (Hideout Furniture and
+-- Homestead pieces): a piece shoved by a body, a blast or the save's rounding can strike a settler
+-- as a physics hit and kill them. Only hits whose source is such a piece are cancelled.
+local hf_piece_sections = {}
+local function is_base_piece(obj)
+    local ok, sec = pcall(obj.section, obj)
+    if not (ok and type(sec) == "string") then return false end
+    local v = hf_piece_sections[sec]
+    if v == nil then
+        local bind = ini_sys and ini_sys:r_string_ex(sec, "script_binding") or ""
+        v = string.find(bind, "bind_hf", 1, true) ~= nil
+        hf_piece_sections[sec] = v
+    end
+    return v
+end
+
+function stalker_camp_builder.npc_on_before_hit(npc, shit, bone_id, flags)
+    local src = shit and shit.draftsman
+    if not (src and flags and npc) then return end
+    local lookup = stalker_camp_builder.settler_lookup[npc:id()]
+    if not lookup or lookup.is_rival then return end
+    if is_base_piece(src) then
+        flags.ret_value = false
+    end
+end
 -- safe_register_callback is defined at top of file
 
 -- Crash helper: when the engine hits a fatal script error it calls this first.
@@ -6568,6 +6594,9 @@ function on_game_start()
     safe_register_callback("actor_on_update", actor_on_update)
     safe_register_callback("npc_on_update", npc_on_update)
     safe_register_callback("npc_on_hit_callback", npc_on_hit_callback)
+    safe_register_callback("npc_on_before_hit", function(npc, shit, bone_id, flags)
+        pcall(stalker_camp_builder.npc_on_before_hit, npc, shit, bone_id, flags)
+    end)
     safe_register_callback("npc_on_death_callback", npc_on_death_callback)
     -- DANZY EDIT: eating cooked food at a happy settlement grants the hospitality buff
     safe_register_callback("actor_on_item_use", function(obj)
