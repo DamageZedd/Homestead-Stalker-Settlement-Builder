@@ -631,7 +631,9 @@ local function get_self_contained_duration_sec(dist, is_same_level, survivor, se
     if not kmh or kmh <= 0 then kmh = 1.2 end
     local speed_mps = (kmh * 1000) / 3600
 
-    local walk_time_sec = mfloor(d / speed_mps)
+    -- the walk is game time at GAMMA's factor 6: under Real Time Zones (factor locked at 1) it takes the
+    -- real time it would take there (search time below is real time already)
+    local walk_time_sec = mfloor(d / speed_mps * (stalker_camp_builder.game_timer_scale and stalker_camp_builder.game_timer_scale() or 1))
 
     local tier = (survivor and survivor.tier) or 0
     local tier_reduc = tier * 0.10
@@ -1368,6 +1370,7 @@ function stalker_camp_builder.dispatch_scavenger_to_stash(stash_id, target_level
         survivor_tier = best_surv.tier or 0,
         start_sec = current_sec,
         duration = final_duration_sec,
+        timer_scale = sb.game_timer_scale and sb.game_timer_scale() or 1,
         chatter = {}
     }
 
@@ -1458,6 +1461,7 @@ function stalker_camp_builder.dispatch_scavenger_regional_sweep(all_stashes, tar
         survivor_tier = best_surv.tier or 0,
         start_sec = current_sec,
         duration = final_duration_sec,
+        timer_scale = sb.game_timer_scale and sb.game_timer_scale() or 1,
         chatter = {}
     }
 
@@ -1953,6 +1957,22 @@ local function complete_expedition(stash_id)
 end
 
 -- process_stash_expeditions -- orchestrator
+-- An expedition under way when game_timer_scale changes keeps its share of the trip: the time left grows or
+-- shrinks with the scale (exp.timer_scale; absent in an older save = 1).
+function stalker_camp_builder.rescale_expedition(exp, now)
+    local cur = stalker_camp_builder.game_timer_scale and stalker_camp_builder.game_timer_scale() or 1
+    local prev = tonumber(exp.timer_scale) or 1
+    if prev ~= cur then
+        local dur = tonumber(exp.duration)
+        local start = tonumber(exp.start_sec)
+        if dur and start then
+            local elapsed = math.max(0, now - start)
+            if elapsed < dur then exp.duration = elapsed + (dur - elapsed) * cur / prev end
+        end
+    end
+    exp.timer_scale = cur
+end
+
 function stalker_camp_builder.process_stash_expeditions()
     local sb = stalker_camp_builder
     local exps = sb.active_stash_expeditions
@@ -1965,6 +1985,7 @@ function stalker_camp_builder.process_stash_expeditions()
     local completed = nil
 
     for stash_id, exp in pairs_(exps) do
+        stalker_camp_builder.rescale_expedition(exp, current_sec)
         local elapsed, dur, progress = get_expedition_progress(exp, current_sec)
 
         exp.chatter        = exp.chatter or {}
