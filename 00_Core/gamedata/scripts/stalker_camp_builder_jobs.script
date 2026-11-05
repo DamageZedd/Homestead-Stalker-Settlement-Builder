@@ -862,6 +862,16 @@ local REPAIR_FEES = { vodka = true, conserva = true, tushonka = true }
 local function is_repair_fee(sec) return REPAIR_FEES[sec] == true end
 stalker_camp_builder.is_repair_fee = is_repair_fee
 
+-- Fee items (uses of vodka, conserva or tushonka, about 300-1000 RU each) one repair costs: one per
+-- REPAIR_FEE_RU_PER_USE of condition value restored, at least 1, at most REPAIR_FEE_MAX_USES. A 5000 RU
+-- pistol topped up 25 % costs 1, a 27000 RU rifle restored 56 % costs 6.
+local REPAIR_FEE_RU_PER_USE = 2500
+local REPAIR_FEE_MAX_USES = 6
+function stalker_camp_builder.repair_fee_uses(cost, restored)
+    local value = (tonumber(cost) or 0) * mmax(0, tonumber(restored) or 0)
+    return mmax(1, mmin(REPAIR_FEE_MAX_USES, math.ceil(value / REPAIR_FEE_RU_PER_USE - 1e-9)))
+end
+
 -- a gun with a part below 95%: G.A.M.M.A. holds a fired gun's condition at 0.83 and keeps its wear
 -- in the WPO parts, which don't follow condition. Only the parts in its list count, the ones a
 -- repair round raises.
@@ -1018,6 +1028,18 @@ function stalker_camp_builder.process_gear_repair(npc_id, box_id, camp, survivor
 
                 local bench_mult = has_repair_bench and 1.5 or 1.0
                 local repair_inc = ((sb.cfg.repair_percent_per_cycle or 25) / 100.0) * spec_mult * bench_mult
+                -- the fee scales with the value restored: one use up front, more for dear gear. A
+                -- technician short of fee items restores only the share that was paid for
+                local rep_sec = se_rep:section_name()
+                local rep_cost = (ini_sys and rep_sec and ini_sys:section_exist(rep_sec) and ini_sys:r_float_ex(rep_sec, "cost")) or 0
+                local fee_want = stalker_camp_builder.repair_fee_uses(rep_cost, mmin(1.0, cur_cond + repair_inc) - cur_cond)
+                consume_one_use(fee_item_id)
+                local fee_paid = 1
+                for _ = 2, fee_want do
+                    if not sb.find_and_consume_item(hub_id, camp, is_repair_fee, nil) then break end
+                    fee_paid = fee_paid + 1
+                end
+                if fee_paid < fee_want then repair_inc = repair_inc * fee_paid / fee_want end
                 local new_cond = mmin(1.0, cur_cond + repair_inc)
 
                 pcall(function() se_rep.condition = new_cond end)
@@ -1069,8 +1091,6 @@ function stalker_camp_builder.process_gear_repair(npc_id, box_id, camp, survivor
                         end
                     end
                 end)
-
-                consume_one_use(fee_item_id)
 
                 if repair_round == 1 then
                     local npc = level.object_by_id(npc_id)
