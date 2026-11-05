@@ -42,6 +42,9 @@ pf = { ret_value = true }
 stalker_camp_builder.actor_on_before_hit({ draftsman = obj(99, "wpn_ak74") }, 0, pf)
 ok(pf.ret_value == true, "player: hit from anything else kept")
 pf = { ret_value = true }
+stalker_camp_builder.actor_on_before_hit({ draftsman = obj(98, "hs_collider_wall") }, 0, pf)
+ok(pf.ret_value == false, "player: hit from a broken collider cancelled")
+pf = { ret_value = true }
 stalker_camp_builder.actor_on_before_hit({}, 0, pf)
 ok(pf.ret_value == true, "player: no source kept")
 local flags = { ret_value = true }

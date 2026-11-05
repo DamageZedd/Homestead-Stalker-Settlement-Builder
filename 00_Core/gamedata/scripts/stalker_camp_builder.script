@@ -6007,6 +6007,11 @@ local function is_base_piece(obj)
     if not (ok and type(sec) == "string") then return false end
     local v = hf_piece_sections[sec]
     if v == nil then
+        -- an invisible collider is a piece too (a broken one is a loose box that can hit the player)
+        if string.sub(sec, 1, 12) == "hs_collider_" then
+            hf_piece_sections[sec] = true
+            return true
+        end
         local bind = ini_sys and ini_sys:r_string_ex(sec, "script_binding") or ""
         v = string.find(bind, "bind_hf", 1, true) ~= nil
         hf_piece_sections[sec] = v
