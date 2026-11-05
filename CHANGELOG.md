@@ -1,6 +1,6 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
-## v1.4.1 — Base-Building Physics, Static Colliders & Snapping Fixes
+## v1.4.1 — Base-Building Physics, Closed-Loop Production Chains & Settler Cap
 
 ### 🛠️ Base-Building Physics, Colliders & Snapping
 - **Invisible static colliders under floors, foundations, walls, doorways and posts**: placed foundations and floors (square, triangle and the spiral stair landing), walls, doorways and support posts now go into door mode (`set_door_ignore_dynamics`) over invisible static `O_BRKBL` colliders (`CPHStaticGeomShell`), so ODE neighbour contacts and ragdolls never wake or shove pieces while NPCs, mutants, items and bodies remain blocked.
@@ -8,6 +8,14 @@
 - **Zero physics strike damage from placed pieces**: `actor_on_before_hit` and `npc_on_before_hit` cancel physics hits from placed Hideout Furniture / Homestead pieces and `hs_collider_*` objects on the player and settlers.
 - **Triangle & support-post snapping**: furniture, stations, crates and stairs now snap onto triangle foundations and triangle floors (`foundation_tri`, `floor_tri`), and support posts (`placeable_hs_support_frame`) now stack and accept upper floors and flat/triangle roofs.
 - **Building Colliders MCM toggle**: `building_colliders` (under *QoL & Debug*, default: ON) allows toggling the invisible static colliders on or off in-game.
+
+### 🔄 Closed-Loop Multi-Stage Production Chains & Settlement Cap
+- **Settlement Population Cap Aligned to Job Roster (Default: 14, Range: 0–28)**: updated `max_survivors_player_camp` (and `max_survivors_per_camp`) default from `12` to `14` so a player settlement can staff all 14 settlement jobs (`guard`, `scavenge`, `hunter`, `craft`, `repair`, `cook`, `medic`, `electrician`, `woodcutter`, `brewer`, `scrapper`, `farmer`, `trader`, `raider`) simultaneously by default, with an MCM range of `0` to `28` (double the baseline).
+- **Salvage Table & Pelt Curing -> Cloth & Copper (`process_scrapper_job`)**: Scrappers working at a Salvage Table (or equipped with tools) now cure Hunter mutant pelts (`hide_*`) + Woodcutter `charcoal` into `2x prt_i_cloth` (falling back to `bandage` on Vanilla Anomaly if `prt_i_cloth` is absent), and refine surplus scrap (`>= 15 prt_i_scrap` + `>= 5 prt_i_fasteners`) into scarce `prt_i_cloth` (for the Medic & water filters) or `prt_i_copper` (for the Electrician's battery fabrication).
+- **Charcoal Water Filtration & Improvised Black Powder (`update_camp_jobs` / `process_ammo_crafting`)**: Water Pumps and Water Purifiers now accept `3x charcoal + 1x prt_i_cloth/bandage` as a renewable charcoal filter bed when commercial water filters are unavailable; Tier 2+ Ammo Crafters at an Ammo Bench can synthesize improvised black powder from `3x charcoal + 1x prt_i_scrap + 1x vodka/alcohol` to craft basic ammunition when commercial gunpowder is depleted.
+- **Charcoal Stove Priority & Canned Rations (`process_cook_job`)**: Cooks now recognize `homestead_field_kitchen` as a full stove, burn renewable `charcoal` before `kerosene`/`gasoline` (preserving liquid fuel for the Generator Station), and pack a bonus canned ration (`tushonka`/`conserva`, which also pays the Technician's repair fee) when cooking with clean water and surplus Farmer potatoes (`> 6` stored).
+- **Medic Trophy Bio-Synthesis (`process_medic_job`)**: Tier 2+ Medics working at a Field Infirmary (`medstation`) consume a non-meat Hunter mutant trophy (`mutant_part_*`) when synthesizing medkits to upgrade the lead unit into a `stimpack` or `medkit_army`.
+- **Automated Trophy & Pelt Routing to Market Stall (`spawn_hunted_meat`)**: once camp storage holds a reserve of 4 mutant pelts or 4 hunting trophies for the Scrapper and Medic, excess pelts and trophies from the Hunter Station are automatically routed into the Market Stall's `market_stash` for the Trader to sell for RU.
 
 ## v1.4.0 — Raiders, Living Needs, PDA Overhaul & Kit Texture Fix (2026-11-05)
 

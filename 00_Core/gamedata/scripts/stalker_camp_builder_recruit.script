@@ -923,7 +923,7 @@ function stalker_camp_builder.recruit_npc_to_camp(actor, npc, hub_id)
     local npc_id = npc:id()
 
     -- Hard cap check: prevent economy flood from too many survivors per camp
-    local max_survivors = sb.cfg.max_survivors_player_camp or sb.cfg.max_survivors_per_camp or (sb.defaults and sb.defaults.max_survivors_player_camp) or 12
+    local max_survivors = sb.cfg.max_survivors_player_camp or sb.cfg.max_survivors_per_camp or (sb.defaults and sb.defaults.max_survivors_player_camp) or 14
     local current_count = 0
     for _ in pairs(camp.survivors or {}) do
         current_count = current_count + 1
@@ -1173,7 +1173,7 @@ function stalker_camp_builder.transfer_survivor_to_camp(npc_id, target_hub_id)
     end
     if survivor_count >= capacity then return false, "full" end
     -- the hard cap holds independent of beds, as in recruit_npc_to_camp
-    local max_survivors = sb.cfg.max_survivors_player_camp or sb.cfg.max_survivors_per_camp or (sb.defaults and sb.defaults.max_survivors_player_camp) or 12
+    local max_survivors = sb.cfg.max_survivors_player_camp or sb.cfg.max_survivors_per_camp or (sb.defaults and sb.defaults.max_survivors_player_camp) or 14
     if survivor_count >= max_survivors then
         actor_menu.set_msg(1, string.format(game.translate_string("st_recruit_cap_reached"), survivor_count, max_survivors), 4)
         return false, "cap"

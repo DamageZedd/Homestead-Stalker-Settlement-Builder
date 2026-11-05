@@ -1019,7 +1019,7 @@
         <text>Max Survivors (Player Settlement)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_max_survivors_player_camp_desc">
-        <text>Hard cap on the number of survivors in player settlements, independent of bed count. Range: 1-25. Default: 12.</text>
+        <text>Hard cap on the number of survivors in player settlements, independent of bed count (one per job role by default). Range: 0-28. Default: 14.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_max_survivors_rival_camp">
         <text>Max Survivors (Rival Camp)</text>

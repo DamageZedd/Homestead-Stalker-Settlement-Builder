@@ -101,6 +101,61 @@ stalker_camp_builder.is_potato = is_potato
 stalker_camp_builder.is_grain = is_grain
 stalker_camp_builder.is_bread = is_bread
 
+local function first_existing_section(...)
+    local ini = ini_sys or sys_ini or (system_ini and system_ini())
+    local n = select("#", ...)
+    for i = 1, n do
+        local sec = select(i, ...)
+        if sec and (not ini or not ini.section_exist or ini:section_exist(sec)) then
+            return sec
+        end
+    end
+    return select(1, ...)
+end
+
+local function is_ethanol_section(sec)
+    if not sec then return false end
+    local s = sec:lower()
+    return s == "vodka" or s == "vodka2" or s == "vodka_quality" or s == "vodka_putinka"
+        or s:find("vodka") ~= nil or s:find("antiseptic") ~= nil or s == "alcohol" or s:find("spirit") ~= nil
+end
+
+local function is_mutant_pelt(sec)
+    return sec ~= nil and sec:find("^hide_") ~= nil
+end
+
+local function is_mutant_trophy(sec)
+    if not sec or not sec:find("^mutant_part_") then return false end
+    return stalker_camp_builder.meat_cooking_map[sec] == nil
+end
+
+local function deposit_surplus_to_market_stall(camp, sec)
+    if not (camp and camp.structures and sec and homestead_market_stall and homestead_market_stall.find_stash) then
+        return nil
+    end
+    local sim = alife()
+    if not sim then return nil end
+    local sb = stalker_camp_builder
+    for sid, stype in pairs(camp.structures) do
+        if stype == "market_stall" then
+            local stash_id = homestead_market_stall.find_stash(sid)
+            local stash_se = stash_id and sim:object(stash_id)
+            if stash_se then
+                local w = (ini_sys and ini_sys.r_float_ex and ini_sys:r_float_ex(sec, "inv_weight")) or 0.5
+                if not sb.box_has_room_for or sb.box_has_room_for(stash_id, w) then
+                    local pos = stash_se.position or STATIC_ZERO_VECTOR
+                    local lvid = stash_se.m_level_vertex_id or 0
+                    local gvi = stash_se.m_game_vertex_id or 0
+                    sim:create(sec, pos, lvid, gvi, stash_id)
+                    if sb.invalidate_server_container_cache then sb.invalidate_server_container_cache() end
+                    return stash_id
+                end
+            end
+        end
+    end
+    return nil
+end
+
 -- the box one more `sec` would go to, weighed as deposit_item_to_camp weighs it (its inv_weight)
 -- and with what this frame's deposits have already put in the boxes: a job asks before it uses up
 -- its inputs, so that they aren't spent on output there is no room for
@@ -412,7 +467,11 @@ function stalker_camp_builder.spawn_hunted_meat(box_id, multiplier, hub_id, camp
             local pelt_table = {"hide_pseudodog", "hide_boar", "hide_flesh", "hide_dog", "hide_chimera", "hide_bloodsucker", "hide_burer"}
             local psec = pelt_table[math.random(#pelt_table)]
             if psec and ini_sys and ini_sys.section_exist and ini_sys:section_exist(psec) then
-                if camp and hub_id and sb.deposit_item_to_camp then
+                local pelt_stock = (camp and hub_id and sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_mutant_pelt, 4)) or 0
+                local routed_b = (pelt_stock >= 4) and deposit_surplus_to_market_stall(camp, psec) or nil
+                if routed_b then
+                    deposited_meats[#deposited_meats+1] = psec
+                elseif camp and hub_id and sb.deposit_item_to_camp then
                     local dep_b = sb.deposit_item_to_camp(hub_id, camp, psec)
                     if dep_b then deposited_meats[#deposited_meats+1] = psec end
                 end
@@ -427,7 +486,11 @@ function stalker_camp_builder.spawn_hunted_meat(box_id, multiplier, hub_id, camp
             }
             local tsec = trophy_table[math.random(#trophy_table)]
             if tsec and ini_sys and ini_sys.section_exist and ini_sys:section_exist(tsec) then
-                if camp and hub_id and sb.deposit_item_to_camp then
+                local trophy_stock = (camp and hub_id and sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_mutant_trophy, 4)) or 0
+                local routed_b = (trophy_stock >= 4) and deposit_surplus_to_market_stall(camp, tsec) or nil
+                if routed_b then
+                    deposited_meats[#deposited_meats+1] = tsec
+                elseif camp and hub_id and sb.deposit_item_to_camp then
                     local dep_b = sb.deposit_item_to_camp(hub_id, camp, tsec)
                     if dep_b then deposited_meats[#deposited_meats+1] = tsec end
                 end
@@ -688,10 +751,28 @@ function stalker_camp_builder.process_ammo_crafting(npc_id, box_id, camp, surviv
         end
     end
 
+    local has_ammo_bench = false
+    if camp and camp.structures then
+        for _, s_type in pairs(camp.structures) do
+            if s_type == "ammo_bench" then
+                has_ammo_bench = true
+                break
+            end
+        end
+    end
+
     if sb.camp_iterate_inventory then
         sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid)
             check_sec(sec, item_id)
         end, box_id or fallback_box_id)
+    end
+
+    if #found_powders == 0 and scrap_id and has_ammo_bench and (survivor and (tonumber(survivor.tier) or 1) >= 2) then
+        local char_cnt = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, 3)) or 0
+        local has_eth = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_ethanol_section)
+        if char_cnt >= 3 and has_eth then
+            found_powders[1] = { id = nil, sec = "powder_1", tier = 1, improvised = true }
+        end
     end
 
     if #found_powders > 0 and scrap_id then
@@ -792,20 +873,17 @@ function stalker_camp_builder.process_ammo_crafting(npc_id, box_id, camp, surviv
             return false
         end
 
-        consume_one_use(gunpowder_id)
+        if chosen_pw.improvised then
+            for _ = 1, 3 do
+                sb.find_and_consume_item(h_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, nil)
+            end
+            sb.find_and_consume_item(h_id, camp, is_ethanol_section, nil)
+        else
+            consume_one_use(gunpowder_id)
+        end
         local se_scrap = alife_object(scrap_id)
         if se_scrap then
             alife_release(se_scrap)
-        end
-
-        local has_ammo_bench = false
-        if camp and camp.structures then
-            for s_id, s_type in pairs(camp.structures) do
-                if s_type == "ammo_bench" then
-                    has_ammo_bench = true
-                    break
-                end
-            end
         end
 
         local base_mult = math.max(1, math.floor(sb.cfg.craft_output_multiplier or 1))
@@ -1427,10 +1505,13 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
 
     elseif job == "craft" then
         local has_workbench = false
+        local has_ammo_bench = false
         for struct_id, struct_type in pairs_(camp.structures or {}) do
-            if struct_type == "workbench" or check_container(struct_id) then
+            if struct_type == "ammo_bench" then
+                has_ammo_bench = true
                 has_workbench = true
-                break
+            elseif struct_type == "workbench" or check_container(struct_id) then
+                has_workbench = true
             end
         end
         if not has_workbench and (camp.hub_id or hub_id) then
@@ -1446,9 +1527,12 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
             if sb.is_camp_supply_capped and sb.is_camp_supply_capped(hub_id, camp, "ammo", survivor) then
                 return true, "Stockpile Full", "Target ammunition supplies are fully stocked (6+ boxes stored)"
             end
-            if not snap.has_powder and not snap.has_scrap then
+            local can_improvise_pw = has_ammo_bench and (survivor and (tonumber(survivor.tier) or 1) >= 2)
+                and (snap.charcoal_count or 0) >= 3 and (snap.total_ethanol or 0) >= 1
+            local eff_powder = snap.has_powder or can_improvise_pw
+            if not eff_powder and not snap.has_scrap then
                 return true, "Need Powder & Scrap", "Missing gunpowder and scrap metal in settlement storage"
-            elseif not snap.has_powder then
+            elseif not eff_powder then
                 return true, "Need Gunpowder", "Missing gunpowder in settlement storage"
             elseif not snap.has_scrap then
                 return true, "Need Scrap Metal", "Missing scrap metal in settlement storage"
@@ -1463,6 +1547,11 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         local has_powder = sb.camp_has_item and sb.camp_has_item(hub_id, camp, function(sec)
             return is_gunpowder(sec:lower())
         end)
+        if not has_powder and has_ammo_bench and (survivor and (tonumber(survivor.tier) or 1) >= 2) then
+            local char_cnt = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, 3)) or 0
+            local has_eth = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_ethanol_section)
+            has_powder = (char_cnt >= 3 and has_eth) or false
+        end
         local has_scrap = sb.camp_has_item and sb.camp_has_item(hub_id, camp, function(sec)
             return is_scrap(sec)
         end)
@@ -1785,7 +1874,7 @@ end
     elseif job == "scrapper" then
         local has_bench = false
         for struct_id, struct_type in pairs_(camp.structures or {}) do
-            if struct_type == "workbench" or struct_type == "repair_bench" then
+            if struct_type == "workbench" or struct_type == "repair_bench" or struct_type == "salvage_table" then
                 has_bench = true
                 break
             end
@@ -1854,7 +1943,7 @@ function stalker_camp_builder.process_cook_job(npc_id, hub_id, camp, survivor, b
             if obj then
                 stove_lvid = obj.m_level_vertex_id
                 local sec = obj:section_name()
-                if sec:find("stove") then
+                if sec:find("stove") or sec:find("field_kitchen") then
                     is_actual_stove = true
                 end
             end
@@ -1928,7 +2017,12 @@ function stalker_camp_builder.process_cook_job(npc_id, hub_id, camp, survivor, b
         -- with Cook Requires Fuel off, the stove cooks without burning anything
         local fired = (sb.cfg.cook_requires_fuel == false)
         if not fired then
+            -- Burn renewable woodcutter charcoal first to preserve liquid kerosene/gasoline for the generator
             consumed_fuel = sb.find_and_consume_item(
+                hub_id, camp,
+                function(sec) return sec == "charcoal" end,
+                stove_id
+            ) or sb.find_and_consume_item(
                 hub_id, camp,
                 function(sec) return fuel_items[sec] == true end,
                 stove_id
@@ -2007,6 +2101,23 @@ function stalker_camp_builder.process_cook_job(npc_id, hub_id, camp, survivor, b
     if deposited_food <= 0 then
         if survivor then survivor.shortfall_reason = "Storage Full" end
         return false
+    end
+
+    -- Closed-loop canning: on a fired stove/Field Kitchen with clean water and surplus potatoes (>6 stored so
+    -- the Brewer's mash is never starved), consume 2 potatoes to pack an extra canned ration (tushonka/conserva),
+    -- which also supplies the Technician's repair fee.
+    if is_actual_stove and (consumed_fuel or sb.cfg.cook_requires_fuel == false) and consumed_water then
+        local potato_cnt = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_potato, 7)) or 0
+        if potato_cnt > 6 and sb.deposit_item_to_camp and camp and hub_id then
+            local p1 = sb.find_and_consume_item(hub_id, camp, is_potato, meat_box_id)
+            local p2 = p1 and sb.find_and_consume_item(hub_id, camp, is_potato, meat_box_id)
+            if p1 and p2 then
+                local canned_sec = first_existing_section("tushonka", "conserva")
+                sb.deposit_item_to_camp(hub_id, camp, canned_sec)
+            elseif p1 then
+                sb.deposit_item_to_camp(hub_id, camp, p1)
+            end
+        end
     end
 
     if fridge_id and fridge_lvid then
@@ -2246,10 +2357,25 @@ function stalker_camp_builder.process_medic_job(npc_id, box_id, camp, survivor)
     end
     end
 
+    local bio_upgrade_sec = nil
+    if target_sec == "medkit" and (survivor and (tonumber(survivor.tier) or 1) >= 2) and camp and camp.structures then
+        local has_infirmary = false
+        for _, stype in pairs(camp.structures) do
+            if stype == "medstation" then has_infirmary = true break end
+        end
+        if has_infirmary and sb.find_and_consume_item then
+            local used_trophy = sb.find_and_consume_item(hub_id, camp, is_mutant_trophy, nil)
+            if used_trophy then
+                bio_upgrade_sec = first_existing_section("stimpack", "medkit_army", "medkit_scientic", "medkit")
+            end
+        end
+    end
+
     local deposited_med = 0
     if sb.deposit_item_to_camp and camp and hub_id then
         for i = 1, mult do
-            if not sb.deposit_item_to_camp(hub_id, camp, target_sec) then break end
+            local out_sec = (i == 1 and bio_upgrade_sec) or target_sec
+            if not sb.deposit_item_to_camp(hub_id, camp, out_sec) then break end
             deposited_med = deposited_med + 1
         end
     else
@@ -3194,10 +3320,57 @@ function stalker_camp_builder.process_scrapper_job(npc_id, hub_id, camp, survivo
         if survivor then survivor.shortfall_reason = "Storage Full" end
         return false
     end
+
+    -- Closed-loop refining at Salvage Table / with tools: cure mutant pelts with charcoal into cloth,
+    -- and refine surplus scrap + fasteners into scarce cloth (for Medic/filters) or copper wire (for Electrician).
+    local has_salvage_table = false
+    for _, stype in pairs(camp and camp.structures or {}) do
+        if stype == "salvage_table" then has_salvage_table = true break end
+    end
+    local refined_extra = nil
+    if (has_salvage_table or (survivor and survivor.has_tools)) and sb.camp_count_item and sb.find_and_consume_item and sb.deposit_item_to_camp then
+        local cloth_sec = first_existing_section("prt_i_cloth", "bandage")
+        local copper_sec = first_existing_section("prt_i_copper", "prt_i_resistors", "prt_i_fasteners")
+        local cloth_cnt = sb.camp_count_item(hub_id, camp, is_cloth, 15) or 0
+        local copper_cnt = sb.camp_count_item(hub_id, camp, function(s) return s and (s:lower() == "prt_i_copper" or s:lower() == "prt_i_resistors") end, 10) or 0
+        local char_cnt = sb.camp_count_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, 2) or 0
+        local has_pelt = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_mutant_pelt)
+        if cloth_cnt < 15 and has_pelt and char_cnt >= 1 then
+            local pelt_used = sb.find_and_consume_item(hub_id, camp, is_mutant_pelt, nil)
+            local char_used = pelt_used and sb.find_and_consume_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, nil)
+            if pelt_used and char_used then
+                sb.deposit_item_to_camp(hub_id, camp, cloth_sec)
+                sb.deposit_item_to_camp(hub_id, camp, cloth_sec)
+                refined_extra = "2x " .. (ui_item and ui_item.get_sec_name and ui_item.get_sec_name(cloth_sec) or cloth_sec)
+            elseif pelt_used then
+                sb.deposit_item_to_camp(hub_id, camp, pelt_used)
+            end
+        else
+            local scrap_stock = sb.camp_count_item(hub_id, camp, is_scrap, 16) or 0
+            local fast_stock = sb.camp_count_item(hub_id, camp, function(s) return s == "prt_i_fasteners" end, 6) or 0
+            if scrap_stock >= 15 and fast_stock >= 5 and (cloth_cnt < 12 or copper_cnt < 8) then
+                local s1 = sb.find_and_consume_item(hub_id, camp, is_scrap, nil)
+                local s2 = s1 and sb.find_and_consume_item(hub_id, camp, is_scrap, nil)
+                local f1 = s2 and sb.find_and_consume_item(hub_id, camp, function(s) return s == "prt_i_fasteners" end, nil)
+                if s1 and s2 and f1 then
+                    local out_ref = (copper_cnt < cloth_cnt and copper_cnt < 8) and copper_sec or cloth_sec
+                    sb.deposit_item_to_camp(hub_id, camp, out_ref)
+                    refined_extra = ui_item and ui_item.get_sec_name and ui_item.get_sec_name(out_ref) or out_ref
+                else
+                    if s1 then sb.deposit_item_to_camp(hub_id, camp, s1) end
+                    if s2 then sb.deposit_item_to_camp(hub_id, camp, s2) end
+                end
+            end
+        end
+    end
+
     if survivor then survivor.shortfall_reason = nil end
     local msg = string.format(game.translate_string("st_job_scrapper_salvaged"), name, deposited_scrap, deposited_fasteners)
     if salvaged_gear_name then
         msg = msg .. string.format(" (Dismantled ruined %s for parts)", salvaged_gear_name)
+    end
+    if refined_extra then
+        msg = msg .. string.format(" (+Refined %s)", refined_extra)
     end
     sb.camp_send_tip(actor, msg, nil, "general_stalker", 10000)
     return true
@@ -3814,6 +3987,29 @@ function stalker_camp_builder.update_camp_jobs()
                                 local s = sec:lower()
                                 return sb.cfg.water_filters and (sb.cfg.water_filters[sec] or sb.cfg.water_filters[s])
                             end, camp_box_id)
+                        end
+                        -- Closed-loop charcoal filtration: 3 charcoal + 1 cloth (or bandage) forms a filter bed
+                        if not consumed_filter and sb.find_and_consume_item and sb.deposit_item_to_camp then
+                            local char_cnt = (camp_snap and camp_snap.charcoal_count)
+                                or (sb.camp_count_item and sb.camp_count_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, 3)) or 0
+                            local has_f_cloth = (camp_snap and (camp_snap.has_cloth or camp_snap.has_bandage))
+                                or (sb.camp_has_item and sb.camp_has_item(hub_id, camp, function(s) return is_cloth(s) or s == "bandage" end))
+                            if char_cnt >= 3 and has_f_cloth then
+                                local c_taken = 0
+                                for _ = 1, 3 do
+                                    if sb.find_and_consume_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, camp_box_id) then
+                                        c_taken = c_taken + 1
+                                    end
+                                end
+                                local cloth_taken = (c_taken >= 3) and sb.find_and_consume_item(hub_id, camp, function(s) return is_cloth(s) or s == "bandage" end, camp_box_id)
+                                if cloth_taken then
+                                    consumed_filter = "charcoal_bed"
+                                else
+                                    for _ = 1, c_taken do
+                                        sb.deposit_item_to_camp(hub_id, camp, "charcoal")
+                                    end
+                                end
+                            end
                         end
 
                         if consumed_filter then

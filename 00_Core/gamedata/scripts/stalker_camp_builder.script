@@ -887,8 +887,8 @@ local defaults = {
     camp_rest_bonus = true,         -- When true, sleeping in a camp bed restores satiety/power.
     cook_requires_fuel = true,      -- When true, cook job requires fuel (charcoal/kerosene/gasoline) for stoves.
     generator_requires_fuel = true, -- When true, the generator station burns kerosene (or a jerrycan/gasoline) per electrician shift.
-    max_survivors_per_camp = 12,     -- Legacy fallback (independent of beds)
-    max_survivors_player_camp = 12,  -- Hard cap on survivors per player settlement (independent of beds). Range 1-25.
+    max_survivors_per_camp = 14,     -- Legacy fallback (independent of beds)
+    max_survivors_player_camp = 14,  -- Hard cap on survivors per player settlement (1 per job role by default). Range 0-28.
     max_survivors_rival_camp = 5,    -- Cap on survivors per rival / wilderness camp. Range 1-10.
     alarm_defense_bonus = 15,       -- Defense bonus provided by active alarm system during raids.
     decor_happiness_bonus = 0.5,    -- Happiness percentage added per placed decor item.
@@ -1717,7 +1717,7 @@ function get_recruitable_camps(npc_or_comm)
         local hub_obj = alife_object(hub_id)
         if hub_obj then
             -- the survivor cap holds independent of beds, as in recruit_npc_to_camp
-            local capacity = mmin(get_camp_bed_capacity(camp), cfg.max_survivors_player_camp or 12)
+            local capacity = mmin(get_camp_bed_capacity(camp), cfg.max_survivors_player_camp or 14)
             local survivor_count = 0
             for k, v in pairs(camp.survivors) do
                 survivor_count = survivor_count + 1
