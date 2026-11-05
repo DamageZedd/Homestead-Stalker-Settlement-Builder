@@ -45,6 +45,22 @@ function CreateTimeEvent(ev, _, _, fn)
     if ev == "homestead_lock_collider" then pending[#pending + 1] = fn end
 end
 
+-- net_packet: one entry per byte; a float is its value and three empty bytes
+function net_packet()
+    local p = { data = {}, pos = 1 }
+    function p:w_begin() self.data[#self.data + 1] = 0; self.data[#self.data + 1] = 0 end
+    function p:w_u8(v) self.data[#self.data + 1] = v end
+    function p:w_float(v)
+        self.data[#self.data + 1] = v
+        for _ = 1, 3 do self.data[#self.data + 1] = 0 end
+    end
+    function p:w_tell() return #self.data end
+    function p:r_seek(n) self.pos = n + 1 end
+    function p:r_u8() local v = self.data[self.pos]; self.pos = self.pos + 1; return v end
+    function p:r_float() local v = self.data[self.pos]; self.pos = self.pos + 4; return v end
+    return p
+end
+
 local server = {}              -- id -> fake server object
 local next_se_id = 5000
 local released = {}
@@ -52,8 +68,18 @@ function alife_object(id) return server[id] end
 function alife_release(se) released[se.id] = true; server[se.id] = nil end
 function alife_create(sec, pos, lv, gv)
     next_se_id = next_se_id + 1
-    local se = { id = next_se_id, sec = sec, position = pos, lv = lv, gv = gv }
+    local se = { id = next_se_id, sec = sec, position = pos, lv = lv, gv = gv, health = 1 }
     function se:section_name() return self.sec end
+    function se:STATE_Write(p)                 -- 8 bytes of other state, then health
+        for i = 1, 8 do p:w_u8(i) end
+        p:w_float(self.health)
+    end
+    function se:STATE_Read(p, size)
+        self.read_size = size
+        self.state_bytes = {}
+        for i = 1, 8 do self.state_bytes[i] = p:r_u8() end
+        self.health = p:r_float()
+    end
     server[se.id] = se
     return se
 end
@@ -384,7 +410,29 @@ do
     local cid = se_vars[910] and se_vars[910].hs_collider
     local se = cid and server[cid]
     ok(se and se.sec == "hs_collider_foundation", "collider spawned with the piece")
-    ok(o.in_door == true, "square foundation goes in door mode once it has a collider")
+    ok(se and se.health == 1000000000, "collider made unbreakable before it comes online")
+    ok(se and se.read_size == 14 and se.state_bytes[8] == 8, "the rest of its state is unchanged")
+    ok(not o.in_door, "piece stays solid while its collider is not online")
+    for t = now + 16, now + 400, 16 do now = t; tick() end
+    ok(not o.in_door, "still solid until the collider is online")
+    local spawned = 0
+    for _ in pairs(server) do spawned = spawned + 1 end
+    objects[cid] = { get_physics_shell = function() return nil end, id = function() return cid end,
+        section = function() return "hs_collider_foundation" end }
+    for t = now + 16, now + 200, 16 do now = t; tick() end
+    ok(o.in_door == true, "door mode on the next pass once the collider is online")
+    local after = 0
+    for _ in pairs(server) do after = after + 1 end
+    ok(after == spawned, "waiting for the collider does not spawn another")
+    local pinned_reads = 0
+    local real_load2 = se_load_var
+    function se_load_var(i, n, name)
+        if i == 910 and name == "hs_spot" then pinned_reads = pinned_reads + 1 end
+        return real_load2(i, n, name)
+    end
+    for t = now + 16, now + 200, 16 do now = t; tick() end
+    se_load_var = real_load2
+    ok(pinned_reads <= 1, "a piece in door mode leaves the 100 ms pass (" .. pinned_reads .. " reads)")
     ok(se and math.abs(se.position.y - 1.7) < 1e-6 and se.position.x == 7 and se.position.z == 9,
         "collider sits at the box centre under the piece")
     ok(se and se.angle.y == 1.2 and se.angle.x == 0, "spawn angle is x = pitch, y = heading")
@@ -401,6 +449,8 @@ do
     local new_cid = se_vars[910].hs_collider
     ok(released[cid] and new_cid ~= cid and server[new_cid] ~= nil, "broken collider replaced")
     objects[cid] = nil
+    objects[new_cid] = { get_physics_shell = function() return nil end, id = function() return new_cid end,
+        section = function() return "hs_collider_foundation" end }
 
     -- picked up: the collider goes too, after the engine has finished with the piece
     callbacks.server_object_on_unregister({ id = 910 })

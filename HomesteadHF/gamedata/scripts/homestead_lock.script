@@ -30,6 +30,7 @@ local OLD_VAR = "hs_lock"      -- spot saved by an earlier version of this scrip
 local COLLIDER = "hs_collider"        -- on a piece: id of its collider
 local COLLIDER_OF = "hs_collider_of"  -- on a collider: id of its piece
 local COLLIDER_SECTIONS = { hs_collider_foundation = true, hs_collider_floor = true }
+local COLLIDER_HEALTH = 1000000000     -- a breakable starts at 1, and any blast near it takes health off
 local SOLID = { foundation = true, floor = true, foundation_tri = true, floor_tri = true }   -- homestead_snap types that stay solid
 
 local PLACE_REACH = 3.0        -- metres a piece may have been lifted from where it was placed (further: the hint is ignored)
@@ -110,16 +111,39 @@ local function release_collider(id)
     end
 end
 
--- Makes sure a piece has a working collider. An explosion can break one (it is then a loose physics
--- shell until the engine removes it), so a broken one is replaced. The model's box is centred on the
--- object, hence the offset along the piece's up axis. Spawn angles are x = pitch, y = heading, z = bank
+-- Health is the last float of a breakable's state (CSE_ALifeObjectBreakable::STATE_Write) and no script
+-- field reaches it, so the state is copied into a new packet with that float changed and read back.
+-- A broken collider would be a loose physics box the size of the slab, invisible and solid.
+local function harden_collider(se)
+    local p = net_packet()
+    p:w_begin(0)
+    se:STATE_Write(p)
+    local size = p:w_tell()
+    p:r_seek(0)
+    local bytes = {}
+    for i = 1, size do bytes[i] = p:r_u8() end
+    local q = net_packet()
+    q:w_begin(0)
+    for i = 3, size - 4 do q:w_u8(bytes[i]) end
+    q:w_float(COLLIDER_HEALTH)
+    local qsize = q:w_tell()
+    assert(qsize == size, "collider state changed size")
+    q:r_seek(2)
+    se:STATE_Read(q, qsize)
+end
+
+-- Whether a piece has a working collider, making one if not. A new one only comes online on a later
+-- update, and the piece must not go in door mode before that or what stands on it falls: this answers
+-- false until then. Should one break anyway it is replaced. The model's box is centred on the object,
+-- hence the offset along the piece's up axis. Spawn angles are x = pitch, y = heading, z = bank
 -- (CGameObject::net_Spawn: setXYZ, which is setHPB(y, x, z)).
 local function ensure_collider(obj, id, rec)
     local cid = se_load_var(id, nil, COLLIDER)
     local se = cid and alife_object(cid)
     if se and COLLIDER_SECTIONS[se:section_name()] then
         local placed = level.object_by_id(cid)
-        if not (placed and placed:get_physics_shell()) then return true end
+        if not placed then return false end
+        if not placed:get_physics_shell() then return true end
         alife_release(se)
     end
     local spot = se_load_var(id, nil, VAR)
@@ -129,29 +153,33 @@ local function ensure_collider(obj, id, rec)
     local new_se = alife_create(rec.sec, pos, obj:level_vertex_id(), obj:game_vertex_id())
     if not new_se then return false end
     new_se.angle = vector():set(spot[5], spot[4], spot[6])
+    local hardened, err = pcall(harden_collider, new_se)
+    if not hardened then report(err) end
     se_save_var(id, nil, COLLIDER, new_se.id)
     se_save_var(new_se.id, nil, COLLIDER_OF, id)
-    return true
+    return false
 end
 
+-- Returns true when the piece is now in door mode.
 local function set_static(obj, static)
     local sec = obj:section()
     if is_solid(sec) then
         local rec = collider_of(sec)
-        if not rec then return end
+        if not rec then return false end
         if static then
-            if not ensure_collider(obj, obj:id(), rec) then return end
+            if not ensure_collider(obj, obj:id(), rec) then return false end
         else
             release_collider(obj:id())
         end
     end
     local po = obj:get_physics_object()
-    if not (po and obj:get_physics_shell()) then return end
+    if not (po and obj:get_physics_shell()) then return false end
     if static then
         po:set_door_ignore_dynamics()
-    else
-        po:unset_door_ignore_dynamics()
+        return true
     end
+    po:unset_door_ignore_dynamics()
+    return false
 end
 
 local function save_spot(id, obj)
@@ -289,8 +317,7 @@ local function on_piece_frozen(id)
     local obj = level.object_by_id(id)
     if not obj then return end
     online[id] = true
-    local sec = obj:section()
-    solid_online[id] = (is_solid(sec) and not collider_of(sec)) or nil
+    solid_online[id] = is_solid(obj:section()) or nil
     hook_set_frozen(id)
     if se_load_var(id, nil, OLD_VAR) then
         se_save_var(id, nil, OLD_VAR, nil)
@@ -312,7 +339,7 @@ local function on_piece_frozen(id)
         end
         save_spot(id, obj)
     end
-    set_static(obj, true)
+    if set_static(obj, true) then solid_online[id] = nil end
 end
 
 -- A piece HF's freeze hook never reported (freeze_obj returned false while the shell was not ready,
@@ -376,8 +403,8 @@ local function heal_pieces()
     end
 end
 
--- Foundations and floors with no collider stay solid, so items and neighbours can still shove
--- them. There are few of them, so each is checked against its spot every
+-- Foundations and floors that are not in door mode (no collider, or waiting for theirs to come online)
+-- can still be shoved by items and neighbours. There are few of them, so each is checked against its spot every
 -- SOLID_MS and put back at once, long before a shove is visible. A put-back also restarts the body's
 -- sleep countdown, so a piece that overlaps a neighbour would be pushed and put back for ever: one that
 -- keeps coming back leaves this pass until it next comes online, and the slower heal looks after it.
@@ -402,6 +429,9 @@ local function heal_solid()
                     solid_online[id] = nil
                     report("piece " .. id .. " keeps being pushed off its spot, it overlaps a neighbour")
                 end
+            end
+            if spot and collider_of(obj:section()) and set_static(obj, true) then
+                solid_online[id] = nil
             end
         end
     end
