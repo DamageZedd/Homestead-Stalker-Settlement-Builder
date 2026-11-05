@@ -10,6 +10,9 @@ Run from the repo root after any Blender re-export of these models:
    nothing can move it. The model has one zero-area triangle, so it draws nothing, and its bone shape
    is flagged not pickable, so bullets and the player's aim pass through it. No new textures: the
    chunk keeps the foundation's vanilla texture name.
+   The standing box comes from the bone's obb only. The bone shape and mass are used only by the loose shell
+   of a collider that broke, so they are a small light box: at the source's 2000 kg (x10 when broken) with
+   the box's size, a broken foundation was a 20 t slab half inside the ground, thrown out by depenetration.
 3. Triangles need several boxes: a collider is one box, so each triangle gets TRI_STRIPS colliders, stepped
    strips parallel to one leg (see triangle_strips). Strip k is as wide as the triangle at its top edge, so
    no box leaves the visible piece; the strips cover TRI_STRIPS / (TRI_STRIPS + 1) of its area (8: 88.9 %).
@@ -64,6 +67,8 @@ INSET = 0.005                  # as the square colliders: 5 mm inside the model,
 FMT_1L = 0x12071980
 VERT_1L = 60
 SFNOPICKABLE = 1
+BROKEN_HALF = (0.05, 0.05, 0.05)   # bone shape: only what is left of a collider that broke
+BROKEN_MASS = 1.0                  # bone mass, last field but the centre of mass (x10 when broken)
 IDENTITY = (1, 0, 0, 0, 1, 0, 0, 0, 1)
 
 
@@ -147,7 +152,8 @@ def make_collider(source=None, half=None):
     new_ik = bytearray(ik)
     flags = struct.unpack_from("<H", ik, o + 2)[0] | SFNOPICKABLE
     struct.pack_into("<H", new_ik, o + 2, flags)
-    new_ik[o + 4:o + 64] = obb(half)
+    new_ik[o + 4:o + 64] = obb(BROKEN_HALF)
+    struct.pack_into("<f", new_ik, len(new_ik) - 16, BROKEN_MASS)
     return write_chunks([
         (OGF_HEADER, header(get(chunks, OGF_HEADER), half)),
         (OGF_CHILDREN, write_chunks([(0, new_child)])),

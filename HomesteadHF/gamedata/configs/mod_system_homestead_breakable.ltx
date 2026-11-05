@@ -1,0 +1,5 @@
+; Homestead's invisible colliders are breakables, and the class keeps this value in a static that each
+; breakable's Load overwrites: a vanilla one spawning later would put the colliders back at 2000 (a frozen
+; piece moving 6 mm/s breaks them). Bullets and blasts still break vanilla breakables as before.
+![breakable_object]
+collision_break_threthhold = 1e30
