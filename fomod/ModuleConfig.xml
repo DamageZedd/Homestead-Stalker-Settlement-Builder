@@ -110,6 +110,46 @@ Without these base mods active, you will experience missing section crashes when
 						</plugin>
 					</plugins>
 				</group>
+				<group name="HD Inventory Icons Framework Compatibility" type="SelectExactlyOne">
+					<plugins order="Explicit">
+						<plugin name="No HD icons">
+							<description>Select this if the HD Inventory Icons Framework is not installed. The inventory keeps the standard Homestead icons.</description>
+							<files />
+							<typeDescriptor>
+								<dependencyType>
+									<defaultType name="Recommended" />
+									<patterns>
+										<pattern>
+											<dependencies operator="And">
+												<fileDependency file="gamedata\scripts\rax_icon_layers.script" state="Active" />
+											</dependencies>
+											<type name="Optional" />
+										</pattern>
+									</patterns>
+								</dependencyType>
+							</typeDescriptor>
+						</plugin>
+						<plugin name="HD Inventory Icons (requires HD Inventory Icons Framework)">
+							<description>Adds 4x HD inventory icons for the Homestead building kit, workstations and crates through the HD Inventory Icons Framework (icon_override). Install it only when the HD Inventory Icons Framework is active in your profile; without it these files are ignored. Adds one 4096x4096 icon sheet (about 21 MB).</description>
+							<files>
+								<folder source="05_HDIcons_Patch/gamedata" destination="gamedata" priority="5" />
+							</files>
+							<typeDescriptor>
+								<dependencyType>
+									<defaultType name="Optional" />
+									<patterns>
+										<pattern>
+											<dependencies operator="And">
+												<fileDependency file="gamedata\scripts\rax_icon_layers.script" state="Active" />
+											</dependencies>
+											<type name="Recommended" />
+										</pattern>
+									</patterns>
+								</dependencyType>
+							</typeDescriptor>
+						</plugin>
+					</plugins>
+				</group>
 			</optionalFileGroups>
 		</installStep>
 	</installSteps>
