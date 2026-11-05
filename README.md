@@ -27,14 +27,20 @@ Plant a Settlement Flag to establish a 50-meter settlement boundary. Construct b
 ### ⚔️ Raiders
 A new Raider job. Send raiders against the nearest rival outpost from the Job page, or pick a target and press **Send raiders** on the PDA Outposts tab (a preview shows the band, the odds and the goodwill cost first). A win clears the outpost and brings loot, a cash bounty and a savings cut; it costs goodwill with the robbed faction and its allies. A failed raid leaves the raiders wounded, and a raid can be recalled early. Tuning is in MCM (Raids and events).
 
-### 🍞 Living Needs (off by default)
-Settlers can need food and water. Switch it on in MCM (Needs): a camp is Fed, Short or Starving; settlers who went without lose morale, refuse demanding jobs until fed, a starving camp's guards defend worse, and low morale can drive settlers away (each consequence has its own switch). Eating from several food classes gives a bonus, and a water pump supplies water.
+### 🍞 Living Needs (on by default)
+Settlers need food and water (switch it off in MCM, Needs): a camp is Fed, Short or Starving; settlers who went without lose morale, refuse demanding jobs until fed, a starving camp's guards defend worse, and low morale can drive settlers away (each consequence has its own switch). Eating from several food classes gives a bonus, and a water pump supplies water.
 
 ### 📟 PDA Overhaul
 Redesigned tabs: Overview with Status, Defense, Supplies and Orders mini tabs, a Survivors table with Job, Orders, Transfer and Stats tabs and a real XP bar, Outposts with a hero header, a Radio Feed with channels and type ticks, and a quick-start How to Play.
 
+### ⚖️ Balance Pass
+The Trader pays 25% of base price (37.5% for Skilled and above), medic batches pay their own inputs and stop at 4 for the rare types, the repair fee scales with the gear's value, and the specialization table lists the Farm, Workshop and Hideout job bonuses.
+
+### 🖼️ Optional HD Icons Patch
+A FOMOD choice adds 4x inventory icons for the building kit, workstations and crates through the HD Inventory Icons Framework. Install it only if that framework is active; untested in game.
+
 ### 🕒 Real Time Zones
-Jobs, expeditions and raids no longer run ten times too fast or too short while Real Time Zones catches up its clock.
+Jobs, expeditions and raids no longer run ten times too fast or too short while Real Time Zones catches up its clock, and game-hour timers (meals, pump, raids, expedition walks) keep GAMMA's pace.
 
 ### 🪵 Building Kit Textures
 The kit's floors, stairs, ramp, posts and the Hunter's Station use the same plank texture as the Hideout Furniture walls, and the pieces added in v1.3.5 are rebuilt with all faces outward, so no more blotchy wood or see-through faces.
@@ -188,7 +194,7 @@ Build real houses, Fallout 4 style. The new HomesteadHF building pieces and the 
 
 ## 🍞 Living Needs
 
-Off by default (MCM, Needs group); with it off, Homestead behaves exactly as before.
+On by default (MCM, Needs group); with it off, Homestead behaves exactly as before.
 
 - Settlers need food and water each food interval; food comes in staple, protein and comfort classes and water is its own need (a camp with a water pump counts as supplied)
 - Camp tiers: Fed, Short and Starving, shown as `Needs: <tier>, Variety n/3` in the Overview's Provisions line; a grace period after enabling it or loading an older save means no penalties at first
