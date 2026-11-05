@@ -213,6 +213,7 @@ local function ensure_collider(obj, id, rec)
         if se and se:section_name() == part.sec then
             local placed = level.object_by_id(cid)
             if not placed then
+                pcall(harden_collider, se)
                 keep, ready = true, false
             elseif not placed:get_physics_shell() then
                 keep = true
@@ -271,7 +272,13 @@ local function set_static(obj, static)
     if rec or is_solid(sec) then
         if not rec then return false end
         if static then
-            if not ensure_collider(obj, obj:id(), rec) then return false end
+            if not ensure_collider(obj, obj:id(), rec) then
+                if is_solid(sec) and (collider_breaks[obj:id()] or 0) >= MAX_BREAKS then
+                    local po0 = obj:get_physics_object()
+                    if po0 then po0:unset_door_ignore_dynamics() end
+                end
+                return false
+            end
         else
             release_collider(obj:id())
         end

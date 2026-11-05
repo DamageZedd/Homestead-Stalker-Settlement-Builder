@@ -44,6 +44,7 @@ WALL_MODELS = {
     "hs_collider_hfd_left": (1.2295, 0.995, 0.06),    # Hideout Furniture doorway: opening x 0.12..1.12, up to 2.0 m
     "hs_collider_hfd_right": (0.6095, 0.995, 0.06),
     "hs_collider_hfd_lintel": (2.349, 0.29, 0.06),
+    "hs_collider_spiral_end": (2.349, 0.045, 0.072),  # spiral stair landing: 5 mm inset from hs_stairs_spiral_end
 }
 # piece section -> boxes (model, centre x, y, z in the piece's frame)
 WALLS = {
@@ -53,6 +54,7 @@ WALLS = {
     "placeable_hs_support_frame": [("hs_collider_post", 0.0, 1.293, 0.0)],
     "placeable_hs_doorway_double": [("hs_collider_dd_post", -1.977, 1.293, 0.0), ("hs_collider_dd_post", 1.977, 1.293, 0.0),
                                     ("hs_collider_dd_lintel", 0.0, 2.418, 0.0)],
+    "placeable_hs_stairs_spiral_end": [("hs_collider_spiral_end", 0.0, 0.05, -2.277237)],
 }
 for _s in ("placeable_wall", "placeable_wall_metal"):
     WALLS[_s] = [("hs_collider_wall", 0.005, 1.293, -0.008)]

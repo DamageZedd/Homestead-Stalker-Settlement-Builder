@@ -605,6 +605,22 @@ end)()
     ok(se_vars[951].hs_collider ~= nil, "option on again: the collider is made")
     errors = errors - 2       -- the two switches are logged
     objects[950], objects[951] = nil, nil
+    -- 3 broken colliders: the slab leaves door mode so nothing falls through it
+    local o3 = make_obj(952, "hs_square", 8, 2, 3, 0)
+    bind_hf_base.freeze_obj(952)
+    for _ = 1, 3 do
+        local c3 = se_vars[952].hs_collider
+        objects[c3] = { get_physics_shell = function() return nil end, id = function() return c3 end,
+            section = function() return "hs_collider_foundation" end }
+        for _ = 1, 20 do now = now + 500; tick() end
+        objects[c3] = { get_physics_shell = function() return {} end, id = function() return c3 end,
+            section = function() return "hs_collider_foundation" end }
+        for _ = 1, 40 do now = now + 500; tick() end
+        errors = errors - 1
+    end
+    for _ = 1, 40 do now = now + 500; tick() end
+    ok(o3.in_door == false, "3 broken colliders: slab leaves door mode")
+    objects[952] = nil
 end)()
 
 ok(errors == 0, "no lock errors after the death burst (" .. errors .. ")")

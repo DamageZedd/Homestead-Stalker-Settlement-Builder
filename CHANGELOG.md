@@ -1,5 +1,14 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## v1.4.1 — Base-Building Physics, Static Colliders & Snapping Fixes
+
+### 🛠️ Base-Building Physics, Colliders & Snapping
+- **Invisible static colliders under floors, foundations, walls, doorways and posts**: placed foundations and floors (square, triangle and the spiral stair landing), walls, doorways and support posts now go into door mode (`set_door_ignore_dynamics`) over invisible static `O_BRKBL` colliders (`CPHStaticGeomShell`), so ODE neighbour contacts and ragdolls never wake or shove pieces while NPCs, mutants, items and bodies remain blocked.
+- **Unbreakable colliders & harmless broken fallback**: set `collision_break_threthhold = 1e30` across all 28 collider sections and vanilla `[breakable_object]` via DLTX (`mod_system_homestead_breakable.ltx`) so physics strikes never shatter colliders; shrunk the fallback broken bone shape to a 10 cm, 1 kg box; re-hardened existing save colliders while offline; and added a fallback so any floor/foundation that reaches the break limit leaves door mode instead of turning intangible.
+- **Zero physics strike damage from placed pieces**: `actor_on_before_hit` and `npc_on_before_hit` cancel physics hits from placed Hideout Furniture / Homestead pieces and `hs_collider_*` objects on the player and settlers.
+- **Triangle & support-post snapping**: furniture, stations, crates and stairs now snap onto triangle foundations and triangle floors (`foundation_tri`, `floor_tri`), and support posts (`placeable_hs_support_frame`) now stack and accept upper floors and flat/triangle roofs.
+- **Building Colliders MCM toggle**: `building_colliders` (under *QoL & Debug*, default: ON) allows toggling the invisible static colliders on or off in-game.
+
 ## v1.4.0 — Raiders, Living Needs, PDA Overhaul & Kit Texture Fix (2026-11-05)
 
 ### ⚔️ Raiders: Raid Rival Outposts

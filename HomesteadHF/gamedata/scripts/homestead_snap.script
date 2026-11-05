@@ -53,7 +53,7 @@ local HYPO_LEN = TILE * math.sqrt(2)
 local TOP = { foundation = FOUND_TOP, floor = SLAB, stairs = STOREY, foundation_tri = FOUND_TOP, floor_tri = SLAB }
 -- what furniture stands on: the foundation mesh top is paved 0.405 - 0.425 m, above the 0.4 m
 -- collision slab that building pieces measure from
-local FURN_TOP = { foundation = 0.425, floor = SLAB, stairs = STOREY }
+local FURN_TOP = { foundation = 0.425, floor = SLAB, stairs = STOREY, foundation_tri = 0.425, floor_tri = SLAB }
 
 local settings = { enabled = true, key = DIK_keys.DIK_G, rotate_key = DIK_keys.DIK_R, radius = 2.5, grid = 0.25, fit = true }
 
@@ -201,21 +201,21 @@ end
 local ACCEPTS = {
     foundation = { foundation = true, foundation_tri = true },
     foundation_tri = { foundation = true, foundation_tri = true },
-    floor      = { floor = true, foundation = true, wall = true, floor_tri = true, foundation_tri = true },
-    floor_tri  = { floor = true, foundation = true, floor_tri = true, foundation_tri = true, wall = true },
+    floor      = { floor = true, foundation = true, wall = true, floor_tri = true, foundation_tri = true, post = true },
+    floor_tri  = { floor = true, foundation = true, floor_tri = true, foundation_tri = true, wall = true, post = true },
     wall_low   = { foundation = true, floor = true, foundation_tri = true, floor_tri = true },
-    post       = { foundation = true, floor = true, foundation_tri = true, floor_tri = true },
+    post       = { foundation = true, floor = true, foundation_tri = true, floor_tri = true, post = true },
     steps      = { foundation = true },
-    roof_flat  = { wall = true, roof_flat = true, roof_triangle = true },
-    roof_triangle = { wall = true, roof_flat = true, roof_triangle = true },
+    roof_flat  = { wall = true, roof_flat = true, roof_triangle = true, post = true },
+    roof_triangle = { wall = true, roof_flat = true, roof_triangle = true, post = true },
     roof_slope = { wall = true, roof_slope = true, roof_hip = true, roof_valley = true },
     roof_hip   = { wall = true, roof_slope = true, roof_hip = true },
     roof_valley  = { wall = true, roof_slope = true },
     roof_pyramid = { wall = true },
     wall_gable   = { wall = true },
     wall       = { foundation = true, floor = true, wall = true, foundation_tri = true, floor_tri = true },
-    stairs     = { floor = true, foundation = true },
-    furniture  = { floor = true, foundation = true, stairs = true, wall = true },
+    stairs     = { floor = true, foundation = true, floor_tri = true, foundation_tri = true },
+    furniture  = { floor = true, foundation = true, stairs = true, wall = true, floor_tri = true, foundation_tri = true },
 }
 
 local function find_target(held, hit)
@@ -430,7 +430,19 @@ local function sockets(held, tinfo)
         add(0, WALL_H, 0, 0, 0, WALL_H, 0)
         add(0, WALL_H, 0, math.pi, 0, WALL_H, 0)
 
-    elseif hc == "stairs" and (tc == "floor" or tc == "foundation") then
+    elseif hc == "post" and tc == "post" then
+        add(0, STOREY, 0, 0, 0, WALL_H, 0)
+
+    elseif (hc == "floor" or hc == "floor_tri" or hc == "roof_flat" or hc == "roof_triangle") and tc == "post" then
+        local c = TILE / 2 - 0.2
+        local quad = hc == "roof_triangle" or hc == "floor_tri"
+        for _, sx in ipairs({ -1, 1 }) do
+            for _, sz in ipairs({ -1, 1 }) do
+                add(sx * c, WALL_H, sz * c, 0, sx * 0.4, WALL_H, sz * 0.4, quad)
+            end
+        end
+
+    elseif hc == "stairs" and (tc == "floor" or tc == "foundation" or tc == "floor_tri" or tc == "foundation_tri") then
         add(0, TOP[tc], 0, 0, 0, TOP[tc], 0, true)
 
     elseif (hc == "roof_flat" or hc == "roof_triangle") and (tc == "roof_flat" or tc == "roof_triangle") then
@@ -489,6 +501,10 @@ local function solve_furniture(held, f, tinfo, hit, preview_yaw, cam_pos)
     if tinfo.class == "stairs" and hy < STOREY - 0.6 then return nil end
     local lx = clamp(quantise(hx, grid), -TILE / 2, TILE / 2)
     local lz = clamp(quantise(hz, grid), -TILE / 2, TILE / 2)
+    if (tinfo.class == "foundation_tri" or tinfo.class == "floor_tri") and lx + lz > 0 then
+        local ex = (lx + lz) / 2
+        lx, lz = clamp(lx - ex, -TILE / 2, TILE / 2), clamp(lz - ex, -TILE / 2, TILE / 2)
+    end
     return { pos = to_world(f, lx, top - held.bottom, lz), yaw = quad_yaw(f.yaw, preview_yaw) }
 end
 

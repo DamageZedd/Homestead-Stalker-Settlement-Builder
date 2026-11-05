@@ -56,7 +56,7 @@ for line in (read_all(BUILDING) .. "\n"):gmatch("(.-)\r?\n") do
         if k then sec[k] = v end
     end
 end
-ok(#sections == 27, "27 collider sections (" .. #sections .. ")")
+ok(#sections == 28, "28 collider sections (" .. #sections .. ")")
 
 for _, s in ipairs(sections) do
     ok(s.class == "O_BRKBL", s.name .. " is a breakable")
