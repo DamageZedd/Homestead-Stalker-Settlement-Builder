@@ -36,6 +36,8 @@ local SWEEP_RADIUS = 80        -- metres around the player
 local HEAL_MS = 500            -- how often a slice of frozen pieces is checked against their spot
 local HEAL_BUDGET = 10         -- pieces per slice: 20 a second, the rate of the old 40 per 2 s sweep
 local SOLID_MS = 100           -- how often solid pieces (foundations, floors) are checked against their spot
+local FIGHT_MS = 2000          -- a solid piece put back FIGHT_LIMIT times in this long is fighting a neighbour
+local FIGHT_LIMIT = 5
 local BURST_MS = 20000         -- after a death the heal runs fast for this long (see on_death)
 local BURST_HEAL_MS = 100      -- slice interval in a burst
 local BURST_BUDGET = 40        -- pieces per slice in a burst: 400 a second
@@ -46,6 +48,8 @@ local burst_until = 0
 local online = {}              -- id of an online frozen piece -> true
 local solid_online = {}        -- the same for pieces that stay solid (foundations and floors)
 local next_solid = 0
+local next_fight_reset = 0
+local fight_count = {}         -- id -> put-backs of a solid piece since next_fight_reset was set
 local put_back_count = 0
 
 -- Per-section answers read from the configs once (they can't change while the game runs); one
@@ -173,13 +177,13 @@ local function put_back(obj, spot)
         obj:force_set_angle(vector():set(spot[4], spot[5], spot[6]), false)
     end
     obj:force_set_position(vector():set(spot[1], spot[2], spot[3]), false)
-    -- a piece knocked off its spot is still swinging on its joint: stop it, or it goes up and down
+    -- A fixed body has no gravity and keeps any speed it was given, so it would drift off again.
+    -- set_linear_vel ignores fixed bodies; freeze() runs FixBody, which zeroes speed, spin and forces.
     local shell = obj:get_physics_shell()
-    if shell and shell.set_linear_vel then
-        pcall(shell.set_linear_vel, shell, vector())
-    end
+    if shell then shell:freeze() end
     put_back_count = put_back_count + 1
     CreateTimeEvent("homestead_lock", "put_back", 1, report_put_back)
+    return true
 end
 
 -- The radial menu's Freeze / Unfreeze: an unfrozen piece falls and collides like any other object, and
@@ -284,8 +288,15 @@ end
 
 -- Foundations and floors stay solid so NPCs can stand on them, which means bodies, items and
 -- neighbours can still shove them. There are few of them, so each is checked against its spot every
--- SOLID_MS and put back at once, long before a shove is visible.
+-- SOLID_MS and put back at once, long before a shove is visible. A put-back also restarts the body's
+-- sleep countdown, so a piece that overlaps a neighbour would be pushed and put back for ever: one that
+-- keeps coming back leaves this pass until it next comes online, and the slower heal looks after it.
 local function heal_solid()
+    local now = time_global()
+    if now >= next_fight_reset then
+        next_fight_reset = now + FIGHT_MS
+        fight_count = {}
+    end
     for id in pairs(solid_online) do
         local obj = level.object_by_id(id)
         if not obj then
@@ -294,7 +305,14 @@ local function heal_solid()
         else
             local wrapper = bind_hf_base.get_wrapper(id)
             local spot = not (wrapper and wrapper.is_frozen == false) and se_load_var(id, nil, VAR)
-            if spot then put_back(obj, spot) end
+            if spot and put_back(obj, spot) then
+                local n = (fight_count[id] or 0) + 1
+                fight_count[id] = n
+                if n >= FIGHT_LIMIT then
+                    solid_online[id] = nil
+                    report("piece " .. id .. " keeps being pushed off its spot, it overlaps a neighbour")
+                end
+            end
         end
     end
 end

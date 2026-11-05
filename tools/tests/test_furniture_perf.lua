@@ -325,12 +325,10 @@ end
 do
     ini_data.hs_slab = { homestead_snap = "foundation", script_binding = "bind_hf_base.bind" }
     local o = make_obj(900, "hs_slab", 5, 0, 5, 0.3)
-    local vel_zeroed = 0
-    local shell = { freeze = function() end, set_linear_vel = function() vel_zeroed = vel_zeroed + 1 end }
-    function o:get_physics_shell() return shell end
     bind_hf_base.freeze_obj(900)
     ok(o.door == 0, "solid piece stays out of door mode")
     now = now + 1000; tick()
+    local frozen_before = o.shell_freezes
     o.pos.y = 0.04                       -- shoved up
     local back
     local t1 = now
@@ -339,7 +337,18 @@ do
         if o.pos.y == 0 then back = t - t1; break end
     end
     ok(back and back <= 150, "solid piece put back within 150 ms (" .. tostring(back) .. " ms)")
-    ok(vel_zeroed >= 1, "put-back stops the piece's motion")
+    ok(o.shell_freezes > frozen_before, "put-back re-freezes the piece, which zeroes its speed")
+
+    -- a slab that keeps being pushed back (it overlaps a neighbour) stops being fought at 10 Hz
+    local puts = o.set_pos
+    for t = now + 16, now + 1600, 16 do
+        now = t
+        o.pos.y = 0.04
+        tick()
+    end
+    -- 16 frames of 100 would be put back at 10 Hz; at most 5 count before it leaves (the shove above counts too)
+    ok(o.set_pos - puts <= 5, "fighting piece leaves the fast pass after 5 put-backs (" .. (o.set_pos - puts) .. ")")
+    errors = errors - 1       -- that report is expected
 end
 
 ok(errors == 0, "no lock errors after the death burst (" .. errors .. ")")
