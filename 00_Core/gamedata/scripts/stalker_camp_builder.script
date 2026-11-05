@@ -6023,6 +6023,15 @@ function stalker_camp_builder.npc_on_before_hit(npc, shit, bone_id, flags)
         flags.ret_value = false
     end
 end
+-- The player is not hurt by a placed piece either: a piece nudged by a put-back or a neighbour while the
+-- player stands on or beside it would otherwise land as a physics hit (grunts, lost health).
+function stalker_camp_builder.actor_on_before_hit(shit, bone_id, flags)
+    local src = shit and shit.draftsman
+    if not (src and flags) then return end
+    if is_base_piece(src) then
+        flags.ret_value = false
+    end
+end
 -- safe_register_callback is defined at top of file
 
 -- Crash helper: when the engine hits a fatal script error it calls this first.
@@ -6596,6 +6605,9 @@ function on_game_start()
     safe_register_callback("npc_on_hit_callback", npc_on_hit_callback)
     safe_register_callback("npc_on_before_hit", function(npc, shit, bone_id, flags)
         pcall(stalker_camp_builder.npc_on_before_hit, npc, shit, bone_id, flags)
+    end)
+    safe_register_callback("actor_on_before_hit", function(shit, bone_id, flags)
+        pcall(stalker_camp_builder.actor_on_before_hit, shit, bone_id, flags)
     end)
     safe_register_callback("npc_on_death_callback", npc_on_death_callback)
     -- DANZY EDIT: eating cooked food at a happy settlement grants the hospitality buff

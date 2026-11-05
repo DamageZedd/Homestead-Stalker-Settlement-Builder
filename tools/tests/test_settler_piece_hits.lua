@@ -35,6 +35,15 @@ ok(hit(obj(10, "stalker"), "placeable_wall") == false, "settler: hit from a base
 ok(hit(obj(10, "stalker"), "wpn_ak74") == true, "settler: hit from anything else kept")
 ok(hit(obj(11, "stalker"), "placeable_wall") == true, "rival settler: kept")
 ok(hit(obj(12, "stalker"), "placeable_wall") == true, "non-settler: kept")
+local pf = { ret_value = true }
+stalker_camp_builder.actor_on_before_hit({ draftsman = obj(99, "placeable_wall") }, 0, pf)
+ok(pf.ret_value == false, "player: hit from a base piece cancelled")
+pf = { ret_value = true }
+stalker_camp_builder.actor_on_before_hit({ draftsman = obj(99, "wpn_ak74") }, 0, pf)
+ok(pf.ret_value == true, "player: hit from anything else kept")
+pf = { ret_value = true }
+stalker_camp_builder.actor_on_before_hit({}, 0, pf)
+ok(pf.ret_value == true, "player: no source kept")
 local flags = { ret_value = true }
 stalker_camp_builder.npc_on_before_hit(obj(10, "stalker"), { }, 0, flags)
 ok(flags.ret_value == true, "no source: kept")
