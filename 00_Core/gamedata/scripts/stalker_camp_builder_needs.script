@@ -142,7 +142,7 @@ end
 
 local function needs_interval()
     local v = sb.cfg and sb.cfg.food_consumption_interval
-    if type(v) ~= "number" or v <= 0 then return DEFAULT_INTERVAL end
+    if type(v) ~= "number" or v <= 0 then return DEFAULT_INTERVAL * (sb.game_timer_scale and sb.game_timer_scale() or 1) end
     return v
 end
 
@@ -172,7 +172,7 @@ function sb.needs_process(hub_id, camp)
         -- first round for this camp (or the toggle was just turned on): the clock starts now and the
         -- grace period keeps the first days free of penalties
         local grace_days = sb.cfg.needs_grace_days or 3
-        st = { last_round_sec = now, grace_until = now + grace_days * 86400, round = 0, short_rounds = 0 }
+        st = { last_round_sec = now, grace_until = now + grace_days * 86400 * (sb.game_timer_scale and sb.game_timer_scale() or 1), round = 0, short_rounds = 0 }
         camp.needs = st
         return
     end

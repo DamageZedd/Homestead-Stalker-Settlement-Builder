@@ -1371,7 +1371,7 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
 
                     if sb.cfg.rival_camp_convoys ~= false and (camp.tier or 1) >= 2 and camp.status ~= "mutant_nest"
                         and camp.faction ~= "zombied" then
-                        local convoy_interval = (sb.cfg.rival_camp_convoy_interval_hours or 6) * 3600
+                        local convoy_interval = (sb.cfg.rival_camp_convoy_interval_hours or 6) * 3600 * (sb.game_timer_scale and sb.game_timer_scale() or 1)
                         camp.last_convoy_time = camp.last_convoy_time or current_sec
                         if (current_sec - camp.last_convoy_time) >= convoy_interval then
                             camp.last_convoy_time = current_sec

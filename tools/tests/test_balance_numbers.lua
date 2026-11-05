@@ -148,6 +148,15 @@ do
     local bread = math.min(8, math.floor(4 * 1.5 * MORALE + 0.5)) * 2
     job("farmer bread (farm, station)", per_hour(bread * COST.bread, D.realtime_job_farmer_interval), 32000)
 end
+-- food source against sink under Real Time Zones (timers scaled to factor 6 by game_timer_scale): 12 settlers eat 12 items
+-- per meal round; a novice farmer with a stove makes 2 bread per 20 minutes per batch
+do
+    local round_real_h = D.food_consumption_interval / 3600 / 6         -- real hours per round at the scaled interval
+    local need_per_h = 12 / round_real_h
+    local farmer_per_h = 2 * 3600 / D.realtime_job_farmer_interval      -- one batch of 2 bread per cycle
+    out[#out + 1] = string.format("RTZ food: 12 settlers need %.1f/h, one novice farmer makes %.1f/h", need_per_h, farmer_per_h)
+    check(farmer_per_h / need_per_h <= 3, "one novice farmer oversupplies a camp of 12 more than 3x under RTZ")
+end
 -- hard caps in the code that the ceilings above rely on
 check(jobs:find("math.min(math.floor(count * tier_mult * spec_mult * mult + 0.5), 40)", 1, true), "woodcutter 40 cap changed")
 check(jobs:find("MEDIC_RARE_BATCH_MAX = 4", 1, true), "medic rare batch cap changed")

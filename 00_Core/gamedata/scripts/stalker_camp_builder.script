@@ -313,6 +313,20 @@ function job_game_elapsed_sec(survivor, current_sec, tf)
     end
     return math.max(0, (current_sec - (survivor.job_start_time or current_sec)) / tf)
 end
+-- The camp's game-time timers (water pump, fridge, meals, needs, raid and event cooldowns, caravan, convoys) are
+-- written in game hours for GAMMA's usual factor of 6. Real Time Zones locks the factor at 1 and the game hour
+-- becomes a real hour, which stretched them six times (a 24 h meal round took a whole real day, so camps ended
+-- up with far more food than they ate). With RTZ's factor locked they run on the real time the factor-6 game
+-- would have taken. Elsewhere the engine's factor is the player's own choice and nothing changes.
+local TIMER_REFERENCE_TF = 6
+local function game_timer_scale()
+    if rtz_mcm and rtz_mcm.get_config and rtz_mcm.get_config("enabled") and rtz_mcm.get_config("lock_time_factor") then
+        local tf = time_factor()
+        if tf < TIMER_REFERENCE_TF then return tf / TIMER_REFERENCE_TF end
+    end
+    return 1
+end
+stalker_camp_builder.game_timer_scale = game_timer_scale
 -- the sibling scripts call these through the module table
 stalker_camp_builder.game_sec = game_sec
 stalker_camp_builder.time_factor = time_factor
@@ -1138,6 +1152,22 @@ setmetatable(cfg, {
         return defaults[key]
     end
 })
+
+-- the game-time intervals above, shortened under Real Time Zones (see game_timer_scale)
+local GAME_TIMER_KEYS = {
+    fridge_interval = true, water_interval = true, food_consumption_interval = true, trader_despawn_time = true,
+    raid_cooldown = true, raid_check_interval = true, event_cooldown = true, event_check_interval = true,
+    rival_camp_setup_duration = true,
+}
+do
+    local cfg_mt = getmetatable(cfg)
+    local base_index = cfg_mt.__index
+    cfg_mt.__index = function(t, key)
+        local v = base_index(t, key)
+        if GAME_TIMER_KEYS[key] and type(v) == "number" then return v * game_timer_scale() end
+        return v
+    end
+end
 
 local scavenge_loot_table = {
     "conserva", "tushonka", "vodka", "beer", "kolbasa",
