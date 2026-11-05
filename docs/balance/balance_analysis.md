@@ -106,13 +106,29 @@ tier) and only equips the settler. Left.
 | 1 | `trader_price_percent` default (code, MCM, fallback) | 60 | 25 | Vendors pay 10-35 %; the Trader paid 60-90 % |
 | 2 | Farm: woodcutter, brewer; Workshop and Hideout: scrapper in `camp_specializations` | not listed (happy camp x1.1, unhappy x1.25) | 1.25 (happy 1.375, unhappy 1.25) | The jobs' x1.25 fallback fires only at exactly 1.0, so happy camps made less |
 
+## 5b. Second round (user decision: fix the three flagged items)
+
+| # | Change | Before | After | Where |
+|---|---|---|---|---|
+| 3 | Medic batches pay per unit; rare types (akvatab, kalium, medkit) at most 4 per batch | Master Clinic + Drug Kit: 8 akvatab (36000 base) from one set of 5 vodka uses (1600) per 25 min; best case 86900 RU/h | each unit takes its own vodka, cloth or bandage (limited by storage); 4 akvatab = 18100 per 20 vodka uses; best case 43400 RU/h, ROI 2.9x at every tier | `jobs` `medic_batch_size`, `process_medic_job` |
+| 4 | Repair fee scales with value restored: 1 use per 2500 RU restored, floor 1, cap 6 | 1 use (about 315 RU) for any item | pistol (4890) topped up 25 %: 1 use; AK (26950) 25 %: 3 uses (945 RU); AK restored 56 %: 6 uses (1890 RU, 12 % of 15000 restored). Short on fee items: restores only the share paid | `jobs` `repair_fee_uses`, `process_gear_repair`. Repair Bench passive path and paused check untouched |
+| 5 | Game-time timers scaled by `game_timer_scale()` = tf / 6 while RTZ locks the factor below 6 | pump 6 h, fridge 12 h, meal round 24 h, caravan 12 h, raid cooldown 36 h, event cooldown 48 h, check intervals, rival setup, convoy 6 h, needs grace 3 days: real hours equal game hours under RTZ | the same timers take 1/6 of that under RTZ (pump 1 h, meal round 4 h, raid cooldown 6 h, event cooldown 8 h); unchanged without RTZ, or with RTZ at factor 6 or more | `main` `game_timer_scale`, `cfg` wrapper; `needs`, `rivals` convoy |
+
+Item 5, food after the change (12 settlers): 3 items an hour needed, one novice farmer makes 6, so 2x instead of 12x.
+Water: a pump makes 4 flasks per game day, now per 4 real hours. Stored timestamps are not changed (old saves load
+unchanged); the intervals are what shrink, so a camp near a due timer may fire one round early after the update.
+Living-needs defaults rechecked: off by default, multiplier 1.0, grace 3 days (now 12 real hours under RTZ), catch-up cap 1.
+Raider rest 20 and wounded 40 real minutes untouched. Without RTZ nothing changes.
+
+Measured by `test_balance_numbers.lua` (medic ceiling 95000 to 46000, food ratio under RTZ), `test_medic_batch.lua`,
+`test_repair_fee.lua`, `test_game_timer_scale.lua`.
+
 ## 6. Flagged, left alone
 
-* Medic output of rare meds at the Clinic and Drug-Making Kit ceiling (section 2). Needs a code decision on batch size or input.
-* Repair fee does not scale with gear value (section 2).
-* Expedition walk time is game time (section 3). A fix is a code change to the duration formula.
+* Expedition walk time is game time (section 3); a fix is a change to the duration formula.
+* (Fixed in the second round: medic batches, repair fee, game-time timers under RTZ; see 5b.)
 * Hunter Station double bonus, uncapped scavenge tier multiplier, three pumps for the price of one filter.
-* Game-time timers under RTZ (section 3); the needs defaults are tuned.
+* Rival tier hours, skirmish cooldown and equipment check still run on raw game time.
 * Raid cooldown (20 real minutes rest, 40 wounded, 3 a day), build kit, furniture lock, performance work: untouched.
 * Players with a saved MCM profile keep their old Trader price of 60 until they press Default.
 
