@@ -10,6 +10,10 @@ Run from the repo root after any Blender re-export of these models:
    nothing can move it. The model has one zero-area triangle, so it draws nothing, and its bone shape
    is flagged not pickable, so bullets and the player's aim pass through it. No new textures: the
    chunk keeps the foundation's vanilla texture name.
+3. Triangles need several boxes: a collider is one box, so each triangle gets TRI_STRIPS colliders, stepped
+   strips parallel to one leg (see triangle_strips). Strip k is as wide as the triangle at its top edge, so
+   no box leaves the visible piece; the strips cover TRI_STRIPS / (TRI_STRIPS + 1) of its area (8: 88.9 %).
+   The ltx lines that place them are printed (homestead_collider_1..N in items_homestead_building.ltx).
 """
 import struct
 from pathlib import Path
@@ -20,6 +24,13 @@ OGF_BONE_NAMES, OGF_IKDATA, OGF_USERDATA = 13, 16, 17
 USERDATA = b"[collide]\r\nignore_ragdoll = true\r\n\0"
 SOLID = ["hs_foundation", "hs_floor", "hs_foundation_triangle", "hs_floor_triangle", "hs_stairs_spiral_end"]
 COLLIDERS = {"hs_collider_foundation": "hs_foundation", "hs_collider_floor": "hs_floor"}
+# triangle pieces: legs along +x and +z of the model from the right-angle corner at (-LEG, -LEG), hypotenuse x + z = 0
+# name -> (section of the placed piece, lowest y, highest y of its boxes: the square colliders' heights)
+TRIANGLES = {"hs_collider_floor_tri": ("placeable_hs_floor_triangle", 0.005, 0.095),
+             "hs_collider_foundation_tri": ("placeable_hs_foundation_triangle", -0.995, 0.395)}
+TRI_STRIPS = 8
+LEG = 2.349                    # the square pieces' collider half size
+INSET = 0.005                  # as the square colliders: 5 mm inside the model, so snapped neighbours don't overlap
 FMT_1L = 0x12071980
 VERT_1L = 60
 SFNOPICKABLE = 1
@@ -64,10 +75,28 @@ def obb(half):
     return struct.pack("<15f", *IDENTITY, 0, 0, 0, *half)
 
 
-def make_collider(source):
-    chunks = read_chunks((DIR / (source + ".ogf")).read_bytes())
+def triangle_strips(y0, y1, n=TRI_STRIPS):
+    """Boxes (centre x, y, z, half x, y, z) in the model's frame that stack up a right isosceles triangle.
+    The usable triangle has legs from -LEG and its hypotenuse INSET inside the model's (x + z = -d). N strips
+    of height H / (N + 1), each as wide as the triangle is at its top edge, leave only the notches along the
+    hypotenuse and the apex."""
+    d = INSET * 2 ** 0.5
+    height = LEG + (LEG - d)
+    h = height / (n + 1)
+    out = []
+    for k in range(n):
+        z0, z1 = -LEG + k * h, -LEG + (k + 1) * h
+        x1 = -d - z1
+        out.append(((-LEG + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, (x1 + LEG) / 2, (y1 - y0) / 2, h / 2))
+    return out
+
+
+def make_collider(source=None, half=None):
+    """The collider model of a square piece (box read from `source`), or of a box of these half sizes."""
+    chunks = read_chunks((DIR / ((source or "hs_floor") + ".ogf")).read_bytes())
     ik = get(chunks, OGF_IKDATA)
-    o, centre, half = bone_shape(ik)
+    o, centre, source_half = bone_shape(ik)
+    half = half or source_half
 
     # the triangle is copied from the foundation's first child, which has the plain 1-link vertex format
     template = read_chunks((DIR / "hs_foundation.ogf").read_bytes())
@@ -102,6 +131,14 @@ def main():
         data, centre = make_collider(source)
         (DIR / (name + ".ogf")).write_bytes(data)
         print(f"{name}: {len(data)} bytes, homestead_collider_y = {centre[1]:.6f}")
+    for name, (section, y0, y1) in TRIANGLES.items():
+        strips = triangle_strips(y0, y1)
+        area = sum(4 * s[3] * s[5] for s in strips)
+        print(f"{name}: {len(strips)} strips cover {area / (LEG * LEG * 2):.1%} of the triangle")
+        for k, (cx, cy, cz, hx, hy, hz) in enumerate(strips):
+            data, _ = make_collider(half=(hx, hy, hz))
+            (DIR / f"{name}_{k + 1}.ogf").write_bytes(data)
+            print(f"  [{section}] homestead_collider_{k + 1} = {name}_{k + 1}, {cx:.6f}, {cy:.6f}, {cz:.6f}")
     for name in SOLID:
         path = DIR / (name + ".ogf")
         chunks = [c for c in read_chunks(path.read_bytes()) if c[0] != OGF_USERDATA]

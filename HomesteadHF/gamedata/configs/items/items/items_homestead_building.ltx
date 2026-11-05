@@ -588,6 +588,14 @@ fixed_bones                             = link
 script_binding                          = bind_hf_base.init
 item_section                            = homestead_floor_triangle
 homestead_snap                          = floor_tri
+homestead_collider_1                    = hs_collider_floor_tri_1, -0.264143, 0.050000, -2.088393
+homestead_collider_2                    = hs_collider_floor_tri_2, -0.524750, 0.050000, -1.567179
+homestead_collider_3                    = hs_collider_floor_tri_3, -0.785357, 0.050000, -1.045964
+homestead_collider_4                    = hs_collider_floor_tri_4, -1.045964, 0.050000, -0.524750
+homestead_collider_5                    = hs_collider_floor_tri_5, -1.306571, 0.050000, -0.003536
+homestead_collider_6                    = hs_collider_floor_tri_6, -1.567179, 0.050000, 0.517679
+homestead_collider_7                    = hs_collider_floor_tri_7, -1.827786, 0.050000, 1.038893
+homestead_collider_8                    = hs_collider_floor_tri_8, -2.088393, 0.050000, 1.560107
 
 ; width, depth, height / origin x, y (up), z: the nominal piece, like the Hideout Furniture walls
 bounding_box_size                       = 4.708950, 4.708950, 0.100000
@@ -627,6 +635,14 @@ fixed_bones                             = link
 script_binding                          = bind_hf_base.init
 item_section                            = homestead_foundation_triangle
 homestead_snap                          = foundation_tri
+homestead_collider_1                    = hs_collider_foundation_tri_1, -0.264143, -0.300000, -2.088393
+homestead_collider_2                    = hs_collider_foundation_tri_2, -0.524750, -0.300000, -1.567179
+homestead_collider_3                    = hs_collider_foundation_tri_3, -0.785357, -0.300000, -1.045964
+homestead_collider_4                    = hs_collider_foundation_tri_4, -1.045964, -0.300000, -0.524750
+homestead_collider_5                    = hs_collider_foundation_tri_5, -1.306571, -0.300000, -0.003536
+homestead_collider_6                    = hs_collider_foundation_tri_6, -1.567179, -0.300000, 0.517679
+homestead_collider_7                    = hs_collider_foundation_tri_7, -1.827786, -0.300000, 1.038893
+homestead_collider_8                    = hs_collider_foundation_tri_8, -2.088393, -0.300000, 1.560107
 
 ; width, depth, height / origin x, y (up), z: the nominal piece, like the Hideout Furniture walls
 bounding_box_size                       = 4.708950, 4.708950, 0.300000
@@ -961,6 +977,134 @@ immunity_factor                         = 1.3
 [hs_collider_floor]
 class                                   = O_BRKBL
 visual                                  = dynamics\HomesteadHF\building\hs_collider_floor.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_foundation_tri_1]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_foundation_tri_1.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_foundation_tri_2]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_foundation_tri_2.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_foundation_tri_3]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_foundation_tri_3.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_foundation_tri_4]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_foundation_tri_4.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_foundation_tri_5]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_foundation_tri_5.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_foundation_tri_6]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_foundation_tri_6.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_foundation_tri_7]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_foundation_tri_7.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_foundation_tri_8]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_foundation_tri_8.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_floor_tri_1]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_floor_tri_1.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_floor_tri_2]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_floor_tri_2.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_floor_tri_3]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_floor_tri_3.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_floor_tri_4]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_floor_tri_4.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_floor_tri_5]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_floor_tri_5.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_floor_tri_6]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_floor_tri_6.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_floor_tri_7]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_floor_tri_7.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_floor_tri_8]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_floor_tri_8.ogf
 remove_time                             = 10
 hit_break_threthhold                    = 0.
 collision_break_threthhold              = 2000.f

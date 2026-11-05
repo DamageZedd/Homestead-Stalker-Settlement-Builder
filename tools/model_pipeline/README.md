@@ -24,6 +24,9 @@ in Blender after this change, not re-run end to end.
 After a Blender re-export of a foundation or floor, run `python tools/model_pipeline/build_floor_collision.py`
 from the repo root: it writes `[collide] ignore_ragdoll` back into those models and rebuilds the invisible
 `hs_collider_*.ogf` models that `homestead_lock.script` spawns under them.
+A triangle is covered by 8 stepped strips (`hs_collider_floor_tri_1..8`, `hs_collider_foundation_tri_1..8`, about 88 % of its
+area, none outside it); the script prints the `homestead_collider_<n>` lines for the piece's section in
+`items_homestead_building.ltx`.
 
 ## README hero images
 

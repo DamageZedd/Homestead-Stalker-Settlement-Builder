@@ -475,6 +475,73 @@ end)()
     ok(tri.door == 0 and not (se_vars[911] and se_vars[911].hs_collider), "triangle stays solid, no collider")
 end)()
 
+-- triangles: one collider per stepped strip, turned with the piece
+;(function()
+    ini_data.hs_tri3 = { homestead_snap = "floor_tri", script_binding = "bind_hf_base.bind",
+        homestead_collider_1 = "hs_collider_floor_tri_1, -0.25, 0.05, -2.0",
+        homestead_collider_2 = "hs_collider_floor_tri_2, -0.5, 0.05, -1.5",
+        homestead_collider_3 = "hs_collider_floor_tri_3, -0.75, 0.05, -1.0" }
+    local o = make_obj(920, "hs_tri3", 100, 5, 200, math.pi / 2)
+    bind_hf_base.freeze_obj(920)
+    local ids = se_vars[920] and se_vars[920].hs_collider
+    ok(type(ids) == "table" and #ids == 3, "a triangle gets one collider per strip")
+    local first = server[ids[1]]
+    ok(first and first.sec == "hs_collider_floor_tri_1" and server[ids[3]].sec == "hs_collider_floor_tri_3",
+        "each strip has its own section")
+    -- heading 90 degrees: the piece's local x runs along world +z, local z along world -x
+    ok(first and math.abs(first.position.x - 102) < 1e-6 and math.abs(first.position.z - 199.75) < 1e-6
+        and math.abs(first.position.y - 5.05) < 1e-6, "strip offset is turned with the piece")
+    ok(se_vars[ids[2]].hs_collider_of == 920, "every strip knows its piece")
+    local n = 0
+    for _ in pairs(server) do n = n + 1 end
+    for _ = 1, 20 do now = now + 500; tick() end
+    local n2 = 0
+    for _ in pairs(server) do n2 = n2 + 1 end
+    ok(n2 == n, "waiting for the strips spawns no more")
+    ok(not o.in_door, "solid until every strip is online")
+    for i = 1, 2 do
+        local cid = ids[i]
+        objects[cid] = { get_physics_shell = function() return nil end, id = function() return cid end,
+            section = function() return "hs_collider_floor_tri_" .. i end }
+    end
+    for _ = 1, 20 do now = now + 500; tick() end
+    ok(not o.in_door, "still solid with one strip offline")
+    local last = ids[3]
+    objects[last] = { get_physics_shell = function() return nil end, id = function() return last end,
+        section = function() return "hs_collider_floor_tri_3" end }
+    for _ = 1, 20 do now = now + 500; tick() end
+    ok(o.in_door == true, "door mode once all strips are online")
+    -- a strip broken by a blast is replaced alone
+    local broken = ids[2]
+    objects[broken] = { get_physics_shell = function() return {} end, id = function() return broken end,
+        section = function() return "hs_collider_floor_tri_2" end }
+    for _ = 1, 40 do now = now + 500; tick() end
+    local now_ids = se_vars[920].hs_collider
+    ok(released[broken] and now_ids[2] ~= broken and now_ids[1] == ids[1] and now_ids[3] == ids[3],
+        "only the broken strip is replaced")
+    ok(not released[ids[1]] and not released[ids[3]], "the working strips are kept")
+    -- picked up: all of them go
+    callbacks.server_object_on_unregister({ id = 920 })
+    for _, fn in ipairs(pending) do fn() end
+    pending = {}
+    ok(released[ids[1]] and released[ids[3]] and released[now_ids[2]] and se_vars[920].hs_collider == nil,
+        "every strip released with its piece")
+    -- the sweep keeps a strip of a live piece and clears one of a gone piece
+    local live = make_obj(921, "hs_tri3", 0, 0, 0)
+    bind_hf_base.freeze_obj(921)
+    server[921] = { id = 921 }          -- the piece's server object
+    local lids = se_vars[921].hs_collider
+    local lid = lids[2]
+    nearby[#nearby + 1] = { id = function() return lid end, section = function() return "hs_collider_floor_tri_2" end }
+    now = now + 3000; tick()
+    ok(not released[lid], "a strip listed on its piece is kept by the sweep")
+    se_vars[921].hs_collider = nil
+    now = now + 3000; tick()
+    ok(released[lid], "a strip no piece lists is cleaned up")
+    nearby[#nearby] = nil
+    ok(live ~= nil, "test piece")
+end)()
+
 ok(errors == 0, "no lock errors after the death burst (" .. errors .. ")")
 
 print(fails == 0 and ("all furniture perf tests passed (" .. checks .. " checks)") or (fails .. " FAILED"))
