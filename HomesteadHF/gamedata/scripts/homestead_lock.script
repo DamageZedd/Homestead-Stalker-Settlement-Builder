@@ -37,7 +37,7 @@ local COLLIDER = "hs_collider"        -- on a piece: id of its collider (a list 
 local COLLIDER_OF = "hs_collider_of"  -- on a collider: id of its piece
 local COLLIDER_PREFIX = "hs_collider_"   -- sections of the invisible colliders
 local MAX_PARTS = 16                   -- homestead_collider_<n> lines read per section
-local COLLIDER_HEALTH = 1000000000     -- a breakable starts at 1, and any blast near it takes health off
+local COLLIDER_HEALTH = 1000000000     -- a breakable starts at 1, and any blast near it takes health off (collisions: see the ltx)
 local SOLID = { foundation = true, floor = true, foundation_tri = true, floor_tri = true }   -- homestead_snap types that stay solid
 
 local PLACE_REACH = 3.0        -- metres a piece may have been lifted from where it was placed (further: the hint is ignored)
@@ -76,19 +76,18 @@ local function report(err)
     printf("homestead_lock: %s", tostring(err))
 end
 
--- The invisible colliders are behind an MCM option (qol_debug/building_colliders, off by default): a
--- breakable always breaks on a strike hit or a hard collision whatever its health, and a broken one is a
--- loose slab-sized physics box that was thrown at the player. Switching it off removes every collider
--- (online ones at once, the rest as they come online) and puts the pieces back as they were before them.
+-- The invisible colliders can be switched off in MCM (qol_debug/building_colliders, on by default).
+-- Switching them off removes every collider (online ones at once, the rest as they come online) and puts
+-- the pieces back as they were before them.
 local MCM_COLLIDERS = "stalker_camp_builder/qol_debug/building_colliders"
 local MAX_BREAKS = 3           -- colliders of one piece that may break before it gets no more
 local colliders_on = nil       -- nil until first read
 local collider_breaks = {}     -- piece id -> colliders of it found broken
 
 local function read_colliders_setting()
-    if not (ui_mcm and ui_mcm.get) then return false end
+    if not (ui_mcm and ui_mcm.get) then return true end
     local v = ui_mcm.get(MCM_COLLIDERS)
-    return v == true or v == 1
+    return v == nil or v == true or v == 1
 end
 
 local function is_solid(sec)
@@ -177,7 +176,7 @@ end
 
 -- Health is the last float of a breakable's state (CSE_ALifeObjectBreakable::STATE_Write) and no script
 -- field reaches it, so the state is copied into a new packet with that float changed and read back.
--- A broken collider would be a loose physics box the size of the slab, invisible and solid.
+-- Health stops blasts and bullets only; a collision breaks it through collision_break_threthhold (see the ltx).
 local function harden_collider(se)
     local p = net_packet()
     p:w_begin(0)
