@@ -767,14 +767,6 @@ function stalker_camp_builder.process_ammo_crafting(npc_id, box_id, camp, surviv
         end, box_id or fallback_box_id)
     end
 
-    if #found_powders == 0 and scrap_id and has_ammo_bench and (survivor and (tonumber(survivor.tier) or 1) >= 2) then
-        local char_cnt = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, 3)) or 0
-        local has_eth = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_ethanol_section)
-        if char_cnt >= 3 and has_eth then
-            found_powders[1] = { id = nil, sec = "powder_1", tier = 1, improvised = true }
-        end
-    end
-
     if #found_powders > 0 and scrap_id then
         table.sort(found_powders, function(a, b) return a.tier < b.tier end)
         local chosen_pw = found_powders[1]
@@ -873,14 +865,7 @@ function stalker_camp_builder.process_ammo_crafting(npc_id, box_id, camp, surviv
             return false
         end
 
-        if chosen_pw.improvised then
-            for _ = 1, 3 do
-                sb.find_and_consume_item(h_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, nil)
-            end
-            sb.find_and_consume_item(h_id, camp, is_ethanol_section, nil)
-        else
-            consume_one_use(gunpowder_id)
-        end
+        consume_one_use(gunpowder_id)
         local se_scrap = alife_object(scrap_id)
         if se_scrap then
             alife_release(se_scrap)
@@ -1416,7 +1401,7 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
     end
 
     -- a scavenger out on an expedition has no cycle to hold: the haul comes home when it ends
-    local is_producing_job = (job == "cook" or job == "craft" or job == "medic" or job == "hunter" or job == "scrapper" or job == "woodcutter" or job == "brewer" or job == "farmer" or (job == "scavenge" and not survivor.on_expedition))
+    local is_producing_job = (job == "cook" or job == "craft" or job == "medic" or job == "hunter" or job == "scrapper" or job == "woodcutter" or job == "brewer" or job == "chemist" or job == "farmer" or (job == "scavenge" and not survivor.on_expedition))
     if is_producing_job and not survivor._skip_storage_check then
         local test_sec = "prt_i_scrap"
         local test_w = 0.5
@@ -1440,6 +1425,10 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         elseif job == "brewer" then
             test_sec = "vodka"
             test_w = ini_sys:r_float_ex(test_sec, "inv_weight") or 0.5
+        elseif job == "chemist" then
+            local cm = survivor.chemist_mode or "auto"
+            test_sec = (cm == "fuel") and first_existing_section("kerosene", "explo_jerrycan_fuel") or "powder_1"
+            test_w = (ini_sys and ini_sys.r_float_ex and ini_sys:r_float_ex(test_sec, "inv_weight")) or 0.5
         elseif job == "farmer" then
             local fm = survivor.farmer_mode or "auto"
             local grain_next = (fm == "grain") or (fm == "auto" and survivor._farmer_alt == true)
@@ -1527,13 +1516,10 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
             if sb.is_camp_supply_capped and sb.is_camp_supply_capped(hub_id, camp, "ammo", survivor) then
                 return true, "Stockpile Full", "Target ammunition supplies are fully stocked (6+ boxes stored)"
             end
-            local can_improvise_pw = has_ammo_bench and (survivor and (tonumber(survivor.tier) or 1) >= 2)
-                and (snap.charcoal_count or 0) >= 3 and (snap.total_ethanol or 0) >= 1
-            local eff_powder = snap.has_powder or can_improvise_pw
-            if not eff_powder and not snap.has_scrap then
+            if not snap.has_powder and not snap.has_scrap then
                 return true, "Need Powder & Scrap", "Missing gunpowder and scrap metal in settlement storage"
-            elseif not eff_powder then
-                return true, "Need Gunpowder", "Missing gunpowder in settlement storage"
+            elseif not snap.has_powder then
+                return true, "Need Gunpowder", "Missing gunpowder in settlement storage (assign a Chemist or scavenge powder)"
             elseif not snap.has_scrap then
                 return true, "Need Scrap Metal", "Missing scrap metal in settlement storage"
             end
@@ -1547,11 +1533,6 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         local has_powder = sb.camp_has_item and sb.camp_has_item(hub_id, camp, function(sec)
             return is_gunpowder(sec:lower())
         end)
-        if not has_powder and has_ammo_bench and (survivor and (tonumber(survivor.tier) or 1) >= 2) then
-            local char_cnt = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, 3)) or 0
-            local has_eth = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_ethanol_section)
-            has_powder = (char_cnt >= 3 and has_eth) or false
-        end
         local has_scrap = sb.camp_has_item and sb.camp_has_item(hub_id, camp, function(sec)
             return is_scrap(sec)
         end)
@@ -1881,6 +1862,58 @@ end
         end
         if not has_bench and not camp.hub_id then
             return true, "No Workbench", "Requires an assembled Workbench to process scrap"
+        end
+        return false, nil, nil
+
+    elseif job == "chemist" then
+        local has_lab = false
+        for _, struct_type in pairs_(camp.structures or {}) do
+            if struct_type == "distiller" or struct_type == "medstation" or struct_type == "ammo_bench" or struct_type == "stove" or struct_type == "workbench" then
+                has_lab = true
+                break
+            end
+        end
+        if not has_lab and not camp.hub_id then
+            return true, "No Lab Station", "Requires a Distiller, Medstation, Ammo Bench, Stove, or Workbench"
+        end
+
+        local cm = survivor and survivor.chemist_mode or "auto"
+        local cap_on = not (sb.cfg and sb.cfg.enable_surplus_cap == false)
+        local char_cnt, eth_cnt, pw_cnt, fuel_cnt
+        if snap then
+            char_cnt = snap.charcoal_count or 0
+            eth_cnt = snap.total_ethanol or 0
+            pw_cnt = snap.powder_count or 0
+            fuel_cnt = snap.fuel_count or 0
+        else
+            char_cnt = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, 2)) or 0
+            eth_cnt = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_ethanol_section, 2)) or 0
+            pw_cnt = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, function(s) return s and is_gunpowder(s:lower()) end, 12)) or 0
+            fuel_cnt = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_generator_fuel, 10)) or 0
+        end
+
+        if cap_on then
+            local pw_full = pw_cnt >= 12
+            local fuel_full = fuel_cnt >= 10
+            if cm == "powder" and pw_full then
+                return true, "Gunpowder Full", "Gunpowder stockpile is full (12+ tins stored)"
+            elseif cm == "fuel" and fuel_full then
+                return true, "Fuel Full", "Fuel stockpile is full (10+ canisters stored)"
+            elseif cm == "auto" and pw_full and fuel_full then
+                return true, "Stockpile Full", "Gunpowder and Kerosene stockpiles are both full"
+            end
+        end
+
+        local req_eth = (cm == "fuel") and 2 or 1
+        if cm == "auto" and cap_on and pw_cnt >= 12 then
+            req_eth = 2
+        end
+        if char_cnt < 2 and eth_cnt < req_eth then
+            return true, "Need Charcoal & Alcohol", "Chemist requires 2x Charcoal and Alcohol/Vodka in settlement storage"
+        elseif char_cnt < 2 then
+            return true, "Need 2x Charcoal", "Chemist requires at least 2x Charcoal in settlement storage"
+        elseif eth_cnt < req_eth then
+            return true, (req_eth >= 2) and "Need 2x Vodka/Alcohol" or "Need Vodka/Alcohol", "Chemist requires Alcohol or Vodka in settlement storage"
         end
         return false, nil, nil
     end
@@ -2645,11 +2678,15 @@ function stalker_camp_builder.process_woodcutter_job(npc_id, hub_id, camp, survi
     -- required 10-wood threshold before burning charcoal; harvest timber instead if wood < 10
     if mode == "auto" and do_charcoal then
         local has_camp_brewer = false
+        local has_camp_chemist = false
         if camp and camp.survivors then
             for _, s in pairs(camp.survivors) do
-                if s and s.job == "brewer" and not s.on_expedition then
-                    has_camp_brewer = true
-                    break
+                if s and not s.on_expedition then
+                    if s.job == "brewer" then
+                        has_camp_brewer = true
+                    elseif s.job == "chemist" then
+                        has_camp_chemist = true
+                    end
                 end
             end
         end
@@ -2666,7 +2703,8 @@ function stalker_camp_builder.process_woodcutter_job(npc_id, hub_id, camp, survi
             -- Maintain a critical charcoal reserve (up to 5 bags) for stoves & water pumps.
             -- If charcoal is low (< 5 bags) and we have at least 5 wood to burn, produce charcoal.
             -- Once charcoal reserve is met (>= 5 bags), prioritize the brewery by requiring 10+ wood.
-            if charcoal_count < 5 then
+            local char_reserve = has_camp_chemist and 7 or 5
+            if charcoal_count < char_reserve then
                 if wood_avail < 5 then
                     do_charcoal = false
                 end
@@ -3292,6 +3330,11 @@ function stalker_camp_builder.process_scrapper_job(npc_id, hub_id, camp, survivo
                 alife_release(se_junk)
                 scrap_count = scrap_count + 3
                 fastener_count = fastener_count + 2
+                if junk_sec and (junk_sec:find("helm_") or junk_sec:find("armor_") or junk_sec:find("outfit")) and sb.deposit_item_to_camp then
+                    local suit_cloth_sec = first_existing_section("prt_i_cloth", "bandage")
+                    sb.deposit_item_to_camp(hub_id, camp, suit_cloth_sec)
+                    sb.deposit_item_to_camp(hub_id, camp, suit_cloth_sec)
+                end
                 salvaged_gear_name = ui_item and ui_item.get_sec_name and ui_item.get_sec_name(junk_sec) or junk_sec
             end
         end
@@ -3348,14 +3391,13 @@ function stalker_camp_builder.process_scrapper_job(npc_id, hub_id, camp, survivo
         else
             local scrap_stock = sb.camp_count_item(hub_id, camp, is_scrap, 16) or 0
             local fast_stock = sb.camp_count_item(hub_id, camp, function(s) return s == "prt_i_fasteners" end, 6) or 0
-            if scrap_stock >= 15 and fast_stock >= 5 and (cloth_cnt < 12 or copper_cnt < 8) then
+            if scrap_stock >= 15 and fast_stock >= 5 and copper_cnt < 8 then
                 local s1 = sb.find_and_consume_item(hub_id, camp, is_scrap, nil)
                 local s2 = s1 and sb.find_and_consume_item(hub_id, camp, is_scrap, nil)
                 local f1 = s2 and sb.find_and_consume_item(hub_id, camp, function(s) return s == "prt_i_fasteners" end, nil)
                 if s1 and s2 and f1 then
-                    local out_ref = (copper_cnt < cloth_cnt and copper_cnt < 8) and copper_sec or cloth_sec
-                    sb.deposit_item_to_camp(hub_id, camp, out_ref)
-                    refined_extra = ui_item and ui_item.get_sec_name and ui_item.get_sec_name(out_ref) or out_ref
+                    sb.deposit_item_to_camp(hub_id, camp, copper_sec)
+                    refined_extra = ui_item and ui_item.get_sec_name and ui_item.get_sec_name(copper_sec) or copper_sec
                 else
                     if s1 then sb.deposit_item_to_camp(hub_id, camp, s1) end
                     if s2 then sb.deposit_item_to_camp(hub_id, camp, s2) end
@@ -3373,6 +3415,153 @@ function stalker_camp_builder.process_scrapper_job(npc_id, hub_id, camp, survivo
         msg = msg .. string.format(" (+Refined %s)", refined_extra)
     end
     sb.camp_send_tip(actor, msg, nil, "general_stalker", 10000)
+    return true
+end
+
+-- Chemist job: synthesize Gunpowder (powder_1 / powder_2) and Kerosene / Liquid Fuel from Charcoal + Alcohol/Vodka
+function stalker_camp_builder.process_chemist_job(npc_id, hub_id, camp, survivor, camp_box_id)
+    local sb = stalker_camp_builder
+    local actor = db.actor
+    local sformat = string.format
+    local npc = level.object_by_id(npc_id)
+    local name = (npc and npc:character_name()) or (survivor and survivor.name) or "Chemist"
+
+    local has_lab = false
+    local has_lab_bonus = false
+    for _, struct_type in pairs_(camp and camp.structures or {}) do
+        if struct_type == "distiller" or struct_type == "medstation" then
+            has_lab = true
+            has_lab_bonus = true
+        elseif struct_type == "ammo_bench" or struct_type == "stove" or struct_type == "workbench" then
+            has_lab = true
+        end
+    end
+    if not has_lab and not (camp and camp.hub_id) and not hub_id then
+        if survivor then survivor.shortfall_reason = "No Lab Station" end
+        return false
+    end
+
+    local mode = (survivor and survivor.chemist_mode) or "auto"
+    local cap_on = not (sb.cfg and sb.cfg.enable_surplus_cap == false)
+    local powder_cnt = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, function(s) return s and is_gunpowder(s:lower()) end, 12)) or 0
+    local fuel_cnt = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_generator_fuel, 10)) or 0
+    local char_cnt = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, 4)) or 0
+    local eth_cnt = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_ethanol_section, 4)) or 0
+
+    local target_product = mode
+    if mode == "auto" then
+        local pw_full = cap_on and powder_cnt >= 12
+        local fuel_full = cap_on and fuel_cnt >= 10
+        if pw_full and fuel_full then
+            if survivor then survivor.shortfall_reason = "Stockpile Full" end
+            return false
+        elseif pw_full then
+            target_product = "fuel"
+        elseif fuel_full then
+            target_product = "powder"
+        else
+            -- Prioritize whichever is lower relative to its cap (or gunpowder if equal)
+            if fuel_cnt < powder_cnt and eth_cnt >= 2 then
+                target_product = "fuel"
+            else
+                target_product = "powder"
+            end
+        end
+    elseif mode == "powder" and cap_on and powder_cnt >= 12 then
+        if survivor then survivor.shortfall_reason = "Gunpowder Full" end
+        return false
+    elseif mode == "fuel" and cap_on and fuel_cnt >= 10 then
+        if survivor then survivor.shortfall_reason = "Fuel Full" end
+        return false
+    end
+
+    -- If auto chose fuel but only 1 ethanol is available (and powder isn't full), fall back to powder
+    if target_product == "fuel" and eth_cnt < 2 and mode == "auto" and (not cap_on or powder_cnt < 12) and eth_cnt >= 1 then
+        target_product = "powder"
+    end
+
+    local req_char = 2
+    local req_eth = (target_product == "fuel") and 2 or 1
+    if char_cnt < req_char then
+        if survivor then survivor.shortfall_reason = "Need 2x Charcoal" end
+        return false
+    end
+    if eth_cnt < req_eth then
+        if survivor then survivor.shortfall_reason = (req_eth >= 2) and "Need 2x Vodka/Alcohol" or "Need Vodka/Alcohol" end
+        return false
+    end
+
+    local out_sec
+    if target_product == "fuel" then
+        out_sec = first_existing_section("kerosene", "explo_jerrycan_fuel")
+    else
+        local surv_tier = (survivor and tonumber(survivor.tier)) or 1
+        local p1_cnt = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, function(s) return s and s:lower() == "powder_1" end, 6)) or 0
+        if surv_tier >= 2 and p1_cnt >= 6 and (not ini_sys or not ini_sys.section_exist or ini_sys:section_exist("powder_2")) then
+            out_sec = "powder_2"
+        else
+            out_sec = first_existing_section("powder_1", "powder_2")
+        end
+    end
+
+    local target_box_id = output_box(camp, hub_id, out_sec)
+    if not target_box_id then
+        if survivor then survivor.shortfall_reason = "Storage Full" end
+        return false
+    end
+
+    -- Consume inputs safely
+    local c_taken = 0
+    for _ = 1, req_char do
+        if sb.find_and_consume_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, nil) then
+            c_taken = c_taken + 1
+        end
+    end
+    local e_taken = {}
+    for _ = 1, req_eth do
+        local esec = sb.find_and_consume_item(hub_id, camp, is_ethanol_section, nil)
+        if esec then e_taken[#e_taken + 1] = esec end
+    end
+    if c_taken < req_char or #e_taken < req_eth then
+        for _ = 1, c_taken do sb.deposit_item_to_camp(hub_id, camp, "charcoal") end
+        for i = 1, #e_taken do sb.deposit_item_to_camp(hub_id, camp, e_taken[i]) end
+        if survivor then survivor.shortfall_reason = "Need Charcoal & Alcohol" end
+        return false
+    end
+
+    local has_drugkit = (survivor and survivor.has_drugkit) or (camp and camp.has_drugkit)
+    local base_yield = (target_product == "fuel") and 1 or 1
+    if has_lab_bonus or has_drugkit then
+        base_yield = base_yield + 1
+    end
+    local tier_mult = (sb.get_survivor_tier_mult and survivor and sb.get_survivor_tier_mult(survivor)) or 1.0
+    local spec_mult = (sb.get_specialization_mult and camp and sb.get_specialization_mult(camp, "chemist")) or 1.0
+    local mult = math.max(1, math.floor(sb.cfg.craft_output_multiplier or 1))
+    local total_out = math.max(1, math.floor(base_yield * tier_mult * spec_mult * mult + 0.5))
+    local max_batch = (target_product == "fuel") and 4 or 6
+    total_out = math.min(total_out, max_batch)
+    if cap_on then
+        local room = (target_product == "fuel") and math.max(1, 10 - fuel_cnt) or math.max(1, 12 - powder_cnt)
+        total_out = math.min(total_out, room)
+    end
+
+    local deposited = 0
+    for _ = 1, total_out do
+        if not sb.deposit_item_to_camp(hub_id, camp, out_sec) then break end
+        deposited = deposited + 1
+    end
+    if deposited <= 0 then
+        if survivor then survivor.shortfall_reason = "Storage Full" end
+        return false
+    end
+
+    if survivor then survivor.shortfall_reason = nil end
+    local item_label = (ui_item and ui_item.get_sec_name and ui_item.get_sec_name(out_sec)) or out_sec
+    local tmpl = game.translate_string("st_job_chemist_synthesized")
+    if not tmpl or tmpl == "st_job_chemist_synthesized" then
+        tmpl = "%s synthesized %dx %s from charcoal and alcohol!"
+    end
+    sb.camp_send_tip(actor, sformat(tmpl, name, deposited, item_label), nil, "general_stalker", 10000)
     return true
 end
 
@@ -4117,6 +4306,7 @@ function stalker_camp_builder.update_camp_jobs()
                 elseif job == "farmer"   then rt_interval = sb.cfg.realtime_job_farmer_interval or (sb.defaults and sb.defaults.realtime_job_farmer_interval) or 1200
                 elseif job == "trader"   then rt_interval = sb.cfg.realtime_job_trader_interval or (sb.defaults and sb.defaults.realtime_job_trader_interval) or 900
                 elseif job == "scrapper" then rt_interval = sb.cfg.realtime_job_scrapper_interval or (sb.defaults and sb.defaults.realtime_job_scrapper_interval) or 1200
+                elseif job == "chemist"  then rt_interval = sb.cfg.realtime_job_chemist_interval or (sb.defaults and sb.defaults.realtime_job_chemist_interval) or 1200
                 end
                 if not rt_interval or rt_interval <= 0 then
                     -- no cycle runs while the settler is away (companion, expedition) or has none:
@@ -4362,6 +4552,8 @@ function stalker_camp_builder.update_camp_jobs()
                                     did_work = sb.process_farmer_job(npc_id, hub_id, camp, survivor, camp_box_id)
                                 elseif job == "trader" then
                                     did_work = sb.process_trader_job(npc_id, hub_id, camp, survivor, camp_box_id)
+                                elseif job == "chemist" then
+                                    did_work = sb.process_chemist_job(npc_id, hub_id, camp, survivor, camp_box_id)
                                 end
 
                                 last_did_work = did_work
@@ -4475,6 +4667,7 @@ function stalker_camp_builder.get_job_progress(survivor, camp, hub_id)
     elseif job == "farmer"   then rt_interval = sb.cfg.realtime_job_farmer_interval or (sb.defaults and sb.defaults.realtime_job_farmer_interval) or 1200
     elseif job == "trader"   then rt_interval = sb.cfg.realtime_job_trader_interval or (sb.defaults and sb.defaults.realtime_job_trader_interval) or 900
     elseif job == "scrapper" then rt_interval = sb.cfg.realtime_job_scrapper_interval or (sb.defaults and sb.defaults.realtime_job_scrapper_interval) or 1200
+    elseif job == "chemist"  then rt_interval = sb.cfg.realtime_job_chemist_interval or (sb.defaults and sb.defaults.realtime_job_chemist_interval) or 1200
     elseif job == "scavenge" then rt_interval = sb.cfg.realtime_job_scavenge_interval or (sb.defaults and sb.defaults.realtime_job_scavenge_interval) or 900
     else return nil  -- idle / guard have no cycle to display
     end
@@ -4557,6 +4750,7 @@ function stalker_camp_builder.get_job_time_remaining(survivor, camp, hub_id)
     elseif job == "farmer"   then rt_interval = sb.cfg.realtime_job_farmer_interval or (sb.defaults and sb.defaults.realtime_job_farmer_interval) or 1200
     elseif job == "trader"   then rt_interval = sb.cfg.realtime_job_trader_interval or (sb.defaults and sb.defaults.realtime_job_trader_interval) or 900
     elseif job == "scrapper" then rt_interval = sb.cfg.realtime_job_scrapper_interval or (sb.defaults and sb.defaults.realtime_job_scrapper_interval) or 1200
+    elseif job == "chemist"  then rt_interval = sb.cfg.realtime_job_chemist_interval or (sb.defaults and sb.defaults.realtime_job_chemist_interval) or 1200
     elseif job == "scavenge" then rt_interval = sb.cfg.realtime_job_scavenge_interval or (sb.defaults and sb.defaults.realtime_job_scavenge_interval) or 900
     else return nil
     end

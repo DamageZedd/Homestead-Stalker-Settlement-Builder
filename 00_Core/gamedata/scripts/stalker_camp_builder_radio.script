@@ -249,6 +249,13 @@ function stalker_camp_builder.seed_initial_settlement_telemetry(force_refresh)
                     scan = true,
                     text = sformat(game.translate_string("st_radio_scan_electrician"), s_name)
                 })
+            elseif s_job == "chemist" then
+                table.insert(g_logs, 1, {
+                    time_str = time_str,
+                    category = "work",
+                    scan = true,
+                    text = sformat(game.translate_string("st_radio_scan_chemist"), s_name)
+                })
             end
         end
     end

@@ -923,7 +923,7 @@ function stalker_camp_builder.recruit_npc_to_camp(actor, npc, hub_id)
     local npc_id = npc:id()
 
     -- Hard cap check: prevent economy flood from too many survivors per camp
-    local max_survivors = sb.cfg.max_survivors_player_camp or sb.cfg.max_survivors_per_camp or (sb.defaults and sb.defaults.max_survivors_player_camp) or 14
+    local max_survivors = sb.cfg.max_survivors_player_camp or sb.cfg.max_survivors_per_camp or (sb.defaults and sb.defaults.max_survivors_player_camp) or 15
     local current_count = 0
     for _ in pairs(camp.survivors or {}) do
         current_count = current_count + 1
@@ -1007,6 +1007,7 @@ function stalker_camp_builder.recruit_npc_to_camp(actor, npc, hub_id)
                     elseif restored_job == "scavenge" then rt_interval = sb.cfg.realtime_job_scavenge_interval
                     elseif restored_job == "medic"    then rt_interval = sb.cfg.medic_job_interval or (sb.defaults and sb.defaults.medic_job_interval) or 1500
                     elseif restored_job == "electrician" then rt_interval = sb.cfg.electrician_job_interval or (sb.defaults and sb.defaults.electrician_job_interval) or 900
+                    elseif restored_job == "chemist"     then rt_interval = sb.cfg.realtime_job_chemist_interval or (sb.defaults and sb.defaults.realtime_job_chemist_interval) or 1200
                     end
                     restored_job_start_realtime = time_global() - (s.paused_job_progress * (rt_interval or 300) * 1000)
                 end
@@ -1173,7 +1174,7 @@ function stalker_camp_builder.transfer_survivor_to_camp(npc_id, target_hub_id)
     end
     if survivor_count >= capacity then return false, "full" end
     -- the hard cap holds independent of beds, as in recruit_npc_to_camp
-    local max_survivors = sb.cfg.max_survivors_player_camp or sb.cfg.max_survivors_per_camp or (sb.defaults and sb.defaults.max_survivors_player_camp) or 14
+    local max_survivors = sb.cfg.max_survivors_player_camp or sb.cfg.max_survivors_per_camp or (sb.defaults and sb.defaults.max_survivors_player_camp) or 15
     if survivor_count >= max_survivors then
         actor_menu.set_msg(1, string.format(game.translate_string("st_recruit_cap_reached"), survivor_count, max_survivors), 4)
         return false, "cap"
@@ -3296,6 +3297,11 @@ function stalker_camp_builder.is_camp_brewer(p1, p2)
     return ok and res or false
 end
 
+function stalker_camp_builder.is_camp_chemist(p1, p2)
+    local surv = get_speaker_survivor_and_camp(p1, p2)
+    return (surv and surv.job == "chemist") and true or false
+end
+
 function stalker_camp_builder.is_camp_scrapper(p1, p2)
     local ok, res = pcall(function()
         local actor, npc = resolve_speakers(p1, p2)
@@ -3776,8 +3782,8 @@ function stalker_camp_builder.actor_has_brewer_drugkit(p1, p2)
     local actor = db.actor
     if not actor then return false end
     local surv, camp = get_speaker_survivor_and_camp(p1, p2)
-    -- process_brewer_job counts the camp's kit (the medic's, or another brewer's) as his own
-    if not (surv and surv.job == "brewer" and not surv.has_drugkit and not (camp and camp.has_drugkit)) then return false end
+    -- process_brewer_job and process_chemist_job count the camp's kit (the medic's, or another brewer's) as their own
+    if not (surv and (surv.job == "brewer" or surv.job == "chemist") and not surv.has_drugkit and not (camp and camp.has_drugkit)) then return false end
     return (actor:object("itm_drugkit") ~= nil) or (actor:object("drugkit") ~= nil)
 end
 
@@ -3785,7 +3791,7 @@ function stalker_camp_builder.give_brewer_drugkit(p1, p2)
     local actor = db.actor
     if not actor then return end
     local surv, camp = get_speaker_survivor_and_camp(p1, p2)
-    if not (surv and surv.job == "brewer" and not surv.has_drugkit and not (camp and camp.has_drugkit)) then return end
+    if not (surv and (surv.job == "brewer" or surv.job == "chemist") and not surv.has_drugkit and not (camp and camp.has_drugkit)) then return end
     local itm = actor:object("itm_drugkit") or actor:object("drugkit")
     if itm then
         alife_release(alife_object(itm:id()))
@@ -3855,6 +3861,54 @@ function stalker_camp_builder.set_woodcutter_mode_charcoal(p1, p2)
     local surv = get_speaker_survivor_and_camp(p1, p2)
     if surv then
         surv.woodcutter_mode = "charcoal"
+    end
+end
+
+function stalker_camp_builder.is_not_chemist_mode_auto(p1, p2)
+    local surv = get_speaker_survivor_and_camp(p1, p2)
+    if not (surv and surv.job == "chemist") then return false end
+    return (surv.chemist_mode or "auto") ~= "auto"
+end
+
+function stalker_camp_builder.is_not_chemist_mode_powder(p1, p2)
+    local surv = get_speaker_survivor_and_camp(p1, p2)
+    if not (surv and surv.job == "chemist") then return false end
+    return (surv.chemist_mode or "auto") ~= "powder"
+end
+
+function stalker_camp_builder.is_not_chemist_mode_fuel(p1, p2)
+    local surv = get_speaker_survivor_and_camp(p1, p2)
+    if not (surv and surv.job == "chemist") then return false end
+    return (surv.chemist_mode or "auto") ~= "fuel"
+end
+
+function stalker_camp_builder.set_chemist_mode_auto(p1, p2)
+    local surv = get_speaker_survivor_and_camp(p1, p2)
+    if surv then
+        surv.chemist_mode = "auto"
+        surv._cached_paused_tg = nil
+        surv.full_pause = nil
+        surv.shortfall_reason = nil
+    end
+end
+
+function stalker_camp_builder.set_chemist_mode_powder(p1, p2)
+    local surv = get_speaker_survivor_and_camp(p1, p2)
+    if surv then
+        surv.chemist_mode = "powder"
+        surv._cached_paused_tg = nil
+        surv.full_pause = nil
+        surv.shortfall_reason = nil
+    end
+end
+
+function stalker_camp_builder.set_chemist_mode_fuel(p1, p2)
+    local surv = get_speaker_survivor_and_camp(p1, p2)
+    if surv then
+        surv.chemist_mode = "fuel"
+        surv._cached_paused_tg = nil
+        surv.full_pause = nil
+        surv.shortfall_reason = nil
     end
 end
 

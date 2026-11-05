@@ -460,6 +460,7 @@ function stalker_camp_builder.get_settler_job_target(npc_id, hub_id)
         farmer = {"farmer_station", "workbench", "barricade", "stove", "box"},
         trader = {"market_stall", "display_counter", "barricade", "box"},
         brewer ={"distiller", "stove", "bidon", "workbench", "medstation", "box"},
+        chemist = {"distiller", "medstation", "ammo_bench", "stove", "workbench", "box"},
         scrapper = {"repair_bench", "workbench", "box", "stash"},
         scavenge = {"salvage_table", "stash", "box", "fridge", "workbench"},
         scavenger = {"salvage_table", "stash", "box", "fridge", "workbench"},
@@ -626,6 +627,7 @@ function stalker_camp_builder.get_settler_display_name(survivor)
     elseif job == "scrapper" then job_suffix = " the Scrapper"
     elseif job == "farmer" then job_suffix = " the Farmer"
     elseif job == "trader" then job_suffix = " the Trader"
+    elseif job == "chemist" then job_suffix = " the Chemist"
     end
     return tier_prefix .. name .. job_suffix
 end

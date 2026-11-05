@@ -48,11 +48,13 @@ local PDA_LABELS = {
     medic_short = { auto = "Auto", bandage = "Bandages", medkit = "AI-2", kalium = "Rad-X", akvatab = "Ibuprofen" },
     wood_short = { auto = "Auto", timber = "Timber", charcoal = "Charcoal" },
     farm_short = { auto = "Auto", potato = "Potatoes", grain = "Grain" },
+    chem_short = { auto = "Auto", powder = "Powder", fuel = "Fuel" },
     medic_order = {
         auto = "Auto-Balanced", bandage = "Bandages", medkit = "AI-2 Medkits",
         kalium = "Potassium Iodide", akvatab = "Ibuprofen",
     },
     wood_mode = { auto = "Auto-Rotate", timber = "Timber Focus", charcoal = "Charcoal Focus" },
+    chem_mode = { auto = "Auto-Balanced", powder = "Gunpowder Focus", fuel = "Fuel Focus" },
 }
 
 -- roster and detail refresh cadence while the page is drawn (ms)
@@ -780,6 +782,7 @@ function SettlementManagerPDA:InitControls()
     self.btn_job_farmer = init_safe_job_btn("btn_job_farmer", "farmer", self.btn_job_idle)
     self.btn_job_trader = init_safe_job_btn("btn_job_trader", "trader", self.btn_job_guard)
     self.btn_job_raider = init_safe_job_btn("btn_job_raider", "raider", self.btn_job_idle)
+    self.btn_job_chemist = init_safe_job_btn("btn_job_chemist", "chemist", self.btn_job_guard)
 
     self.btn_banish = xml:Init3tButton("job_content:btn_banish", self.job_content)
     self:Register(self.btn_banish, "btn_banish")
@@ -838,7 +841,7 @@ function SettlementManagerPDA:InitControls()
     local job_page = { self.telemetry_header_bg, self.telemetry_lbl, self.telemetry_bg, self.survivor_job_txt,
         self.job_header_bg, self.job_header_lbl }
     for _, nm in ipairs({ "idle", "guard", "scavenge", "hunter", "craft", "repair", "cook", "medic",
-        "electrician", "woodcutter", "brewer", "scrapper", "farmer", "trader", "raider" }) do
+        "electrician", "woodcutter", "brewer", "scrapper", "farmer", "trader", "raider", "chemist" }) do
         job_page[#job_page + 1] = self["btn_job_" .. nm]
     end
     self.sv_pages = {
@@ -919,6 +922,7 @@ function SettlementManagerPDA:InitControls()
         { header = "st_guide_s3l_header",       body = "st_guide_s3l_body",       is_job = true },  -- Job: Farmer & Bakery
         { header = "st_guide_s3m_header",       body = "st_guide_s3m_body",       is_job = true },  -- Job: Trader & Market Stall
         { header = "st_guide_s3n_header",       body = "st_guide_s3n_body",       is_job = true },  -- Job: Raider & Outpost Assaults
+        { header = "st_guide_s3o_header",       body = "st_guide_s3o_body",       is_job = true },  -- Job: Chemist & Propellant/Fuel Synthesis
         { header = "st_guide_s4_header",        body = "st_guide_s4_body"        },  -- 5. Smart Storage Routing, Auto-Sort & Water/Fridges
         { header = "st_guide_s5_header",        body = "st_guide_s5_body"        },  -- 6. Base Defense & Raids
         { header = "st_guide_s6_header",        body = "st_guide_s6_body"        },  -- 7. Rival Wilderness Camps
@@ -934,13 +938,13 @@ function SettlementManagerPDA:InitControls()
         { str = "st_pda_guide_t_settle",  secs = { 1 } },
         { str = "st_pda_guide_t_build",   secs = { 2 } },
         { str = "st_pda_guide_t_settlers", secs = { 3 } },
-        { str = "st_pda_guide_t_jobs",    secs = { 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 } },
-        { str = "st_pda_guide_t_storage", secs = { 21 } },
-        { str = "st_pda_guide_t_defense", secs = { 22 } },
-        { str = "st_pda_guide_t_rivals",  secs = { 23 } },
-        { str = "st_pda_guide_t_radio",   secs = { 24 } },
-        { str = "st_pda_guide_t_morale",  secs = { 25, 26 } },
-        { str = "st_pda_guide_t_mcm",     secs = { 27 } },
+        { str = "st_pda_guide_t_jobs",    secs = { 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21 } },
+        { str = "st_pda_guide_t_storage", secs = { 22 } },
+        { str = "st_pda_guide_t_defense", secs = { 23 } },
+        { str = "st_pda_guide_t_rivals",  secs = { 24 } },
+        { str = "st_pda_guide_t_radio",   secs = { 25 } },
+        { str = "st_pda_guide_t_morale",  secs = { 26, 27 } },
+        { str = "st_pda_guide_t_mcm",     secs = { 28 } },
     }
 
     -- home view: quick start text + topic tiles; reader view: back button + one topic in the scroll
@@ -2152,7 +2156,7 @@ function SettlementManagerPDA:OnSurvivorSelected()
         local boost_str = ""
         if job == "woodcutter" and s_item.has_axe then
             boost_str = " [Axe: 2x Boost]"
-        elseif job == "brewer" and (s_item.has_drugkit or (camp and camp.has_drugkit)) then
+        elseif (job == "brewer" or job == "chemist") and (s_item.has_drugkit or (camp and camp.has_drugkit)) then
             boost_str = " [Distillery Kit: 2x Boost]"
         elseif job == "scrapper" and s_item.has_tools then
             boost_str = " [Demolition Tools: 2x Boost]"
@@ -2213,6 +2217,21 @@ function SettlementManagerPDA:OnSurvivorSelected()
             end
             if not s_item.shortfall_reason then
                 self.survivor_pos_txt:SetText("Status: Fermenting & Distilling Spirits")
+            end
+        elseif job == "chemist" then
+            local cm = PDA_LABELS.chem_mode[s_item.chemist_mode or "auto"] or "Auto-Balanced"
+            if s_item.shortfall_reason then
+                job_str = sformat("%s: [%s]%s (Waiting: %s)", job_lbl, cm, boost_str, s_item.shortfall_reason)
+                self.survivor_pos_txt:SetText(sformat("Status: Waiting for supplies (%s)", s_item.shortfall_reason))
+            elseif time_str ~= "" then
+                job_str = sformat("%s: [%s]%s (%d%% - %s remaining)", job_lbl, cm, boost_str, pct, time_str)
+            elseif pct >= 100 then
+                job_str = sformat("%s: [%s]%s (%d%% - Synthesis Ready)", job_lbl, cm, boost_str, pct)
+            else
+                job_str = sformat("%s: [%s]%s (%d%%)", job_lbl, cm, boost_str, pct)
+            end
+            if not s_item.shortfall_reason then
+                self.survivor_pos_txt:SetText("Status: Synthesizing Gunpowder & Kerosene Fuel")
             end
         elseif job == "craft" then
             local craft_labels = {
@@ -2359,6 +2378,7 @@ function SettlementManagerPDA:OnSurvivorSelected()
         farmer = self.btn_job_farmer,
         trader = self.btn_job_trader,
         raider = self.btn_job_raider,
+        chemist = self.btn_job_chemist,
     }
 
     for jname, btn in pairs(job_btns) do
@@ -2373,7 +2393,7 @@ function SettlementManagerPDA:OnSurvivorSelected()
         end
     end
 
-    local has_dir = (job == "medic" or job == "woodcutter" or job == "craft" or job == "farmer" or job == "cook")
+    local has_dir = (job == "medic" or job == "woodcutter" or job == "craft" or job == "farmer" or job == "cook" or job == "chemist")
     self.lay_has_dir = has_dir
     if self.btn_job_directive and has_dir then
         local dtc = self.btn_job_directive.TextControl and self.btn_job_directive:TextControl()
@@ -2384,6 +2404,8 @@ function SettlementManagerPDA:OnSurvivorSelected()
             label = hs_theme.short(game.translate_string("st_directive_woodcutter_" .. (s_item.woodcutter_mode or "auto"))); role = "heading"
         elseif job == "farmer" then
             label = hs_theme.short(game.translate_string("st_directive_farmer_" .. (s_item.farmer_mode or "auto"))); role = "heading"
+        elseif job == "chemist" then
+            label = hs_theme.short(game.translate_string("st_directive_chemist_" .. (s_item.chemist_mode or "auto"))); role = "heading"
         elseif job == "craft" then
             label = hs_theme.short(game.translate_string("st_directive_craft_" .. (s_item.craft_order or "auto"))); role = "warn"
         else
@@ -2425,7 +2447,7 @@ end
 -- the survivor detail is one page at a time under the dossier, tab row and summary line
 local SV_PAGE_Y = 122
 local SV_JOB_ORDER = { "idle", "guard", "scavenge", "hunter", "craft", "repair", "cook", "medic",
-    "electrician", "woodcutter", "brewer", "scrapper", "farmer", "trader", "raider" }
+    "electrician", "woodcutter", "brewer", "scrapper", "farmer", "trader", "raider", "chemist" }
 
 function SettlementManagerPDA:ApplySurvivorTab()
     if not self.sv_pages then return end
@@ -2702,6 +2724,16 @@ function SettlementManagerPDA:OnJobDirectiveClicked()
         s_item.farmer_mode = next_mode
         local mode_label = game.translate_string("st_directive_farmer_" .. next_mode)
         actor_menu.set_msg(1, string.format(game.translate_string("st_pda_farmer_mode"), mode_label), 3)
+    elseif job == "chemist" then
+        local cur = s_item.chemist_mode or "auto"
+        local cycle = { auto = "powder", powder = "fuel", fuel = "auto" }
+        local next_mode = cycle[cur] or "auto"
+        s_item.chemist_mode = next_mode
+        s_item._cached_paused_tg = nil
+        s_item.full_pause = nil
+        s_item.shortfall_reason = nil
+        local mode_label = game.translate_string("st_directive_chemist_" .. next_mode)
+        actor_menu.set_msg(1, string.format(game.translate_string("st_pda_chemist_mode"), mode_label), 3)
     elseif job == "craft" then
         local cur = s_item.craft_order or "auto"
         local cycle = {
@@ -2927,6 +2959,8 @@ function SettlementManagerPDA:FormatSurvivorStatus(survivor, camp, hub_id)
         short_labels, order = PDA_LABELS.wood_short, survivor.woodcutter_mode
     elseif job == "farmer" then
         short_labels, order = PDA_LABELS.farm_short, survivor.farmer_mode
+    elseif job == "chemist" then
+        short_labels, order = PDA_LABELS.chem_short, survivor.chemist_mode
     end
     if short_labels then
         job_lbl = sformat("%s [%s]", job_lbl, short_labels[order or "auto"] or "Auto")
@@ -3263,7 +3297,7 @@ function SettlementManagerPDA:RefreshJobProgress(force, hub_id_override)
                         local boost_str = ""
                         if job == "woodcutter" and survivor.has_axe then
                             boost_str = " [Axe: 2x Boost]"
-                        elseif job == "brewer" and (survivor.has_drugkit or (camp and camp.has_drugkit)) then
+                        elseif (job == "brewer" or job == "chemist") and (survivor.has_drugkit or (camp and camp.has_drugkit)) then
                             boost_str = " [Distillery Kit: 2x Boost]"
                         elseif job == "scrapper" and survivor.has_tools then
                             boost_str = " [Demolition Tools: 2x Boost]"
@@ -3281,6 +3315,9 @@ function SettlementManagerPDA:RefreshJobProgress(force, hub_id_override)
                             display = sformat("%s: [%s]%s (%d%%%s)", job_label, wm, boost_str, pct, time_str)
                         elseif job == "brewer" then
                             display = sformat("%s: Distilling Vodka%s (%d%%%s)", job_label, boost_str, pct, time_str)
+                        elseif job == "chemist" then
+                            local cm = PDA_LABELS.chem_mode[survivor.chemist_mode or "auto"] or "Auto-Balanced"
+                            display = sformat("%s: [%s]%s (%d%%%s)", job_label, cm, boost_str, pct, time_str)
                         elseif job == "farmer" then
                             display = sformat("%s: Tending Fields (%d%%%s)", job_label, pct, time_str)
                         elseif job == "trader" then

@@ -533,6 +533,7 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
         has_water = false,
         water_filter_count = 0,
         has_powder = false,
+        powder_count = 0,
         has_scrap = false,
         ammo_counts = {
             pistol = 0,
@@ -559,6 +560,7 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
         has_bandage = false,
         has_battery = false,
         has_generator_fuel = false,
+        fuel_count = 0,
         wood_count = 0,
         charcoal_count = 0,
         box_weights = {},
@@ -636,10 +638,9 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
                 snapshot.water_filter_count = snapshot.water_filter_count + 1
             end
 
-            if not snapshot.has_powder then
-                if sb.is_gunpowder and sb.is_gunpowder(s) then
-                    snapshot.has_powder = true
-                end
+            if sb.is_gunpowder and sb.is_gunpowder(s) then
+                snapshot.has_powder = true
+                snapshot.powder_count = snapshot.powder_count + 1
             end
 
             if not snapshot.has_scrap then
@@ -732,10 +733,9 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
                 end
             end
 
-            if not snapshot.has_generator_fuel then
-                if sb.is_generator_fuel and sb.is_generator_fuel(sec) then
-                    snapshot.has_generator_fuel = true
-                end
+            if sb.is_generator_fuel and sb.is_generator_fuel(sec) then
+                snapshot.has_generator_fuel = true
+                snapshot.fuel_count = snapshot.fuel_count + 1
             end
 
             if cid then

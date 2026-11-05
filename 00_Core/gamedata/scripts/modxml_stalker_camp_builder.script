@@ -95,11 +95,13 @@ local dialogues = [[
             <next>26</next>
             <next>27</next>
             <next>28</next>
+            <next>29</next>
             <next>70</next>
             <next>71</next>
             <next>72</next>
             <next>73</next>
             <next>74</next>
+            <next>75</next>
             <next>50</next>
             <next>60</next>
             <next>62</next>
@@ -303,6 +305,15 @@ local dialogues = [[
             <text>st_trader_collect_done</text>
             <action>dialogs.break_dialog</action>
         </phrase>
+        <phrase id="29">
+            <text>st_job_chemist_ask</text>
+            <action>stalker_camp_builder.set_chemist_job</action>
+            <next>291</next>
+        </phrase>
+        <phrase id="291">
+            <text>st_job_chemist_done</text>
+            <action>dialogs.break_dialog</action>
+        </phrase>
         <phrase id="70">
             <precondition>stalker_camp_builder.actor_has_woodcutter_axe</precondition>
             <text>st_camp_woodcutter_axe_ask</text>
@@ -397,6 +408,39 @@ local dialogues = [[
         </phrase>
         <phrase id="749">
             <text>st_camp_farmer_mode_done</text>
+            <action>dialogs.break_dialog</action>
+        </phrase>
+        <phrase id="75">
+            <precondition>stalker_camp_builder.is_camp_chemist</precondition>
+            <text>st_camp_chemist_mode_ask</text>
+            <next>750</next>
+        </phrase>
+        <phrase id="750">
+            <text>st_camp_chemist_mode_reply</text>
+            <next>751</next>
+            <next>752</next>
+            <next>753</next>
+        </phrase>
+        <phrase id="751">
+            <precondition>stalker_camp_builder.is_not_chemist_mode_auto</precondition>
+            <text>st_chemist_mode_auto_dialog</text>
+            <action>stalker_camp_builder.set_chemist_mode_auto</action>
+            <next>759</next>
+        </phrase>
+        <phrase id="752">
+            <precondition>stalker_camp_builder.is_not_chemist_mode_powder</precondition>
+            <text>st_chemist_mode_powder_dialog</text>
+            <action>stalker_camp_builder.set_chemist_mode_powder</action>
+            <next>759</next>
+        </phrase>
+        <phrase id="753">
+            <precondition>stalker_camp_builder.is_not_chemist_mode_fuel</precondition>
+            <text>st_chemist_mode_fuel_dialog</text>
+            <action>stalker_camp_builder.set_chemist_mode_fuel</action>
+            <next>759</next>
+        </phrase>
+        <phrase id="759">
+            <text>st_camp_chemist_mode_done</text>
             <action>dialogs.break_dialog</action>
         </phrase>
         <phrase id="999">

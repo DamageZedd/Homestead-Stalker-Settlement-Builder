@@ -56,7 +56,7 @@ check(M.trader_price_percent == D.trader_price_percent, "trader price percent MC
 for _, k in ipairs({ "realtime_job_cook_interval", "realtime_job_craft_interval", "realtime_job_repair_interval",
         "realtime_job_scavenge_interval", "realtime_job_hunter_interval", "realtime_job_woodcutter_interval",
         "realtime_job_brewer_interval", "realtime_job_scrapper_interval", "realtime_job_farmer_interval",
-        "realtime_job_trader_interval", "medic_job_interval", "electrician_job_interval" }) do
+        "realtime_job_trader_interval", "realtime_job_chemist_interval", "medic_job_interval", "electrician_job_interval" }) do
     local v = D[k]
     check(type(v) == "number" and v >= 600 and v <= 2400, k .. " should be 10-40 real minutes, got " .. tostring(v))
 end
@@ -175,7 +175,7 @@ check(jobs:find("math.min(math.floor(count * total_mult + 0.5), 16)", 1, true), 
 local function spec_has(spec, stat) return type(D.camp_specializations[spec][stat]) == "number" end
 for _, st in ipairs({ "woodcutter", "brewer" }) do check(spec_has("farm", st), "farm lacks " .. st) end
 for _, st in ipairs({ "scrapper" }) do
-    check(spec_has("workshop", st), "workshop lacks " .. st)
+    check(spec_has("workshop", st), "workshop lacks " .. st); check(spec_has("workshop", "chemist"), "workshop lacks chemist"); check(spec_has("clinic", "chemist"), "clinic lacks chemist")
     check(spec_has("hideout", st), "hideout lacks " .. st)
 end
 for name, spec in pairs(D.camp_specializations) do

@@ -441,6 +441,8 @@ local JOB_DISPATCH = {
                     anims = {"press", "ward", "wait_na"} },
     trader      = { try = {"market_stall", "display_counter", "stash", "barricade"},
                     anims = {"wait_trade", "press", "wait_na"} },
+    chemist     = { try = {"distiller", "medstation", "ammo_bench", "stove", "workbench"},
+                    anims = {"probe_stand", "roast_kolbasa_bred", "wait_na"} },
 }
 
 function safe_squad_members(squad)
@@ -814,6 +816,7 @@ local defaults = {
     realtime_job_scrapper_interval   = 1200, -- Scrapper: 20 real minutes
     realtime_job_farmer_interval     = 1200, -- Farmer: 20 real minutes
     realtime_job_trader_interval     = 900,  -- Trader: 15 real minutes
+    realtime_job_chemist_interval    = 1200, -- Chemist: 20 real minutes
     trader_price_percent             = 25,   -- Trader: share of an item's base price paid out (GAMMA vendors pay 10-35 %)
     hunter_ambush_chance          =   20,  -- Hunter ambush chance: 20%
     scavenger_ambush_chance        =   20,  -- Scavenger ambush chance: 20%
@@ -887,8 +890,8 @@ local defaults = {
     camp_rest_bonus = true,         -- When true, sleeping in a camp bed restores satiety/power.
     cook_requires_fuel = true,      -- When true, cook job requires fuel (charcoal/kerosene/gasoline) for stoves.
     generator_requires_fuel = true, -- When true, the generator station burns kerosene (or a jerrycan/gasoline) per electrician shift.
-    max_survivors_per_camp = 14,     -- Legacy fallback (independent of beds)
-    max_survivors_player_camp = 14,  -- Hard cap on survivors per player settlement (1 per job role by default). Range 0-28.
+    max_survivors_per_camp = 15,     -- Legacy fallback (independent of beds)
+    max_survivors_player_camp = 15,  -- Hard cap on survivors per player settlement (1 per job role by default). Range 0-30.
     max_survivors_rival_camp = 5,    -- Cap on survivors per rival / wilderness camp. Range 1-10.
     alarm_defense_bonus = 15,       -- Defense bonus provided by active alarm system during raids.
     decor_happiness_bonus = 0.5,    -- Happiness percentage added per placed decor item.
@@ -951,9 +954,9 @@ local defaults = {
         none     = { defense = 1.0, food = 1.0, water = 1.0, craft = 1.0, repair = 1.0, scavenge = 1.0, hunter = 1.0, medic = 1.0, label = "Generic Camp" },
         outpost  = { defense = 1.5, food = 1.0, water = 1.0, craft = 1.0, repair = 1.0, scavenge = 1.0, hunter = 1.0, medic = 1.0, label = "Outpost (Military)" },
         farm     = { defense = 0.75, food = 1.5, water = 1.5, craft = 1.0, repair = 1.0, scavenge = 1.0, hunter = 1.5, medic = 1.0, woodcutter = 1.25, brewer = 1.25, label = "Farm (Agricultural)" },
-        workshop = { defense = 0.75, food = 1.0, water = 1.0, craft = 1.5, repair = 1.5, scavenge = 1.0, hunter = 1.0, medic = 1.0, scrapper = 1.25, label = "Workshop (Industrial)" },
+        workshop = { defense = 0.75, food = 1.0, water = 1.0, craft = 1.5, repair = 1.5, scavenge = 1.0, hunter = 1.0, medic = 1.0, scrapper = 1.25, chemist = 1.25, label = "Workshop (Industrial)" },
         hideout  = { defense = 0.75, food = 1.0, water = 1.0, craft = 1.0, repair = 1.0, scavenge = 1.5, hunter = 1.5, medic = 1.0, scrapper = 1.25, label = "Hideout (Bandit)" },
-        clinic   = { defense = 0.75, food = 1.0, water = 1.0, craft = 1.0, repair = 1.0, scavenge = 1.0, hunter = 1.0, medic = 2.0, label = "Clinic (Medical)" },
+        clinic   = { defense = 0.75, food = 1.0, water = 1.0, craft = 1.0, repair = 1.0, scavenge = 1.0, hunter = 1.0, medic = 2.0, chemist = 1.25, label = "Clinic (Medical)" },
     },
 }
 stalker_camp_builder.defaults = defaults
@@ -1137,6 +1140,9 @@ setmetatable(cfg, {
             elseif key == "job_trader_interval" or key == "realtime_job_trader_interval" then
                 local min = get_mcm_setting("realtime_job_trader_interval_min")
                 return min and (min * 60) or defaults.realtime_job_trader_interval
+            elseif key == "job_chemist_interval" or key == "realtime_job_chemist_interval" then
+                local min = get_mcm_setting("realtime_job_chemist_interval_min")
+                return min and (min * 60) or defaults.realtime_job_chemist_interval
             elseif key == "trader_price_percent" then
                 local pct = get_mcm_setting("trader_price_percent")
                 return pct or defaults.trader_price_percent
@@ -1717,7 +1723,7 @@ function get_recruitable_camps(npc_or_comm)
         local hub_obj = alife_object(hub_id)
         if hub_obj then
             -- the survivor cap holds independent of beds, as in recruit_npc_to_camp
-            local capacity = mmin(get_camp_bed_capacity(camp), cfg.max_survivors_player_camp or 14)
+            local capacity = mmin(get_camp_bed_capacity(camp), cfg.max_survivors_player_camp or 15)
             local survivor_count = 0
             for k, v in pairs(camp.survivors) do
                 survivor_count = survivor_count + 1
@@ -3056,6 +3062,9 @@ local function settler_job_target_lvid(npc, npc_id, my_camp, my_survivor, hub_ob
     elseif job_name == "scavenge" or job_name == "scavenger" then
         dist_fb = 2.5
         angle_deg = 315
+    elseif job_name == "chemist" then
+        dist_fb = 4.5
+        angle_deg = 135
     end
 
     local angle_rad = math.rad(angle_deg)
@@ -4120,6 +4129,7 @@ function load_state(m_data)
                 elseif job == "scrapper" then rt_interval = cfg.realtime_job_scrapper_interval or defaults.realtime_job_scrapper_interval
                 elseif job == "farmer"   then rt_interval = cfg.realtime_job_farmer_interval or defaults.realtime_job_farmer_interval
                 elseif job == "trader"   then rt_interval = cfg.realtime_job_trader_interval or defaults.realtime_job_trader_interval
+                elseif job == "chemist"  then rt_interval = cfg.realtime_job_chemist_interval or defaults.realtime_job_chemist_interval
                 end
                 if rt_interval and rt_interval > 0 then
                     local current_sec = game_sec()
@@ -4645,6 +4655,7 @@ local function get_job_realtime_interval(job)
     elseif job == "scrapper"    then return cfg.realtime_job_scrapper_interval or defaults.realtime_job_scrapper_interval
     elseif job == "farmer"      then return cfg.realtime_job_farmer_interval or defaults.realtime_job_farmer_interval
     elseif job == "trader"      then return cfg.realtime_job_trader_interval or defaults.realtime_job_trader_interval
+    elseif job == "chemist"     then return cfg.realtime_job_chemist_interval or defaults.realtime_job_chemist_interval
     end
     return nil
 end
@@ -5187,6 +5198,10 @@ function set_trader_job(actor, npc)
     set_survivor_job(npc:id(), "trader")
 end
 
+function set_chemist_job(actor, npc)
+    set_survivor_job(npc:id(), "chemist")
+end
+
 function check_camp_chest_supplies(camp, hub_obj)
     if time_global() < homestead_teardown_grace_until then
         return false, false
@@ -5263,6 +5278,7 @@ function get_camp_stats(camp, hub_obj)
         scrappers = 0,
         farmers = 0,
         traders = 0,
+        chemists = 0,
         idlers = 0,
         defense = 0,
         happiness = 50,
@@ -5305,6 +5321,8 @@ function get_camp_stats(camp, hub_obj)
             stats.farmers = stats.farmers + 1
         elseif j == "trader" then
             stats.traders = stats.traders + 1
+        elseif j == "chemist" then
+            stats.chemists = stats.chemists + 1
         else
             stats.idlers = stats.idlers + 1
         end
@@ -7162,11 +7180,40 @@ function set_woodcutter_mode_charcoal(actor, npc)
     return stalker_camp_builder.set_woodcutter_mode_charcoal and stalker_camp_builder.set_woodcutter_mode_charcoal(actor, npc)
 end
 
+function is_camp_chemist(actor, npc)
+    return stalker_camp_builder.is_camp_chemist and stalker_camp_builder.is_camp_chemist(actor, npc)
+end
+
+function is_not_chemist_mode_auto(actor, npc)
+    return stalker_camp_builder.is_not_chemist_mode_auto and stalker_camp_builder.is_not_chemist_mode_auto(actor, npc)
+end
+
+function is_not_chemist_mode_powder(actor, npc)
+    return stalker_camp_builder.is_not_chemist_mode_powder and stalker_camp_builder.is_not_chemist_mode_powder(actor, npc)
+end
+
+function is_not_chemist_mode_fuel(actor, npc)
+    return stalker_camp_builder.is_not_chemist_mode_fuel and stalker_camp_builder.is_not_chemist_mode_fuel(actor, npc)
+end
+
+function set_chemist_mode_auto(actor, npc)
+    return stalker_camp_builder.set_chemist_mode_auto and stalker_camp_builder.set_chemist_mode_auto(actor, npc)
+end
+
+function set_chemist_mode_powder(actor, npc)
+    return stalker_camp_builder.set_chemist_mode_powder and stalker_camp_builder.set_chemist_mode_powder(actor, npc)
+end
+
+function set_chemist_mode_fuel(actor, npc)
+    return stalker_camp_builder.set_chemist_mode_fuel and stalker_camp_builder.set_chemist_mode_fuel(actor, npc)
+end
+
 stalker_camp_builder.set_woodcutter_job = set_woodcutter_job
 stalker_camp_builder.set_brewer_job = set_brewer_job
 stalker_camp_builder.set_scrapper_job = set_scrapper_job
 stalker_camp_builder.set_farmer_job = set_farmer_job
 stalker_camp_builder.set_trader_job = set_trader_job
+stalker_camp_builder.set_chemist_job = set_chemist_job
 stalker_camp_builder.set_scavenge_job = set_scavenge_job
 stalker_camp_builder.set_hunter_job = set_hunter_job
 stalker_camp_builder.set_craft_job = set_craft_job

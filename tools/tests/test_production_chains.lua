@@ -1,4 +1,4 @@
--- Regression test suite for v1.4.1 closed-loop production chains & default settler cap (14 roles)
+-- Regression test suite for v1.4.1 closed-loop production chains, Chemist role & default settler cap (15 roles)
 -- Run: lua tools/tests/test_production_chains.lua
 
 local fails = 0
@@ -21,7 +21,7 @@ local function slurp(path)
     return (s:gsub("\r", ""))
 end
 
--- 1. Verify settler population cap defaults & MCM range (0 to 28, default 14 = 1 per job role)
+-- 1. Verify settler population cap defaults & MCM range (0 to 30, default 15 = 1 per job role)
 local main_src = slurp("00_Core/gamedata/scripts/stalker_camp_builder.script")
 local mcm_src = slurp("00_Core/gamedata/scripts/stalker_camp_builder_mcm.script")
 local jobs_src = slurp("00_Core/gamedata/scripts/stalker_camp_builder_jobs.script")
@@ -30,20 +30,20 @@ local pda_src = slurp("00_Core/gamedata/scripts/ui_stalker_camp_builder_pda.scri
 local job_list_match = pda_src:match('local SV_JOB_ORDER = (%b{})')
 assert(job_list_match, "SV_JOB_ORDER not found in PDA script")
 local sv_jobs = assert(loadstring("return " .. job_list_match))()
--- SV_JOB_ORDER has "idle" + 14 active roles = 15 entries
-eq(#sv_jobs - 1, 14, "active settlement job count")
+-- SV_JOB_ORDER has "idle" + 15 active roles = 16 entries
+eq(#sv_jobs - 1, 15, "active settlement job count")
 
 local def_block = main_src:match("local defaults = (%b{})\nstalker_camp_builder%.defaults = defaults")
 assert(def_block, "defaults table not found")
 local D = assert(loadstring("return " .. def_block))()
-eq(D.max_survivors_player_camp, 14, "defaults.max_survivors_player_camp")
-eq(D.max_survivors_per_camp, 14, "defaults.max_survivors_per_camp")
+eq(D.max_survivors_player_camp, 15, "defaults.max_survivors_player_camp")
+eq(D.max_survivors_per_camp, 15, "defaults.max_survivors_per_camp")
 
 local mcm_line = mcm_src:match('{ id = "max_survivors_player_camp"[^\n]+}')
 assert(mcm_line, "max_survivors_player_camp MCM entry not found")
 eq(tonumber(mcm_line:match("min = (%d+)")), 0, "MCM max_survivors_player_camp min")
-eq(tonumber(mcm_line:match("max = (%d+)")), 28, "MCM max_survivors_player_camp max")
-eq(tonumber(mcm_line:match("def = (%d+)")), 14, "MCM max_survivors_player_camp def")
+eq(tonumber(mcm_line:match("max = (%d+)")), 30, "MCM max_survivors_player_camp max")
+eq(tonumber(mcm_line:match("def = (%d+)")), 15, "MCM max_survivors_player_camp def")
 
 -- 2. Set up lightweight X-Ray environment to execute closed-loop production chains in stalker_camp_builder_jobs.script
 _G.vector = function()
@@ -65,6 +65,7 @@ local existing_sections = {
     mutant_part_psevdodog_tail = true, mutant_part_krovosos_jaw = true, mutant_part_snork_leg = true,
     mutant_part_chimera_claw = true, mutant_part_cat_tail = true, mutant_part_burer_hand = true,
     ammo_9x18_fmj = true, ammo_9x19_fmj = true,
+    powder_1 = true, powder_2 = true, explo_jerrycan_fuel = true,
 }
 
 _G.ini_sys = {
@@ -250,19 +251,55 @@ do
     existing_sections.prt_i_cloth = true
 end
 
--- Test Chain 2b: Ammo Crafter improvised black powder at ammo_bench (3 charcoal + 1 scrap + 1 vodka -> ammo)
+-- Test Chain 1c: Scrapper surplus metal refining ONLY draws Copper Wire (never refines scrap metal into cloth)
 do
-    reset_env({ "charcoal", "charcoal", "charcoal", "prt_i_scrap", "vodka" })
-    local camp = { hub_id = 1, structures = { [12] = "ammo_bench" }, survivors = {} }
-    local surv = { name = "Crafter", job = "craft", tier = 2, craft_order = "pistol" }
-    local paused, reason = sb._calc_job_paused_status(surv, camp, 1, nil)
-    eq(paused, false, "Chain 2b: ammo crafter not paused when improvised propellant inputs exist (reason=" .. tostring(reason) .. ")")
-    local ok = sb.process_ammo_crafting(102, 1, camp, surv, 1)
-    eq(ok, true, "Chain 2b: process_ammo_crafting succeeded with improvised black powder")
-    eq(count_sec("charcoal"), 0, "Chain 2b: 3x charcoal consumed")
-    eq(count_sec("prt_i_scrap"), 0, "Chain 2b: 1x prt_i_scrap consumed")
-    eq(count_sec("vodka"), 0, "Chain 2b: 1x vodka consumed")
-    check(count_sec("ammo_9x18_fmj") + count_sec("ammo_9x19_fmj") >= 1, "Chain 2b: pistol ammo crafted")
+    local items = {}
+    for _ = 1, 16 do items[#items + 1] = "prt_i_scrap" end
+    for _ = 1, 6 do items[#items + 1] = "prt_i_fasteners" end
+    reset_env(items)
+    local camp = { hub_id = 1, structures = { [11] = "salvage_table" }, survivors = {} }
+    local surv = { name = "Scrapper", job = "scrapper", tier = 2, has_tools = true }
+    local ok = sb.process_scrapper_job(101, 1, camp, surv, 1)
+    eq(ok, true, "Chain 1c: scrapper surplus copper refining succeeded")
+    eq(count_sec("prt_i_copper"), 1, "Chain 1c: 1x prt_i_copper refined from surplus metal")
+    eq(count_sec("prt_i_cloth"), 0, "Chain 1c: scrapper NEVER turns scrap metal into cloth")
+end
+
+-- Test Chain 2a: Chemist synthesizes Gunpowder (powder_1) from 2x Charcoal + 1x Alcohol/Vodka, then Crafter crafts ammo
+do
+    reset_env({ "charcoal", "charcoal", "vodka", "prt_i_scrap" })
+    local camp = { hub_id = 1, structures = { [12] = "ammo_bench", [13] = "distiller" }, survivors = {} }
+    local chem = { name = "Chemist", job = "chemist", tier = 0, chemist_mode = "powder" }
+    local paused_c, reason_c = sb._calc_job_paused_status(chem, camp, 1, nil)
+    eq(paused_c, false, "Chain 2a: chemist not paused when 2x charcoal + 1x vodka exist (reason=" .. tostring(reason_c) .. ")")
+    local ok_chem = sb.process_chemist_job(105, 1, camp, chem, 1)
+    eq(ok_chem, true, "Chain 2a: process_chemist_job synthesized gunpowder")
+    eq(count_sec("charcoal"), 0, "Chain 2a: 2x charcoal consumed by chemist")
+    eq(count_sec("vodka"), 0, "Chain 2a: 1x vodka consumed by chemist")
+    check(count_sec("powder_1") >= 1, "Chain 2a: powder_1 synthesized by chemist")
+
+    -- Now Ammo Crafter uses the Chemist's synthesized powder_1 + prt_i_scrap -> boxed ammo
+    local crafter = { name = "Crafter", job = "craft", tier = 2, craft_order = "pistol" }
+    local paused_a, reason_a = sb._calc_job_paused_status(crafter, camp, 1, nil)
+    eq(paused_a, false, "Chain 2a: ammo crafter not paused after chemist synthesized gunpowder (reason=" .. tostring(reason_a) .. ")")
+    local ok_craft = sb.process_ammo_crafting(102, 1, camp, crafter, 1)
+    eq(ok_craft, true, "Chain 2a: process_ammo_crafting succeeded using chemist gunpowder")
+    eq(count_sec("prt_i_scrap"), 0, "Chain 2a: 1x prt_i_scrap consumed by ammo crafter")
+    check(count_sec("ammo_9x18_fmj") + count_sec("ammo_9x19_fmj") >= 1, "Chain 2a: pistol ammo crafted from chemist gunpowder")
+end
+
+-- Test Chain 2b: Chemist synthesizes Kerosene / Liquid Fuel from 2x Charcoal + 2x Alcohol/Vodka
+do
+    reset_env({ "charcoal", "charcoal", "vodka", "alcohol" })
+    local camp = { hub_id = 1, structures = { [13] = "distiller" }, survivors = {} }
+    local chem = { name = "Chemist", job = "chemist", tier = 0, chemist_mode = "fuel" }
+    local paused_f, reason_f = sb._calc_job_paused_status(chem, camp, 1, nil)
+    eq(paused_f, false, "Chain 2b: chemist not paused in fuel mode when 2x charcoal + 2x alcohol exist (reason=" .. tostring(reason_f) .. ")")
+    local ok_fuel = sb.process_chemist_job(105, 1, camp, chem, 1)
+    eq(ok_fuel, true, "Chain 2b: process_chemist_job synthesized liquid fuel")
+    eq(count_sec("charcoal"), 0, "Chain 2b: 2x charcoal consumed for fuel")
+    eq(count_sec("vodka") + count_sec("alcohol"), 0, "Chain 2b: 2x alcohol/vodka consumed for fuel")
+    check(count_sec("kerosene") + count_sec("explo_jerrycan_fuel") >= 1, "Chain 2b: kerosene/liquid fuel synthesized")
 end
 
 -- Test Chain 3: Cook burns charcoal before kerosene, recognizes Field Kitchen, and cans surplus potatoes into tushonka
