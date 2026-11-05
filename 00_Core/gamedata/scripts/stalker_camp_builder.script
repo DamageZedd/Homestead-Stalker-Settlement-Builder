@@ -873,9 +873,9 @@ local defaults = {
     camp_specializations = {
         none     = { defense = 1.0, food = 1.0, water = 1.0, craft = 1.0, repair = 1.0, scavenge = 1.0, hunter = 1.0, medic = 1.0, label = "Generic Camp" },
         outpost  = { defense = 1.5, food = 1.0, water = 1.0, craft = 1.0, repair = 1.0, scavenge = 1.0, hunter = 1.0, medic = 1.0, label = "Outpost (Military)" },
-        farm     = { defense = 0.75, food = 1.5, water = 1.5, craft = 1.0, repair = 1.0, scavenge = 1.0, hunter = 1.5, medic = 1.0, label = "Farm (Agricultural)" },
-        workshop = { defense = 0.75, food = 1.0, water = 1.0, craft = 1.5, repair = 1.5, scavenge = 1.0, hunter = 1.0, medic = 1.0, label = "Workshop (Industrial)" },
-        hideout  = { defense = 0.75, food = 1.0, water = 1.0, craft = 1.0, repair = 1.0, scavenge = 1.5, hunter = 1.5, medic = 1.0, label = "Hideout (Bandit)" },
+        farm     = { defense = 0.75, food = 1.5, water = 1.5, craft = 1.0, repair = 1.0, scavenge = 1.0, hunter = 1.5, medic = 1.0, woodcutter = 1.25, brewer = 1.25, label = "Farm (Agricultural)" },
+        workshop = { defense = 0.75, food = 1.0, water = 1.0, craft = 1.5, repair = 1.5, scavenge = 1.0, hunter = 1.0, medic = 1.0, scrapper = 1.25, label = "Workshop (Industrial)" },
+        hideout  = { defense = 0.75, food = 1.0, water = 1.0, craft = 1.0, repair = 1.0, scavenge = 1.5, hunter = 1.5, medic = 1.0, scrapper = 1.25, label = "Hideout (Bandit)" },
         clinic   = { defense = 0.75, food = 1.0, water = 1.0, craft = 1.0, repair = 1.0, scavenge = 1.0, hunter = 1.0, medic = 2.0, label = "Clinic (Medical)" },
     },
 }
