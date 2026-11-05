@@ -1093,6 +1093,12 @@
     <string id="ui_mcm_stalker_camp_builder_decor_happiness_bonus_desc">
         <text>Morale/happiness percentage added to camp satisfaction per placed decoration item. Default: 0.5%.</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_building_colliders">
+        <text>Building Colliders (experimental)</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_building_colliders_desc">
+        <text>Invisible solid boxes under placed building pieces so that mutants and NPCs cannot walk through them. Experimental: a collider can break and throw loose boxes around. Turning it OFF removes all colliders. Default: OFF.</text>
+    </string>
     <string id="ui_mcm_stalker_camp_builder_debug_logging">
         <text>Debug Logging</text>
     </string>

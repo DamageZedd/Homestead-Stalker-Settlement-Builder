@@ -142,6 +142,9 @@ local function make_obj(id, sec, x, y, z, h, p, b)
     return o
 end
 
+MCM_ON = true              -- the colliders option (off by default in the game)
+ui_mcm = { get = function() return MCM_ON end }
+
 dofile("HomesteadHF/gamedata/scripts/homestead_lock.script")
 on_game_start()
 local tick = callbacks.actor_on_update
@@ -448,6 +451,7 @@ end)()
     for t = now + 16, now + 15000, 16 do now = t; tick() end
     local new_cid = se_vars[910].hs_collider
     ok(released[cid] and new_cid ~= cid and server[new_cid] ~= nil, "broken collider replaced")
+    errors = errors - 1       -- its break is reported
     objects[cid] = nil
     objects[new_cid] = { get_physics_shell = function() return nil end, id = function() return new_cid end,
         section = function() return "hs_collider_foundation" end }
@@ -519,6 +523,7 @@ end)()
     local now_ids = se_vars[920].hs_collider
     ok(released[broken] and now_ids[2] ~= broken and now_ids[1] == ids[1] and now_ids[3] == ids[3],
         "only the broken strip is replaced")
+    errors = errors - 1       -- its break is reported
     ok(not released[ids[1]] and not released[ids[3]], "the working strips are kept")
     -- picked up: all of them go
     callbacks.server_object_on_unregister({ id = 920 })
@@ -572,6 +577,34 @@ end)()
     local chair = make_obj(932, "placeable_test_chair", 0, 0, 0, 0)
     bind_hf_base.freeze_obj(932)
     ok(se_vars[932].hs_collider == nil and chair.in_door == true, "other furniture is in door mode with no collider")
+end)()
+
+-- the option off: colliders go, slabs leave door mode, new pieces get none; on again: they come back
+;(function()
+    ini_data.hs_square = { homestead_snap = "foundation", script_binding = "bind_hf_base.bind",
+        homestead_collider = "hs_collider_foundation", homestead_collider_y = -0.3 }
+    local o = make_obj(950, "hs_square", 1, 2, 3, 0)
+    bind_hf_base.freeze_obj(950)
+    local cid = se_vars[950].hs_collider
+    objects[cid] = { get_physics_shell = function() return nil end, id = function() return cid end,
+        section = function() return "hs_collider_foundation" end }
+    for _ = 1, 20 do now = now + 500; tick() end
+    ok(o.in_door == true, "option test: piece in door mode on its collider")
+    MCM_ON = false
+    nearby[#nearby + 1] = objects[cid]
+    for _ = 1, 20 do now = now + 500; tick() end
+    ok(released[cid], "option off: the collider is released")
+    ok(o.in_door == false, "option off: the slab leaves door mode")
+    nearby[#nearby] = nil
+    callbacks.server_object_on_unregister({ id = cid })
+    local o2 = make_obj(951, "hs_square", 5, 2, 3, 0)
+    bind_hf_base.freeze_obj(951)
+    ok(se_vars[951].hs_collider == nil and not o2.in_door, "option off: a new piece gets no collider")
+    MCM_ON = true
+    for _ = 1, 20 do now = now + 500; tick() end
+    ok(se_vars[951].hs_collider ~= nil, "option on again: the collider is made")
+    errors = errors - 2       -- the two switches are logged
+    objects[950], objects[951] = nil, nil
 end)()
 
 ok(errors == 0, "no lock errors after the death burst (" .. errors .. ")")

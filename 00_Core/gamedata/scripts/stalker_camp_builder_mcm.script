@@ -204,6 +204,7 @@ function on_mcm_load()
             { id = "respawn_rival_camps", type = "check", val = 1, def = false },
             { id = "uninstall_purge_rival_furniture", type = "check", val = 1, def = false },
             { id = "debug_logging", type = "check", val = 1, def = false },
+            { id = "building_colliders", type = "check", val = 1, def = false },
         }) },
     }}
 end

@@ -76,6 +76,21 @@ local function report(err)
     printf("homestead_lock: %s", tostring(err))
 end
 
+-- The invisible colliders are behind an MCM option (qol_debug/building_colliders, off by default): a
+-- breakable always breaks on a strike hit or a hard collision whatever its health, and a broken one is a
+-- loose slab-sized physics box that was thrown at the player. Switching it off removes every collider
+-- (online ones at once, the rest as they come online) and puts the pieces back as they were before them.
+local MCM_COLLIDERS = "stalker_camp_builder/qol_debug/building_colliders"
+local MAX_BREAKS = 3           -- colliders of one piece that may break before it gets no more
+local colliders_on = nil       -- nil until first read
+local collider_breaks = {}     -- piece id -> colliders of it found broken
+
+local function read_colliders_setting()
+    if not (ui_mcm and ui_mcm.get) then return false end
+    local v = ui_mcm.get(MCM_COLLIDERS)
+    return v == true or v == 1
+end
+
 local function is_solid(sec)
     local v = solid_sec[sec]
     if v == nil then
@@ -99,7 +114,7 @@ local function is_collider_sec(sec)
     return type(sec) == "string" and string.sub(sec, 1, #COLLIDER_PREFIX) == COLLIDER_PREFIX
 end
 
-local function collider_of(sec)
+local function collider_parts(sec)
     local v = collider_sec[sec]
     if v == nil then
         v = {}
@@ -122,6 +137,13 @@ local function collider_of(sec)
         collider_sec[sec] = v
     end
     return v
+end
+
+-- The colliders a piece's section calls for, or false (none, or the option is off).
+local function collider_of(sec)
+    if colliders_on == nil then colliders_on = read_colliders_setting() end
+    if not colliders_on then return false end
+    return collider_parts(sec)
 end
 
 -- The collider ids saved on a piece: one number (the squares, and every earlier save) or a list.
@@ -180,6 +202,7 @@ end
 -- hence the offset of each collider in the piece's frame (x, y up, z), turned by the piece's rotation.
 -- Spawn angles are x = pitch, y = heading, z = bank (CGameObject::net_Spawn: setXYZ, which is setHPB(y, x, z)).
 local function ensure_collider(obj, id, rec)
+    if (collider_breaks[id] or 0) >= MAX_BREAKS then return false end
     local ids = collider_ids(id)
     local ready = true
     local changed = false
@@ -195,6 +218,8 @@ local function ensure_collider(obj, id, rec)
             elseif not placed:get_physics_shell() then
                 keep = true
             else
+                collider_breaks[id] = (collider_breaks[id] or 0) + 1
+                report("collider " .. cid .. " of piece " .. id .. " broke (" .. collider_breaks[id] .. ")")
                 alife_release(se)
             end
         elseif se and is_collider_sec(se:section_name()) then
@@ -235,6 +260,15 @@ end
 local function set_static(obj, static)
     local sec = obj:section()
     local rec = collider_of(sec)
+    if not rec and collider_parts(sec) then
+        -- colliders are off: drop the piece's own, and a slab leaves door mode (it was solid before them)
+        release_collider(obj:id())
+        if is_solid(sec) then
+            local po0 = obj:get_physics_object()
+            if po0 then po0:unset_door_ignore_dynamics() end
+            return false
+        end
+    end
     if rec or is_solid(sec) then
         if not rec then return false end
         if static then
@@ -431,7 +465,7 @@ local function sweep_piece(o)
                 if cid == id then owned = true end
             end
         end
-        if not owned then
+        if not owned or not colliders_on then
             local se = alife_object(id)
             if se then alife_release(se) end
         end
@@ -520,6 +554,25 @@ local function sweep_visit(o)
     if not ok then report(err) end
 end
 
+-- The option changed: every online piece is set up again (colliders made or removed).
+local function apply_collider_setting()
+    printf("homestead_lock: building colliders %s", colliders_on and "ON" or "OFF")
+    for id in pairs(online) do
+        local obj = level.object_by_id(id)
+        if not obj then
+            online[id] = nil
+            solid_online[id] = nil
+        else
+            local wrapper = bind_hf_base.get_wrapper(id)
+            if not (wrapper and wrapper.is_frozen == false) then
+                if colliders_on and collider_of(obj:section()) then solid_online[id] = true end
+                local ok, err = pcall(set_static, obj, true)
+                if not ok then report(err) end
+            end
+        end
+    end
+end
+
 -- Runs every frame, so it only compares times until a sweep or a heal slice is due. A frame never
 -- does both: a heal slice due on a sweep frame waits for the next frame.
 local function sweep_update()
@@ -527,6 +580,15 @@ local function sweep_update()
     if not db.actor then return end
     if now >= next_sweep then
         next_sweep = now + SWEEP_MS
+        local want = read_colliders_setting()
+        if colliders_on ~= want then
+            local first = colliders_on == nil
+            colliders_on = want
+            if not first then
+                local ok, err = pcall(apply_collider_setting)
+                if not ok then report(err) end
+            end
+        end
         level.iterate_nearest(db.actor:position(), SWEEP_RADIUS, sweep_visit)
         return
     end
