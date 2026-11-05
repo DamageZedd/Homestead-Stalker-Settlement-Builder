@@ -35,9 +35,13 @@ local SWEEP_MS = 2000          -- how often pieces that HF's freeze hook missed 
 local SWEEP_RADIUS = 80        -- metres around the player
 local HEAL_MS = 500            -- how often a slice of frozen pieces is checked against their spot
 local HEAL_BUDGET = 10         -- pieces per slice: 20 a second, the rate of the old 40 per 2 s sweep
+local BURST_MS = 20000         -- after a death the heal runs fast for this long (see on_death)
+local BURST_HEAL_MS = 100      -- slice interval in a burst
+local BURST_BUDGET = 40        -- pieces per slice in a burst: 400 a second
 
 local next_sweep = 0
 local next_heal = 0
+local burst_until = 0
 local online = {}              -- id of an online frozen piece -> true
 local put_back_count = 0
 
@@ -250,7 +254,8 @@ local function heal_pieces()
     if #heal_queue == 0 then
         for id in pairs(online) do heal_queue[#heal_queue + 1] = id end
     end
-    for _ = 1, HEAL_BUDGET do
+    local budget = time_global() < burst_until and BURST_BUDGET or HEAL_BUDGET
+    for _ = 1, budget do
         local id = table.remove(heal_queue)
         if not id then return end
         if online[id] then
@@ -283,9 +288,19 @@ local function sweep_update()
         return
     end
     if now >= next_heal then
-        next_heal = now + HEAL_MS
+        next_heal = now + (now < burst_until and BURST_HEAL_MS or HEAL_MS)
         local ok, err = pcall(heal_pieces)
         if not ok then report(err) end
+    end
+end
+
+-- A kill (a body dropping onto a slab, loot spawning, a blast) can knock fixed pieces off their spots,
+-- and they then swing on their soft joint. Not confirmed as the cause of reported drifting bases, so
+-- this only makes the existing put-back quicker for a while after any death: same check, same spots.
+local function on_death()
+    burst_until = time_global() + BURST_MS
+    if next_heal > burst_until - BURST_MS + BURST_HEAL_MS then
+        next_heal = burst_until - BURST_MS + BURST_HEAL_MS
     end
 end
 
@@ -319,4 +334,6 @@ function on_game_start()
     end
     RegisterScriptCallback("actor_on_update", sweep_update)
     RegisterScriptCallback("server_object_on_unregister", forget_piece)
+    RegisterScriptCallback("npc_on_death_callback", on_death)
+    RegisterScriptCallback("monster_on_death_callback", on_death)
 end

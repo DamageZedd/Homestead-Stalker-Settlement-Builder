@@ -292,5 +292,27 @@ for t = start + 120016, start + 180000, 16 do now = t; tick() end
 ok(last_check[301] == nil, "offline piece no longer checked")
 ok(errors == 0, "no lock errors printed (" .. errors .. ")")
 
+-- a death speeds the heal up for a while: a drifted piece is back on its spot within a second, then
+-- the normal rate returns
+ok(type(callbacks.npc_on_death_callback) == "function" and type(callbacks.monster_on_death_callback) == "function",
+    "death callbacks registered")
+do
+    local t0 = now + 30000
+    for t = now + 16, t0, 16 do now = t; tick() end      -- settle
+    objects[350].pos.y = 0.2
+    callbacks.npc_on_death_callback({}, {})
+    local back
+    for t = t0 + 16, t0 + 2000, 16 do
+        now = t; tick()
+        if objects[350].pos.y == 0 then back = t - t0; break end
+    end
+    ok(back and back <= 1000, "piece put back within 1 s of a death (" .. tostring(back) .. " ms)")
+    for t = now + 16, t0 + 30000, 16 do now = t; tick() end
+    local reads = heal_reads
+    for t = now + 16, now + 10000, 16 do now = t; tick() end
+    ok(heal_reads - reads <= 220, "normal heal rate after the burst (" .. (heal_reads - reads) .. " in 10 s)")
+end
+ok(errors == 0, "no lock errors after the death burst (" .. errors .. ")")
+
 print(fails == 0 and ("all furniture perf tests passed (" .. checks .. " checks)") or (fails .. " FAILED"))
 if not BENCH or fails > 0 then os.exit(fails == 0 and 0 or 1) end
