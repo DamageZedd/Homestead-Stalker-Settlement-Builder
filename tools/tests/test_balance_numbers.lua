@@ -4,7 +4,7 @@
 -- ceiling, and the specialization table lists every stat a job reads.
 -- Run: lua tools/tests/test_balance_numbers.lua   (Lua 5.1, from the repo root)
 local SCRIPTS = "00_Core/gamedata/scripts/"
-local function slurp(name) local f = assert(io.open(SCRIPTS .. name, "rb")); local s = f:read("*a"); f:close(); return s end
+local function slurp(name) local f = assert(io.open(SCRIPTS .. name, "rb")); local s = f:read("*a"); f:close(); return (s:gsub("\r", "")) end
 local main = slurp("stalker_camp_builder.script")
 local mcm = slurp("stalker_camp_builder_mcm.script")
 local jobs = slurp("stalker_camp_builder_jobs.script")
@@ -147,6 +147,15 @@ end
 do
     local bread = math.min(8, math.floor(4 * 1.5 * MORALE + 0.5)) * 2
     job("farmer bread (farm, station)", per_hour(bread * COST.bread, D.realtime_job_farmer_interval), 32000)
+end
+-- Living Needs is on by default; the grace period keeps a loaded old save free of penalties for 3 game days
+eq(D.needs_enabled, true, "needs_enabled code default")
+eq(M.needs_enabled, true, "needs_enabled MCM default")
+eq(D.needs_grace_days, 3, "needs grace days")
+eq(D.needs_consumption_mult, 1.0, "needs consumption")
+do  -- one pump (interval 6 game h, spec 1) gives 4 flasks of 3 uses per game day; 12 settlers drink 12 uses a day
+    local flask_uses_per_day = (86400 / D.water_interval) * 3
+    check(flask_uses_per_day >= 12, "one pump no longer covers 12 settlers' water")
 end
 -- food source against sink under Real Time Zones (timers scaled to factor 6 by game_timer_scale): 12 settlers eat 12 items
 -- per meal round; a novice farmer with a stove makes 2 bread per 20 minutes per batch

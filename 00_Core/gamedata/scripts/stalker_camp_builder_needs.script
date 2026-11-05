@@ -1,7 +1,7 @@
 -- stalker_camp_builder_needs.script
 -- Living needs (docs/design/living_needs.md, phases 1-2): settlers need food and water, a camp that
 -- cannot feed them loses morale, and variety in the pantry earns a little back.
--- Behind the MCM master toggle needs_enabled (default OFF): while it is off, process_settler_eating
+-- Behind the MCM master toggle needs_enabled (default ON; a saved MCM value wins): while it is off, process_settler_eating
 -- keeps its old one-ration-a-day behaviour and none of this runs.
 --
 -- The rules are pure functions (needs_class_of, needs_rounds_due, needs_tier, needs_round) that never

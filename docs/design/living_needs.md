@@ -99,7 +99,7 @@ Same systems, different outcomes:
 
 | Key | Type | Default | Purpose |
 |---|---|---|---|
-| `needs_enabled` | check | **false** | Master toggle. Off = today's behavior exactly. |
+| `needs_enabled` | check | **true** | Master toggle (on by default since the balance pass; a saved MCM value wins). Off = the old one-ration-a-day behavior exactly. |
 | `needs_consumption_mult` | track 0.25-2.0 | 1.0 | Scales all rates |
 | `needs_grace_days` | track 0-10 | 3 | No penalties after enabling / loading an old save |
 | `needs_catchup_cap` | track 1-3 | 1 | Max rounds per due interval |

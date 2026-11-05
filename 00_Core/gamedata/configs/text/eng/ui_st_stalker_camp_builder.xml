@@ -2823,7 +2823,7 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
         <text>Living Needs (Food and Water)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_enabled_desc">
-        <text>Settlers eat and drink each day. A camp that cannot feed them loses morale, and a varied diet earns a little back. Off keeps the plain one-ration-a-day rule.</text>
+        <text>Settlers eat and drink each day. A camp that cannot feed them loses morale, and a varied diet earns a little back. Off keeps the plain one-ration-a-day rule. On by default.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_consumption_mult">
         <text>Consumption Multiplier</text>
