@@ -62,7 +62,7 @@ function on_mcm_load()
             { id = "realtime_job_scrapper_interval_min",   type = "track", val = 2, min = 2,   max = 120, step = 1, def = 20 },
             { id = "realtime_job_farmer_interval_min",     type = "track", val = 2, min = 2,   max = 120, step = 1, def = 20 },
             { id = "realtime_job_trader_interval_min",     type = "track", val = 2, min = 2,   max = 120, step = 1, def = 15 },
-            { id = "trader_price_percent",                 type = "track", val = 2, min = 10,  max = 100, step = 5, def = 60 },
+            { id = "trader_price_percent",                 type = "track", val = 2, min = 10,  max = 100, step = 5, def = 25 },
             { id = "line_prosper", type = "line" },
             { id = "settler_cut_enabled", type = "check", val = 1, def = true },
             { id = "settler_cut_per_cycle", type = "track", val = 2, min = 0, max = 300, step = 10, def = 60 },

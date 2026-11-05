@@ -2992,7 +2992,7 @@ function stalker_camp_builder.process_trader_job(npc_id, hub_id, camp, survivor,
         return false
     end
 
-    local pct = sb.cfg.trader_price_percent or (sb.defaults and sb.defaults.trader_price_percent) or 60
+    local pct = sb.cfg.trader_price_percent or (sb.defaults and sb.defaults.trader_price_percent) or 25
     local tier_mult = (sb.get_survivor_tier_mult and survivor and sb.get_survivor_tier_mult(survivor)) or 1.0
     local rate = (pct / 100.0) * math.min(math.max(tier_mult, 1.0), 1.5)
 
