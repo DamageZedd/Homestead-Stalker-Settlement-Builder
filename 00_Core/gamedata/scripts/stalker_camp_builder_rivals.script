@@ -1151,7 +1151,7 @@ local function resolve_pending_rival_skirmish(sb, camp, actor, sim, level_name, 
                 camp.faction = enemy_fac
                 camp.setup_sec = current_sec
                 camp.setup_duration = roll_occupancy(6, 18)
-                camp.skirmish_cooldown_until = current_sec + 21600
+                camp.skirmish_cooldown_until = current_sec + 21600 * sb.game_timer_scale()
 
                 local squad_pos = v_scratch_pos:set(camp.position.x, camp.position.y, camp.position.z)
                 local squad_sec = sb.get_dynamic_squad_section_for_faction(enemy_fac)
@@ -1358,7 +1358,7 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                         and not in_view then
                         camp.tier = camp.tier or 1
                         camp.setup_sec = camp.setup_sec or current_sec
-                        local age_hours = (current_sec - camp.setup_sec) / 3600
+                        local age_hours = (current_sec - camp.setup_sec) / 3600 / sb.game_timer_scale()
 
                         local t2_hours = sb.cfg.rival_camp_tier2_hours or 4
                         local t3_hours = sb.cfg.rival_camp_tier3_hours or 8
@@ -1380,7 +1380,7 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                         end
                     end
 
-                    local skirmish_cooldown_sec = 21600 -- 6 game hours
+                    local skirmish_cooldown_sec = 21600 * sb.game_timer_scale() -- 6 game hours
                     local is_on_cooldown = (camp.skirmish_cooldown_until and current_sec < camp.skirmish_cooldown_until)
                         or (camp.setup_sec and (current_sec - camp.setup_sec < skirmish_cooldown_sec))
 
@@ -1441,7 +1441,7 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                 camp.pending_skirmish_resolve_time = nil
                 camp.setup_sec = current_sec
                 camp.setup_duration = roll_occupancy(6, 18)
-                camp.skirmish_cooldown_until = current_sec + 21600
+                camp.skirmish_cooldown_until = current_sec + 21600 * sb.game_timer_scale()
 
                 local actor_comm = (actor and actor.character_community) and actor:character_community() or "stalker"
                 local rel = relation_registry.community_relation(camp.faction, actor_comm)
@@ -2579,7 +2579,7 @@ function stalker_camp_builder.spawn_single_rival_camp(target_level, specific_fac
                             ground_snapped_v4 = (target_level == level_name),
                             setup_sec = current_sec,
                             setup_duration = roll_occupancy(6, 18),
-                            skirmish_cooldown_until = current_sec + 21600,
+                            skirmish_cooldown_until = current_sec + 21600 * sb.game_timer_scale(),
                             tier = 1
                         }
 

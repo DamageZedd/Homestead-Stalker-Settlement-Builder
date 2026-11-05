@@ -33,5 +33,12 @@ end
 for _, k in ipairs({ "realtime_job_cook_interval", "raiders_rest_minutes", "raiders_wounded_minutes" }) do
     eq(K[k] and 1 or 0, 0, k .. " is not scaled")
 end
+-- rival tier hours, the skirmish cooldown and the equipment check use the same scale
+local function rd(n) return io.open("00_Core/gamedata/scripts/" .. n, "rb"):read("*a") end
+local rivals, jobs = rd("stalker_camp_builder_rivals.script"), rd("stalker_camp_builder_jobs.script")
+local function count(s, pat) local n = 0; for _ in s:gmatch(pat) do n = n + 1 end; return n end
+eq(count(rivals, "21600 %* sb%.game_timer_scale%(%)"), 4, "skirmish cooldown sites scaled")
+eq(rivals:find("/ 3600 / sb.game_timer_scale()", 1, true) and 1 or 0, 1, "tier age scaled")
+eq(jobs:find("1800 * sb.game_timer_scale()", 1, true) and 1 or 0, 1, "equipment check scaled")
 if fails > 0 then print(fails .. " FAILED"); os.exit(1) end
 print("game timer scale OK")

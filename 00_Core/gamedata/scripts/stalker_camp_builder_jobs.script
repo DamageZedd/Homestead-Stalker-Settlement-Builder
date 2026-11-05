@@ -3892,7 +3892,7 @@ function stalker_camp_builder.update_camp_jobs()
                 local job = survivor.job or "idle"
                 -- Settler Equipment Maintenance: inspect Armory and Quartermaster for upgrades
                 local last_eq = survivor.last_equip_check or 0
-                if (current_sec - last_eq) >= 1800 then
+                if (current_sec - last_eq) >= 1800 * sb.game_timer_scale() then
                     survivor.last_equip_check = current_sec
                     sb.guarded_call("process_settler_equipment", sb.process_settler_equipment, hub_id, camp, survivor, npc_id)
                     sb.guarded_call("prosper_tick", sb.prosper_tick, hub_id, camp, survivor, npc_id)
