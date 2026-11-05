@@ -39,7 +39,7 @@ def link_textures(obj):
     for m in obj.data.materials:
         if not m or not m.use_nodes:
             continue
-        base = re.sub(r"\.(\d{3}|aref)$", "", m.name)
+        base = re.sub(r"(\.(\d{3}|aref))+$", "", m.name)
         path = find_texture(base)
         nt = m.node_tree
         img = next((n for n in nt.nodes if n.type == 'TEX_IMAGE'), None)
@@ -67,8 +67,11 @@ def link_textures(obj):
 def one(model, out_dir, cw, ch, cell, view=(-1.0, -1.25, 0.95)):
     sc = bpy.context.scene
     before = set(bpy.data.objects)
-    folder = MESHES if os.path.exists(os.path.join(MESHES, model + ".object")) else os.path.join(MESHES, "building")
-    bpy.ops.xray_import.object(directory=folder, files=[{'name': model + ".object"}])
+    folder = MESHES if any(os.path.exists(os.path.join(MESHES, model + e)) for e in (".object", ".ogf")) else os.path.join(MESHES, "building")
+    if os.path.exists(os.path.join(folder, model + ".object")):
+        bpy.ops.xray_import.object(directory=folder, files=[{'name': model + ".object"}])
+    else:
+        bpy.ops.xray_import.ogf(directory=folder, files=[{'name': model + ".ogf"}])
     new = [o for o in bpy.data.objects if o not in before]
     meshes = [o for o in new if o.type == 'MESH']
     missing = []
@@ -96,7 +99,7 @@ def one(model, out_dir, cw, ch, cell, view=(-1.0, -1.25, 0.95)):
     px = (int(cw * cell), int(ch * cell))
     aspect = px[0] / px[1]
     wx, wy = (x1 - x0) * 1.06, (y1 - y0) * 1.06
-    cam.data.ortho_scale = max(wx, wy * aspect)
+    cam.data.ortho_scale = max(wx, wy * aspect) if aspect >= 1 else max(wy, wx / aspect)
     cam.data.shift_x = ((x0 + x1) / 2) / cam.data.ortho_scale
     cam.data.shift_y = ((y0 + y1) / 2) / cam.data.ortho_scale
     sc.camera = cam
