@@ -38,6 +38,8 @@ fixed_bones                             = link
 script_binding                          = bind_hf_base.init
 item_section                            = homestead_foundation
 homestead_snap                          = foundation
+homestead_collider                      = hs_collider_foundation
+homestead_collider_y                    = -0.300000
 
 ; width, depth, height / origin x, y (up), z: the nominal piece, like the Hideout Furniture walls
 bounding_box_size                       = 4.708950, 4.708950, 0.300000
@@ -77,6 +79,8 @@ fixed_bones                             = link
 script_binding                          = bind_hf_base.init
 item_section                            = homestead_floor
 homestead_snap                          = floor
+homestead_collider                      = hs_collider_floor
+homestead_collider_y                    = 0.049970
 
 ; width, depth, height / origin x, y (up), z: the nominal piece, like the Hideout Furniture walls
 bounding_box_size                       = 4.708950, 4.708950, 0.100000
@@ -939,3 +943,25 @@ homestead_snap                          = floor
 ; width, depth, height / origin x, y (up), z: the nominal piece, like the Hideout Furniture walls
 bounding_box_size                       = 4.708950, 4.708950, 0.100000
 bounding_box_origin                     = 0.000000, 0.050000, 0.000000
+
+;--------------------------
+;--- Invisible static colliders under foundations and floors (homestead_lock.script)
+;--- The break values are the same as vanilla [breakable_object]: the class keeps them in statics shared
+;--- with every breakable in the level, so other values would change how those break.
+;--------------------------
+
+[hs_collider_foundation]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_foundation.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3
+
+[hs_collider_floor]
+class                                   = O_BRKBL
+visual                                  = dynamics\HomesteadHF\building\hs_collider_floor.ogf
+remove_time                             = 10
+hit_break_threthhold                    = 0.
+collision_break_threthhold              = 2000.f
+immunity_factor                         = 1.3

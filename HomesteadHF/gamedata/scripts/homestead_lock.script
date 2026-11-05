@@ -7,9 +7,12 @@
 -- use): it then only collides with the player, grenades and the level, none of which can move a fixed
 -- body, so it stays where it was placed. NPCs, dropped items and bodies pass through such pieces.
 --
--- Pieces people and things stand on (Homestead foundations and floors) stay solid, so NPCs, items
--- and bodies don't fall through them: door mode on the walls, roofs and furniture around them already
--- stops those from pushing them, and their collision is inset 5 mm so snapped neighbours don't overlap.
+-- Foundations and floors have to hold NPCs, items and bodies up. Square ones go in door mode like every
+-- other piece, on top of an invisible collider: a breakable_object is only a box with no physics body,
+-- so nothing can wake or move it. The ones with no collider (triangles, the spiral stair landing, whose
+-- shape a box doesn't fit) stay solid: their collision is inset 5 mm so snapped neighbours don't
+-- overlap, and their models ignore ragdolls ([collide] ignore_ragdoll), so bodies fall through them
+-- instead of waking them. See tools/model_pipeline/build_floor_collision.py.
 --
 -- Saving moves pieces too: the engine stores an online physics object's rotation with 8 bits per
 -- quaternion component, so every save and load turns each piece by up to about a degree (a few cm at
@@ -24,6 +27,9 @@
 local VAR = "hs_spot"          -- x, y, z, heading, pitch, bank the piece was frozen at
 local HINT = "hs_place"        -- x, y, z a building piece was placed at (homestead_snap): its first spot
 local OLD_VAR = "hs_lock"      -- spot saved by an earlier version of this script, no longer used
+local COLLIDER = "hs_collider"        -- on a piece: id of its collider
+local COLLIDER_OF = "hs_collider_of"  -- on a collider: id of its piece
+local COLLIDER_SECTIONS = { hs_collider_foundation = true, hs_collider_floor = true }
 local SOLID = { foundation = true, floor = true, foundation_tri = true, floor_tri = true }   -- homestead_snap types that stay solid
 
 local PLACE_REACH = 3.0        -- metres a piece may have been lifted from where it was placed (further: the hint is ignored)
@@ -56,6 +62,7 @@ local put_back_count = 0
 -- entry per section seen, so they stay small.
 local solid_sec = {}           -- section -> stays solid (homestead_snap foundation / floor)
 local hf_sec = {}              -- section -> bound by a Hideout Furniture binder
+local collider_sec = {}        -- section -> { sec, y } of its collider, or false
 
 local function report(err)
     printf("homestead_lock: %s", tostring(err))
@@ -80,8 +87,64 @@ local function is_hf_bound(sec)
     return v
 end
 
+local function collider_of(sec)
+    local v = collider_sec[sec]
+    if v == nil then
+        local name = ini_sys:r_string_ex(sec, "homestead_collider")
+        v = name and { sec = name, y = ini_sys:r_float_ex(sec, "homestead_collider_y") or 0 } or false
+        collider_sec[sec] = v
+    end
+    return v
+end
+
+-- Forward: the rows of the rotation are needed for where a collider goes.
+local hpb_axes
+
+local function release_collider(id)
+    local cid = se_load_var(id, nil, COLLIDER)
+    if not cid then return end
+    se_save_var(id, nil, COLLIDER, nil)
+    local se = alife_object(cid)
+    if se and COLLIDER_SECTIONS[se:section_name()] then
+        alife_release(se)
+    end
+end
+
+-- Makes sure a piece has a working collider. An explosion can break one (it is then a loose physics
+-- shell until the engine removes it), so a broken one is replaced. The model's box is centred on the
+-- object, hence the offset along the piece's up axis. Spawn angles are x = pitch, y = heading, z = bank
+-- (CGameObject::net_Spawn: setXYZ, which is setHPB(y, x, z)).
+local function ensure_collider(obj, id, rec)
+    local cid = se_load_var(id, nil, COLLIDER)
+    local se = cid and alife_object(cid)
+    if se and COLLIDER_SECTIONS[se:section_name()] then
+        local placed = level.object_by_id(cid)
+        if not (placed and placed:get_physics_shell()) then return true end
+        alife_release(se)
+    end
+    local spot = se_load_var(id, nil, VAR)
+    if not spot then return false end
+    local _, _, _, jx, jy, jz = hpb_axes(spot[4], spot[5], spot[6])
+    local pos = vector():set(spot[1] + jx * rec.y, spot[2] + jy * rec.y, spot[3] + jz * rec.y)
+    local new_se = alife_create(rec.sec, pos, obj:level_vertex_id(), obj:game_vertex_id())
+    if not new_se then return false end
+    new_se.angle = vector():set(spot[5], spot[4], spot[6])
+    se_save_var(id, nil, COLLIDER, new_se.id)
+    se_save_var(new_se.id, nil, COLLIDER_OF, id)
+    return true
+end
+
 local function set_static(obj, static)
-    if is_solid(obj:section()) then return end
+    local sec = obj:section()
+    if is_solid(sec) then
+        local rec = collider_of(sec)
+        if not rec then return end
+        if static then
+            if not ensure_collider(obj, obj:id(), rec) then return end
+        else
+            release_collider(obj:id())
+        end
+    end
     local po = obj:get_physics_object()
     if not (po and obj:get_physics_shell()) then return end
     if static then
@@ -113,11 +176,24 @@ local function forget_piece(se_obj)
     online[id] = nil
     solid_online[id] = nil
     clear_spot(id)
+    if se_load_var(id, nil, COLLIDER_OF) then
+        se_save_var(id, nil, COLLIDER_OF, nil)
+    end
+    -- released a moment later: this runs while the engine is unregistering the piece
+    local cid = se_load_var(id, nil, COLLIDER)
+    if cid then
+        se_save_var(id, nil, COLLIDER, nil)
+        CreateTimeEvent("homestead_lock_collider", tostring(cid), 0, function()
+            local se = alife_object(cid)
+            if se and COLLIDER_SECTIONS[se:section_name()] then alife_release(se) end
+            return true
+        end)
+    end
 end
 
 -- Rows i, j, k of the engine's Fmatrix:setHPB. Spots are compared as rotations, because the same
 -- rotation can have a different heading/pitch/bank (heading +-pi, a piece tipped onto its side).
-local function hpb_axes(h, p, b)
+function hpb_axes(h, p, b)
     local sh, ch, sp, cp, sb, cb = math.sin(h), math.cos(h), math.sin(p), math.cos(p), math.sin(b), math.cos(b)
     local cc, cs, sc, ss = ch * cb, ch * sb, sh * cb, sh * sb
     return cc - sp * ss, -cp * sb, sp * cs + sc,
@@ -213,7 +289,8 @@ local function on_piece_frozen(id)
     local obj = level.object_by_id(id)
     if not obj then return end
     online[id] = true
-    solid_online[id] = is_solid(obj:section()) or nil
+    local sec = obj:section()
+    solid_online[id] = (is_solid(sec) and not collider_of(sec)) or nil
     hook_set_frozen(id)
     if se_load_var(id, nil, OLD_VAR) then
         se_save_var(id, nil, OLD_VAR, nil)
@@ -246,7 +323,17 @@ end
 local function sweep_piece(o)
     local id = o:id()
     if online[id] then return end
-    if not is_hf_bound(o:section()) then return end
+    local sec = o:section()
+    if COLLIDER_SECTIONS[sec] then
+        -- left behind by a piece that is gone (nothing can reach it any other way)
+        local owner = se_load_var(id, nil, COLLIDER_OF)
+        if not (owner and alife_object(owner) and se_load_var(owner, nil, COLLIDER) == id) then
+            local se = alife_object(id)
+            if se then alife_release(se) end
+        end
+        return
+    end
+    if not is_hf_bound(sec) then return end
     local wrapper = bind_hf_base.get_wrapper(id)
     if not wrapper or wrapper.is_frozen == false then return end
     local ps = o:get_physics_shell()
@@ -280,14 +367,17 @@ local function heal_pieces()
             else
                 local wrapper = bind_hf_base.get_wrapper(id)
                 local spot = not (wrapper and wrapper.is_frozen == false) and se_load_var(id, nil, VAR)
-                if spot then put_back(obj, spot) end
+                if spot then
+                    put_back(obj, spot)
+                    if collider_of(obj:section()) then set_static(obj, true) end  -- a broken collider, a failed spawn
+                end
             end
         end
     end
 end
 
--- Foundations and floors stay solid so NPCs can stand on them, which means bodies, items and
--- neighbours can still shove them. There are few of them, so each is checked against its spot every
+-- Foundations and floors with no collider stay solid, so items and neighbours can still shove
+-- them. There are few of them, so each is checked against its spot every
 -- SOLID_MS and put back at once, long before a shove is visible. A put-back also restarts the body's
 -- sleep countdown, so a piece that overlaps a neighbour would be pushed and put back for ever: one that
 -- keeps coming back leaves this pass until it next comes online, and the slower heal looks after it.

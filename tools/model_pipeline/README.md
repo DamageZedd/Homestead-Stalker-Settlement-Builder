@@ -21,6 +21,10 @@ The shipped models themselves are the `.ogf` files under
 `HomesteadHF/gamedata/meshes/dynamics/`. The scripts were only import-checked
 in Blender after this change, not re-run end to end.
 
+After a Blender re-export of a foundation or floor, run `python tools/model_pipeline/build_floor_collision.py`
+from the repo root: it writes `[collide] ignore_ragdoll` back into those models and rebuilds the invisible
+`hs_collider_*.ogf` models that `homestead_lock.script` spawns under them.
+
 ## README hero images
 
 `render_hero.py` renders the `docs/images/hero_*.jpg` pictures from the shipped models, with their

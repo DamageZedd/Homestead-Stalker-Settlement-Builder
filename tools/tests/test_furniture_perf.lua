@@ -21,6 +21,10 @@ function printf(fmt, ...) errors = errors + 1; print("printf: " .. string.format
 local ini_reads = {}           -- key -> count
 local ini_data = {}            -- section -> { key = value }
 ini_sys = {}
+function ini_sys:r_float_ex(sec, key)
+    local s = ini_data[sec]
+    return s and s[key]
+end
 function ini_sys:r_string_ex(sec, key)
     ini_reads[key] = (ini_reads[key] or 0) + 1
     local s = ini_data[sec]
@@ -35,7 +39,24 @@ function se_save_var(id, _, name, val)
 end
 
 local events = 0
-function CreateTimeEvent() events = events + 1 end
+local pending = {}             -- time events of the colliders, run by the test
+function CreateTimeEvent(ev, _, _, fn)
+    events = events + 1
+    if ev == "homestead_lock_collider" then pending[#pending + 1] = fn end
+end
+
+local server = {}              -- id -> fake server object
+local next_se_id = 5000
+local released = {}
+function alife_object(id) return server[id] end
+function alife_release(se) released[se.id] = true; server[se.id] = nil end
+function alife_create(sec, pos, lv, gv)
+    next_se_id = next_se_id + 1
+    local se = { id = next_se_id, sec = sec, position = pos, lv = lv, gv = gv }
+    function se:section_name() return self.sec end
+    server[se.id] = se
+    return se
+end
 
 function vector()
     local v = { x = 0, y = 0, z = 0 }
@@ -78,11 +99,14 @@ local function make_obj(id, sec, x, y, z, h, p, b)
         shell_freezes = 0, door = 0, set_pos = 0, set_ang = 0 }
     function o:id() return self._id end
     function o:section() return self._sec end
+    function o:level_vertex_id() return 11 end
+    function o:game_vertex_id() return 22 end
     function o:position() return { x = self.pos.x, y = self.pos.y, z = self.pos.z } end
     function o:angle() return { x = self.ang.x, y = self.ang.y, z = self.ang.z } end
     function o:force_set_position(v) self.pos = { x = v.x, y = v.y, z = v.z }; self.set_pos = self.set_pos + 1 end
     function o:force_set_angle(v) self.ang = { x = v.x, y = v.y, z = v.z }; self.set_ang = self.set_ang + 1 end
-    local po = { set_door_ignore_dynamics = function() o.door = o.door + 1 end, unset_door_ignore_dynamics = function() end }
+    local po = { set_door_ignore_dynamics = function() o.door = o.door + 1; o.in_door = true end,
+        unset_door_ignore_dynamics = function() o.in_door = false end }
     function o:get_physics_object() return po end
     function o:get_physics_shell()
         return { freeze = function() o.shell_freezes = o.shell_freezes + 1 end }
@@ -349,6 +373,56 @@ do
     -- 16 frames of 100 would be put back at 10 Hz; at most 5 count before it leaves (the shove above counts too)
     ok(o.set_pos - puts <= 5, "fighting piece leaves the fast pass after 5 put-backs (" .. (o.set_pos - puts) .. ")")
     errors = errors - 1       -- that report is expected
+end
+
+-- square foundations: door mode on top of a static collider
+do
+    ini_data.hs_square = { homestead_snap = "foundation", script_binding = "bind_hf_base.bind",
+        homestead_collider = "hs_collider_foundation", homestead_collider_y = -0.3 }
+    local o = make_obj(910, "hs_square", 7, 2, 9, 1.2)
+    bind_hf_base.freeze_obj(910)
+    local cid = se_vars[910] and se_vars[910].hs_collider
+    local se = cid and server[cid]
+    ok(se and se.sec == "hs_collider_foundation", "collider spawned with the piece")
+    ok(o.in_door == true, "square foundation goes in door mode once it has a collider")
+    ok(se and math.abs(se.position.y - 1.7) < 1e-6 and se.position.x == 7 and se.position.z == 9,
+        "collider sits at the box centre under the piece")
+    ok(se and se.angle.y == 1.2 and se.angle.x == 0, "spawn angle is x = pitch, y = heading")
+    ok(se_vars[cid] and se_vars[cid].hs_collider_of == 910, "collider knows its piece")
+
+    -- already has one: the heal pass keeps it
+    for t = now + 16, now + 15000, 16 do now = t; tick() end
+    ok(se_vars[910].hs_collider == cid and server[cid] ~= nil, "working collider kept by the heal pass")
+
+    -- broken by an explosion: replaced
+    objects[cid] = { get_physics_shell = function() return {} end, id = function() return cid end,
+        section = function() return "hs_collider_foundation" end }
+    for t = now + 16, now + 15000, 16 do now = t; tick() end
+    local new_cid = se_vars[910].hs_collider
+    ok(released[cid] and new_cid ~= cid and server[new_cid] ~= nil, "broken collider replaced")
+    objects[cid] = nil
+
+    -- picked up: the collider goes too, after the engine has finished with the piece
+    callbacks.server_object_on_unregister({ id = 910 })
+    ok(server[new_cid] ~= nil, "collider not released during unregister")
+    for _, fn in ipairs(pending) do fn() end
+    pending = {}
+    ok(released[new_cid] and se_vars[910].hs_collider == nil, "collider released with its piece")
+    objects[910] = nil
+
+    -- a collider whose piece is gone is cleaned up by the sweep
+    local stray = alife_create("hs_collider_floor", { x = 0, y = 0, z = 0 }, 1, 1)
+    se_vars[stray.id] = { hs_collider_of = 910 }
+    nearby[#nearby + 1] = { id = function() return stray.id end, section = function() return "hs_collider_floor" end }
+    now = now + 3000; tick()
+    ok(released[stray.id], "orphan collider released by the sweep")
+    nearby[#nearby] = nil
+
+    -- a piece with no collider section stays solid
+    ini_data.hs_tri = { homestead_snap = "foundation_tri", script_binding = "bind_hf_base.bind" }
+    local tri = make_obj(911, "hs_tri", 1, 0, 1)
+    bind_hf_base.freeze_obj(911)
+    ok(tri.door == 0 and not (se_vars[911] and se_vars[911].hs_collider), "triangle stays solid, no collider")
 end
 
 ok(errors == 0, "no lock errors after the death burst (" .. errors .. ")")
