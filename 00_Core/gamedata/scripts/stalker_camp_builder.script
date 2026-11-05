@@ -327,6 +327,69 @@ local function game_timer_scale()
     return 1
 end
 stalker_camp_builder.game_timer_scale = game_timer_scale
+
+-- The scale a camp's stored timers were last counted with is kept on the camp (camp.timer_scale; absent in an
+-- older save = 1, the unscaled timers it was saved under). When the scale changes, the elapsed time of the
+-- stored last-run stamps and the remaining time of the stored due stamps shrink or grow with it, so a timer
+-- keeps the same share of its interval instead of firing early or late. `ratio` = new scale / old scale.
+local ELAPSED_STAMPS = { "last_water_time", "last_fridge_time", "last_food_consumption_time", "last_event_check_time",
+    "last_raid_check_time", "trader_spawn_time", "last_convoy_time", "setup_sec", "created_time" }
+local DUE_STAMPS = { "hungry_until", "skirmish_cooldown_until" }
+local NEEDS_ELAPSED = { "last_round_sec" }
+local NEEDS_DUE = { "grace_until", "until_sec" }
+local SURVIVOR_ELAPSED = { "last_equip_check" }
+local SURVIVOR_DUE = { "needs_hungry_until", "needs_starving_until" }
+local function rescale_elapsed(t, keys, now, ratio)
+    for _, k in ipairs(keys) do
+        local v = t[k]
+        if type(v) == "number" and v > 0 and v <= now then t[k] = now - (now - v) * ratio end
+    end
+end
+local function rescale_due(t, keys, now, ratio)
+    for _, k in ipairs(keys) do
+        local v = t[k]
+        if type(v) == "number" and v > now then t[k] = now + (v - now) * ratio end
+    end
+end
+function stalker_camp_builder.rescale_camp_timers(camp, ratio, now)
+    rescale_elapsed(camp, ELAPSED_STAMPS, now, ratio)
+    rescale_due(camp, DUE_STAMPS, now, ratio)
+    if type(camp.setup_duration) == "number" then camp.setup_duration = camp.setup_duration * ratio end
+    if type(camp.needs) == "table" then
+        rescale_elapsed(camp.needs, NEEDS_ELAPSED, now, ratio)
+        rescale_due(camp.needs, NEEDS_DUE, now, ratio)
+    end
+    for _, s in pairs(camp.survivors or {}) do
+        if type(s) == "table" then
+            rescale_elapsed(s, SURVIVOR_ELAPSED, now, ratio)
+            rescale_due(s, SURVIVOR_DUE, now, ratio)
+        end
+    end
+end
+local timer_scale_global
+function stalker_camp_builder.sync_timer_scale(camp)
+    if type(camp) ~= "table" then return end
+    local cur = game_timer_scale()
+    local prev = tonumber(camp.timer_scale) or 1
+    if timer_scale_global == nil then timer_scale_global = prev end
+    local sb = stalker_camp_builder
+    if prev ~= cur then
+        sb.rescale_camp_timers(camp, cur / prev, sb.game_sec())
+        camp.timer_scale = cur
+    elseif camp.timer_scale == nil then
+        camp.timer_scale = cur
+    end
+    -- the settlement-wide raid and event stamps follow the first camp that reports the change
+    if timer_scale_global ~= cur then
+        if sb.get_event_timers and sb.set_event_timers then
+            local raid_sec, event_sec = sb.get_event_timers()
+            local now, ratio = sb.game_sec(), cur / timer_scale_global
+            local function back(v) if type(v) == "number" and v <= now then return now - (now - v) * ratio end return v end
+            sb.set_event_timers(back(raid_sec), back(event_sec))
+        end
+        timer_scale_global = cur
+    end
+end
 -- the sibling scripts call these through the module table
 stalker_camp_builder.game_sec = game_sec
 stalker_camp_builder.time_factor = time_factor

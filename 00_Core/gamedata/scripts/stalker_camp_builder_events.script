@@ -38,6 +38,7 @@ function process_camp_random_events()
     local cur_lvl = level.name()
     for hub_id, camp in pairs(stalker_camp_builder.active_camps) do
         if not camp.level or camp.level == cur_lvl then
+            if stalker_camp_builder.sync_timer_scale then stalker_camp_builder.sync_timer_scale(camp) end
             local hub_obj = alife_object(hub_id)
             if hub_obj and hub_obj.position then
                 local dist = hub_obj.position:distance_to(player_pos)
@@ -415,6 +416,7 @@ function process_camp_raids()
     local cur_lvl = level.name()
     for hub_id, camp in pairs(stalker_camp_builder.active_camps) do
         -- perf: only whether the camp has a survivor matters, not how many (no full count per camp)
+        if stalker_camp_builder.sync_timer_scale then stalker_camp_builder.sync_timer_scale(camp) end
         local has_survivor = camp.survivors and next(camp.survivors) ~= nil
         -- a camp gets one raid cooldown of peace after it is founded
         local is_new = camp.created_time and (current_sec - camp.created_time) < cfg.raid_cooldown

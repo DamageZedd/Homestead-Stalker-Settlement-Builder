@@ -165,6 +165,7 @@ end
 -- the settlers' daily round for one camp; called in place of the old one-ration loop
 function sb.needs_process(hub_id, camp)
     if not (camp and camp.survivors) then return end
+    if sb.sync_timer_scale then sb.sync_timer_scale(camp) end
     local now = sb.game_sec()
     local interval = needs_interval()
     local st = camp.needs

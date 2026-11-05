@@ -3787,6 +3787,7 @@ function stalker_camp_builder.update_camp_jobs()
                 end
             end
 
+            if sb.sync_timer_scale then sb.sync_timer_scale(camp) end
             local camp_snap = sb.get_camp_inventory_snapshot and sb.get_camp_inventory_snapshot(hub_id, camp, false)
 
             camp.last_water_time = camp.last_water_time or current_sec
