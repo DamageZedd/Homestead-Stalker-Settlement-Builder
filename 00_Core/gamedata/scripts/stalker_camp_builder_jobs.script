@@ -1585,7 +1585,18 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
             if total_ethanol < req_vodka then
                 return true, string.format("Need %dx Vodka", req_vodka), string.format("Requires %dx Vodka in settlement storage to synthesize this medicine", req_vodka)
             end
-            -- process_medic_job's medkit takes a bandage too
+            stalker_camp_builder.MEDIC_RARE_BATCH_MAX = 4
+-- Medic batch size: the wanted output, cut to what the vodka in storage pays for (per_unit uses each).
+-- ethanol is nil for a batch made from cloth, which is cut by the cloth count instead.
+function stalker_camp_builder.medic_batch_size(want, ethanol, per_unit)
+    local n = mmax(1, math.floor(tonumber(want) or 1))
+    if ethanol and per_unit and per_unit > 0 then
+        n = mmin(n, mmax(1, math.floor(ethanol / per_unit)))
+    end
+    return n
+end
+
+-- process_medic_job's medkit takes a bandage too
             if m_order == "medkit" and not (sb.camp_has_item and sb.camp_has_item(hub_id, camp, function(s) return s == "bandage" end)) then
                 return true, "Need Bandage", "Requires a Bandage in settlement storage to make a Medkit"
             end
@@ -2187,6 +2198,32 @@ function stalker_camp_builder.process_medic_job(npc_id, box_id, camp, survivor)
     end
 
     local consumed_desc = ""
+    local mult = math.max(1, math.floor(sb.cfg.craft_output_multiplier or 1))
+    -- DANZY: Drug-Making Kit bonus (was advertised but never implemented)
+    if (camp and camp.has_drugkit) or (survivor and survivor.has_drugkit) then
+        mult = mult * 2
+    end
+    local tier_mult = (sb.get_survivor_tier_mult and survivor and sb.get_survivor_tier_mult(survivor)) or 1.0
+    local spec_mult = (sb.get_specialization_mult and camp and sb.get_specialization_mult(camp, "medic")) or 1.0
+    local total_med = mult * tier_mult * spec_mult
+    mult = math.max(1, math.floor(total_med) + (math.random() < (total_med - math.floor(total_med)) and 1 or 0))
+    -- the batch tops the stock up to its cap and no further
+    local room = meds_room
+    if item_room and (not room or item_room < room) then room = item_room end
+    if room then mult = math.max(1, math.min(mult, room)) end
+    -- the rare types (akvatab, kalium, medkit) come at most MEDIC_RARE_BATCH_MAX at a time
+    if target_sec ~= "bandage" then mult = math.min(mult, stalker_camp_builder.MEDIC_RARE_BATCH_MAX) end
+    -- each unit of the batch uses up its own inputs (a Master's batch of 8 takes 8 sets), so the
+    -- output per input stays the same at every tier and the stock cap is the only limit on the rest
+    local units = stalker_camp_builder.medic_batch_size(mult, req_vodka > 0 and not use_cloth and total_ethanol or nil, req_vodka)
+    if use_cloth and sb.camp_count_item then
+        units = math.min(units, math.max(1, sb.camp_count_item(hub_id, camp, is_cloth, units)))
+    end
+    if req_bandage and sb.camp_count_item then
+        units = math.min(units, math.max(1, sb.camp_count_item(hub_id, camp, function(s) return s == "bandage" end, units)))
+    end
+    mult = units
+    for _ = 1, units do
     if req_bandage then
         local b_sec = sb.camp_consume_item and sb.camp_consume_item(hub_id, camp, function(s) return s == "bandage" end)
         if not b_sec then return false end
@@ -2205,22 +2242,10 @@ function stalker_camp_builder.process_medic_job(npc_id, box_id, camp, survivor)
             local v_sec = sb.camp_consume_item and sb.camp_consume_item(hub_id, camp, is_medic_ethanol)
             if v_sec then last_v_sec = v_sec end
         end
-        consumed_desc = string.format("%dx %s", req_vodka, last_v_sec and sec_name_fn(last_v_sec) or "Vodka")
+        consumed_desc = string.format("%dx %s", req_vodka * units, last_v_sec and sec_name_fn(last_v_sec) or "Vodka")
+    end
     end
 
-    local mult = math.max(1, math.floor(sb.cfg.craft_output_multiplier or 1))
-    -- DANZY: Drug-Making Kit bonus (was advertised but never implemented)
-    if (camp and camp.has_drugkit) or (survivor and survivor.has_drugkit) then
-        mult = mult * 2
-    end
-    local tier_mult = (sb.get_survivor_tier_mult and survivor and sb.get_survivor_tier_mult(survivor)) or 1.0
-    local spec_mult = (sb.get_specialization_mult and camp and sb.get_specialization_mult(camp, "medic")) or 1.0
-    local total_med = mult * tier_mult * spec_mult
-    mult = math.max(1, math.floor(total_med) + (math.random() < (total_med - math.floor(total_med)) and 1 or 0))
-    -- the batch tops the stock up to its cap and no further
-    local room = meds_room
-    if item_room and (not room or item_room < room) then room = item_room end
-    if room then mult = math.max(1, math.min(mult, room)) end
     local deposited_med = 0
     if sb.deposit_item_to_camp and camp and hub_id then
         for i = 1, mult do

@@ -116,11 +116,11 @@ do
     local boxes = math.floor(TIER * spec_max.craft * MORALE + 1)
     job("craft (master, workshop, bench)", per_hour(boxes * COST.ammo_box, D.realtime_job_craft_interval), 24000)
 end
--- medic: batch is room-limited to the stock cap (8 rare, 15 bandage)
+-- medic: rare types come 4 at a time and every unit pays its own inputs; bandages are room-limited (15)
 do
     local mult = TIER * spec_max.medic * 2 * MORALE
-    local akva = math.min(8, math.floor(mult + 0.5))
-    job("medic akvatab (clinic, drugkit)", per_hour(akva * COST.akvatab, D.medic_job_interval), 95000)
+    local akva = math.min(4, math.floor(mult + 0.5))   -- MEDIC_RARE_BATCH_MAX
+    job("medic akvatab (clinic, drugkit)", per_hour(akva * COST.akvatab, D.medic_job_interval), 46000)
     local band = math.min(15, math.floor(mult + 0.5))
     job("medic bandage (clinic, drugkit)", per_hour(band * COST.bandage, D.medic_job_interval), 40000)
 end
@@ -150,6 +150,7 @@ do
 end
 -- hard caps in the code that the ceilings above rely on
 check(jobs:find("math.min(math.floor(count * tier_mult * spec_mult * mult + 0.5), 40)", 1, true), "woodcutter 40 cap changed")
+check(jobs:find("MEDIC_RARE_BATCH_MAX = 4", 1, true), "medic rare batch cap changed")
 check(jobs:find("math.min(math.floor(count * total_mult + 0.5), 16)", 1, true), "brewer 16 cap changed")
 
 -- 5. specialization table lists the stats the jobs read -------------------------------------------------------
