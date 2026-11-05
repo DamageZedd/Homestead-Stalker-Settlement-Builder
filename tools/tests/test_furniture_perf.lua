@@ -355,7 +355,7 @@ ok(errors == 0, "no lock errors printed (" .. errors .. ")")
 -- the normal rate returns
 ok(type(callbacks.npc_on_death_callback) == "function" and type(callbacks.monster_on_death_callback) == "function",
     "death callbacks registered")
-do
+(function()   -- in a function: the main chunk is close to the check's limit on locals
     local t0 = now + 30000
     for t = now + 16, t0, 16 do now = t; tick() end      -- settle
     objects[350].pos.y = 0.2
@@ -370,9 +370,9 @@ do
     local reads = heal_reads
     for t = now + 16, now + 10000, 16 do now = t; tick() end
     ok(heal_reads - reads <= 220, "normal heal rate after the burst (" .. (heal_reads - reads) .. " in 10 s)")
-end
+end)()
 -- a solid piece (foundation / floor) shoved off its spot is put back within 150 ms and stopped
-do
+(function()   -- in a function: the main chunk is close to the check's limit on locals
     ini_data.hs_slab = { homestead_snap = "foundation", script_binding = "bind_hf_base.bind" }
     local o = make_obj(900, "hs_slab", 5, 0, 5, 0.3)
     bind_hf_base.freeze_obj(900)
@@ -399,10 +399,10 @@ do
     -- 16 frames of 100 would be put back at 10 Hz; at most 5 count before it leaves (the shove above counts too)
     ok(o.set_pos - puts <= 5, "fighting piece leaves the fast pass after 5 put-backs (" .. (o.set_pos - puts) .. ")")
     errors = errors - 1       -- that report is expected
-end
+end)()
 
 -- square foundations: door mode on top of a static collider
-do
+(function()   -- in a function: the main chunk is close to the check's limit on locals
     ini_data.hs_square = { homestead_snap = "foundation", script_binding = "bind_hf_base.bind",
         homestead_collider = "hs_collider_foundation", homestead_collider_y = -0.3 }
     local o = make_obj(910, "hs_square", 7, 2, 9, 1.2)
@@ -473,7 +473,7 @@ do
     local tri = make_obj(911, "hs_tri", 1, 0, 1)
     bind_hf_base.freeze_obj(911)
     ok(tri.door == 0 and not (se_vars[911] and se_vars[911].hs_collider), "triangle stays solid, no collider")
-end
+end)()
 
 ok(errors == 0, "no lock errors after the death burst (" .. errors .. ")")
 
