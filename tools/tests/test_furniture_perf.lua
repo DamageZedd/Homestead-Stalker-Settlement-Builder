@@ -237,7 +237,9 @@ wrappers[201].is_frozen = false
 local heal_reads, last_check, max_gap = 0, {}, 0
 local real_load = se_load_var
 function se_load_var(id, n, name)
-    if name == "hs_spot" then
+    local d = objects[id] and ini_data[objects[id]._sec]
+    local solid_piece = d and (d.homestead_snap == "foundation" or d.homestead_snap == "floor")   -- checked by its own 100 ms pass
+    if name == "hs_spot" and not solid_piece then
         heal_reads = heal_reads + 1
         if last_check[id] then max_gap = math.max(max_gap, now - last_check[id]) end
         last_check[id] = now
@@ -267,7 +269,14 @@ ok(max_gap > 0 and max_gap <= old_cycle, "every piece re-checked at least as oft
     .. " ms, old " .. old_cycle .. " ms)")
 local checked = 0
 for _ in pairs(last_check) do checked = checked + 1 end
-ok(checked == online_count, "every locked piece checked (" .. checked .. ")")
+local solid_count = 0       -- solid pieces have their own 100 ms pass, not counted here
+for id = 1, 399 do
+    local d = objects[id] and ini_data[objects[id]._sec]
+    if d and (d.homestead_snap == "foundation" or d.homestead_snap == "floor") and last_check[id] == nil and wrappers[id].is_frozen then
+        solid_count = solid_count + 1
+    end
+end
+ok(checked + solid_count == online_count, "every locked piece checked (" .. checked .. " + " .. solid_count .. " solid)")
 ok(objects[350].pos.y == 0 and objects[350].set_pos == 1, "drifted piece put back by the heal pass")
 
 -- after a pause (a load, a long frame) both are overdue: that frame only sweeps, the next one heals
@@ -312,6 +321,27 @@ do
     for t = now + 16, now + 10000, 16 do now = t; tick() end
     ok(heal_reads - reads <= 220, "normal heal rate after the burst (" .. (heal_reads - reads) .. " in 10 s)")
 end
+-- a solid piece (foundation / floor) shoved off its spot is put back within 150 ms and stopped
+do
+    ini_data.hs_slab = { homestead_snap = "foundation", script_binding = "bind_hf_base.bind" }
+    local o = make_obj(900, "hs_slab", 5, 0, 5, 0.3)
+    local vel_zeroed = 0
+    local shell = { freeze = function() end, set_linear_vel = function() vel_zeroed = vel_zeroed + 1 end }
+    function o:get_physics_shell() return shell end
+    bind_hf_base.freeze_obj(900)
+    ok(o.door == 0, "solid piece stays out of door mode")
+    now = now + 1000; tick()
+    o.pos.y = 0.04                       -- shoved up
+    local back
+    local t1 = now
+    for t = t1 + 16, t1 + 400, 16 do
+        now = t; tick()
+        if o.pos.y == 0 then back = t - t1; break end
+    end
+    ok(back and back <= 150, "solid piece put back within 150 ms (" .. tostring(back) .. " ms)")
+    ok(vel_zeroed >= 1, "put-back stops the piece's motion")
+end
+
 ok(errors == 0, "no lock errors after the death burst (" .. errors .. ")")
 
 print(fails == 0 and ("all furniture perf tests passed (" .. checks .. " checks)") or (fails .. " FAILED"))
