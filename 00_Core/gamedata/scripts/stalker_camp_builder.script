@@ -3927,6 +3927,9 @@ end
 function save_state(m_data)
     -- one pcall per field: a failing field is logged and left out, not the fields after it
     local failed = {}
+    -- m_data is the table the last load decoded: a marker an earlier save left in it goes, and this
+    -- save writes its own if a field fails
+    m_data.stalker_camp_builder_save_failed = nil
     local function put(key, fn)
         local ok, err = pcall(function() m_data[key] = fn() end)
         if not ok then
@@ -3979,7 +3982,11 @@ function load_state(m_data)
     -- fields save_state could not write: the save has no value for them, so what is loaded stays
     local save_failed = {}
     if type_(m_data.stalker_camp_builder_save_failed) == "table" then
-        for _, key in pairs_(m_data.stalker_camp_builder_save_failed) do save_failed[key] = true end
+        -- a field that failed still holds the copy m_data had from the save before, and the Lua state
+        -- starts fresh at every load: only a field with no copy at all is left out
+        for _, key in pairs_(m_data.stalker_camp_builder_save_failed) do
+            if m_data[key] == nil then save_failed[key] = true end
+        end
         homestead_guard_log("guard", "load_state:save_failed", "this save was written without some fields, kept as loaded")
     end
 
