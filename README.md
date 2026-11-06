@@ -7,7 +7,7 @@
 
 *Build camps. Recruit survivors. Automate production. Hold the line.*
 
-![Version](https://img.shields.io/badge/version-v1.4.0-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-v1.4.1-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
 
 **[GAMMA Discord Thread](https://discord.com/channels/912320241713958912/1515669053606334504/1542893750408315030)** · **[Full Changelog](CHANGELOG.md)** · **[ModDB](https://www.moddb.com/mods/stalker-anomaly/addons/homestead-stalker-settlement-builder)** · **[Latest Release](https://github.com/DamageZedd/Homestead-Stalker-Settlement-Builder/releases/latest)**
 
@@ -22,15 +22,21 @@ Plant a Settlement Flag to establish a 50-meter settlement boundary. Construct b
 
 ---
 
-## 🆕 New in v1.4.0
-
-### ⚔️ Raiders
-A new Raider job. Send raiders against the nearest rival outpost from the Job page, or pick a target and press **Send raiders** on the PDA Outposts tab (a preview shows the band, the odds and the goodwill cost first). A win clears the outpost and brings loot, a cash bounty and a savings cut; it costs goodwill with the robbed faction and its allies. A failed raid leaves the raiders wounded, and a raid can be recalled early. Tuning is in MCM (Raids and events).
+## 🆕 New in v1.4.1
 
 ### ⚗️ Chemist & Chemist Station
 A new **Chemist** job and placeable **Chemist Station** built from vanilla Anomaly assets and textures. The Chemist synthesizes smokeless gunpowder (`powder_1` / `powder_2`) and refined kerosene / liquid generator fuel from Woodcutter charcoal and Brewer vodka/ethanol, closing the multi-stage production chain from raw timber and grain to ammunition and power. The station includes 300 kg of settlement storage for chemicals, crafting materials and medical supplies.
 
 <p align="center"><img src="docs/images/hero_chemist_station.jpg?v=1" alt="Chemist Station" width="80%"></p>
+
+### 🔄 Closed-Loop Production Chains & 15-Settler Cap
+Every workshop feeds the next in a self-sustaining settlement economy: Woodcutters and Farmers supply Brewers and Water Purifiers; Scrappers draw copper wire from surplus metal and cure Hunter pelts or ruined outfits into cloth; Medics bio-synthesize Hunter trophies into military medkits and stimpacks; Cooks burn renewable charcoal first and pack canned rations from surplus potatoes; and the default settlement population cap is raised to **15** (MCM range `0–30`) so one camp can staff all 15 active jobs simultaneously.
+
+### 🛠️ Base-Building Colliders & Snapping
+Placed foundations, floors, walls, doorways and support posts now rest in door mode over unbreakable static colliders (`hs_collider_*`), preventing physics bumps or ragdolls from waking or shifting structures while blocking NPCs, mutants and items, with zero physics strike damage on the player or settlers. Furniture, workstations and stairs now snap onto triangular floors and foundations, and support posts stack and hold upper floors and roofs.
+
+### ⚔️ Raiders
+A new Raider job. Send raiders against the nearest rival outpost from the Job page, or pick a target and press **Send raiders** on the PDA Outposts tab (a preview shows the band, the odds and the goodwill cost first). A win clears the outpost and brings loot, a cash bounty and a savings cut; it costs goodwill with the robbed faction and its allies. A failed raid leaves the raiders wounded, and a raid can be recalled early. Tuning is in MCM (Raids and events).
 
 ### 🍞 Living Needs (on by default)
 Settlers need food and water (switch it off in MCM, Needs): a camp is Fed, Short or Starving; settlers who went without lose morale, refuse demanding jobs until fed, a starving camp's guards defend worse, and low morale can drive settlers away (each consequence has its own switch). Eating from several food classes gives a bonus, and a water pump supplies water.
