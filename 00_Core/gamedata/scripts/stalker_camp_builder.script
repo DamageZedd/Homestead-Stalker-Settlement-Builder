@@ -441,7 +441,7 @@ local JOB_DISPATCH = {
                     anims = {"press", "ward", "wait_na"} },
     trader      = { try = {"market_stall", "display_counter", "stash", "barricade"},
                     anims = {"wait_trade", "press", "wait_na"} },
-    chemist     = { try = {"distiller", "medstation", "ammo_bench", "stove", "workbench"},
+    chemist     = { try = {"chemist_station", "distiller", "medstation", "ammo_bench", "stove", "workbench"},
                     anims = {"probe_stand", "roast_kolbasa_bred", "wait_na"} },
 }
 
@@ -1472,6 +1472,7 @@ local structure_type_exact = {
     placeable_field_infirmary     = "medstation",
     placeable_guard_post          = "guard_post",
     placeable_salvage_table       = "salvage_table",
+    placeable_chemist_station     = "chemist_station",
     placeable_ammo_bench        = "ammo_bench",
     placeable_wood_station      = "wood_station",
     placeable_generator_station = "generator_station",

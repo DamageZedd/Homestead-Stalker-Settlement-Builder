@@ -460,7 +460,7 @@ function stalker_camp_builder.get_settler_job_target(npc_id, hub_id)
         farmer = {"farmer_station", "workbench", "barricade", "stove", "box"},
         trader = {"market_stall", "display_counter", "barricade", "box"},
         brewer ={"distiller", "stove", "bidon", "workbench", "medstation", "box"},
-        chemist = {"distiller", "medstation", "ammo_bench", "stove", "workbench", "box"},
+        chemist = {"chemist_station", "distiller", "medstation", "ammo_bench", "stove", "workbench", "box"},
         scrapper = {"repair_bench", "workbench", "box", "stash"},
         scavenge = {"salvage_table", "stash", "box", "fridge", "workbench"},
         scavenger = {"salvage_table", "stash", "box", "fridge", "workbench"},
