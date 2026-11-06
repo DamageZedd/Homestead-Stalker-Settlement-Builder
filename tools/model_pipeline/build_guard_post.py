@@ -323,8 +323,12 @@ for gi in (-0.07, -0.035, 0.0, 0.035, 0.07):
 # Duty pencil resting in center fold
 tube("duty_pencil", [LOG_M @ Vector((0, -0.08, 0.008)), LOG_M @ Vector((0, 0.08, 0.008))], 0.0035, key="red")
 
-# Field binoculars sitting cleanly on the tabletop in clear view
-accent(r"dynamics\devices\dev_binoculars\dev_binoculars", T(DCX - 0.18, DY0 + 0.09, TT_Z, 0, 0, 20), ratio=0.40)
+# Field binoculars sitting cleanly on the tabletop in clear view (uses mtl\mtl_rust_dark so Gunslinger Binoculars UV swap does not show through)
+_bino_objs = accent(r"dynamics\devices\dev_binoculars\dev_binoculars", T(DCX - 0.18, DY0 + 0.09, TT_Z, 0, 0, 20), ratio=0.40)
+for _bo in _bino_objs:
+    if _bo.type == 'MESH':
+        _bo.data.materials.clear()
+        _bo.data.materials.append(MATS["metal"])
 
 # Enamel tin tea mug for sentry
 MUG_X, MUG_Y = DX0 + 0.14, DY0 + 0.24

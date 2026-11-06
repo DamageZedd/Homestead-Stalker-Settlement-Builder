@@ -547,6 +547,7 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
         },
         turret_9mm_rounds = 0,
         has_damaged_gear = false,
+        has_passive_repair_gear = false,
         has_repair_fee = false,
         med_counts = {
             akvatab = 0,
@@ -684,18 +685,28 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
                     snapshot.has_repair_fee = true
                 end
             end
-            if not snapshot.has_damaged_gear then
+            if not snapshot.has_damaged_gear or not snapshot.has_passive_repair_gear then
                 local in_bench = wb_only[cid] and cl_item
                 if in_bench and (s:find("wpn_") or s:find("helm_") or s:find("armor_") or s:find("outfit")) then
                     local c_val = cond or 1.0
+                    local is_wpn = s:find("wpn_") ~= nil
+                    if not is_wpn and cl_item then
+                        pcall(function() is_wpn = IsWeapon(cl_item) end)
+                    end
                     -- G.A.M.M.A. pins a gun's condition (gun_condition_pinned, jobs): only its parts count
                     if sb.gun_condition_pinned and sb.gun_condition_pinned(cl_item) then c_val = 1.0 end
-                    local worn_parts = false
+                    local worn_parts, worn_passive = false, false
                     if item_id and sb.gun_parts_worn then
-                        pcall(function() worn_parts = sb.gun_parts_worn(item_id, sec) end)
+                        pcall(function()
+                            worn_parts = sb.gun_parts_worn(item_id, sec)
+                            if is_wpn then worn_passive = sb.gun_parts_worn(item_id, sec, 80) end
+                        end)
                     end
                     if c_val < 0.95 or worn_parts then
                         snapshot.has_damaged_gear = true
+                    end
+                    if is_wpn and (c_val < 0.80 or worn_passive) then
+                        snapshot.has_passive_repair_gear = true
                     end
                 end
             end

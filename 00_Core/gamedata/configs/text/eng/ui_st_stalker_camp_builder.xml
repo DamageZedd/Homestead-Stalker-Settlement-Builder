@@ -3275,6 +3275,9 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_homestead_raider_cannot_resting">
         <text>That raider is still resting.</text>
     </string>
+    <string id="st_homestead_raider_cannot_hungry">
+        <text>That raider is too hungry to go on a raid.</text>
+    </string>
     <string id="st_homestead_raider_cannot_none">
         <text>No raider available.</text>
     </string>
@@ -3556,6 +3559,9 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     </string>
     <string id="st_pda_raid_blk_no_ammo">
         <text>%s - has no ammo</text>
+    </string>
+    <string id="st_pda_raid_blk_hungry">
+        <text>%s - too hungry to work</text>
     </string>
     <string id="st_pda_raid_blk_more">
         <text>+%d more raiders not ready</text>

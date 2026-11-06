@@ -389,7 +389,7 @@ function RivalListItem:__init(smart, name, badge_text, location_text, is_hostile
             role, kind = "dim", "neutral"
         end
         self.state_bar = xml:InitStatic("rival_row_bar", self)
-        if self.state_bar then hs_theme.banner(self.state_bar, kind) end
+        if self.state_bar then hs_theme.banner(self.state_bar, kind, true) end
         self.pill_wnd = xml:InitTextWnd("rival_row_pill", self)
         if self.pill_wnd then
             self.pill_wnd:SetText(pill_text or "")
@@ -690,6 +690,12 @@ function SettlementManagerPDA:InitControls()
     self:AddCallback("btn_filter_work", ui_events.BUTTON_CLICKED, self.OnFilterWorkClicked, self)
     self:AddCallback("btn_filter_idle", ui_events.BUTTON_CLICKED, self.OnFilterIdleClicked, self)
 
+    self.sv_col_bg = xml:InitStatic("survivors_panel:sv_col_bg", self.survivors_panel)
+    self.sv_col_name = xml:InitTextWnd("survivors_panel:sv_col_name", self.survivors_panel)
+    self.sv_col_job = xml:InitTextWnd("survivors_panel:sv_col_job", self.survivors_panel)
+    self.sv_col_rank = xml:InitTextWnd("survivors_panel:sv_col_rank", self.survivors_panel)
+    self.sv_col_needs = xml:InitTextWnd("survivors_panel:sv_col_needs", self.survivors_panel)
+
     self.survivor_list = xml:InitListBox("survivors_panel:survivor_list", self.survivors_panel)
     self:Register(self.survivor_list, "survivor_list")
     self:AddCallback("survivor_list", ui_events.LIST_ITEM_CLICKED, self.OnSurvivorSelected, self)
@@ -1572,7 +1578,7 @@ function SettlementManagerPDA:OnRivalSelected()
 
     local hero_kind = "secure"
     if rcamp.status == "unoccupied" then hero_kind = "neutral" elseif is_hostile then hero_kind = "threat" end
-    if self.rival_hero_bar then hs_theme.banner(self.rival_hero_bar, hero_kind) end
+    if self.rival_hero_bar then hs_theme.banner(self.rival_hero_bar, hero_kind, true) end
     if rcamp.status == "unoccupied" then
         if self.rival_banner_bg then hs_theme.banner(self.rival_banner_bg, "neutral") end
         if self.rival_banner_lbl then
@@ -1618,6 +1624,11 @@ function SettlementManagerPDA:OnRivalSelected()
         if self.rival_raid_info then self.rival_raid_info:SetWndPos(vector2():set(10, btn_y + 66)) end
         if self.rival_content then
             self.rival_content:SetWndSize(vector2():set(350, btn_y + 170))
+            if self.rival_scroll then
+                self.rival_content:SetAutoDelete(false)
+                self.rival_scroll:RemoveWindow(self.rival_content)
+                self.rival_scroll:AddWindow(self.rival_content, true)
+            end
         end
     end
     self:RefreshRaidPanel()

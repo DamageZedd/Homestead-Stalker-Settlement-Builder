@@ -1085,15 +1085,36 @@ end
 
 local mcm_value_cache = {}
 local MCM_CACHE_TTL_MS = 5000
+local trader_price_migrated = false
 
 function stalker_camp_builder.invalidate_mcm_cache()
     mcm_value_cache = {}
 end
 local invalidate_mcm_cache = stalker_camp_builder.invalidate_mcm_cache
 
+local function migrate_trader_price_once()
+    if trader_price_migrated then return end
+    trader_price_migrated = true
+    if not (ui_mcm and ui_mcm.get and ui_mcm.set and axr_main and axr_main.config) then return end
+    local flag_key = "stalker_camp_builder/jobs/trader_price_v140"
+    local path = "stalker_camp_builder/jobs/trader_price_percent"
+    local ok, done = pcall(function() return axr_main.config:r_value("mcm", flag_key, 1, false) end)
+    if ok and done then return end
+    pcall(function()
+        if ui_mcm.get(path) == 60 then
+            ui_mcm.set(path, defaults.trader_price_percent or 25)
+        end
+        axr_main.config:w_value("mcm", flag_key, true)
+        axr_main.config:save()
+    end)
+end
+
 local function get_mcm_setting(opt_name)
     if not (ui_mcm and ui_mcm.get) then return nil end
     ensure_mcm_paths()
+    if opt_name == "trader_price_percent" then
+        migrate_trader_price_once()
+    end
     local path = mcm_option_path[opt_name]
     if not path then return nil end
     if opt_name ~= "respawn_rival_camps" and opt_name ~= "uninstall_purge_rival_furniture" and opt_name ~= "purge_rival_furniture" then
@@ -5485,6 +5506,9 @@ function process_camp_morale()
                             -- exists, purge the settler state and give them a sim squad
                             if sb.recall_scavenger_expedition_by_npc then
                                 sb.recall_scavenger_expedition_by_npc(id_num)
+                            end
+                            if sb.raiders_cancel_for then
+                                sb.raiders_cancel_for(hub_id, id_num)
                             end
                             set_camp_settler_relations(hub_id, npc_id, false)
                             camp.survivors[npc_id] = nil

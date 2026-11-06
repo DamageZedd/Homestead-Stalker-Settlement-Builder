@@ -26,7 +26,15 @@ OGF_HEADER, OGF_TEXTURE, OGF_VERTICES, OGF_INDICES, OGF_CHILDREN = 1, 2, 3, 4, 9
 OGF_BONE_NAMES, OGF_IKDATA, OGF_USERDATA = 13, 16, 17
 USERDATA = b"[collide]\r\nignore_ragdoll = true\r\n\0"
 SOLID = ["hs_foundation", "hs_floor", "hs_foundation_triangle", "hs_floor_triangle", "hs_stairs_spiral_end"]
-COLLIDERS = {"hs_collider_foundation": "hs_foundation", "hs_collider_floor": "hs_floor"}
+# Square pieces: name -> (source .ogf, explicit collider centre, explicit collider half sizes).
+# hs_foundation's own dynamic bone shape is restricted to the 0.40 m deck above ground (y = 0.005..0.395, matching
+# hs_foundation_triangle) so its dynamic ODE body never overlaps terrain below y = 0, while hs_collider_foundation
+# (the static breakable_object collider with no physics body) covers the full -0.995..0.395 height including the skirt.
+COLLIDERS = {
+    "hs_collider_foundation": ("hs_foundation", (0.0, -0.3, 0.0), (2.349, 0.695, 2.349)),
+    "hs_collider_floor": ("hs_floor", None, None),
+}
+FOUNDATION_DECK_SHAPE = ((0.0, 0.20, 0.0), (2.349, 2.349, 0.195))
 # triangle pieces: legs along +x and +z of the model from the right-angle corner at (-LEG, -LEG), hypotenuse x + z = 0
 # name -> (section of the placed piece, lowest y, highest y of its boxes: the square colliders' heights)
 TRIANGLES = {"hs_collider_floor_tri": ("placeable_hs_floor_triangle", 0.005, 0.095),
@@ -128,12 +136,14 @@ def triangle_strips(y0, y1, n=TRI_STRIPS):
     return out
 
 
-def make_collider(source=None, half=None):
+def make_collider(source=None, half=None, centre_override=None):
     """The collider model of a square piece (box read from `source`), or of a box of these half sizes."""
     chunks = read_chunks((DIR / ((source or "hs_floor") + ".ogf")).read_bytes())
     ik = get(chunks, OGF_IKDATA)
     o, centre, source_half = bone_shape(ik)
     half = half or source_half
+    if centre_override is not None:
+        centre = centre_override
 
     # the triangle is copied from the foundation's first child, which has the plain 1-link vertex format
     template = read_chunks((DIR / "hs_foundation.ogf").read_bytes())
@@ -165,8 +175,8 @@ def make_collider(source=None, half=None):
 
 
 def main():
-    for name, source in COLLIDERS.items():
-        data, centre = make_collider(source)
+    for name, (source, col_centre, col_half) in COLLIDERS.items():
+        data, centre = make_collider(source, half=col_half, centre_override=col_centre)
         (DIR / (name + ".ogf")).write_bytes(data)
         print(f"{name}: {len(data)} bytes, homestead_collider_y = {centre[1]:.6f}")
     for name, (section, y0, y1) in TRIANGLES.items():
@@ -189,6 +199,17 @@ def main():
     for name in SOLID:
         path = DIR / (name + ".ogf")
         chunks = [c for c in read_chunks(path.read_bytes()) if c[0] != OGF_USERDATA]
+        if name == "hs_foundation":
+            new_chunks = []
+            for cid, d in chunks:
+                if cid == OGF_IKDATA:
+                    o, _, _ = bone_shape(d)
+                    ik_b = bytearray(d)
+                    trn, hsz = FOUNDATION_DECK_SHAPE
+                    struct.pack_into("<3f3f", ik_b, o + 4 + 36, *trn, *hsz)
+                    d = bytes(ik_b)
+                new_chunks.append((cid, d))
+            chunks = new_chunks
         chunks.append((OGF_USERDATA, USERDATA))
         path.write_bytes(write_chunks(chunks))
         print(f"{name}: ignore_ragdoll")

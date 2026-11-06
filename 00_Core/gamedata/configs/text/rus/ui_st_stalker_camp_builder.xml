@@ -302,52 +302,52 @@
         <text>Мораль</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_settler_move_on_enabled">
-        <text>Master Settlers May Move On</text>
+        <text>Мастера-поселенцы могут уйти в Зону</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_settler_move_on_enabled_desc">
-        <text>A Master settler with savings and a purchased weapon may leave to rejoin their faction as a veteran. The slot frees up and the faction thinks better of you.</text>
+        <text>Поселенец ранга «Мастер» с накоплениями и купленным оружием может покинуть лагерь и вернуться в свою группировку ветераном. Место в лагере освобождается, а отношение группировки к вам улучшается.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_settler_move_on_chance">
-        <text>Chance to Move On (%)</text>
+        <text>Шанс ухода мастера (%)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_settler_move_on_chance_desc">
-        <text>Percent chance, at each equipment check, that a settler who qualifies moves on.</text>
+        <text>Процентный шанс при каждой проверке снаряжения, что подходящий мастер решит вернуться в группировку.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_settler_move_on_savings">
-        <text>Savings to Move On (RU)</text>
+        <text>Накопления для ухода (RU)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_settler_move_on_savings_desc">
-        <text>Savings a settler needs before they may move on.</text>
+        <text>Сумма личных сбережений, необходимая поселенцу перед уходом.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_settler_move_on_goodwill">
-        <text>Faction Goodwill Gained</text>
+        <text>Прирост репутации у группировки</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_settler_move_on_goodwill_desc">
-        <text>Goodwill the settler's faction gains with you when a settler moves on.</text>
+        <text>Сколько очков благосклонности получает группировка поселенца, когда он возвращается к своим.</text>
     </string>
     <string id="st_homestead_settler_moved_on">
-        <text>%s has moved on to rejoin the %s as a veteran. They will speak well of you.</text>
+        <text>%s покинул поселение и вернулся в группировку «%s» закаленным ветераном. О вас замолвят доброе слово.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raid_rep_enabled">
-        <text>Faction Reputation for Lost Settlers</text>
+        <text>Влияние потерь при налетах на репутацию</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raid_rep_enabled_desc">
-        <text>Settlers killed by a raiding faction cost you goodwill with that faction's enemies, who hear you could not hold your ground. Never with the raiders themselves or your own faction.</text>
+        <text>Поселенцы, погибшие от рук налетчиков, снижают вашу репутацию у врагов этой группировки, узнавших о вашей слабой обороне. Не влияет на самих налетчиков и вашу группировку.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raid_rep_per_settler">
-        <text>Goodwill Lost per Settler</text>
+        <text>Потеря репутации за погибшего</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raid_rep_per_settler_desc">
-        <text>Goodwill lost with each of the raiders' enemies for every settler the raiders kill. Half of it if you beat the raid.</text>
+        <text>Потеря репутации у каждого врага группировки налетчиков за каждого убитого поселенца (вдвое меньше, если налет отбит).</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raid_rep_cap">
-        <text>Goodwill Lost Cap per Raid</text>
+        <text>Лимит потери репутации за налет</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raid_rep_cap_desc">
-        <text>The most goodwill one raid can cost you with any one faction.</text>
+        <text>Максимальная потеря благосклонности у одной группировки за один налет.</text>
     </string>
     <string id="st_homestead_raid_rep_loss">
-        <text>%d settlers fell to the %s raiders. Their enemies (%s) think less of you.</text>
+        <text>Поселенцев погибло от рук налетчиков (%s): %d. Их враги (%s) стали хуже к вам относиться.</text>
     </string>
     <string id="st_raid_summary">
         <text>Рейд на %s отбит! Убито рейдеров: %d, потеряно охранников: %d.</text>
@@ -1121,10 +1121,10 @@
         <text>Процент морали/счастья, добавляемый к удовлетворенности лагеря за каждый размещенный элемент декора. По умолчанию: 0.5%.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_building_colliders">
-        <text>Building Colliders</text>
+        <text>Коллайдеры построек</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_building_colliders_desc">
-        <text>Invisible solid boxes in placed building pieces, so that mutants and NPCs cannot walk through them. Turning it OFF removes all colliders. Default: ON.</text>
+        <text>Невидимые твердые боксы внутри установленных строительных элементов, не позволяющие мутантам и НПС проходить сквозь стены и полы. Отключение удаляет все коллайдеры. По умолчанию: ВКЛ.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_debug_logging">
         <text>Отладка и логирование</text>
@@ -2829,76 +2829,76 @@
         <text>Мебель для убежища</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_enabled">
-        <text>Living Needs (Food and Water)</text>
+        <text>Жизненные потребности (еда и вода)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_enabled_desc">
-        <text>Settlers eat and drink each day. A camp that cannot feed them loses morale, and a varied diet earns a little back. Off keeps the plain one-ration-a-day rule.</text>
+        <text>Поселенцы едят и пьют каждый день. Лагерь без провизии теряет боевой дух, а разнообразный рацион немного его повышает. Если выключено, действует простое правило «один паек в день».</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_consumption_mult">
-        <text>Consumption Multiplier</text>
+        <text>Множитель потребления</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_consumption_mult_desc">
-        <text>Scales how much the settlers eat and drink per day. Only used while Living Needs is on.</text>
+        <text>Масштабирует суточное потребление еды и воды поселенцами (при включенных жизненных потребностях).</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_grace_days">
-        <text>Grace Period (Days)</text>
+        <text>Льготный период (дней)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_grace_days_desc">
-        <text>Game days after the first round without any morale penalty, so an existing camp is not caught out when Living Needs is switched on.</text>
+        <text>Игровые дни после первого цикла без штрафов к морали, чтобы существующий лагерь успел подготовить запасы.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_catchup_cap">
-        <text>Catch-up Rounds After Sleeping</text>
+        <text>Лимит циклов после сна</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_catchup_cap_desc">
-        <text>Most daily rounds a long sleep or wait may cost the stores. 1 means a long sleep costs one day's rations.</text>
+        <text>Максимум суточных циклов питания, списываемых со склада после долгого сна или ожидания. 1 означает расход не более чем за одни сутки.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_variety_bonus">
-        <text>Varied Diet Bonus</text>
+        <text>Бонус за разнообразный рацион</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_variety_bonus_desc">
-        <text>Eating three kinds of food (staples, protein, treats) within three days adds a little morale.</text>
+        <text>Употребление трех видов пищи (основная еда, белок, лакомства/водка) за три дня дает небольшой бонус к морали.</text>
     </string>
     <string id="st_homestead_needs_short">
-        <text>%s: %d settler(s) went without food or water. Morale is dropping.</text>
+        <text>%s: %d посел. остались без еды или воды. Боевой дух падает.</text>
     </string>
     <string id="st_homestead_needs_starving">
-        <text>%s: %d settler(s) are starving. Morale is collapsing and they may leave.</text>
+        <text>%s: %d посел. голодают! Боевой дух рушится, люди могут уйти.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_job_refusal">
-        <text>Hungry Settlers Refuse Work</text>
+        <text>Голодные поселенцы отказываются работать</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_job_refusal_desc">
-        <text>A settler who went without food or water will not work until fed. Farmers, hunters, cooks and scavengers keep working.</text>
+        <text>Поселенец, оставшийся без еды или воды, не будет работать, пока не поест. Фермеры, охотники, повара и добытчики продолжают работу.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_guard_penalty">
-        <text>Starving Guards Weaken Defense</text>
+        <text>Голодная охрана ослабляет защиту</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_guard_penalty_desc">
-        <text>While a camp is starving its guards count for less in the camp's defense, which raises the raid chance.</text>
+        <text>В голодающем лагере охранники дают меньше очков защиты, что повышает риск налетов.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_desertion">
-        <text>Shortages Can Drive Settlers Away</text>
+        <text>Нехватка провизии вызывает дезертирство</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_desertion_desc">
-        <text>Off: low morale caused by a food or water shortage does not make settlers leave. Low morale from other causes still can.</text>
+        <text>Выкл: падение морали из-за нехватки еды или воды не заставляет поселенцев покидать лагерь.</text>
     </string>
     <string id="st_homestead_needs_leaving">
-        <text>%s: morale is low after the shortages. Settlers may start to leave.</text>
+        <text>%s: боевой дух упал из-за нехватки припасов. Поселенцы могут начать уходить.</text>
     </string>
     <string id="st_homestead_needs_line">
-        <text>Needs: %s, Variety %d/3</text>
+        <text>Снабжение: %s, Рацион %d/3</text>
     </string>
     <string id="st_homestead_needs_tier_0">
-        <text>Fed</text>
+        <text>Сыты</text>
     </string>
     <string id="st_homestead_needs_tier_1">
-        <text>Thin</text>
+        <text>Скудно</text>
     </string>
     <string id="st_homestead_needs_tier_2">
-        <text>Short</text>
+        <text>Нехватка</text>
     </string>
     <string id="st_homestead_needs_tier_3">
-        <text>Starving</text>
+        <text>Голод</text>
     </string>
     <string id="st_pda_ov_settlers">
         <text>Жители</text>
@@ -3150,433 +3150,439 @@
         <text>Другой уровень</text>
     </string>
     <string id="st_job_raider_btn">
-        <text>Raider</text>
+        <text>Рейдер</text>
     </string>
     <string id="st_pda_settlement_job_raider">
-        <text>Raider</text>
+        <text>Рейдер</text>
     </string>
     <string id="st_homestead_raider_on_mission">
-        <text>On a raid</text>
+        <text>В рейде</text>
     </string>
     <string id="st_homestead_raider_on_mission_left">
-        <text>On a raid, %s left</text>
+        <text>В рейде, осталось %s</text>
     </string>
     <string id="st_homestead_raider_on_mission_d2">
-        <text>Away on a raid. Back in %s.</text>
+        <text>Ушел в рейд. Вернется через %s.</text>
     </string>
     <string id="st_homestead_raider_on_mission_d">
-        <text>Away on a raid. Back when the mission ends.</text>
+        <text>Ушел в рейд. Вернется по завершении вылазки.</text>
     </string>
     <string id="st_homestead_raider_wounded">
-        <text>Wounded</text>
+        <text>Ранен</text>
     </string>
     <string id="st_homestead_raider_wounded_d">
-        <text>Recovering from a failed raid.</text>
+        <text>Восстанавливается после неудачного рейда.</text>
     </string>
     <string id="st_homestead_raider_cannot_wounded">
-        <text>That raider is wounded and cannot go.</text>
+        <text>Этот рейдер ранен и не может идти в вылазку.</text>
     </string>
     <string id="st_homestead_raider_cannot_busy">
-        <text>That raider is busy.</text>
+        <text>Этот рейдер сейчас занят.</text>
     </string>
     <string id="st_homestead_raider_cannot_no_weapon">
-        <text>That raider has no weapon.</text>
+        <text>У этого рейдера нет оружия.</text>
     </string>
     <string id="st_homestead_raider_cannot_no_ammo">
-        <text>That raider has no ammo.</text>
+        <text>У этого рейдера нет патронов.</text>
     </string>
     <string id="st_homestead_raider_cannot_resting">
-        <text>That raider is still resting.</text>
+        <text>Этот рейдер еще отдыхает после вылазки.</text>
+    </string>
+    <string id="st_homestead_raider_cannot_hungry">
+        <text>Этот рейдер слишком голоден для вылазки.</text>
     </string>
     <string id="st_homestead_raider_cannot_none">
-        <text>No raider available.</text>
+        <text>Нет доступных рейдеров.</text>
     </string>
     <string id="st_homestead_raider_cannot_no_guard">
-        <text>A guard has to stay at the settlement.</text>
+        <text>В поселении должен остаться хотя бы один охранник.</text>
     </string>
     <string id="st_homestead_raider_cannot_daily">
-        <text>The settlement already sent its raids for today.</text>
+        <text>Поселение уже исчерпало дневной лимит рейдов.</text>
     </string>
     <string id="st_homestead_raider_no_target">
-        <text>No outpost to raid right now.</text>
+        <text>Сейчас нет подходящих аванпостов для налета.</text>
     </string>
     <string id="st_homestead_raider_sent">
-        <text>%d raiders set out against a %s outpost. Odds of success: %d%%.</text>
+        <text>Отряд из %d рейдеров выдвинулся на аванпост (%s). Шанс успеха: %d%%.</text>
     </string>
     <string id="st_homestead_raider_target_gone">
-        <text>The raiders found the outpost already gone and came home.</text>
+        <text>Рейдеры обнаружили, что аванпост уже пуст, и вернулись домой.</text>
     </string>
     <string id="st_homestead_raider_success">
-        <text>The raiders cleared the %s outpost. %d items to storage, %d RU bounty.</text>
+        <text>Рейдеры зачистили аванпост (%s). На склад: %d предм., премия: %d RU.</text>
     </string>
     <string id="st_homestead_raider_goodwill">
-        <text>Goodwill dropped with: %s.</text>
+        <text>Репутация упала у: %s.</text>
     </string>
     <string id="st_homestead_raider_repulsed">
-        <text>The raid on the %s outpost was repulsed. The raiders are back, wounded.</text>
+        <text>Налет на аванпост (%s) отбит. Рейдеры вернулись с ранениями.</text>
     </string>
     <string id="st_homestead_raider_disaster">
-        <text>Disaster at the %s outpost. %d raiders did not come back.</text>
+        <text>Разгром у аванпоста (%s). Не вернулись: %d рейд.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_min_guards">
-        <text>Guards Kept at Home</text>
+        <text>Минимум охраны в лагере</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_min_guards_desc">
-        <text>Guards that must stay at the settlement for a raid to be sent.</text>
+        <text>Количество охранников, которые обязаны оставаться в поселении для отправки рейда.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_idle_guard_weight">
-        <text>Idle Raider Guard Weight %</text>
+        <text>Вклад свободного рейдера в охрану (%)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_idle_guard_weight_desc">
-        <text>How much of a guard an idle raider at home counts for.</text>
+        <text>Какую долю обычного охранника составляет свободный рейдер, находящийся в лагере.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_wounded_minutes">
-        <text>Raider Wounded Time (real minutes)</text>
+        <text>Время лечения рейдера (реал. мин.)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_wounded_minutes_desc">
-        <text>Real minutes raiders are unavailable after a failed raid, whatever the time factor.</text>
+        <text>Реальные минуты восстановления рейдеров после неудачного налета (независимо от фактора времени).</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_rest_minutes">
-        <text>Raider Cooldown (real minutes)</text>
+        <text>Отдых рейдера после вылазки (реал. мин.)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_rest_minutes_desc">
-        <text>Real minutes raiders rest after any mission before they can be sent again, whatever the time factor.</text>
+        <text>Реальные минуты отдыха после любого рейда перед следующей отправкой (независимо от фактора времени).</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_disaster_death_chance">
-        <text>Disaster Death Chance %</text>
+        <text>Шанс гибели при разгроме (%)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_disaster_death_chance_desc">
-        <text>Chance each raider dies when a raid ends in disaster. Ordinary failures never kill.</text>
+        <text>Вероятность гибели каждого рейдера при полном разгроме отряда. Обычная неудача приводит только к ранениям.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_loot_fraction">
-        <text>Loot Share %</text>
+        <text>Доля трофеев из тайника (%)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_loot_fraction_desc">
-        <text>Share of the outpost's stash the raiders bring home.</text>
+        <text>Какую часть содержимого тайника аванпоста рейдеры уносят в лагерь.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_cut_percent">
-        <text>Raiders' Cut %</text>
+        <text>Доля рейдеров от добычи (%)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_cut_percent_desc">
-        <text>Share of the haul value paid to the raiders as savings.</text>
+        <text>Процент стоимости добычи, выплачиваемый рейдерам в их личные сбережения.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_forbid_weapon_armor">
-        <text>Raiders Skip Weapons and Armor</text>
+        <text>Не брать оружие и броню</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_forbid_weapon_armor_desc">
-        <text>Raiders leave weapons and armor behind and take only ammo, meds and food.</text>
+        <text>Рейдеры оставляют оружие и броню, забирая только патроны, медикаменты и провизию.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_goodwill_loot">
-        <text>Goodwill Lost per Robbed Outpost</text>
+        <text>Потеря репутации за разграбленный аванпост</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_goodwill_loot_desc">
-        <text>Goodwill lost with the robbed faction for each cleared outpost.</text>
+        <text>Потеря благосклонности у группировки за каждый зачищенный аванпост.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_goodwill_betrayal">
-        <text>Extra Loss for Friendly Faction</text>
+        <text>Доп. штраф за нападение на друзей</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_goodwill_betrayal_desc">
-        <text>Extra goodwill lost when the robbed faction was friendly to you.</text>
+        <text>Дополнительная потеря благосклонности, если атакованная группировка была дружественной.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_goodwill_daily_cap">
-        <text>Daily Goodwill Loss Cap</text>
+        <text>Суточный лимит потери репутации</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_goodwill_daily_cap_desc">
-        <text>Most goodwill raids can cost you with one faction in a day.</text>
+        <text>Максимальная потеря благосклонности у одной группировки от рейдов за сутки.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_max_per_day">
-        <text>Raids per Day</text>
+        <text>Максимум рейдов в день</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_max_per_day_desc">
-        <text>Most raids one settlement can send per game day.</text>
+        <text>Максимальное число рейдов, которое одно поселение может отправить за игровые сутки.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_auto_recall">
-        <text>Auto-Recall Raiders</text>
+        <text>Автоотзыв рейдеров при атаке</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_auto_recall_desc">
-        <text>When a raid hits the settlement, raiders that are away on a mission come home at once and defend. The mission ends with no loot and no goodwill change.</text>
+        <text>При нападении на поселение все рейдеры в вылазке немедленно возвращаются для защиты лагеря (без добычи и без изменения репутации).</text>
     </string>
     <string id="st_homestead_raider_assault_start">
-        <text>Your %d raiders are attacking the %s outpost.</text>
+        <text>Ваши рейдеры (%d чел.) штурмуют аванпост группировки «%s».</text>
     </string>
     <string id="st_homestead_raider_in_field">
-        <text>Fighting at an outpost</text>
+        <text>Бой у аванпоста</text>
     </string>
     <string id="st_homestead_raider_in_field_d">
-        <text>The band is fighting at the outpost.</text>
+        <text>Отряд ведет бой у вражеского аванпоста.</text>
     </string>
     <string id="st_pda_raid_banner_field">
-        <text>[ RAID IN THE FIELD // FIGHTING AT THE OUTPOST ]</text>
+        <text>[ РЕЙД В ПОЛЕ // ИДЕТ ШТУРМ АВАНПОСТА ]</text>
     </string>
     <string id="st_pda_raid_info_field">
-        <text>%d raiders are fighting at the outpost. Odds of success: %d%%.</text>
+        <text>Рейдеров в бою у аванпоста: %d. Шанс успеха: %d%%.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_bandit_mode">
-        <text>Bandit Mode</text>
+        <text>Бандитский режим</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_raiders_bandit_mode_desc">
-        <text>Smaller goodwill losses, bandit reputation and richer loot for players who rob everyone.</text>
+        <text>Меньше потерь репутации, рост уважения у бандитов и увеличенная добыча для тех, кто грабит всех подряд.</text>
     </string>
     <string id="st_pda_rival_pill_raid">
-        <text>RAID</text>
+        <text>РЕЙД</text>
     </string>
     <string id="st_pda_raid_btn">
-        <text>Send raiders</text>
+        <text>Отправить рейдеров</text>
     </string>
     <string id="st_pda_raid_btn_confirm">
-        <text>Confirm raid</text>
+        <text>Подтвердить рейд</text>
     </string>
     <string id="st_pda_raid_btn_away">
-        <text>Raid underway</text>
+        <text>Рейд выполняется</text>
     </string>
     <string id="st_pda_raid_why_none">
-        <text>Cannot raid</text>
+        <text>Рейд невозможен</text>
     </string>
     <string id="st_pda_raid_why_own">
-        <text>Not a target</text>
+        <text>Свое поселение</text>
     </string>
     <string id="st_pda_raid_why_story">
-        <text>Story camp: off limits</text>
+        <text>Сюжетный лагерь: неприкосновенен</text>
     </string>
     <string id="st_pda_raid_why_nest">
-        <text>Mutant nest: not a target</text>
+        <text>Логово мутантов: не цель для рейда</text>
     </string>
     <string id="st_pda_raid_why_empty">
-        <text>Nothing left to raid</text>
+        <text>Аванпост пуст</text>
     </string>
     <string id="st_pda_raid_why_busy">
-        <text>Raid already underway</text>
+        <text>Рейд уже идет</text>
     </string>
     <string id="st_pda_raid_why_cooldown">
-        <text>Already hit: wait a day</text>
+        <text>Недавно атакован: подождите сутки</text>
     </string>
     <string id="st_pda_raid_why_no_raider">
-        <text>No eligible raiders</text>
+        <text>Нет готовых рейдеров</text>
     </string>
     <string id="st_pda_raid_why_no_guard">
-        <text>No guard stays home</text>
+        <text>В лагере нет охраны</text>
     </string>
     <string id="st_pda_raid_why_daily">
-        <text>Daily raid limit reached</text>
+        <text>Дневной лимит рейдов исчерпан</text>
     </string>
     <string id="st_pda_raid_banner_away">
-        <text>[ RAID IN PROGRESS // BACK IN %s ]</text>
+        <text>[ ИДЕТ РЕЙД // ВОЗВРАЩЕНИЕ ЧЕРЕЗ %s ]</text>
     </string>
     <string id="st_pda_raid_info_away">
-        <text>%d raiders are out. Odds of success: %d%%. Back in about %s.</text>
+        <text>Рейдеров на вылазке: %d. Шанс успеха: %d%%. Вернутся примерно через %s.</text>
     </string>
     <string id="st_pda_raid_preview">
-        <text>Raid the %s outpost?\n%d raiders go. Odds of success: %d%%.\nGoodwill with them: -%d. A failed raid wounds the band; a disaster can kill. Click again to confirm.</text>
+        <text>Атаковать аванпост (%s)?\nПойдет рейдеров: %d. Шанс успеха: %d%%.\nРепутация у них: -%d. При неудаче отряд получит ранения, при разгроме возможны потери. Нажмите еще раз для подтверждения.</text>
     </string>
     <string id="st_pda_raid_preview_friendly">
-        <text>WARNING: this faction is friendly to you. Robbing them costs extra goodwill.</text>
+        <text>ВНИМАНИЕ: эта группировка дружественна к вам. Налет сильнее ударит по репутации.</text>
     </string>
     <string id="st_homestead_raider_recalling">
-        <text>Recalled</text>
+        <text>Отзывается</text>
     </string>
     <string id="st_homestead_raider_recalling_left">
-        <text>Recalled, %s left</text>
+        <text>Отзывается, осталось %s</text>
     </string>
     <string id="st_homestead_raider_recalling_d">
-        <text>Recalled from a raid. Back at camp in %s.</text>
+        <text>Отозван из рейда. Будет в лагере через %s.</text>
     </string>
     <string id="st_homestead_raider_recalling_d0">
-        <text>Recalled from a raid. Back at camp shortly.</text>
+        <text>Отозван из рейда. Скоро вернется в лагерь.</text>
     </string>
     <string id="st_homestead_raider_defending">
-        <text>Defending</text>
+        <text>Обороняет лагерь</text>
     </string>
     <string id="st_homestead_raider_defending_d">
-        <text>Called home to defend the settlement.</text>
+        <text>Отозван домой для защиты поселения.</text>
     </string>
     <string id="st_homestead_raider_cannot_defending">
-        <text>That raider is defending the settlement.</text>
+        <text>Этот рейдер сейчас защищает поселение.</text>
     </string>
     <string id="st_homestead_raider_cannot_raid">
-        <text>The settlement is under attack: no raids now.</text>
+        <text>Поселение под атакой: отправка рейдов невозможна.</text>
     </string>
     <string id="st_homestead_raider_recall_sent">
-        <text>Recalling %d raiders. They reach camp in about %s.</text>
+        <text>Отзываем рейдеров (%d чел.). Вернутся в лагерь примерно через %s.</text>
     </string>
     <string id="st_homestead_raider_recall_sent_raid">
-        <text>Recalling %d raiders to defend the settlement. They reach camp in about %s.</text>
+        <text>Отзываем рейдеров (%d чел.) для защиты лагеря. Прибудут примерно через %s.</text>
     </string>
     <string id="st_homestead_raider_recall_auto">
-        <text>The settlement is under attack. Recalling %d raiders to defend it.</text>
+        <text>Поселение атаковано! Отзываем рейдеров (%d чел.) на защиту лагеря.</text>
     </string>
     <string id="st_homestead_raider_recall_home">
-        <text>%d raiders are back at camp and ready to fight.</text>
+        <text>Рейдеры (%d чел.) вернулись в лагерь и вступили в бой.</text>
     </string>
     <string id="st_homestead_raider_recall_home_calm">
-        <text>%d raiders are back at camp. The raid on the outpost was called off.</text>
+        <text>Рейдеры (%d чел.) вернулись в лагерь. Вылазка отменена.</text>
     </string>
     <string id="st_homestead_raider_stand_down">
-        <text>The attack is over. The raiders stand down.</text>
+        <text>Атака отбита. Рейдеры возвращаются к обычной службе.</text>
     </string>
     <string id="st_pda_raid_btn_recall">
-        <text>Recall raiders</text>
+        <text>Отозвать рейдеров</text>
     </string>
     <string id="st_pda_raid_btn_recall_confirm">
-        <text>Confirm recall</text>
+        <text>Подтвердить отзыв</text>
     </string>
     <string id="st_pda_raid_btn_recalling">
-        <text>Raiders recalled</text>
+        <text>Рейдеры возвращаются</text>
     </string>
     <string id="st_pda_raid_recall_preview">
-        <text>Call the raiders back?\nThe raid ends now: no loot and no goodwill change. The band reaches camp in about %s.\nClick again to confirm.</text>
+        <text>Отозвать рейдеров назад?\nРейд будет прекращен без добычи и без потери репутации. Отряд вернется примерно через %s.\nНажмите еще раз для подтверждения.</text>
     </string>
     <string id="st_pda_raid_recall_preview_raid">
-        <text>Call the raiders back?\nThe raid ends now: no loot and no goodwill change. The band reaches camp in about %s and joins the defense.\nClick again to confirm.</text>
+        <text>Отозвать рейдеров назад?\nРейд будет прекращен без добычи и без потери репутации. Отряд вернется примерно через %s и встанет на защиту лагеря.\nНажмите еще раз для подтверждения.</text>
     </string>
     <string id="st_pda_raid_recall_why_returning">
-        <text>Recall already in progress</text>
+        <text>Отзыв уже выполняется</text>
     </string>
     <string id="st_pda_raid_why_raid">
-        <text>Settlement under attack</text>
+        <text>Поселение под атакой</text>
     </string>
     <string id="st_pda_raid_info_recalling">
-        <text>%d raiders are coming home. Back in about %s.</text>
+        <text>Рейдеры (%d чел.) возвращаются домой. Будут через %s.</text>
     </string>
     <string id="st_homestead_raider_wounded_left">
-        <text>Wounded, %s</text>
+        <text>Ранен, %s</text>
     </string>
     <string id="st_homestead_raider_wounded_d2">
-        <text>Recovering from a failed raid. Fit to be sent again in %s.</text>
+        <text>Восстанавливается после неудачного рейда. Сможет снова идти через %s.</text>
     </string>
     <string id="st_homestead_raider_resting_left">
-        <text>Cooldown, %s</text>
+        <text>Отдых, %s</text>
     </string>
     <string id="st_homestead_raider_resting_d2">
-        <text>Resting after a raid. Can be sent again in %s.</text>
+        <text>Отдыхает после рейда. Сможет снова идти через %s.</text>
     </string>
     <string id="st_homestead_raider_time_left">
-        <text>(%s left)</text>
+        <text>(осталось %s)</text>
     </string>
     <string id="st_pda_raid_blk_wounded">
-        <text>%s - wounded, %s left</text>
+        <text>%s - ранен, осталось %s</text>
     </string>
     <string id="st_pda_raid_blk_resting">
-        <text>%s - cooldown, %s left</text>
+        <text>%s - отдыхает, осталось %s</text>
     </string>
     <string id="st_pda_raid_blk_busy">
-        <text>%s - already on a mission</text>
+        <text>%s - уже на вылазке</text>
     </string>
     <string id="st_pda_raid_blk_defending">
-        <text>%s - defending the camp</text>
+        <text>%s - защищает лагерь</text>
     </string>
     <string id="st_pda_raid_blk_no_weapon">
-        <text>%s - has no weapon</text>
+        <text>%s - нет оружия</text>
     </string>
     <string id="st_pda_raid_blk_no_ammo">
-        <text>%s - has no ammo</text>
+        <text>%s - нет патронов</text>
+    </string>
+    <string id="st_pda_raid_blk_hungry">
+        <text>%s - слишком голоден для работы</text>
     </string>
     <string id="st_pda_raid_blk_more">
-        <text>+%d more raiders not ready</text>
+        <text>Еще %d рейд. не готовы</text>
     </string>
     <string id="st_pda_raid_blk_next">
-        <text>Next raider ready in %s</text>
+        <text>Следующий рейдер будет готов через %s</text>
     </string>
     <string id="st_pda_raid_blk_none">
-        <text>No settler has the Raider job yet. Give one on the Job page.</text>
+        <text>Ни одному поселенцу еще не назначена роль Рейдера.</text>
     </string>
     <string id="st_pda_raid_blk_cooldown">
-        <text>This outpost was raided recently. Raidable again in %s.</text>
+        <text>Этот аванпост недавно грабили. Снова доступен через %s.</text>
     </string>
     <string id="st_pda_raid_blk_daily">
-        <text>Daily raid limit reached (%d of %d). Try again tomorrow.</text>
+        <text>Дневной лимит рейдов исчерпан (%d из %d). Попробуйте завтра.</text>
     </string>
     <string id="st_pda_raid_blk_no_guard">
-        <text>Keep at least one guard at home before sending raiders.</text>
+        <text>Оставьте хотя бы одного охранника в лагере перед отправкой рейда.</text>
     </string>
     <string id="st_job_chemist_btn">
-        <text>?????</text>
+        <text>Химик (Порох / Топливо)</text>
     </string>
     <string id="st_pda_settlement_btn_chemist">
-        <text>?????</text>
+        <text>Назначить химика</text>
     </string>
     <string id="st_pda_settlement_job_chemist">
-        <text>?????</text>
+        <text>Химик</text>
     </string>
     <string id="st_job_chemist_ask">
-        <text>??? ????? ????? (?????? ?????????? ?????? ? ???????? ?? ?????????? ???? ? ??????).</text>
+        <text>Мне нужно, чтобы ты занялся синтезом химикатов и пороха для лагеря.</text>
     </string>
     <string id="st_job_chemist_done">
-        <text>?????. ????? ?? ?????? ????????? ????? ? ??????? ??? ????? ? ???? ????? ????????? ????? ??? ?????????? ? ??????? ??? ??????????.</text>
+        <text>Колбы и реактивы готовы, босс. Буду перегонять очищенную воду, древесный уголь и спирт в бездымный порох для верстака и высокооктановое топливо для генератора.</text>
     </string>
     <string id="st_camp_chemist_mode_ask">
-        <text>????? ?????? ????????? ??????????? ??????? (????? ??? ???????).</text>
+        <text>Давай обсудим приоритеты синтеза в химлаборатории.</text>
     </string>
     <string id="st_camp_chemist_mode_reply">
-        <text>??? ???????. ??????? ?????? ?????? ? ??????? ?????????????, ????? ?????? ????? ??? ?????? ????????</text>
+        <text>Какие реагенты сейчас нужнее всего? Могу чередовать партии автоматически, сосредоточиться на бездымном порохе для патронов или гнать керосин и топливо для генератора.</text>
     </string>
     <string id="st_chemist_mode_auto_dialog">
-        <text>????-?????? (???????????? ????? ?????? ? ??????? ?? ???????).</text>
+        <text>Авточередование (Порох и топливо поровну).</text>
     </string>
     <string id="st_chemist_mode_powder_dialog">
-        <text>?????? ????? (2x ????? + 1x ?????/????? -&gt; ?????).</text>
+        <text>Только порох (2x уголь + 1x спирт/водка -&gt; порох).</text>
     </string>
     <string id="st_chemist_mode_fuel_dialog">
-        <text>?????? ???????/??????? (2x ????? + 2x ?????/????? -&gt; ???????).</text>
+        <text>Только топливо/керосин (2x уголь + 2x спирт/водка -&gt; топливо).</text>
     </string>
     <string id="st_camp_chemist_mode_done">
-        <text>???????. ???????????? ???????? ??? ????? ?????.</text>
+        <text>Принято. Перенастрою горелки и перегонный куб под новый режим.</text>
     </string>
     <string id="st_directive_chemist_auto">
-        <text>????: ????? ? ???????</text>
+        <text>Режим химика: Авто (Порох и топливо)</text>
     </string>
     <string id="st_directive_chemist_powder">
-        <text>????: ?????</text>
+        <text>Режим химика: Только порох</text>
     </string>
     <string id="st_directive_chemist_fuel">
-        <text>????: ???????</text>
+        <text>Режим химика: Только топливо</text>
     </string>
     <string id="st_pda_chemist_mode">
-        <text>?????? ??????: %s</text>
+        <text>Синтез химика: %s</text>
     </string>
     <string id="st_chemist_mode_set_auto">
-        <text>????? ??????: ????-?????? (????? ? ???????)</text>
+        <text>Директива химика: Автоматическое чередование (Порох и топливо).</text>
     </string>
     <string id="st_chemist_mode_set_powder">
-        <text>????? ??????: ?????? ?????</text>
+        <text>Директива химика: Приоритет синтеза бездымного пороха.</text>
     </string>
     <string id="st_chemist_mode_set_fuel">
-        <text>????? ??????: ?????? ??????? / ???????</text>
+        <text>Директива химика: Приоритет синтеза топлива и керосина.</text>
     </string>
     <string id="st_event_chemist_produced">
-        <text>%s (%s) ???????????? %sx %s ??: %s.</text>
+        <text>%s (%s) синтезировал %sx %s из: %s.</text>
     </string>
     <string id="st_job_chemist_station_work">
-        <text>%s ????????? ????? ? ?????????????? ? ???????????? %dx %s ?? ???? ? ??????!</text>
+        <text>%s проверил колбы в химлаборатории и синтезировал %dx %s из угля и спирта!</text>
     </string>
     <string id="st_job_chemist_synthesized">
-        <text>%s ???????????? %dx %s ?? ???? ? ??????!</text>
+        <text>%s синтезировал %dx %s из угля и спирта!</text>
     </string>
     <string id="st_radio_scan_chemist">
-        <text>[????? ??????] %s ?????????? ??????? ???????? ? ??????? ????? ? ????? ? ???????.</text>
+        <text>[ХИМЛАБОРАТОРИЯ] %s докладывает: перегонка завершена, свежая партия пороха и топлива на складе.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_realtime_job_chemist_interval_min">
-        <text>???? ??????? ?????? (??????)</text>
+        <text>Интервал работы химика (реал. мин.)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_realtime_job_chemist_interval_min_desc">
-        <text>???????? ?????? ????? ???????? ??????????? ??????? (????? ??? ??????? ?? ?????????? ???? ? ??????/?????).</text>
+        <text>Реальные минуты между циклами синтеза пороха и топлива (при включенных таймерах реального времени).</text>
     </string>
     <string id="st_guide_s3_chains_header">
-        <text>????????? ???????????????? ??????? (????????? ????)</text>
+        <text>ЗАМКНУТЫЕ ЦЕПОЧКИ ПРОИЗВОДСТВА И АВТОНОМНОСТЬ</text>
     </string>
     <string id="st_guide_s3_chains_body">
-        <text>%c[255,238,196,112]>> ??? ???????? ????????? ????????? ?????????%c[default]\n \n??? ??????? ???????? ????? 3 ?????, ????? ???? ???????????? ???? ????, ?????, ?????????, ?????????, ????????, ???????? ? ??????? ? RU:\n \n%c[255,144,238,144]>> ???? 1: ????????? ?????? (??? ??????)%c[default]\n \n  - %c[255,238,196,112]????????:%c[default] ????? ????? ? ?????????? 5x ???? -&gt; 3-6x ???? (?????? ?????? 5-7 ?????? ???? ????? ??????????? ???? ??? ????????).\n  - %c[255,238,196,112]??????:%c[default] ?????????? ????????? ? ?????, ???????? 3x ????? -&gt; ????.\n  - %c[255,238,196,112]???????:%c[default] ???????? ???? ???????? ??? ??????, ? ????? ????? ? ?????? ?? ??????????? ???????.\n  - %c[255,238,196,112]????????:%c[default] ???????? ?????????? ? ?????? (? ????????? ?????/?????? &lt;35%, ??????? 2x ????? ? ???????? ? ??????).\n  - %c[255,238,196,112]???????? ? ????????:%c[default] ???????? ??????, ??????????? ? ?????? ? ??????????.\n \n%c[255,144,238,144]>> ???? 2: ??????????? ? ??????%c[default]\n \n  - %c[255,238,196,112]?????????? ???? / ?????:%c[default] ?????? 1x ??????/????? (??? 3x ???? + 1x ?????/????) -&gt; ?????? ????.\n  - %c[255,238,196,112]??????? (???????????):%c[default] ?????? 7-10x ???? + 1x ?????????/???? -&gt; ????? Nemiroff ? ??????????? ?????.\n  - %c[255,238,196,112]????? (?????????????? / ???????????):%c[default] ??????????? 2x ???? + 1x ?????/????? -&gt; ????????? ????? (??? ????????????) ? 2x ???? + 2x ?????/????? -&gt; ??????? (??? ??????????).\n  - %c[255,238,196,112]??????? ? ?????? (????????):%c[default] ?????????? 1x ????? + 1x ????? -&gt; 2x ?????, ? ??? ??????? ??????? (&gt;=15 ????, &gt;=5 ???????) ????? ?????? ?????????.\n \n%c[255,144,238,144]>> ???? 3: ??????? ????????? ? ????????%c[default]\n \n  - %c[255,238,196,112]?????:%c[default] ???? ????? ?????? ???????? + ????? ???? -&gt; ?????; ??? &gt;6 ????????? ?????? ?? 2x ????????? + ???? ????? ???????/?????????.\n  - %c[255,238,196,112]?????:%c[default] ?????? ?????, ???????? ? ??????? ?? ????? ? ?????; ?? ????? ???????+ ? ????????? ???????? ??????? ??????? ??????? ? ??????? ??? ????????? ???????.\n  - %c[255,238,196,112]???????????, ?????? ? ????????:%c[default] ????????? ??????? ? ?????? (????? + ???), ????? ?????????? (?? ?????/???????) ? ?????? ??????/???????????? (???????, ?????? ????????? + ???).\n  - %c[255,238,196,112]????????:%c[default] ??????? ??????? ???? ? ??????? ???????? (????? ??????? ? 4 ??.) ????? ???????? ??????? ?? RU!</text>
+        <text>%c[255,238,196,112]>> КАК ПОСТРОИТЬ ПОЛНОСТЬЮ АВТОНОМНОЕ ПОСЕЛЕНИЕ%c[default]\n \nВсе рабочие места образуют 3 звена, чтобы база производила свои дрова, уголь, удобрения, провизию, лекарства, химикаты и патроны в RU:\n \n%c[255,144,238,144]>> ЗВЕНО 1: ПЕРВИЧНАЯ ДОБЫЧА (БЕЗ ЗАТРАТ)%c[default]\n \n  - %c[255,238,196,112]Дровосек:%c[default] рубит дрова и пережигает 5x дров -&gt; 3-6x угля (держит резерв 5-7 поленья дров перед обжигом угля для фильтров).\n  - %c[255,238,196,112]Фермер:%c[default] выращивает картофель и овощи, компостирует 3x урожая -&gt; удобрения.\n  - %c[255,238,196,112]Охотник:%c[default] приносит мясо мутантов для повара, а также шкуры и трофеи со охотничьего стола.\n  - %c[255,238,196,112]Мусорщик:%c[default] разбирает металлолом и тряпки (и изношенную броню/оружие &lt;35%, оставляя 2x ткани в резерве для медика).\n  - %c[255,238,196,112]Добытчик и Рейдеры:%c[default] приносят детали, медикаменты и хабар с аванпостов.\n \n%c[255,144,238,144]>> ЗВЕНО 2: ПЕРЕРАБОТКА И СИНТЕЗ%c[default]\n \n  - %c[255,238,196,112]Водокачка / Насос:%c[default] тратит 1x фильтр/акватабс (или 3x угля + 1x ткань/тряпку) -&gt; чистая вода.\n  - %c[255,238,196,112]Винокур (Дистиллятор):%c[default] сбраживает 7-10x урожая + 1x удобрение/вода -&gt; водка Nemiroff и технический спирт.\n  - %c[255,238,196,112]Химик (Химлаборатория):%c[default] синтезирует 2x угля + 1x водка/спирт -&gt; бездымный порох (для оружейника) и 2x угля + 2x водка/спирт -&gt; топливо (для генератора).\n  - %c[255,238,196,112]Электрик и Топливо (Генератор):%c[default] перегоняет 1x водку + 1x жир -&gt; 2x топливо, а при избытке запасов (&gt;=15 еды, &gt;=5 напитков) гонит биотопливо.\n \n%c[255,144,238,144]>> ЗВЕНО 3: ВЫПУСК СНАРЯЖЕНИЯ И ПРИПАСОВ%c[default]\n \n  - %c[255,238,196,112]Повар:%c[default] жарит сырое мясо мутантов + поленья дров -&gt; рационы; при &gt;6 картофеля готовит рагу из 2x картофеля + мяса на костре/печи.\n  - %c[255,238,196,112]Медик:%c[default] делает бинты, акватабс и аптечки из ткани и спирта; на ранге Опытный+ в лазарете синтезирует стимпаки и морфин без готовых аптечек.\n  - %c[255,238,196,112]Ремесленник, Техник и Оружейник:%c[default] собирают фильтры и наборы (уголь + лом), чинят снаряжение (за водку/еду) и штампуют патроны/взрывчатку (порох, гильзы, части + лом).\n  - %c[255,238,196,112]Торговец:%c[default] продает излишки выше порога хранения (после резерва в 4 шт.) через торговую палатку за RU!</text>
     </string>
     <string id="st_guide_s3n_header">
-        <text>?????????: ???????? (????? ?????????? ? ??????)</text>
+        <text>Роль: Рейдер</text>
     </string>
     <string id="st_guide_s3n_body">
-        <text>%c[255,238,196,112]>> ?????? ?? ?????????? ?????????%c[default]\n \n  - ????????? ?????????? ?? ???? %c[255,255,100,100]?????????%c[default] ? ??????????? ????? ?? 3 ?????? ????? ??????? %c[255,100,200,255]?????????%c[default] ? ??? ?? ????? ????????? ??????????.\n  - %c[255,144,238,144]?????? ? ???????:%c[default] ???????? ????? ???????? ????????, ?????????? ????????? ??????, ??????? ? ??????? ?? ????? ???? ? ???????? ???????? ?????? ? RU.\n  - %c[255,238,196,112]???????? ??? ? ?????:%c[default] ???? ?? ????? ? ?????? ?????, ????? ????????? ? ???????? ???????? ??????. ????? ?????? ?? ????? ????? ?? ???? ?????????? ?????? ????? ??? ???????.</text>
+        <text>%c[255,238,196,112]>> НАЛЕТЫ НА ВРАЖЕСКИЕ АВАНПОСТЫ%c[default]\n \n  - Назначьте поселенцев на роль %c[255,255,100,100]Рейдера%c[default] и отправляйте отряды до 3 бойцов через вкладку %c[255,100,200,255]Аванпосты%c[default] в КПК на штурм вражеских укреплений.\n  - %c[255,144,238,144]Трофеи и награда:%c[default] успешный рейд зачищает аванпост, пополняет склад патронами, медикаментами и припасами из тайника и приносит денежную премию в RU.\n  - %c[255,238,196,112]Реальный бой и отзыв:%c[default] если вы рядом с целью во время штурма, отряд вступает в реальный бой с гарнизоном. Отряд можно отозвать домой в любой момент для защиты базы.</text>
     </string>
     <string id="st_guide_s3o_header">
-        <text>?????????: ????? (?????? ?????? ? ???????)</text>
+        <text>Роль: Химик</text>
     </string>
     <string id="st_guide_s3o_body">
-        <text>%c[255,238,196,112]>> ?????????? ?????? ?????? ? ????????%c[default]\n \n  - %c[255,144,238,144]??????? ?????:%c[default] ???????? ?? %c[255,100,200,255]??????????????? (Chemist Station)%c[default], %c[255,100,200,255]?????????? ?????????%c[default], %c[255,100,200,255]??????? ?????????%c[default], %c[255,100,200,255]????????? ???????????%c[default], ????? ??? ?????????. ?????????????? ???? %c[255,144,238,144]+1 ?????????????? ?????/????????%c[default] ? ?????? ??????.\n  - %c[255,238,196,112]?????? ??????:%c[default] ?????? %c[255,100,200,255]2x ?????????? ???? + 1x ?????/?????%c[default] -&gt; ??????????? %c[255,144,238,144]????????? ?????%c[default] (powder_1 / powder_2) ??? ????????????.\n  - %c[255,238,196,112]?????? ???????:%c[default] ?????? %c[255,100,200,255]2x ?????????? ???? + 2x ?????/?????%c[default] -&gt; ??????????? %c[255,144,238,144]??????? / ?????? ???????%c[default] (kerosene / explo_jerrycan_fuel) ??? ?????????? ????????? ? ?????.\n  - %c[255,100,200,255]????????? (??? ??? ??????):%c[default] ???????????? ????? %c[255,144,238,144]????-????????%c[default], %c[255,144,238,144]?????? ???????%c[default] ? %c[255,144,238,144]?????? ????????%c[default].</text>
+        <text>%c[255,238,196,112]>> ХИМИЧЕСКИЙ СИНТЕЗ ПОРОХА И ТОПЛИВА%c[default]\n \n  - %c[255,144,238,144]Рабочее место:%c[default] работает за %c[255,100,200,255]Полевой химлабораторией%c[default], %c[255,100,200,255]Лабораторией медика%c[default], %c[255,100,200,255]Полевым лазаретом%c[default], %c[255,100,200,255]Перегонным аппаратом%c[default] или верстаком. Химлаборатория дает %c[255,144,238,144]+1 дополнительный выход%c[default] за каждый цикл.\n  - %c[255,238,196,112]Синтез пороха:%c[default] тратит %c[255,100,200,255]2x древесного угля + 1x водку/спирт%c[default] -&gt; производит %c[255,144,238,144]бездымный порох%c[default] (powder_1 / powder_2) для оружейника.\n  - %c[255,238,196,112]Синтез топлива:%c[default] тратит %c[255,100,200,255]2x древесного угля + 2x водку/спирт%c[default] -&gt; производит %c[255,144,238,144]керосин / канистру топлива%c[default] (kerosene / explo_jerrycan_fuel) для генератора и печей.\n  - %c[255,100,200,255]Директивы (КПК или диалог):%c[default] переключайте между %c[255,144,238,144]Авторежимом%c[default], %c[255,144,238,144]Только порохом%c[default] и %c[255,144,238,144]Только топливом%c[default].</text>
     </string>
 </string_table>
 

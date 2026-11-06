@@ -1225,6 +1225,9 @@ function stalker_camp_builder.transfer_survivor_to_camp(npc_id, target_hub_id)
     if sb.recall_scavenger_expedition_by_npc then
         sb.recall_scavenger_expedition_by_npc(npc_id)
     end
+    if sb.raiders_cancel_for then
+        sb.raiders_cancel_for(source_hub_id, npc_id)
+    end
     sb.active_camps[source_hub_id].survivors[npc_id] = nil
     survivor_data.assigned_pos = nil
     survivor_data.job = survivor_data.job or "idle"
@@ -1515,6 +1518,9 @@ function stalker_camp_builder.recruit_back(p1, p2)
                 m_data.stalker_camp_builder_banished_companions[npc_id] = nil
             end
 
+            if sb.raiders_cancel_for then
+                sb.raiders_cancel_for(hub_id, npc_id)
+            end
             sb.set_camp_settler_relations(hub_id, npc_id, false)
 
             if level.object_by_id(npc_id) == nil then
@@ -2233,6 +2239,9 @@ function stalker_camp_builder.dismiss_survivor(actor, npc)
         local survivor = camp.survivors and (camp.survivors[npc_id] or camp.survivors[tostring(npc_id)])
         if survivor then
             local name = survivor.name or "Survivor"
+            if sb.raiders_cancel_for then
+                sb.raiders_cancel_for(hub_id, npc_id)
+            end
             sb.set_camp_settler_relations(hub_id, npc_id, false)
             camp.survivors[npc_id] = nil
             camp.survivors[tostring(npc_id)] = nil
@@ -2303,6 +2312,9 @@ function stalker_camp_builder.banish_npc(actor, npc)
         local survivor = camp.survivors and (camp.survivors[npc_id] or camp.survivors[tostring(npc_id)])
         if survivor then
             local name = survivor.name or "settler"
+            if sb.raiders_cancel_for then
+                sb.raiders_cancel_for(hub_id, npc_id)
+            end
             sb.set_camp_settler_relations(hub_id, npc_id, false)
             camp.survivors[npc_id] = nil
             camp.survivors[tostring(npc_id)] = nil
@@ -2709,6 +2721,9 @@ end
 -- whose hub is gone) both need it.
 function stalker_camp_builder.release_camp_residents(hub_id, camp)
     local sb = stalker_camp_builder
+    if sb.raiders_on_camp_dismantled then
+        sb.raiders_on_camp_dismantled(hub_id, camp)
+    end
     -- End scavengers' expeditions while the camp still exists, as banish_npc does: the haul so far
     -- goes into the camp's storage. Left running, an expedition outlives the camp, loses its haul
     -- and puts the freed stalker back on the settler beh scheme.
@@ -2749,6 +2764,9 @@ function stalker_camp_builder.dismantle_camp(hub_id)
 
     -- printf(string.format("[Homestead] Dismantling camp %d (%s)", hub_id, tostring(camp.name)))
 
+    if sb.raiders_on_camp_dismantled then
+        pcall(sb.raiders_on_camp_dismantled, hub_id, camp)
+    end
     sb.release_camp_residents(hub_id, camp)
 
     local zone_id = camp.zone_id

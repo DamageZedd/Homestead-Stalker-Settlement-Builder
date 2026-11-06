@@ -147,11 +147,13 @@ function set_active(btn, on)
     end
 end
 
--- the backing of a status line: kind is "secure", "neutral" or "threat"
-function banner(bg, kind)
+-- the backing of a status line: kind is "secure", "neutral" or "threat";
+-- always = true for colour stripes (outpost row bar, hero photo bar) that every theme draws
+function banner(bg, kind, always)
     if not bg then return end
-    if textures.banner then
-        bg:InitTexture(textures.banner .. "_" .. kind)
+    local tex = textures.banner or (always and "ui_homestead_banner")
+    if tex then
+        bg:InitTexture(tex .. "_" .. kind)
         bg:Show(true)
     else
         bg:Show(false)

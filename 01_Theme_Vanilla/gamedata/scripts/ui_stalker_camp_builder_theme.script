@@ -72,7 +72,19 @@ function rgb(role)
     return v[1], v[2], v[3]
 end
 
+-- opaque colors by role, made once: the PDA asks for them for every row on every refresh
+local argb_cache = {}
+
 function argb(role, alpha)
+    if alpha == nil and role ~= nil then
+        local hit = argb_cache[role]
+        if hit == nil then
+            local v = c(role)
+            hit = GetARGB(255, v[1], v[2], v[3])
+            argb_cache[role] = hit
+        end
+        return hit
+    end
     local v = c(role)
     return GetARGB(alpha or 255, v[1], v[2], v[3])
 end
@@ -80,25 +92,33 @@ end
 -- inline markup for SetText: markup("heading") .. name .. markup("body"). The engine reads
 -- %c[a,r,g,b] (four numbers) or %c[<color_defs name>]; with three numbers it silently
 -- keeps the element's default color (CUILines::GetColorFromText).
+local markup_cache = {}
+
 function markup(role)
+    local hit = role ~= nil and markup_cache[role]
+    if hit then return hit end
     local v = c(role)
-    return string.format("%%c[255,%d,%d,%d]", v[1], v[2], v[3])
+    hit = string.format("%%c[255,%d,%d,%d]", v[1], v[2], v[3])
+    if role ~= nil then markup_cache[role] = hit end
+    return hit
+end
+
+local function recolor_swap(r, g, b)
+    local role = legacy[r .. "," .. g .. "," .. b]
+    return role and markup(role) or nil
+end
+
+-- three numbers are not a color to the engine: map them, or at least add the alpha
+local function recolor_swap3(r, g, b)
+    return recolor_swap(r, g, b) or string.format("%%c[255,%s,%s,%s]", r, g, b)
 end
 
 function recolor(text)
     if type(text) ~= "string" or not text:find("%c[", 1, true) then
         return text
     end
-    local function swap(r, g, b)
-        local role = legacy[r .. "," .. g .. "," .. b]
-        return role and markup(role) or nil
-    end
-    -- three numbers are not a color to the engine: map them, or at least add the alpha
-    local function swap3(r, g, b)
-        return swap(r, g, b) or string.format("%%c[255,%s,%s,%s]", r, g, b)
-    end
-    text = text:gsub("%%c%[%d+,(%d+),(%d+),(%d+)%]", swap)
-    return (text:gsub("%%c%[(%d+),(%d+),(%d+)%]", swap3))
+    text = text:gsub("%%c%[%d+,(%d+),(%d+),(%d+)%]", recolor_swap)
+    return (text:gsub("%%c%[(%d+),(%d+),(%d+)%]", recolor_swap3))
 end
 
 function texture(role)
@@ -127,11 +147,13 @@ function set_active(btn, on)
     end
 end
 
--- the backing of a status line: kind is "secure", "neutral" or "threat"
-function banner(bg, kind)
+-- the backing of a status line: kind is "secure", "neutral" or "threat";
+-- always = true for colour stripes (outpost row bar, hero photo bar) that every theme draws
+function banner(bg, kind, always)
     if not bg then return end
-    if textures.banner then
-        bg:InitTexture(textures.banner .. "_" .. kind)
+    local tex = textures.banner or (always and "ui_homestead_banner")
+    if tex then
+        bg:InitTexture(tex .. "_" .. kind)
         bg:Show(true)
     else
         bg:Show(false)

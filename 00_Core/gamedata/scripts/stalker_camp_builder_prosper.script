@@ -237,13 +237,25 @@ end
 -- net spawn otherwise (pending_community). Returns true when a settler record was found.
 function sb.set_settler_community(npc_id, comm)
     if not (npc_id and type(comm) == "string" and comm ~= "") then return false end
-    local info = sb.settler_lookup and (sb.settler_lookup[npc_id] or sb.settler_lookup[tonumber(npc_id)])
+    local id = tonumber(npc_id) or npc_id
+    local info = sb.settler_lookup and (sb.settler_lookup[id] or sb.settler_lookup[npc_id])
     local survivor = info and info.survivor
+    if not survivor and sb.active_camps then
+        for _, camp in pairs(sb.active_camps) do
+            local svs = camp and camp.survivors
+            if svs then
+                survivor = svs[id] or svs[tostring(id)]
+                if survivor then break end
+            end
+        end
+    end
     if not survivor then return false end
-    survivor.community = comm
-    survivor.comm = comm
-    survivor.pending_community = comm
-    local obj = level.object_by_id(tonumber(npc_id))
+    comm = prosper_clean_community(comm)
+    local safe_comm = sb.save_safe_faction and sb.save_safe_faction(comm, tonumber(id)) or comm
+    survivor.community = safe_comm
+    survivor.comm = safe_comm
+    survivor.pending_community = safe_comm
+    local obj = level and level.object_by_id and level.object_by_id(tonumber(id))
     if obj and obj:alive() then
         if pcall(function() obj:set_character_community(comm, 0, 0) end) then
             survivor.pending_community = nil

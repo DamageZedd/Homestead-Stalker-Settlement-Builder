@@ -13,7 +13,7 @@ eq(sb.needs_class_of("bread"), "staple", "bread")
 eq(sb.needs_class_of("kolbasa"), "protein", "kolbasa")
 eq(sb.needs_class_of("vodka"), "comfort", "vodka is comfort food")
 eq(sb.needs_class_of("water_drink"), "water", "water")
-eq(sb.needs_class_of("meat_dog_raw"), "raw", "raw meat")
+eq(sb.needs_class_of("meat_dog"), "protein", "cooked meat is protein")
 eq(sb.needs_class_of("bandage"), nil, "bandage is no food")
 eq(sb.needs_class_of(nil), nil, "nil")
 

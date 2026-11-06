@@ -59,7 +59,8 @@ local BURST_BUDGET = 40        -- pieces per slice in a burst: 400 a second
 local next_sweep = 0
 local next_heal = 0
 local burst_until = 0
-local online = {}              -- id of an online frozen piece -> true
+local online = {}              -- id of an online frozen piece -> true
+local missed_freeze = {}       -- id -> true when freeze_obj ran before the physics shell was ready
 local solid_online = {}        -- the same for pieces that stay solid (foundations and floors)
 local next_solid = 0
 local next_fight_reset = 0
@@ -411,6 +412,7 @@ local function hook_set_frozen(id)
     wrapper.hs_lock_hooked = true
     wrapper.set_frozen = function(self, frozen)
         set_frozen(self, frozen)
+        self.hs_unfrozen = not self.is_frozen
         local obj = self.object
         if obj then
             local ok, err = pcall(function()
@@ -479,10 +481,12 @@ local function sweep_piece(o)
     end
     if not is_hf_bound(sec) then return end
     local wrapper = bind_hf_base.get_wrapper(id)
-    if not wrapper or wrapper.is_frozen == false then return end
+    if not wrapper or (wrapper.is_frozen == false and not missed_freeze[id]) then return end
     local ps = o:get_physics_shell()
     if not ps then return end
+    missed_freeze[id] = nil
     ps:freeze()
+    wrapper.is_frozen = true
     on_piece_frozen(id)
 end
 
@@ -627,8 +631,11 @@ local function hook_freeze(module)
     module.freeze_obj = function(id)
         local done = freeze_obj(id)
         if done then
+            missed_freeze[id] = nil
             local ok, err = pcall(on_piece_frozen, id)
             if not ok then report(err) end
+        elseif id then
+            missed_freeze[id] = true
         end
         return done
     end

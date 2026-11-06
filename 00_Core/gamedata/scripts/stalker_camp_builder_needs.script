@@ -25,10 +25,11 @@ local FOOD_CLASS = {
 }
 -- cooked meat (meat_*, which the cook makes from raw mutant_part_* meat) counts as protein below
 local WATER_SECTIONS = {
-    water_drink = true, mineral_water = true, bottle_metal = true, flask = true, tea = true, drink_crow = true,
+    water_drink = true, mineral_water = true, flask = true, tea = true, drink_crow = true,
 }
 
 local CLASS_ORDER = { "staple", "protein", "comfort" }
+local CLASS_PRIORITY = { protein = 1, staple = 2, comfort = 3 }
 local RAW_CLASS = "raw"
 
 local VARIETY_WINDOW = 3          -- rounds a class still counts towards variety
@@ -87,13 +88,13 @@ function sb.needs_round(st, n, opts, io)
     local units = mfloor(want + 1e-9)
     st.carry = want - units
 
-    -- variety: the least recently eaten class goes first, raw meat last
+    -- variety: the least recently eaten class goes first, raw meat last; ties prefer protein, then staple, then comfort (vodka)
     local order = {}
     for _, c in ipairs(CLASS_ORDER) do order[#order + 1] = c end
     table.sort(order, function(a, b)
         local la, lb = st.last[a] or -100, st.last[b] or -100
         if la ~= lb then return la < lb end
-        return a < b
+        return (CLASS_PRIORITY[a] or 9) < (CLASS_PRIORITY[b] or 9)
     end)
     order[#order + 1] = RAW_CLASS
 
@@ -187,20 +188,29 @@ function sb.needs_process(hub_id, camp)
     for _ in pairs(camp.survivors) do n = n + 1 end
     if n == 0 then return end
 
+    local empty_class = {}
+    local empty_water = false
     local function eat(order)
         for _, c in ipairs(order) do
-            local got = sb.find_and_consume_item(hub_id, camp, function(sec) return sb.needs_class_of(sec) == c end, nil)
-            if got then return c end
+            if not empty_class[c] then
+                local got = sb.find_and_consume_item(hub_id, camp, function(sec) return sb.needs_class_of(sec) == c end, nil)
+                if got then return c end
+                empty_class[c] = true
+            end
         end
         return nil
     end
     local function drink()
-        return sb.find_and_consume_item(hub_id, camp, function(sec) return sb.needs_class_of(sec) == "water" end, nil) and true or false
+        if empty_water then return false end
+        local got = sb.find_and_consume_item(hub_id, camp, function(sec) return sb.needs_class_of(sec) == "water" end, nil)
+        if got then return true end
+        empty_water = true
+        return false
     end
 
     local opts = {
         mult = sb.cfg.needs_consumption_mult or 1.0,
-        water_free = camp_has_pump(camp),
+        water_free = false,
         grace = now < (st.grace_until or 0),
         variety_bonus = sb.cfg.needs_variety_bonus ~= false,
     }

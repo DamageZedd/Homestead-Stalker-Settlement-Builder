@@ -935,24 +935,31 @@ function stalker_camp_builder.repair_fee_uses(cost, restored)
     return mmax(1, mmin(REPAIR_FEE_MAX_USES, math.ceil(value / REPAIR_FEE_RU_PER_USE - 1e-9)))
 end
 
--- a gun with a part below 95%: G.A.M.M.A. holds a fired gun's condition at 0.83 and keeps its wear
+-- a gun with a part below 95% (or a custom threshold): G.A.M.M.A. holds a fired gun's condition at 0.83 and keeps its wear
 -- in the WPO parts, which don't follow condition. Only the parts in its list count, the ones a
 -- repair round raises.
-local function gun_parts_worn(item_id, sec)
-    if not (sec and sec:find("wpn_") and item_parts and item_parts.get_parts_con) then return false end
+local function gun_parts_min_cond(item_id, sec)
+    if not (sec and sec:find("wpn_") and item_parts and item_parts.get_parts_con) then return nil end
     local ini_parts = itms_manager and itms_manager.ini_parts
     local psec = ini_sys and ini_sys:r_string_ex(sec, "parent_section") or sec
     local list = ini_parts and ini_parts:r_string_ex("con_parts_list", psec)
     local parts = list and item_parts.get_parts_con(nil, item_id)
-    if type_(parts) ~= "table" then return false end
+    if type_(parts) ~= "table" then return nil end
+    local lo = nil
     for _, p_name in ipairs_(str_explode(list, ",")) do
         local con = parts[p_name]
-        if type_(con) == "number" and con < 95 then return true end
+        if type_(con) == "number" and (lo == nil or con < lo) then lo = con end
     end
-    return false
+    return lo and (lo / 100.0) or nil
+end
+
+local function gun_parts_worn(item_id, sec, limit_pct)
+    local lo = gun_parts_min_cond(item_id, sec)
+    return lo ~= nil and lo < ((limit_pct or 95) / 100.0)
 end
 -- get_camp_inventory_snapshot (main script) calls it for the technician's paused check
 stalker_camp_builder.gun_parts_worn = gun_parts_worn
+stalker_camp_builder.gun_parts_min_cond = gun_parts_min_cond
 
 -- G.A.M.M.A.'s Guns Have No Condition (grok_gun_condition_fixed) sets a gun to 0.83 on every shot
 -- and raises any gun the player takes to 0.83: there a gun's condition says nothing about its
@@ -1026,6 +1033,7 @@ function stalker_camp_builder.process_gear_repair(npc_id, box_id, camp, survivor
     end
 
     local repaired_any = false
+    local saw_damaged_gear = false
 
     for repair_round = 1, items_to_repair do
         local repair_item_id = nil
@@ -1050,6 +1058,7 @@ function stalker_camp_builder.process_gear_repair(npc_id, box_id, camp, survivor
                     repair_item_id = item_id
                     repair_item_cond = cond
                     item_name = ui_item.get_sec_name(sec)
+                    saw_damaged_gear = true
                 end
             end
         end
@@ -1072,6 +1081,7 @@ function stalker_camp_builder.process_gear_repair(npc_id, box_id, camp, survivor
                     repair_item_id = item_id
                     repair_item_cond = cond
                     item_name = ui_item.get_sec_name(sec)
+                    saw_damaged_gear = true
                 end
             end
             if fee_item_id and repair_item_id then return true end
@@ -1092,10 +1102,15 @@ function stalker_camp_builder.process_gear_repair(npc_id, box_id, camp, survivor
                 local bench_mult = has_repair_bench and 1.5 or 1.0
                 local repair_inc = ((sb.cfg.repair_percent_per_cycle or 25) / 100.0) * spec_mult * bench_mult
                 -- the fee scales with the value restored: one use up front, more for dear gear. A
-                -- technician short of fee items restores only the share that was paid for
+                -- technician short of fee items restores only the share that was paid for. In G.A.M.M.A.,
+                -- a pinned gun's wear lives in its parts rather than cur_cond (0.83).
                 local rep_sec = se_rep:section_name()
                 local rep_cost = (ini_sys and rep_sec and ini_sys:section_exist(rep_sec) and ini_sys:r_float_ex(rep_sec, "cost")) or 0
-                local fee_want = stalker_camp_builder.repair_fee_uses(rep_cost, mmin(1.0, cur_cond + repair_inc) - cur_cond)
+                local fee_cond = cur_cond
+                if gun_condition_pinned(cl_rep) then
+                    fee_cond = gun_parts_min_cond(repair_item_id, rep_sec) or cur_cond
+                end
+                local fee_want = stalker_camp_builder.repair_fee_uses(rep_cost, mmin(1.0, fee_cond + repair_inc) - fee_cond)
                 consume_one_use(fee_item_id)
                 local fee_paid = 1
                 for _ = 2, fee_want do
@@ -1173,13 +1188,11 @@ function stalker_camp_builder.process_gear_repair(npc_id, box_id, camp, survivor
         local passive_item_id, passive_item_name = nil, ""
         sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
             if not sec then return end
-            if not passive_item_id and wb_set[cid] then
+            if not passive_item_id and wb_set[cid] and cl_item then
                 local is_wpn = false
-                if cl_item then
-                    pcall(function() is_wpn = IsWeapon(cl_item) end)
-                end
+                pcall(function() is_wpn = IsWeapon(cl_item) end)
                 if not is_wpn and sec:find("wpn_") then is_wpn = true end
-                if is_wpn and cond and cond < 0.80 then
+                if is_wpn and ((cond and cond < 0.80 and not gun_condition_pinned(cl_item)) or gun_parts_worn(item_id, sec, 80)) then
                     passive_item_id = item_id
                     passive_item_name = ui_item.get_sec_name(sec)
                     return true
@@ -1191,11 +1204,35 @@ function stalker_camp_builder.process_gear_repair(npc_id, box_id, camp, survivor
             if se_wpn then
                 local cl_wpn = level.object_by_id(passive_item_id)
                 local cur_c = (cl_wpn and cl_wpn:condition()) or se_wpn.condition or 0.5
-                local target_c = mmin(0.80, cur_c + 0.15)
-                pcall(function() se_wpn.condition = target_c end)
-                if cl_wpn and cl_wpn.set_condition then
-                    pcall(function() cl_wpn:set_condition(target_c) end)
+                if not gun_condition_pinned(cl_wpn) then
+                    local target_c = mmin(0.80, cur_c + 0.15)
+                    pcall(function() se_wpn.condition = target_c end)
+                    if cl_wpn and cl_wpn.set_condition then
+                        pcall(function() cl_wpn:set_condition(target_c) end)
+                    end
                 end
+                pcall(function()
+                    if item_parts then
+                        local rep_sec = cl_wpn and cl_wpn:section() or se_wpn:section_name()
+                        local ini_parts = itms_manager and itms_manager.ini_parts
+                        local sec = ini_sys and ini_sys:r_string_ex(rep_sec, "parent_section") or rep_sec
+                        local parts_str = ini_parts and ini_parts:r_string_ex("con_parts_list", sec)
+                        local parts_list = parts_str and str_explode(parts_str, ",") or {}
+                        local parts = item_parts.get_parts_con and item_parts.get_parts_con(cl_wpn, passive_item_id, false)
+                        if type_(parts) == "table" then
+                            for _, p_name in ipairs_(parts_list) do
+                                local cur_p = parts[p_name]
+                                if type_(cur_p) == "number" and cur_p < 80 then
+                                    parts[p_name] = mmin(80, mfloor(cur_p + 15))
+                                end
+                            end
+                            local rep_name = (cl_wpn and cl_wpn:name()) or (se_wpn and se_wpn.section_name and se_wpn:section_name() .. "_" .. tostring(passive_item_id)) or nil
+                            se_save_var(passive_item_id, nil, "parts", parts)
+                            if rep_name then se_save_var(passive_item_id, rep_name, "parts", parts) end
+                            if item_parts.set_parts_con then item_parts.set_parts_con(passive_item_id, parts) end
+                        end
+                    end
+                end)
                 repaired_any = true
                 local npc = level.object_by_id(npc_id)
                 local npc_name = npc and npc:character_name() or (survivor and survivor.name or "Survivor")
@@ -1206,7 +1243,7 @@ function stalker_camp_builder.process_gear_repair(npc_id, box_id, camp, survivor
 
     if not repaired_any then
         if survivor and not survivor.shortfall_reason then
-            survivor.shortfall_reason = "No Gear to Repair"
+            survivor.shortfall_reason = saw_damaged_gear and "Needs Vodka/Food" or "No Gear to Repair"
         end
     else
         if survivor then
@@ -1288,23 +1325,32 @@ function stalker_camp_builder.camp_has_item(hub_id, camp, section_check_func, pr
     return false
 end
 
--- camp_has_repairable_gear -- non-destructive check for damaged gear and fee
+-- camp_has_repairable_gear -- non-destructive check for damaged gear, fee, and passive-upkeep weapons (<80%)
 function stalker_camp_builder.camp_has_repairable_gear(hub_id, camp)
     local sb = stalker_camp_builder
     local sim = alife()
-    if not sim or not camp then return false, false end
+    if not sim or not camp then return false, false, false end
 
     local has_damaged = false
     local has_fee = false
+    local has_passive = false
 
-    local function check_item(sec, cond, item_id)
+    local function check_item(sec, cond, item_id, cl_item)
         if not has_fee and is_repair_fee(sec) then
             has_fee = true
         end
-        if not has_damaged and sec and cond and (cond < 0.95 or (item_id and gun_parts_worn(item_id, sec))) then
-            if sec:find("wpn_") or sec:find("helm_") or sec:find("armor_") or sec:find("outfit") then
+        if not (sec and cond) then return end
+        local is_wpn = sec:find("wpn_") ~= nil
+        if not is_wpn and cl_item then
+            pcall(function() is_wpn = IsWeapon(cl_item) end)
+        end
+        if not has_damaged and (cond < 0.95 or (item_id and gun_parts_worn(item_id, sec))) then
+            if is_wpn or sec:find("helm_") or sec:find("armor_") or sec:find("outfit") then
                 has_damaged = true
             end
+        end
+        if not has_passive and is_wpn and (cond < 0.80 or (item_id and gun_parts_worn(item_id, sec, 80))) then
+            has_passive = true
         end
     end
 
@@ -1322,12 +1368,12 @@ function stalker_camp_builder.camp_has_repairable_gear(hub_id, camp)
             -- only online gear counts: process_gear_repair can't repair the rest
             local in_bench = wb_only[box_id] and cl_item
             -- a pinned gun's condition doesn't count, only its parts (gun_condition_pinned)
-            check_item(sec, (in_bench and not gun_condition_pinned(cl_item)) and cond or 1.0, in_bench and item_id or nil)  -- DANZY EDIT: damaged gear only counts inside a workbench
-            if has_damaged and has_fee then return true end
+            check_item(sec, (in_bench and not gun_condition_pinned(cl_item)) and cond or 1.0, in_bench and item_id or nil, in_bench and cl_item or nil)  -- DANZY EDIT: damaged gear only counts inside a workbench
+            if has_damaged and has_fee and has_passive then return true end
         end)
     end
 
-    return has_damaged, has_fee
+    return has_damaged, has_fee, has_passive
 end
 
 -- get_job_paused_status -- authoritative check for paused settlement jobs
@@ -1567,21 +1613,21 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
             if not snap.has_damaged_gear then
                 return true, "No Damaged Gear", "No damaged weapons or armor (<95%) to repair"
             end
-            if not snap.has_repair_fee and not has_repair_bench then
+            if not snap.has_repair_fee and not (has_repair_bench and snap.has_passive_repair_gear) then
                 return true, "Needs Vodka/Food", "Technician requires vodka or canned food provisions"
             end
             return false, nil, nil
         end
 
         -- both results ("x and f()" keeps only the first, which left has_fee nil)
-        local has_damaged, has_fee = false, false
+        local has_damaged, has_fee, has_passive = false, false, false
         if sb.camp_has_repairable_gear then
-            has_damaged, has_fee = sb.camp_has_repairable_gear(hub_id, camp)
+            has_damaged, has_fee, has_passive = sb.camp_has_repairable_gear(hub_id, camp)
         end
         if not has_damaged then
             return true, "No Damaged Gear", "No damaged weapons or armor (<95%) to repair"
         end
-        if has_fee == false and not has_repair_bench then
+        if has_fee == false and not (has_repair_bench and has_passive) then
             return true, "Needs Vodka/Food", "Technician requires vodka or canned food provisions"
         end
         return false, nil, nil
@@ -2369,59 +2415,72 @@ function stalker_camp_builder.process_medic_job(npc_id, box_id, camp, survivor)
         units = math.min(units, math.max(1, sb.camp_count_item(hub_id, camp, function(s) return s == "bandage" end, units)))
     end
     mult = units
-    for _ = 1, units do
-    if req_bandage then
-        local b_sec = sb.camp_consume_item and sb.camp_consume_item(hub_id, camp, function(s) return s == "bandage" end)
-        if not b_sec then return false end
-    end
-    if use_cloth then
-        local c_sec = sb.camp_consume_item and sb.camp_consume_item(hub_id, camp, is_cloth)
-        if c_sec then
-            consumed_desc = sec_name_fn(c_sec)
-        elseif req_vodka > 0 then
-            local v_sec = sb.camp_consume_item and sb.camp_consume_item(hub_id, camp, is_medic_ethanol)
-            consumed_desc = v_sec and sec_name_fn(v_sec) or "Vodka"
-        end
-    else
-        local last_v_sec = nil
-        for i = 1, req_vodka do
-            local v_sec = sb.camp_consume_item and sb.camp_consume_item(hub_id, camp, is_medic_ethanol)
-            if v_sec then last_v_sec = v_sec end
-        end
-        consumed_desc = string.format("%dx %s", req_vodka * units, last_v_sec and sec_name_fn(last_v_sec) or "Vodka")
-    end
-    end
-
-    local bio_upgrade_sec = nil
+    local has_infirmary = false
     if target_sec == "medkit" and (survivor and (tonumber(survivor.tier) or 1) >= 2) and camp and camp.structures then
-        local has_infirmary = false
         for _, stype in pairs(camp.structures) do
             if stype == "medstation" then has_infirmary = true break end
-        end
-        if has_infirmary and sb.find_and_consume_item then
-            local used_trophy = sb.find_and_consume_item(hub_id, camp, is_mutant_trophy, nil)
-            if used_trophy then
-                bio_upgrade_sec = first_existing_section("stimpack", "medkit_army", "medkit_scientic", "medkit")
-            end
         end
     end
 
     local deposited_med = 0
-    if sb.deposit_item_to_camp and camp and hub_id then
-        for i = 1, mult do
-            local out_sec = (i == 1 and bio_upgrade_sec) or target_sec
+    local last_v_sec = nil
+    local used_cloth_any = false
+    local box_se = (not (sb.deposit_item_to_camp and camp and hub_id)) and alife_object(target_box_id) or nil
+    local box_pos = box_se and box_se.position or vector()
+    local box_lvid = box_se and box_se.m_level_vertex_id or 0
+    local box_gvi = box_se and box_se.m_game_vertex_id or 0
+
+    for i = 1, units do
+        if sb.deposit_item_to_camp and camp and hub_id and output_box(camp, hub_id, target_sec) == nil then
+            break
+        end
+        if req_bandage then
+            local b_sec = sb.camp_consume_item and sb.camp_consume_item(hub_id, camp, function(s) return s == "bandage" end)
+            if not b_sec then break end
+        end
+        if use_cloth then
+            local c_sec = sb.camp_consume_item and sb.camp_consume_item(hub_id, camp, is_cloth)
+            if c_sec then
+                used_cloth_any = true
+                consumed_desc = sec_name_fn(c_sec)
+            elseif req_vodka > 0 then
+                local v_sec = sb.camp_consume_item and sb.camp_consume_item(hub_id, camp, is_medic_ethanol)
+                if not v_sec then break end
+                last_v_sec = v_sec
+                consumed_desc = sec_name_fn(v_sec)
+            else
+                break
+            end
+        else
+            local got_v = 0
+            for _ = 1, req_vodka do
+                local v_sec = sb.camp_consume_item and sb.camp_consume_item(hub_id, camp, is_medic_ethanol)
+                if v_sec then
+                    last_v_sec = v_sec
+                    got_v = got_v + 1
+                end
+            end
+            if got_v < req_vodka then break end
+        end
+
+        local out_sec = target_sec
+        if i == 1 and has_infirmary and sb.find_and_consume_item then
+            if sb.find_and_consume_item(hub_id, camp, is_mutant_trophy, nil) then
+                out_sec = first_existing_section("stimpack", "medkit_army", "medkit_scientic", "medkit")
+            end
+        end
+
+        if sb.deposit_item_to_camp and camp and hub_id then
             if not sb.deposit_item_to_camp(hub_id, camp, out_sec) then break end
             deposited_med = deposited_med + 1
-        end
-    else
-        local box_se = alife_object(target_box_id)
-        local pos = box_se and box_se.position or vector()
-        local lvid = box_se and box_se.m_level_vertex_id or 0
-        local gvi = box_se and box_se.m_game_vertex_id or 0
-        for i = 1, mult do
-            alife():create(target_sec, pos, lvid, gvi, target_box_id)
+        else
+            alife():create(out_sec, box_pos, box_lvid, box_gvi, target_box_id)
             deposited_med = deposited_med + 1
         end
+    end
+
+    if not use_cloth and deposited_med > 0 then
+        consumed_desc = string.format("%dx %s", req_vodka * deposited_med, last_v_sec and sec_name_fn(last_v_sec) or "Vodka")
     end
 
     if deposited_med <= 0 then
