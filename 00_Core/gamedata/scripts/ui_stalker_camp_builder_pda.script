@@ -1681,14 +1681,14 @@ function SettlementManagerPDA:RefreshRaidPanel()
         label = tr("st_pda_raid_why_" .. tostring(st.reason))
         -- who is held back and for how long (wounded / cooldown timers), recomputed on every refresh
         if st.lines and #st.lines > 0 then
-            text = table.concat(st.lines, "\n")
+            text = table.concat(st.lines, "\\n")
             color = hs_theme.argb("warn")
         end
     elseif armed then
         label = tr("st_pda_raid_btn_confirm")
         text = sformat(tr("st_pda_raid_preview"), tr(st.faction), st.band, math.floor(st.odds * 100 + 0.5), st.loss)
         if st.friendly then
-            text = text .. "\n" .. tr("st_pda_raid_preview_friendly")
+            text = text .. "\\n" .. tr("st_pda_raid_preview_friendly")
             color = hs_theme.argb("danger")
         end
     end
