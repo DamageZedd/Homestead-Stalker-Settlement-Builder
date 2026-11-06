@@ -3297,11 +3297,6 @@ function stalker_camp_builder.is_camp_brewer(p1, p2)
     return ok and res or false
 end
 
-function stalker_camp_builder.is_camp_chemist(p1, p2)
-    local surv = get_speaker_survivor_and_camp(p1, p2)
-    return (surv and surv.job == "chemist") and true or false
-end
-
 function stalker_camp_builder.is_camp_scrapper(p1, p2)
     local ok, res = pcall(function()
         local actor, npc = resolve_speakers(p1, p2)
@@ -3753,6 +3748,12 @@ function stalker_camp_builder.get_scrapper_tools_text(npc, dialog_id, phrase_id)
         return game.translate_string("st_camp_scrapper_tools_ask")
     end
     return string.format(game.translate_string("st_camp_scrapper_tools_offer"), name)
+end
+
+-- below get_speaker_survivor_and_camp: a local is visible only after its declaration
+function stalker_camp_builder.is_camp_chemist(p1, p2)
+    local surv = get_speaker_survivor_and_camp(p1, p2)
+    return (surv and surv.job == "chemist") and true or false
 end
 
 function stalker_camp_builder.actor_has_woodcutter_axe(p1, p2)
