@@ -120,7 +120,8 @@ function sb.needs_round(st, n, opts, io)
     local unserved = mmin(n or 0, mmax(no_food, no_water))
     local res = { fed = fed, no_food = no_food, no_water = no_water, unserved = unserved, variety = variety }
     if opts.grace then
-        res.tier, res.penalty = 0, 0
+        -- and no shortage counted: needs_mark_settlers marks as many settlers hungry as are unserved
+        res.tier, res.penalty, res.unserved = 0, 0, 0
         return res
     end
     if unserved > 0 then
