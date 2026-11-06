@@ -344,6 +344,32 @@ do
     check(#stall_inv > 0, "Chain 5: surplus pelts/trophies routed into Market Stall stash")
 end
 
+-- Test Chain 6: Chemist Station (chemist_station) grants +1 yield bonus and X-Ray IReader::r_string (<4095 byte) line limit
+do
+    reset_env({ "charcoal", "charcoal", "vodka" })
+    local camp = { hub_id = 1, structures = { [16] = "chemist_station" }, survivors = {} }
+    local chem = { name = "Chemist", job = "chemist", tier = 0, chemist_mode = "powder" }
+    local paused_cs, reason_cs = sb._calc_job_paused_status(chem, camp, 1, nil)
+    eq(paused_cs, false, "Chain 6: chemist not paused at chemist_station (reason=" .. tostring(reason_cs) .. ")")
+    local ok_cs = sb.process_chemist_job(105, 1, camp, chem, 1)
+    eq(ok_cs, true, "Chain 6: process_chemist_job succeeded at chemist_station")
+    eq(count_sec("powder_1"), 3, "Chain 6: chemist_station grants +1 extra canister (base 1 + lab 1 + chemist_station 1 = 3)")
+
+    for _, xml_path in ipairs({
+        "00_Core/gamedata/configs/text/eng/ui_st_stalker_camp_builder.xml",
+        "00_Core/gamedata/configs/text/rus/ui_st_stalker_camp_builder.xml",
+        "HomesteadHF/gamedata/configs/text/eng/st_homestead_stations.xml",
+        "HomesteadHF/gamedata/configs/text/rus/st_homestead_stations.xml",
+    }) do
+        local raw = slurp(xml_path)
+        local max_len = 0
+        for line in raw:gmatch("[^\n]+") do
+            if #line > max_len then max_len = #line end
+        end
+        check(max_len < 4000, xml_path .. " max line length < 4000 bytes for X-Ray IReader::r_string (got " .. max_len .. ")")
+    end
+end
+
 if fails > 0 then
     print(string.format("%d/%d checks FAILED", fails, checks))
     os.exit(1)

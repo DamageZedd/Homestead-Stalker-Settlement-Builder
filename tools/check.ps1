@@ -111,6 +111,13 @@ if ($Skip -notcontains 'xml') {
     foreach ($x in $xmls) {
         $path = Join-Path $root $x
         $bytes = [IO.File]::ReadAllBytes($path)
+        $rawLines = $latin1.GetString($bytes) -split "`n"
+        for ($li = 0; $li -lt $rawLines.Count; $li++) {
+            $lineLen = $rawLines[$li].TrimEnd("`r").Length
+            if ($lineLen -ge 4000) {
+                Add-Finding 'XML_LINE_TOO_LONG' $x "line $($li + 1) is $lineLen bytes (X-Ray IReader::r_string limit is 4094 bytes)"
+            }
+        }
         if ($x -match '/text/eng/' -and ($bytes | Where-Object { $_ -gt 127 } | Select-Object -First 1)) {
             Add-Finding 'XML_ENG_NON_ASCII' $x 'eng XML contains non-ASCII bytes'
         }
