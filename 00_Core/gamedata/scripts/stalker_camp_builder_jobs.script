@@ -1655,18 +1655,7 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
             if total_ethanol < req_vodka then
                 return true, string.format("Need %dx Vodka", req_vodka), string.format("Requires %dx Vodka in settlement storage to synthesize this medicine", req_vodka)
             end
-            stalker_camp_builder.MEDIC_RARE_BATCH_MAX = 4
--- Medic batch size: the wanted output, cut to what the vodka in storage pays for (per_unit uses each).
--- ethanol is nil for a batch made from cloth, which is cut by the cloth count instead.
-function stalker_camp_builder.medic_batch_size(want, ethanol, per_unit)
-    local n = mmax(1, math.floor(tonumber(want) or 1))
-    if ethanol and per_unit and per_unit > 0 then
-        n = mmin(n, mmax(1, math.floor(ethanol / per_unit)))
-    end
-    return n
-end
-
--- process_medic_job's medkit takes a bandage too
+            -- process_medic_job's medkit takes a bandage too
             if m_order == "medkit" and not (sb.camp_has_item and sb.camp_has_item(hub_id, camp, function(s) return s == "bandage" end)) then
                 return true, "Need Bandage", "Requires a Bandage in settlement storage to make a Medkit"
             end
@@ -2175,6 +2164,19 @@ function stalker_camp_builder.process_cook_job(npc_id, hub_id, camp, survivor, b
     end
     sb.camp_send_tip(actor, tip_msg, nil, "general_stalker", 10000)
     return true
+end
+
+-- the rare types (akvatab, kalium, medkit) come at most this many to a batch
+stalker_camp_builder.MEDIC_RARE_BATCH_MAX = 4
+
+-- Medic batch size: the wanted output, cut to what the vodka in storage pays for (per_unit uses each).
+-- ethanol is nil for a batch made from cloth, which is cut by the cloth count instead.
+function stalker_camp_builder.medic_batch_size(want, ethanol, per_unit)
+    local n = mmax(1, math.floor(tonumber(want) or 1))
+    if ethanol and per_unit and per_unit > 0 then
+        n = mmin(n, mmax(1, math.floor(ethanol / per_unit)))
+    end
+    return n
 end
 
 -- process_medic_job -- produce medical supplies from the medstation
