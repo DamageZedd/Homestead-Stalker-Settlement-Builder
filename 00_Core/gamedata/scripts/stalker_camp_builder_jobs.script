@@ -1868,13 +1868,13 @@ end
     elseif job == "chemist" then
         local has_lab = false
         for _, struct_type in pairs_(camp.structures or {}) do
-            if struct_type == "distiller" or struct_type == "medstation" or struct_type == "ammo_bench" or struct_type == "stove" or struct_type == "workbench" then
+            if struct_type == "chemist_station" or struct_type == "distiller" or struct_type == "medstation" or struct_type == "ammo_bench" or struct_type == "stove" or struct_type == "workbench" then
                 has_lab = true
                 break
             end
         end
         if not has_lab and not camp.hub_id then
-            return true, "No Lab Station", "Requires a Distiller, Medstation, Ammo Bench, Stove, or Workbench"
+            return true, "No Lab Station", "Requires a Chemist Station, Distiller, Medstation, Ammo Bench, Stove, or Workbench"
         end
 
         local cm = survivor and survivor.chemist_mode or "auto"
@@ -3428,8 +3428,13 @@ function stalker_camp_builder.process_chemist_job(npc_id, hub_id, camp, survivor
 
     local has_lab = false
     local has_lab_bonus = false
+    local has_chemist_station = false
     for _, struct_type in pairs_(camp and camp.structures or {}) do
-        if struct_type == "distiller" or struct_type == "medstation" then
+        if struct_type == "chemist_station" then
+            has_lab = true
+            has_lab_bonus = true
+            has_chemist_station = true
+        elseif struct_type == "distiller" or struct_type == "medstation" then
             has_lab = true
             has_lab_bonus = true
         elseif struct_type == "ammo_bench" or struct_type == "stove" or struct_type == "workbench" then
@@ -3531,6 +3536,9 @@ function stalker_camp_builder.process_chemist_job(npc_id, hub_id, camp, survivor
 
     local has_drugkit = (survivor and survivor.has_drugkit) or (camp and camp.has_drugkit)
     local base_yield = (target_product == "fuel") and 1 or 1
+    if has_chemist_station then
+        base_yield = base_yield + 1
+    end
     if has_lab_bonus or has_drugkit then
         base_yield = base_yield + 1
     end
@@ -3557,9 +3565,17 @@ function stalker_camp_builder.process_chemist_job(npc_id, hub_id, camp, survivor
 
     if survivor then survivor.shortfall_reason = nil end
     local item_label = (ui_item and ui_item.get_sec_name and ui_item.get_sec_name(out_sec)) or out_sec
-    local tmpl = game.translate_string("st_job_chemist_synthesized")
-    if not tmpl or tmpl == "st_job_chemist_synthesized" then
-        tmpl = "%s synthesized %dx %s from charcoal and alcohol!"
+    local tmpl
+    if has_chemist_station then
+        tmpl = game.translate_string("st_job_chemist_station_work")
+        if not tmpl or tmpl == "st_job_chemist_station_work" then
+            tmpl = "%s operated the Chemist Station, synthesizing %dx %s from charcoal and alcohol!"
+        end
+    else
+        tmpl = game.translate_string("st_job_chemist_synthesized")
+        if not tmpl or tmpl == "st_job_chemist_synthesized" then
+            tmpl = "%s synthesized %dx %s from charcoal and alcohol!"
+        end
     end
     sb.camp_send_tip(actor, sformat(tmpl, name, deposited, item_label), nil, "general_stalker", 10000)
     return true

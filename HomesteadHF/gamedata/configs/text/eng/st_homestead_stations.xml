@@ -30,4 +30,7 @@
 	<string id="st_homestead_chemist_station_descr">
 		<text>A Zone field-chemistry and propellant synthesis workbench with a lead-lined spill tray, fractional fuel cracking column, water-jacketed copper Liebig condenser, multi-fuel retort burner, gunpowder drying tray, reagent shelves, and propane feed cylinder. The Chemist works here to synthesize smokeless gunpowder, kerosene, and gasoline from charcoal, alcohol, and chemical reagents. Use it to open its storage: 300 kg of settlement storage for chemicals, crafting parts, and medical supplies. Weighs 32 kg to carry.</text>
 	</string>
+	<string id="st_job_chemist_station_work">
+		<text>%s operated the Chemist Station, synthesizing %dx %s from charcoal and alcohol!</text>
+	</string>
 </string_table>

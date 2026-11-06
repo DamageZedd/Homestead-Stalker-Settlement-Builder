@@ -12,7 +12,7 @@ Replaces these README lines (one <img> per line today):
 <p align="center"><img src="docs/images/collage_workstations.jpg?v=1" alt="Crafting and workstations"><br><sub>Ammunition crafting bench · Gunsmith &amp; armor repair bench · Salvage table · Electrician generator bench · Moonshine distiller · Woodcutter station</sub></p>
 
 ### Production, food & care
-<p align="center"><img src="docs/images/collage_services.jpg?v=1" alt="Production, food and care stations"><br><sub>Hunter butchering station · Farmer station · Market stall · Field kitchen · Field infirmary · Water purifier</sub></p>
+<p align="center"><img src="docs/images/collage_services.jpg?v=2" alt="Production, food and care stations"><br><sub>Hunter butchering station · Farmer station · Market stall · Field kitchen · Field infirmary · Chemist station · Water purifier</sub></p>
 
 ### Storage & camp
 <p align="center"><img src="docs/images/collage_storage.jpg?v=1" alt="Storage, guard post and flag"><br><sub>Armory crate · Quartermaster locker · Med crate · Pantry · Supply crate · Guard post · Settlement flag</sub></p>

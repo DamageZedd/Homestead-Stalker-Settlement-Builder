@@ -36,25 +36,39 @@ def main(png_dir, gd):
     models = {}
     for s, m, w, h in its:
         models.setdefault(m, (w, h))
-    order = sorted(models, key=lambda m: (-models[m][1], -models[m][0], m))
-    sheets, cur = [], None          # shelf packing in cell units
+    h4 = sorted([m for m, (w, h) in models.items() if h == 4])
+    h3 = sorted([m for m, (w, h) in models.items() if h == 3], key=lambda m: (-models[m][0], m))
+    h2_3 = sorted([m for m, (w, h) in models.items() if h == 2 and w == 3])
+    h2_1 = sorted([m for m, (w, h) in models.items() if h == 2 and w < 3])
+    h1 = sorted([m for m, (w, h) in models.items() if h == 1])
+    order = h4 + h2_3[:10] + h3 + h2_3[10:] + h2_1 + h1
+    sheets = []                     # 2D grid packing in cell units
     place = {}
     for m in order:
         w, h = models[m]
-        for sh in sheets:
-            for shelf in sh["shelves"]:
-                if shelf["h"] >= h and shelf["x"] + w <= SHEET_CELLS:
-                    place[m] = (len(sheets) and sheets.index(sh), shelf["x"], shelf["y"]); shelf["x"] += w; break
-            else:
-                y = sh["y"]
-                if y + h <= SHEET_CELLS:
-                    sh["shelves"].append({"x": w, "y": y, "h": h}); sh["y"] += h
-                    place[m] = (sheets.index(sh), 0, y)
-                else:
-                    continue
-            break
+        for si, sh in enumerate(sheets):
+            grid = sh["grid"]
+            placed = False
+            for y in range(SHEET_CELLS - h + 1):
+                for x in range(SHEET_CELLS - w + 1):
+                    if all(grid[y + dy][x + dx] == 0 for dy in range(h) for dx in range(w)):
+                        for dy in range(h):
+                            for dx in range(w):
+                                grid[y + dy][x + dx] = 1
+                        sh["y"] = max(sh["y"], y + h)
+                        place[m] = (si, x, y)
+                        placed = True
+                        break
+                if placed:
+                    break
+            if placed:
+                break
         else:
-            sheets.append({"shelves": [{"x": w, "y": 0, "h": h}], "y": h})
+            grid = [[0] * SHEET_CELLS for _ in range(SHEET_CELLS)]
+            for dy in range(h):
+                for dx in range(w):
+                    grid[dy][dx] = 1
+            sheets.append({"grid": grid, "y": h})
             place[m] = (len(sheets) - 1, 0, 0)
     tex_dir = os.path.join(gd, "textures", "ui")
     os.makedirs(tex_dir, exist_ok=True)

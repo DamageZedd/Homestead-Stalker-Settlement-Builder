@@ -27,6 +27,11 @@ Plant a Settlement Flag to establish a 50-meter settlement boundary. Construct b
 ### ⚔️ Raiders
 A new Raider job. Send raiders against the nearest rival outpost from the Job page, or pick a target and press **Send raiders** on the PDA Outposts tab (a preview shows the band, the odds and the goodwill cost first). A win clears the outpost and brings loot, a cash bounty and a savings cut; it costs goodwill with the robbed faction and its allies. A failed raid leaves the raiders wounded, and a raid can be recalled early. Tuning is in MCM (Raids and events).
 
+### ⚗️ Chemist & Chemist Station
+A new **Chemist** job and placeable **Chemist Station** built from vanilla Anomaly assets and textures. The Chemist synthesizes smokeless gunpowder (`powder_1` / `powder_2`) and refined kerosene / liquid generator fuel from Woodcutter charcoal and Brewer vodka/ethanol, closing the multi-stage production chain from raw timber and grain to ammunition and power. The station includes 300 kg of settlement storage for chemicals, crafting materials and medical supplies.
+
+<p align="center"><img src="docs/images/hero_chemist_station.jpg?v=1" alt="Chemist Station" width="80%"></p>
+
 ### 🍞 Living Needs (on by default)
 Settlers need food and water (switch it off in MCM, Needs): a camp is Fed, Short or Starving; settlers who went without lose morale, refuse demanding jobs until fed, a starving camp's guards defend worse, and low morale can drive settlers away (each consequence has its own switch). Eating from several food classes gives a bonus, and a water pump supplies water.
 
@@ -54,7 +59,7 @@ Every job has its own placeable workstation. Settlers walk to it, work at it and
 
 <p align="center"><img src="docs/images/collage_workstations.jpg?v=1" alt="Crafting workstations" width="100%"></p>
 
-<p align="center"><img src="docs/images/collage_services.jpg?v=1" alt="Production, food and care stations" width="100%"></p>
+<p align="center"><img src="docs/images/collage_services.jpg?v=2" alt="Production, food and care stations" width="100%"></p>
 
 - **Moonshine Distiller**: Brewer
 - **Ammunition Crafting Bench**: Crafter
@@ -66,6 +71,7 @@ Every job has its own placeable workstation. Settlers walk to it, work at it and
 - **Market Stall** 🆕: Trader
 - **Field Kitchen**: Cook · counts as a stove · 300 kg of food & drink storage
 - **Field Infirmary**: Medic · 300 kg of medicine storage
+- **Chemist Station** 🆕: Chemist · 300 kg of chemical, crafting & medicine storage
 - **Guard Post**: Guard · 300 kg of weapon, ammo & grenade storage
 - **Salvage Table**: Scavenger · 300 kg of tool, parts & salvage storage
 
@@ -119,7 +125,7 @@ Full 5-tab tactical interface accessible from anywhere in the Zone. The top stat
 
 ## 👷 Settlement Jobs
 
-15 jobs, all intervals configurable in MCM. Job progress persists across levels, fast travel, and sleep. Settlers keep working while you're away.
+16 jobs, all intervals configurable in MCM. Job progress persists across levels, fast travel, and sleep. Settlers keep working while you're away.
 
 | Job | What it does | Workstation |
 |---|---|---|
@@ -132,6 +138,7 @@ Full 5-tab tactical interface accessible from anywhere in the Zone. The top stat
 | **Electrician** | Power grid, night lights, turret overcharge, battery charging | Electrician Generator Bench |
 | **Woodcutter** | Firewood and charcoal | Woodcutter Station |
 | **Brewer** | Distills vodka, uses potatoes first | Moonshine Distiller |
+| **Chemist** 🆕 | Synthesizes smokeless gunpowder and kerosene/fuel from charcoal and alcohol | Chemist Station |
 | **Scrapper** | Salvages scrap and hardware | — |
 | **Hunter** | Butchers and tans mutant carcasses | Hunter Butchering Station |
 | **Farmer** 🆕 | Potatoes, grain and bread | Farmer Station |

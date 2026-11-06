@@ -1512,6 +1512,7 @@ local structure_type_substrings = {
     wood_station = {"wood_station", "sawbuck", "woodcutter", "chopping_block", "charcoal_kiln"},
     ammo_bench   = {"ammo_bench", "reloading", "bullet_press", "ammo_craft"},
     distiller    = {"distiller", "samogon", "still"},
+    chemist_station = {"chemist_station", "chem_bench"},
     hunter_station = {"hunter_station", "butchering", "tanning_station", "carcass_rack"},
     farmer_station = {"farmer_station", "farm_plot", "garden_bed", "potato_bed"},
     bed         = {"bed", "couch", "sleep", "tent", "cot"},
@@ -1530,7 +1531,7 @@ local structure_type_substrings = {
 }
 
 local structure_type_check_order = {
-    "generator_station", "repair_bench", "hunter_station", "farmer_station", "wood_station", "ammo_bench", "distiller", "gadget", "fridge", "stove", "bed", "barricade", "water_pump",
+    "generator_station", "repair_bench", "hunter_station", "farmer_station", "wood_station", "ammo_bench", "distiller", "chemist_station", "salvage_table", "guard_post", "gadget", "fridge", "stove", "bed", "barricade", "water_pump",
     "alarm", "workbench", "medstation", "piano", "radio",
     "stash",  -- broad catch-all always last
 }
