@@ -5569,7 +5569,7 @@ end
 
 -- Survivor XP / Skill System
 
-function award_survivor_xp(survivor, job, amount)
+function award_survivor_xp(survivor, job, amount, npc_id)
     if not survivor then return end
     amount = amount or 10
     survivor.xp = (survivor.xp or 0) + amount
@@ -5583,8 +5583,9 @@ function award_survivor_xp(survivor, job, amount)
     if new_tier > old_tier then
         survivor.tier = new_tier
         if stalker_camp_builder.send_settler_callback then
+            -- the job loop passes the id: settler_lookup holds only settlers who are online
             stalker_camp_builder.send_settler_callback("homestead_on_settler_promoted",
-                stalker_camp_builder.settler_id_of_record(survivor), survivor, new_tier)
+                npc_id or stalker_camp_builder.settler_id_of_record(survivor), survivor, new_tier)
         end
         local tier_names = {"st_settler_tier_novice", "st_settler_tier_skilled", "st_settler_tier_expert", "st_settler_tier_master"}
         if db.actor then

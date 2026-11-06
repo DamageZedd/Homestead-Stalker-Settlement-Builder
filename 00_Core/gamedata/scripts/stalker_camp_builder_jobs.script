@@ -4561,7 +4561,7 @@ function stalker_camp_builder.update_camp_jobs()
                                     cycles_completed = cycles_completed + 1
                                     survivor.paused_elapsed = nil
                                     survivor.shortfall_reason = nil
-                                    sb.award_survivor_xp(survivor, job)
+                                    sb.award_survivor_xp(survivor, job, nil, npc_id)
                                     sb.guarded_call("prosper_on_work", sb.prosper_on_work, survivor, job)
                                 end
                             end)
