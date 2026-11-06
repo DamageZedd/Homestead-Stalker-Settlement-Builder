@@ -572,7 +572,13 @@ end
 
 function safe_alife_release(obj)
     if not obj then return false end
-    local ok = pcall(alife_release, obj)
+    local ok, released = pcall(alife_release, obj)
+    -- alife_release frees a stalker or monster only through its squad: one made bare by sim:create
+    -- has none, and goes through the engine's own release
+    if ok and released == false then
+        local se = type(obj.id) == "function" and alife_object(obj:id()) or obj
+        ok = se ~= nil and pcall(function() alife():release(se, true) end)
+    end
     return ok
 end
 
