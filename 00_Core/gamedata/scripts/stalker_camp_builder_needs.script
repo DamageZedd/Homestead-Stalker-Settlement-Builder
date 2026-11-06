@@ -23,7 +23,7 @@ local FOOD_CLASS = {
     chocolate = "comfort", chocolate_p = "comfort", raisins = "comfort", nuts = "comfort", mint = "comfort",
     vodka = "comfort", vodka2 = "comfort", vodka_quality = "comfort", beer = "comfort", energy_drink = "comfort",
 }
--- raw meat is the cook's input, so it is eaten last
+-- cooked meat (meat_*, which the cook makes from raw mutant_part_* meat) counts as protein below
 local WATER_SECTIONS = {
     water_drink = true, mineral_water = true, bottle_metal = true, flask = true, tea = true, drink_crow = true,
 }
@@ -45,7 +45,7 @@ function sb.needs_class_of(sec)
     if WATER_SECTIONS[sec] then return "water" end
     local c = FOOD_CLASS[sec]
     if c then return c end
-    if string.sub(sec, 1, 5) == "meat_" then return RAW_CLASS end
+    if string.sub(sec, 1, 5) == "meat_" then return "protein" end
     return nil
 end
 
