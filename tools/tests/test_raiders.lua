@@ -181,7 +181,11 @@ do
     relation_registry = { community_relation = function() return 0 end, change_community_goodwill = function(f, _, d) goodwill[#goodwill + 1] = { f, d }; return true end,
                           community_goodwill = function() return 0 end }
     RegisterScriptCallback = function() end
-    sb.camp_send_tip = function(_, t) tips[#tips + 1] = t end
+    local forced_toasts = 0     -- reports sent with `always` (they would show with Verbose Notifications off)
+    sb.camp_send_tip = function(_, t, _, _, _, _, _, always)
+        tips[#tips + 1] = t
+        if always then forced_toasts = forced_toasts + 1 end
+    end
     sb.add_radio_feed_entry = function() end
     sb.allow_home_squad_online = function() end
     sb.prosper_credit = function(sv, n) sv.savings = (sv.savings or 0) + n end
@@ -352,6 +356,7 @@ do
     tips = {}
     eq(sb.raiders_send(7, camp3, nil, "k2"), false, "no raider left for a second send")
     eq(tips[1], "st_pda_raid_why_no_raider", "reason tip")
+    eq(forced_toasts, 0, "raider toasts respect Verbose Notifications off")
     eq(sb.raiders_send(7, camp3, nil, "gone"), false, "cleared outpost refused")
 
     -- ---- phase 4: recall (manual, auto, defenders, save/load)

@@ -661,10 +661,12 @@ local HAUL_TIER2 = { "wpn_ak74", "weapon", 2600 }
 
 local function tr(id) return game.translate_string(id) end
 
+-- the toast follows Verbose Notifications (camp_send_tip's `always` is false unless a caller asks for it);
+-- the radio feed and the camp log get every report either way
 local function tip(text, ms, always)
     local actor = db.actor
     if actor and sb.camp_send_tip then
-        pcall(sb.camp_send_tip, actor, text, nil, "general_stalker", ms or 9000, nil, nil, always ~= false)
+        pcall(sb.camp_send_tip, actor, text, nil, "general_stalker", ms or 9000, nil, nil, always == true)
     end
     if sb.add_radio_feed_entry then pcall(sb.add_radio_feed_entry, "settlement", text) end
 end
