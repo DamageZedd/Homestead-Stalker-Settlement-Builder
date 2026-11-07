@@ -247,8 +247,9 @@ end
 -- ---------------------------------------------------------------------------------------------------
 -- consequences (phase 4) and the PDA line (phase 3)
 
--- jobs a hungry settler still does: they produce food, or fetch it
-local HUNGRY_EXEMPT_JOB = { farmer = true, hunter = true, cook = true, scavenge = true, scavenger = true }
+-- jobs a hungry settler still does: they produce food or water, or fetch it. The woodcutter's charcoal
+-- is the pump's filter, so a camp short of water needs him working to get any.
+local HUNGRY_EXEMPT_JOB = { farmer = true, hunter = true, cook = true, scavenge = true, scavenger = true, woodcutter = true }
 local GUARD_MULT = 0.6
 
 local function flag_on(until_sec)
