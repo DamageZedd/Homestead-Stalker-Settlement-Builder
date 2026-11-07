@@ -2631,7 +2631,7 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
         <text>Sure. Should I balance gunpowder and fuel reserves automatically, focus purely on gunpowder for the Crafter, or focus purely on refining kerosene fuel?</text>
     </string>
     <string id="st_chemist_mode_auto_dialog">
-        <text>Auto-Balance (keep at least 6 gunpowder for the Crafter and 3 fuel cans for the Electrician, then alternate).</text>
+        <text>Auto-Balance (make whichever of gunpowder and fuel cans is lower in camp storage, until both are full).</text>
     </string>
     <string id="st_chemist_mode_powder_dialog">
         <text>Gunpowder Focus (2x Charcoal + 1x Alcohol/Vodka -> Gunpowder).</text>
