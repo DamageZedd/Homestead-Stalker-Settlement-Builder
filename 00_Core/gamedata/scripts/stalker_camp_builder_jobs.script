@@ -4278,7 +4278,9 @@ function stalker_camp_builder.update_camp_jobs()
                                 return sb.cfg.water_filters and (sb.cfg.water_filters[sec] or sb.cfg.water_filters[s])
                             end, camp_box_id)
                         end
-                        -- Closed-loop charcoal filtration: 3 charcoal + 1 cloth (or bandage) forms a filter bed
+                        -- Closed-loop charcoal filtration: 3 charcoal + 1 cloth (or bandage) forms a filter bed.
+                        -- Note: charcoal is itself in cfg.water_filters, so the pump above already takes a single
+                        -- charcoal use as a plain filter first; this bed only runs on a stale snapshot.
                         if not consumed_filter and sb.find_and_consume_item and sb.deposit_item_to_camp then
                             local char_cnt = (camp_snap and camp_snap.charcoal_count)
                                 or (sb.camp_count_item and sb.camp_count_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, 3)) or 0
