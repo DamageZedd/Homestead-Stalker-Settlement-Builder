@@ -882,7 +882,9 @@ local BAND_MAX = 3
 -- the free raiders of a camp (up to BAND_MAX, the lead first when given) as survivors and ids;
 -- sorted so the PDA preview and the send pick the same band
 local function refresh_raider_gear(npc_id, surv)
-    if type(surv) ~= "table" or surv.has_weapon ~= nil then return end
+    -- read each time: a raider may have re-armed, or lost the gun, since the last look (has_weapon is
+    -- saved, so a value once set was never read again)
+    if type(surv) ~= "table" then return end
     if not (level and level.object_by_id) then return end
     local obj = level.object_by_id(tonumber(npc_id) or npc_id)
     if not obj then return end
