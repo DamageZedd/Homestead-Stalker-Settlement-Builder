@@ -14,9 +14,11 @@
 -- the piece's frame). Walls, doorways and posts get theirs the same way: door mode lets NPCs and mutants
 -- walk through a piece, so without a collider a mutant passes through every wall. Their boxes are listed
 -- per piece section in [hs_colliders_<section>] blocks (items_homestead_building.ltx), the Hideout
--- Furniture walls included, and leave a doorway's opening free. The ones with no collider (the spiral
--- stair landing) stay solid: their collision is inset 5 mm so snapped neighbours don't overlap, and their
--- models ignore ragdolls ([collide] ignore_ragdoll), so bodies fall through them instead of waking them.
+-- Furniture walls included, and leave a doorway's opening free. The spiral stair landing has a single
+-- collider strip (hs_collider_spiral_end, about 0.68 m2 along one edge, against about 4.25 m2 of its own
+-- collision), so in door mode only that strip holds items, bodies and NPCs. A piece listed with no
+-- collider at all stays solid: its collision is inset 5 mm so snapped neighbours don't overlap, and its
+-- model ignores ragdolls ([collide] ignore_ragdoll), so bodies fall through it instead of waking it.
 -- Stairs and ramps (tilted slabs, which an upright box can't follow) just stay in door mode.
 -- See tools/model_pipeline/build_floor_collision.py.
 --
