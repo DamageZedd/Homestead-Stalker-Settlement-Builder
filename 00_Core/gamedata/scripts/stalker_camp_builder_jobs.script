@@ -3646,9 +3646,14 @@ function stalker_camp_builder.process_chemist_job(npc_id, hub_id, camp, survivor
     -- each unit pays its own inputs (a bigger batch from one set was open-ended money)
     total_out = sb.chemist_batch_size(total_out, char_cnt, eth_cnt, req_char, req_eth)
 
-    -- Consume inputs safely, one set per unit; a unit that can't be paid in full is put back
-    local units = 0
+    -- One unit at a time: ask for room, take the unit's inputs, store it, so inputs are only spent on
+    -- output there is room for (see output_box). The storage cap counts storage only: a unit that would
+    -- go to the Market Stall (every box full) is not made, so the batch stops there (the next one pauses
+    -- on "Storage Full"). A unit that can't be paid in full, or stored, puts its inputs back and ends it.
+    local deposited, short = 0, false
     for _ = 1, total_out do
+        local box_id = output_box(camp, hub_id, out_sec)
+        if not box_id or is_market_stall_box(camp, box_id) then break end
         local c_taken = 0
         for _ = 1, req_char do
             if sb.find_and_consume_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, nil) then
@@ -3660,29 +3665,16 @@ function stalker_camp_builder.process_chemist_job(npc_id, hub_id, camp, survivor
             local esec = sb.find_and_consume_item(hub_id, camp, is_ethanol_section, nil)
             if esec then e_taken[#e_taken + 1] = esec end
         end
-        if c_taken < req_char or #e_taken < req_eth then
+        short = c_taken < req_char or #e_taken < req_eth
+        if short or not sb.deposit_item_to_camp(hub_id, camp, out_sec) then
             for _ = 1, c_taken do sb.deposit_item_to_camp(hub_id, camp, "charcoal") end
             for i = 1, #e_taken do sb.deposit_item_to_camp(hub_id, camp, e_taken[i]) end
             break
         end
-        units = units + 1
-    end
-    if units < 1 then
-        if survivor then survivor.shortfall_reason = "Need Charcoal & Alcohol" end
-        return false
-    end
-
-    local deposited = 0
-    for _ = 1, units do
-        -- the storage cap counts storage only: a unit that would go to the Market Stall (every box full)
-        -- is not made, so the batch stops there (the next one pauses on "Storage Full")
-        local box_id = output_box(camp, hub_id, out_sec)
-        if not box_id or is_market_stall_box(camp, box_id) then break end
-        if not sb.deposit_item_to_camp(hub_id, camp, out_sec) then break end
         deposited = deposited + 1
     end
     if deposited <= 0 then
-        if survivor then survivor.shortfall_reason = "Storage Full" end
+        if survivor then survivor.shortfall_reason = short and "Need Charcoal & Alcohol" or "Storage Full" end
         return false
     end
 
