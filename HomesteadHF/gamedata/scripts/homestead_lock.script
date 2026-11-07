@@ -268,7 +268,7 @@ local function set_static(obj, static)
         release_collider(obj:id())
         if is_solid(sec) then
             local po0 = obj:get_physics_object()
-            if po0 then po0:unset_door_ignore_dynamics() end
+            if po0 and obj:get_physics_shell() then po0:unset_door_ignore_dynamics() end
             return false
         end
     end
@@ -278,7 +278,7 @@ local function set_static(obj, static)
             if not ensure_collider(obj, obj:id(), rec) then
                 if is_solid(sec) and (collider_breaks[obj:id()] or 0) >= MAX_BREAKS then
                     local po0 = obj:get_physics_object()
-                    if po0 then po0:unset_door_ignore_dynamics() end
+                    if po0 and obj:get_physics_shell() then po0:unset_door_ignore_dynamics() end
                 end
                 return false
             end
