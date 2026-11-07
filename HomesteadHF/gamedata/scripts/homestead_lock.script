@@ -414,7 +414,6 @@ local function hook_set_frozen(id)
     wrapper.hs_lock_hooked = true
     wrapper.set_frozen = function(self, frozen)
         set_frozen(self, frozen)
-        self.hs_unfrozen = not self.is_frozen
         local obj = self.object
         if obj then
             local ok, err = pcall(function()
