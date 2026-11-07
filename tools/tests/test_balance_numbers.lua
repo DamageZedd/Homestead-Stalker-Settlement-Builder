@@ -77,6 +77,7 @@ check(D.trader_price_percent >= 10 and best_rate <= 0.40, "Trader best-case rate
 local COST = {
     scav_item = 1000, meat = 736, hide = 1551, trophy = 1023, ammo_box = 1100, bandage = 1000, medkit = 2500,
     kalium = 3080, akvatab = 4524, wood = 132, vodka = 946, scrap = 50, fasteners = 73, bread = 600, charcoal = 1262,
+    kerosene = 3500,   -- a full 5-use can
 }
 local TIER, MORALE = 3.0, 1.1
 local spec_max = {}
@@ -124,6 +125,14 @@ do
     local band = math.min(15, math.floor(mult + 0.5))
     job("medic bandage (clinic, drugkit)", per_hour(band * COST.bandage, D.medic_job_interval), 40000)
 end
+-- chemist: fuel comes 4 cans at a time and every can pays its own 2 charcoal + 2 vodka uses. Batch of
+-- base 1 + lab 1 + station 1 (the kit adds nothing next to a lab structure), times tier and specialization.
+do
+    local fuel_max = tonumber(jobs:match("CHEMIST_FUEL_BATCH_MAX = (%d+)"))
+    check(fuel_max, "CHEMIST_FUEL_BATCH_MAX not found")
+    local units = math.min(fuel_max, math.floor(3 * TIER * spec_max.chemist + 0.5))
+    job("chemist kerosene (clinic, station)", per_hour(units * COST.kerosene, D.realtime_job_chemist_interval), 46000)
+end
 -- woodcutter: 40 cap
 do
     local count = (math.max(D.yield_wood_min * 2, 1) + math.floor(D.yield_wood_max * 1.5 + 0.5)) / 2 + 2
@@ -169,6 +178,8 @@ end
 -- hard caps in the code that the ceilings above rely on
 check(jobs:find("math.min(math.floor(count * tier_mult * spec_mult * mult + 0.5), 40)", 1, true), "woodcutter 40 cap changed")
 check(jobs:find("MEDIC_RARE_BATCH_MAX = 4", 1, true), "medic rare batch cap changed")
+check(jobs:find("CHEMIST_FUEL_BATCH_MAX = 4", 1, true), "chemist fuel batch cap changed")
+check(jobs:find("total_out = sb.chemist_batch_size(total_out, char_cnt, eth_cnt, req_char, req_eth)", 1, true), "chemist batch no longer pays per unit")
 check(jobs:find("math.min(math.floor(count * total_mult + 0.5), 16)", 1, true), "brewer 16 cap changed")
 
 -- 5. specialization table lists the stats the jobs read -------------------------------------------------------

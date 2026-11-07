@@ -33,6 +33,7 @@ formulas at tier 1 and no specialization.
 | medic bandage | 2400 | 31200 | 360 | stock cap 15 |
 | medic akvatab | 10900 | 86900 | 3800 | stock cap 8 per batch, 5 vodka uses |
 | medic medkit | 6000 | 48000 | 5400 | stock cap 8 |
+| chemist kerosene | 31500 | 42000 | 17640 (was 4410) | 4 cans per batch, each pays 2 charcoal + 2 vodka uses; 20 min cycle |
 | woodcutter | 2400 | 15800 | none | 40 per cycle |
 | brewer | 8500 | 45400 | 3000-4100 | 16 per cycle, 7-10 wood |
 | scrapper | 1100 | 8100 | none | 35 / 25 per cycle |
@@ -134,12 +135,26 @@ Needs on by default, numbers: 12 settlers need 12 food items and 12 water uses p
 with neither a cook, a farmer nor stock gets the tier 2/3 penalties after the grace period. Without RTZ at factor 6 the
 same arithmetic holds (the scale is 1 and the day is 4 real hours).
 
-Measured by `test_balance_numbers.lua` (medic ceiling 95000 to 46000, food ratio under RTZ), `test_medic_batch.lua`,
-`test_repair_fee.lua`, `test_game_timer_scale.lua`.
+## 5d. Chemist (issue #422)
+
+| # | Change | Before | After | Where |
+|---|---|---|---|---|
+| 10 | Chemist batches pay per unit; at most 4 cans of fuel or 6 tins of powder per batch | one set (2 charcoal + 2 vodka uses, about 1470 RU) made 3-4 kerosene, each a full 5-use can worth 3500 RU: 10500-14000 RU per 20 min, 31500-42000 RU/h, ROI 7-9.5x at the Station | each can or tin takes its own 2 charcoal + 1 or 2 alcohol uses (limited by storage); best case 4 cans = 14000 RU per 20 min = 42000 RU/h gross for 17640 RU/h of inputs (net 24360, ROI 2.4x at every tier); novice with a Station (3 cans) 31500 gross for 13230 inputs | `jobs` `chemist_batch_size`, `process_chemist_job` |
+| 11 | The Chemist never sends output to the Market Stall | the 10-can and 12-tin caps count storage only; with every box full `deposit_item_to_camp` overflowed into the stall, where the Trader sells it, so the cap did not bound the output | `output_box` is asked before inputs are taken and before each unit; a stall stash as the target means "Storage Full" and the batch stops there | `jobs` `is_market_stall_box` |
+| 12 | Guide text | "+1 extra canister/tin to every batch", inputs per batch | inputs per canister/tin, the 4 / 6 batch caps, the real size bonuses (Lab +2, Distiller or Infirmary +1, kit +1 only when none of those stands), and that a full stockpile pauses the job | `ui_st_stalker_camp_builder.xml` |
+
+The gross best case does not move (the batch cap of 4 was already there); what changes is that it now costs four sets of
+inputs, so the Chemist is limited by the Woodcutter's charcoal and the Brewer's vodka instead of turning one set into
+four cans. The ceiling in `test_balance_numbers.lua` is the Medic's (46000 RU/h). Kerosene (3500, a full can) and the
+input value (1470) are the issue's figures; powder prices are still unverified, so only the kerosene case is asserted.
+
+Measured by `test_balance_numbers.lua` (medic ceiling 95000 to 46000, chemist kerosene 42000 under 46000, food ratio under RTZ),
+`test_medic_batch.lua`, `test_chemist_batch.lua`, `test_production_chains.lua` (chains 6 and 7), `test_repair_fee.lua`,
+`test_game_timer_scale.lua`.
 
 ## 6. Flagged, left alone
 
-* (Fixed in later rounds: medic batches, repair fee, game-time timers under RTZ, early rounds, rival and equipment timers, expedition walk, needs default; see 5b and 5c.)
+* (Fixed in later rounds: medic batches, repair fee, game-time timers under RTZ, early rounds, rival and equipment timers, expedition walk, needs default, Chemist batches; see 5b, 5c and 5d.)
 * Hunter Station double bonus, uncapped scavenge tier multiplier, three pumps for the price of one filter.
 * Raid cooldown (20 real minutes rest, 40 wounded, 3 a day), build kit, furniture lock, performance work: untouched.
 * Players with a saved MCM profile keep their old Trader price of 60 until they press Default.

@@ -179,6 +179,18 @@ local function output_box(camp, hub_id, sec)
     return sb.get_auto_sort_target_box(camp, hub_id, sec, false, w, weights)
 end
 
+-- whether a box id is the stash of one of the camp's Market Stalls (the surplus overflow of
+-- get_auto_sort_target_box, which the stock caps do not count)
+local function is_market_stall_box(camp, box_id)
+    if not (camp and camp.structures and box_id and homestead_market_stall and homestead_market_stall.get_stash) then
+        return false
+    end
+    for stall_id, stype in pairs(camp.structures) do
+        if stype == "market_stall" and homestead_market_stall.get_stash(stall_id) == box_id then return true end
+    end
+    return false
+end
+
 -- set_survivor_job -- assigns a job to a settler and re-syncs their
 function stalker_camp_builder.set_survivor_job(npc_id, job)
     local sb = stalker_camp_builder
@@ -3488,6 +3500,18 @@ function stalker_camp_builder.process_scrapper_job(npc_id, hub_id, camp, survivo
     return true
 end
 
+-- Chemist batch: at most CHEMIST_FUEL_BATCH_MAX cans or CHEMIST_POWDER_BATCH_MAX tins, and every unit pays
+-- its own inputs (req_char charcoal + req_eth alcohol uses), so a unit costs the same at every tier and
+-- station. A batch is cut to what storage holds, but never below the one set the caller has checked.
+stalker_camp_builder.CHEMIST_FUEL_BATCH_MAX = 4
+stalker_camp_builder.CHEMIST_POWDER_BATCH_MAX = 6
+function stalker_camp_builder.chemist_batch_size(want, char_uses, eth_uses, req_char, req_eth)
+    local n = math.max(1, math.floor(tonumber(want) or 1))
+    if req_char and req_char > 0 then n = math.min(n, math.max(1, math.floor((char_uses or 0) / req_char))) end
+    if req_eth and req_eth > 0 then n = math.min(n, math.max(1, math.floor((eth_uses or 0) / req_eth))) end
+    return n
+end
+
 -- Chemist job: synthesize Gunpowder (powder_1 / powder_2) and Kerosene / Liquid Fuel from Charcoal + Alcohol/Vodka
 function stalker_camp_builder.process_chemist_job(npc_id, hub_id, camp, survivor, camp_box_id)
     local sb = stalker_camp_builder
@@ -3535,8 +3559,9 @@ function stalker_camp_builder.process_chemist_job(npc_id, hub_id, camp, survivor
         end
         return n
     end
-    local char_cnt = count_uses(function(s) return s == "charcoal" or s:find("charcoal") ~= nil end, 4)
-    local eth_cnt = count_uses(is_ethanol_section, 4)
+    -- up to a full fuel batch's worth (4 units of 2 uses each), see chemist_batch_size
+    local char_cnt = count_uses(function(s) return s == "charcoal" or s:find("charcoal") ~= nil end, 8)
+    local eth_cnt = count_uses(is_ethanol_section, 8)
 
     local target_product = mode
     if mode == "auto" then
@@ -3595,27 +3620,8 @@ function stalker_camp_builder.process_chemist_job(npc_id, hub_id, camp, survivor
     end
 
     local target_box_id = output_box(camp, hub_id, out_sec)
-    if not target_box_id then
+    if not target_box_id or is_market_stall_box(camp, target_box_id) then
         if survivor then survivor.shortfall_reason = "Storage Full" end
-        return false
-    end
-
-    -- Consume inputs safely
-    local c_taken = 0
-    for _ = 1, req_char do
-        if sb.find_and_consume_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, nil) then
-            c_taken = c_taken + 1
-        end
-    end
-    local e_taken = {}
-    for _ = 1, req_eth do
-        local esec = sb.find_and_consume_item(hub_id, camp, is_ethanol_section, nil)
-        if esec then e_taken[#e_taken + 1] = esec end
-    end
-    if c_taken < req_char or #e_taken < req_eth then
-        for _ = 1, c_taken do sb.deposit_item_to_camp(hub_id, camp, "charcoal") end
-        for i = 1, #e_taken do sb.deposit_item_to_camp(hub_id, camp, e_taken[i]) end
-        if survivor then survivor.shortfall_reason = "Need Charcoal & Alcohol" end
         return false
     end
 
@@ -3631,15 +3637,47 @@ function stalker_camp_builder.process_chemist_job(npc_id, hub_id, camp, survivor
     local spec_mult = (sb.get_specialization_mult and camp and sb.get_specialization_mult(camp, "chemist")) or 1.0
     local mult = math.max(1, math.floor(sb.cfg.craft_output_multiplier or 1))
     local total_out = math.max(1, math.floor(base_yield * tier_mult * spec_mult * mult + 0.5))
-    local max_batch = (target_product == "fuel") and 4 or 6
+    local max_batch = (target_product == "fuel") and sb.CHEMIST_FUEL_BATCH_MAX or sb.CHEMIST_POWDER_BATCH_MAX
     total_out = math.min(total_out, max_batch)
     if cap_on then
         local room = (target_product == "fuel") and math.max(1, 10 - fuel_cnt) or math.max(1, 12 - powder_cnt)
         total_out = math.min(total_out, room)
     end
+    -- each unit pays its own inputs (a bigger batch from one set was open-ended money)
+    total_out = sb.chemist_batch_size(total_out, char_cnt, eth_cnt, req_char, req_eth)
+
+    -- Consume inputs safely, one set per unit; a unit that can't be paid in full is put back
+    local units = 0
+    for _ = 1, total_out do
+        local c_taken = 0
+        for _ = 1, req_char do
+            if sb.find_and_consume_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, nil) then
+                c_taken = c_taken + 1
+            end
+        end
+        local e_taken = {}
+        for _ = 1, req_eth do
+            local esec = sb.find_and_consume_item(hub_id, camp, is_ethanol_section, nil)
+            if esec then e_taken[#e_taken + 1] = esec end
+        end
+        if c_taken < req_char or #e_taken < req_eth then
+            for _ = 1, c_taken do sb.deposit_item_to_camp(hub_id, camp, "charcoal") end
+            for i = 1, #e_taken do sb.deposit_item_to_camp(hub_id, camp, e_taken[i]) end
+            break
+        end
+        units = units + 1
+    end
+    if units < 1 then
+        if survivor then survivor.shortfall_reason = "Need Charcoal & Alcohol" end
+        return false
+    end
 
     local deposited = 0
-    for _ = 1, total_out do
+    for _ = 1, units do
+        -- the storage cap counts storage only: a unit that would go to the Market Stall (every box full)
+        -- is not made, so the batch stops there (the next one pauses on "Storage Full")
+        local box_id = output_box(camp, hub_id, out_sec)
+        if not box_id or is_market_stall_box(camp, box_id) then break end
         if not sb.deposit_item_to_camp(hub_id, camp, out_sec) then break end
         deposited = deposited + 1
     end

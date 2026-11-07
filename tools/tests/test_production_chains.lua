@@ -134,7 +134,8 @@ _G.level = {
     end
 }
 _G.homestead_market_stall = {
-    find_stash = function(sid) return sid == 30 and 20 or nil end
+    find_stash = function(sid) return sid == 30 and 20 or nil end,
+    get_stash = function(sid) return sid == 30 and 20 or nil end,
 }
 
 _G.stalker_camp_builder = {
@@ -358,14 +359,22 @@ end
 
 -- Test Chain 6: Chemist Station (chemist_station) grants +1 yield bonus and X-Ray IReader::r_string (<4095 byte) line limit
 do
-    reset_env({ "charcoal", "charcoal", "vodka" })
+    -- a batch of 3 (base 1 + lab 1 + chemist_station 1) takes 3 sets of inputs: 6 charcoal + 3 vodka
+    reset_env({ "charcoal", "charcoal", "charcoal", "charcoal", "charcoal", "charcoal", "vodka", "vodka", "vodka" })
     local camp = { hub_id = 1, structures = { [16] = "chemist_station" }, survivors = {} }
     local chem = { name = "Chemist", job = "chemist", tier = 0, chemist_mode = "powder" }
     local paused_cs, reason_cs = sb._calc_job_paused_status(chem, camp, 1, nil)
     eq(paused_cs, false, "Chain 6: chemist not paused at chemist_station (reason=" .. tostring(reason_cs) .. ")")
     local ok_cs = sb.process_chemist_job(105, 1, camp, chem, 1)
     eq(ok_cs, true, "Chain 6: process_chemist_job succeeded at chemist_station")
-    eq(count_sec("powder_1"), 3, "Chain 6: chemist_station grants +1 extra canister (base 1 + lab 1 + chemist_station 1 = 3)")
+    eq(count_sec("powder_1"), 3, "Chain 6: chemist_station grants +1 extra tin (base 1 + lab 1 + chemist_station 1 = 3)")
+    eq(count_sec("charcoal") + count_sec("vodka"), 0, "Chain 6: each of the 3 tins paid its own charcoal and vodka")
+
+    -- one set of inputs buys one tin, whatever the station
+    reset_env({ "charcoal", "charcoal", "vodka" })
+    eq(sb.process_chemist_job(105, 1, camp, chem, 1), true, "Chain 6: one set of inputs")
+    eq(count_sec("powder_1"), 1, "Chain 6: one set of inputs makes one tin, not the whole batch")
+    eq(count_sec("charcoal") + count_sec("vodka"), 0, "Chain 6: that set was used up")
 
     for _, xml_path in ipairs({
         "00_Core/gamedata/configs/text/eng/ui_st_stalker_camp_builder.xml",
@@ -380,6 +389,40 @@ do
         end
         check(max_len < 4000, xml_path .. " max line length < 4000 bytes for X-Ray IReader::r_string (got " .. max_len .. ")")
     end
+end
+
+-- Test Chain 7: Chemist fuel batch: at most 4 cans, every can pays 2 charcoal + 2 vodka uses
+do
+    local items = {}
+    for _ = 1, 10 do items[#items + 1] = "charcoal" end
+    for _ = 1, 10 do items[#items + 1] = "vodka" end
+    reset_env(items)
+    local camp = { hub_id = 1, structures = { [16] = "chemist_station" }, survivors = {} }
+    local chem = { name = "Chemist", job = "chemist", tier = 3, chemist_mode = "fuel", has_drugkit = true }
+    sb.get_survivor_tier_mult = function() return 3.0 end
+    eq(sb.process_chemist_job(105, 1, camp, chem, 1), true, "Chain 7: fuel batch")
+    eq(count_sec("kerosene"), 4, "Chain 7: a Master with a Station and a kit makes 4 cans, the batch cap")
+    eq(count_sec("charcoal"), 2, "Chain 7: 4 cans took 8 charcoal uses")
+    eq(count_sec("vodka"), 2, "Chain 7: 4 cans took 8 vodka uses")
+
+    -- inputs for 2 cans only: the batch is cut to 2 (never 4 cans from 2 sets)
+    reset_env({ "charcoal", "charcoal", "charcoal", "charcoal", "vodka", "vodka", "vodka", "vodka" })
+    eq(sb.process_chemist_job(105, 1, camp, chem, 1), true, "Chain 7: short of inputs")
+    eq(count_sec("kerosene"), 2, "Chain 7: inputs for 2 sets make 2 cans")
+    eq(count_sec("charcoal") + count_sec("vodka"), 0, "Chain 7: all inputs used")
+    sb.get_survivor_tier_mult = function(s) return (s and s.tier and s.tier >= 2) and 1.5 or 1.0 end
+
+    -- every box full: the output would go to the Market Stall, so nothing is made and nothing is taken
+    reset_env({ "charcoal", "charcoal", "vodka", "vodka" })
+    local real_target = sb.get_auto_sort_target_box
+    sb.get_auto_sort_target_box = function() return 20 end    -- the stall's stash
+    local camp2 = { hub_id = 1, structures = { [16] = "chemist_station", [30] = "market_stall" }, survivors = {} }
+    local chem2 = { name = "Chemist", job = "chemist", tier = 0, chemist_mode = "fuel" }
+    eq(sb.process_chemist_job(105, 1, camp2, chem2, 1), false, "Chain 7: no batch when the output would overflow to the stall")
+    eq(chem2.shortfall_reason, "Storage Full", "Chain 7: paused on Storage Full")
+    eq(#stall_inv, 0, "Chain 7: nothing reached the Market Stall")
+    eq(count_sec("charcoal") + count_sec("vodka"), 4, "Chain 7: inputs untouched")
+    sb.get_auto_sort_target_box = real_target
 end
 
 if fails > 0 then
