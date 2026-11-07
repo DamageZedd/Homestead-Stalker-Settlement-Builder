@@ -95,7 +95,6 @@ function sb.raiders_survivor_ready(surv, now_sec, cfg)
     if type(surv.raider) == "table" and surv.raider.defending then return false, "defending" end
     if sb.needs_job_refused and sb.needs_job_refused(surv) then return false, "hungry" end
     if surv.has_weapon == false then return false, "no_weapon" end
-    if surv.has_ammo == false then return false, "no_ammo" end
     local r = type(surv.raider) == "table" and surv.raider
     if r and num(r.rest_until, 0) > num(now_sec, 0) then return false, "resting" end
     return true
@@ -144,7 +143,7 @@ function sb.raiders_blockers(survivors, now_sec, cfg)
 end
 
 -- the PDA lines for a blocker list: one per raider, at most `max`, then "+N more" and when the first one is free again.
--- fmt = { wounded, resting, busy, defending, no_weapon, no_ammo (each "%s ... %s"), more ("%d"), next ("%s") }
+-- fmt = { wounded, resting, busy, defending, no_weapon (each "%s ... %s"), more ("%d"), next ("%s") }
 function sb.raiders_blocker_lines(list, tf, fmt, max)
     local lines = {}
     if type(list) ~= "table" or type(fmt) ~= "table" then return lines end
@@ -1068,7 +1067,7 @@ local function blocked_status(reason, camp, t, now_sec)
             st.lines = sb.raiders_blocker_lines(list, tf, {
                 wounded = tr("st_pda_raid_blk_wounded"), resting = tr("st_pda_raid_blk_resting"),
                 busy = tr("st_pda_raid_blk_busy"), defending = tr("st_pda_raid_blk_defending"),
-                no_weapon = tr("st_pda_raid_blk_no_weapon"), no_ammo = tr("st_pda_raid_blk_no_ammo"),
+                no_weapon = tr("st_pda_raid_blk_no_weapon"),
                 hungry = tr("st_pda_raid_blk_hungry"),
                 more = tr("st_pda_raid_blk_more"), next = tr("st_pda_raid_blk_next"),
             }, 3)

@@ -53,7 +53,7 @@ end
 o, r = sb.raiders_survivor_ready({ tier = 3, raider = { wounded_until = 500 } }, 100); eq(r, "wounded", "wounded")
 eq(sb.raiders_survivor_ready({ tier = 3, raider = { wounded_until = 50 } }, 100), true, "healed")
 o, r = sb.raiders_survivor_ready({ tier = 3, on_expedition = true }, 100); eq(r, "busy", "on expedition")
-o, r = sb.raiders_survivor_ready({ tier = 3, has_ammo = false }, 100); eq(r, "no_ammo", "no ammo")
+eq(sb.raiders_survivor_ready({ tier = 3, has_ammo = false }, 100), true, "has_ammo is not read (nothing writes it)")
 o, r = sb.raiders_survivor_ready({ tier = 3, raider = { rest_until = 200 } }, 100); eq(r, "resting", "resting")
 
 -- a dismantle cancels the raider missions once: release_camp_residents is the only caller
