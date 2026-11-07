@@ -120,13 +120,25 @@ local function is_ethanol_section(sec)
         or s:find("vodka") ~= nil or s:find("antiseptic") ~= nil or s == "alcohol" or s:find("spirit") ~= nil
 end
 
+-- what the Hunter's station harvests: the Scrapper cures these pelts and the Medic uses these trophies.
+-- Any other hide_* or mutant_part_* in storage is the player's: in G.A.M.M.A. a hide is a wearable belt
+-- item (6,200-11,000 RU) and a chimera heart sells for 5,250.
+local HUNTER_PELTS = { "hide_pseudodog", "hide_boar", "hide_flesh", "hide_dog", "hide_chimera", "hide_bloodsucker", "hide_burer" }
+local HUNTER_TROPHIES = {
+    "mutant_part_boar_leg", "mutant_part_flesh_eye", "mutant_part_dog_tail",
+    "mutant_part_psevdodog_tail", "mutant_part_krovosos_jaw", "mutant_part_snork_leg",
+    "mutant_part_chimera_claw", "mutant_part_cat_tail", "mutant_part_burer_hand"
+}
+local HUNTER_PELT_SET, HUNTER_TROPHY_SET = {}, {}
+for _, s in ipairs(HUNTER_PELTS) do HUNTER_PELT_SET[s] = true end
+for _, s in ipairs(HUNTER_TROPHIES) do HUNTER_TROPHY_SET[s] = true end
+
 local function is_mutant_pelt(sec)
-    return sec ~= nil and sec:find("^hide_") ~= nil
+    return sec ~= nil and HUNTER_PELT_SET[sec] == true
 end
 
 local function is_mutant_trophy(sec)
-    if not sec or not sec:find("^mutant_part_") then return false end
-    return stalker_camp_builder.meat_cooking_map[sec] == nil
+    return sec ~= nil and HUNTER_TROPHY_SET[sec] == true
 end
 
 local function deposit_surplus_to_market_stall(camp, sec)
@@ -464,7 +476,7 @@ function stalker_camp_builder.spawn_hunted_meat(box_id, multiplier, hub_id, camp
     if has_hunter_station then
         -- 75% chance to harvest/cure a mutant pelt
         if math.random(100) <= 75 then
-            local pelt_table = {"hide_pseudodog", "hide_boar", "hide_flesh", "hide_dog", "hide_chimera", "hide_bloodsucker", "hide_burer"}
+            local pelt_table = HUNTER_PELTS
             local psec = pelt_table[math.random(#pelt_table)]
             if psec and ini_sys and ini_sys.section_exist and ini_sys:section_exist(psec) then
                 local pelt_stock = (camp and hub_id and sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_mutant_pelt, 4)) or 0
@@ -479,11 +491,7 @@ function stalker_camp_builder.spawn_hunted_meat(box_id, multiplier, hub_id, camp
         end
         -- 60% chance to harvest a pristine hunting trophy
         if math.random(100) <= 60 then
-            local trophy_table = {
-                "mutant_part_boar_leg", "mutant_part_flesh_eye", "mutant_part_dog_tail",
-                "mutant_part_psevdodog_tail", "mutant_part_krovosos_jaw", "mutant_part_snork_leg",
-                "mutant_part_chimera_claw", "mutant_part_cat_tail", "mutant_part_burer_hand"
-            }
+            local trophy_table = HUNTER_TROPHIES
             local tsec = trophy_table[math.random(#trophy_table)]
             if tsec and ini_sys and ini_sys.section_exist and ini_sys:section_exist(tsec) then
                 local trophy_stock = (camp and hub_id and sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_mutant_trophy, 4)) or 0
@@ -3435,7 +3443,8 @@ function stalker_camp_builder.process_scrapper_job(npc_id, hub_id, camp, survivo
     if (has_salvage_table or (survivor and survivor.has_tools)) and sb.camp_count_item and sb.find_and_consume_item and sb.deposit_item_to_camp then
         local cloth_sec = first_existing_section("prt_i_cloth", "bandage")
         local copper_sec = first_existing_section("prt_i_copper", "prt_i_resistors", "prt_i_fasteners")
-        local cloth_cnt = sb.camp_count_item(hub_id, camp, is_cloth, 15) or 0
+        -- the cloth this makes: without prt_i_cloth (G.A.M.M.A. has none) that is bandages
+        local cloth_cnt = sb.camp_count_item(hub_id, camp, function(s) return s == cloth_sec or is_cloth(s) end, 15) or 0
         local copper_cnt = sb.camp_count_item(hub_id, camp, function(s) return s and (s:lower() == "prt_i_copper" or s:lower() == "prt_i_resistors") end, 10) or 0
         local char_cnt = sb.camp_count_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, 2) or 0
         local has_pelt = sb.camp_has_item and sb.camp_has_item(hub_id, camp, is_mutant_pelt)
