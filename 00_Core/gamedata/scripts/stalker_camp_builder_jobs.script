@@ -1213,7 +1213,7 @@ function stalker_camp_builder.process_gear_repair(npc_id, box_id, camp, survivor
                 local cl_wpn = level.object_by_id(passive_item_id)
                 local cur_c = (cl_wpn and cl_wpn:condition()) or se_wpn.condition or 0.5
                 if not gun_condition_pinned(cl_wpn) then
-                    local target_c = mmin(0.80, cur_c + 0.15)
+                    local target_c = mmax(cur_c, mmin(0.80, cur_c + 0.15))  -- never below what it has
                     pcall(function() se_wpn.condition = target_c end)
                     if cl_wpn and cl_wpn.set_condition then
                         pcall(function() cl_wpn:set_condition(target_c) end)
