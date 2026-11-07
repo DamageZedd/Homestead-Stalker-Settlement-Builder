@@ -1,9 +1,18 @@
 # Known pre-existing findings from tools/check.ps1. Format: CATEGORY|file|detail. Regenerate: tools\check.ps1 -UpdateBaseline
 LUACHECK|00_Core/gamedata/scripts/bind_workshop_furniture.script|W113 accessing undefined variable 'callback'
+LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder.script|W111 setting non-standard global variable 'is_camp_chemist'
+LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder.script|W111 setting non-standard global variable 'is_not_chemist_mode_auto'
+LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder.script|W111 setting non-standard global variable 'is_not_chemist_mode_fuel'
+LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder.script|W111 setting non-standard global variable 'is_not_chemist_mode_powder'
+LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder.script|W111 setting non-standard global variable 'set_chemist_job'
+LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder.script|W111 setting non-standard global variable 'set_chemist_mode_auto'
+LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder.script|W111 setting non-standard global variable 'set_chemist_mode_fuel'
+LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder.script|W111 setting non-standard global variable 'set_chemist_mode_powder'
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder.script|W112 mutating non-standard global variable 'meat_spoiling'
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder.script|W112 mutating non-standard global variable 'task_objects'
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder.script|W113 accessing undefined variable 'meat_spoiling'
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder.script|W113 accessing undefined variable 'scan_camp_structures'
+LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder.script|W113 accessing undefined variable 'set_chemist_job'
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder.script|W113 accessing undefined variable 'stalker_camp_builder_gamma_flag'
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder.script|W113 accessing undefined variable 'task_objects'
 LUACHECK|00_Core/gamedata/scripts/stalker_camp_builder.script|W411 variable 'pairs_' was previously defined on line 3
