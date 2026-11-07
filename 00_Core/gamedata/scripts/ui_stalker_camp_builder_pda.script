@@ -36,6 +36,19 @@ local function colorize_pda_text(text)
     return hs_perf.colorize(text)
 end
 
+-- The Drug-Making Kit's line on a Brewer or Chemist. A Chemist's kit adds one to the batch, and only when
+-- no Chemist Station, Moonshine Distiller or Field Infirmary stands (process_chemist_job counts those
+-- as the lab bonus already, one extra for the three together).
+local function drugkit_boost_label(job, camp)
+    if job == "brewer" then return " [Distillery Kit: 2x Boost]" end
+    for _, struct_type in pairs(camp and camp.structures or {}) do
+        if struct_type == "chemist_station" or struct_type == "distiller" or struct_type == "medstation" then
+            return ""
+        end
+    end
+    return " [Distillery Kit: +1 Output]"
+end
+
 -- fixed label tables of the roster status and the survivor detail (one table: the
 -- main chunk stays far under the 200-locals limit)
 local PDA_LABELS = {
@@ -2168,7 +2181,7 @@ function SettlementManagerPDA:OnSurvivorSelected()
         if job == "woodcutter" and s_item.has_axe then
             boost_str = " [Axe: 2x Boost]"
         elseif (job == "brewer" or job == "chemist") and (s_item.has_drugkit or (camp and camp.has_drugkit)) then
-            boost_str = " [Distillery Kit: 2x Boost]"
+            boost_str = drugkit_boost_label(job, camp)
         elseif job == "scrapper" and s_item.has_tools then
             boost_str = " [Demolition Tools: 2x Boost]"
         end
@@ -3309,7 +3322,7 @@ function SettlementManagerPDA:RefreshJobProgress(force, hub_id_override)
                         if job == "woodcutter" and survivor.has_axe then
                             boost_str = " [Axe: 2x Boost]"
                         elseif (job == "brewer" or job == "chemist") and (survivor.has_drugkit or (camp and camp.has_drugkit)) then
-                            boost_str = " [Distillery Kit: 2x Boost]"
+                            boost_str = drugkit_boost_label(job, camp)
                         elseif job == "scrapper" and survivor.has_tools then
                             boost_str = " [Demolition Tools: 2x Boost]"
                         end
