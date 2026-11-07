@@ -264,8 +264,12 @@ function stalker_camp_builder.seed_initial_settlement_telemetry(force_refresh)
     -- Rival camps have no is_hostile field; abandoned and friendly outposts aren't reported.
     local rival_camps = stalker_camp_builder.rival_camps or {}
     for sm_id, rcamp in pairs_(rival_camps) do
-        local r_name = rcamp.name or "Rival Camp"
         local r_lvl = game.translate_string(rcamp.level or "unknown")
+        -- both lines add the level after the name: the name without it (rivals' rival_camp_short_name)
+        local r_name = rcamp.name or "Rival Camp"
+        if stalker_camp_builder.rival_camp_short_name then
+            r_name = stalker_camp_builder.rival_camp_short_name(r_name, r_lvl)
+        end
         local fac = rcamp.faction
         local text
         if rcamp.status == "mutant_nest" or fac == "monster" then
