@@ -2722,8 +2722,9 @@ end
 -- whose hub is gone) both need it.
 function stalker_camp_builder.release_camp_residents(hub_id, camp)
     local sb = stalker_camp_builder
+    -- once for dismantle_camp and for clean_orphaned_camps alike; a raiders error must not stop the release
     if sb.raiders_on_camp_dismantled then
-        sb.raiders_on_camp_dismantled(hub_id, camp)
+        pcall(sb.raiders_on_camp_dismantled, hub_id, camp)
     end
     -- End scavengers' expeditions while the camp still exists, as banish_npc does: the haul so far
     -- goes into the camp's storage. Left running, an expedition outlives the camp, loses its haul
@@ -2765,10 +2766,7 @@ function stalker_camp_builder.dismantle_camp(hub_id)
 
     -- printf(string.format("[Homestead] Dismantling camp %d (%s)", hub_id, tostring(camp.name)))
 
-    if sb.raiders_on_camp_dismantled then
-        pcall(sb.raiders_on_camp_dismantled, hub_id, camp)
-    end
-    sb.release_camp_residents(hub_id, camp)
+    sb.release_camp_residents(hub_id, camp)    -- also cancels the raider missions
 
     local zone_id = camp.zone_id
 

@@ -56,6 +56,15 @@ o, r = sb.raiders_survivor_ready({ tier = 3, on_expedition = true }, 100); eq(r,
 o, r = sb.raiders_survivor_ready({ tier = 3, has_ammo = false }, 100); eq(r, "no_ammo", "no ammo")
 o, r = sb.raiders_survivor_ready({ tier = 3, raider = { rest_until = 200 } }, 100); eq(r, "resting", "resting")
 
+-- a dismantle cancels the raider missions once: release_camp_residents is the only caller
+do
+    local f = assert(io.open("00_Core/gamedata/scripts/stalker_camp_builder_recruit.script", "rb"))
+    local recruit = f:read("*a"); f:close()
+    local calls = select(2, recruit:gsub("raiders_on_camp_dismantled", ""))
+    eq(calls, 2, "raiders_on_camp_dismantled: one call (the `if` guard and the pcall name it once each)")
+    eq(recruit:find("pcall(sb.raiders_on_camp_dismantled, hub_id, camp)", 1, true) ~= nil, true, "called from release_camp_residents")
+end
+
 -- guards: idle raider is half a guard
 near(sb.raiders_effective_guards(2, 3), 3.5, "2 guards + 3 idle raiders")
 near(sb.raiders_effective_guards(nil, nil), 0, "nil guards")
