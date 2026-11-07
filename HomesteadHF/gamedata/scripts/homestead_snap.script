@@ -51,9 +51,9 @@ local HYPO_LEN = TILE * math.sqrt(2)
 
 -- top surface above the pivot, per target class
 local TOP = { foundation = FOUND_TOP, floor = SLAB, stairs = STOREY, foundation_tri = FOUND_TOP, floor_tri = SLAB }
--- what furniture stands on: the foundation mesh top is paved 0.405 - 0.425 m, above the 0.4 m
--- collision slab that building pieces measure from
-local FURN_TOP = { foundation = 0.425, floor = SLAB, stairs = STOREY, foundation_tri = 0.425, floor_tri = SLAB }
+-- what furniture stands on: the square foundation's mesh top is paved 0.405 - 0.425 m and the
+-- triangle's tops out at 0.405 m, above the 0.4 m collision slab that building pieces measure from
+local FURN_TOP = { foundation = 0.425, floor = SLAB, stairs = STOREY, foundation_tri = 0.405, floor_tri = SLAB }
 
 local settings = { enabled = true, key = DIK_keys.DIK_G, rotate_key = DIK_keys.DIK_R, radius = 2.5, grid = 0.25, fit = true }
 
