@@ -1201,10 +1201,11 @@ local function resolve_pending_rival_skirmish(sb, camp, actor, sim, level_name, 
                 camp.cleared = not is_hostile
                 sb.sync_rival_camp_map_spot(camp)
                 local skirmish_text = sformat(game.translate_string("st_zone_skirmish_cleansed"), new_fac_name, camp.name, old_fac_name)
-                if same_level or in_player_settlement(camp.level or level_name, camp.position) then
-                    if actor then
-                        stalker_camp_builder.camp_send_tip(actor, skirmish_text, nil, is_hostile and "red_danger" or "general_stalker", 12000, nil, "combat")
-                    end
+                -- a camp changing hands is news wherever it is, as this skirmish's other outcome, a mutant overrun
+                -- (transform_to_mutant_nest), and a zombification are; camp_send_tip also writes the radio log and
+                -- follows Verbose Notifications
+                if actor then
+                    stalker_camp_builder.camp_send_tip(actor, skirmish_text, nil, is_hostile and "red_danger" or "general_stalker", 12000, nil, "combat")
                 else
                     stalker_camp_builder.add_camp_radio_log(nil, "combat", skirmish_text)
                 end
