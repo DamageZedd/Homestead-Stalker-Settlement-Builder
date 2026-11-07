@@ -3520,8 +3520,23 @@ function stalker_camp_builder.process_chemist_job(npc_id, hub_id, camp, survivor
     local cap_on = not (sb.cfg and sb.cfg.enable_surplus_cap == false)
     local powder_cnt = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, function(s) return s and is_gunpowder(s:lower()) end, 12)) or 0
     local fuel_cnt = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_generator_fuel, 10)) or 0
-    local char_cnt = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, 4)) or 0
-    local eth_cnt = (sb.camp_count_item and sb.camp_count_item(hub_id, camp, is_ethanol_section, 4)) or 0
+    -- charcoal and alcohol in uses, as the pause check reads them (the snapshot) and as they are taken
+    -- (one use at a time): a bag of charcoal holds 3
+    local function count_uses(filter, cap)
+        local n = 0
+        if sb.camp_iterate_inventory then
+            sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses)
+                if sec and filter(sec) then
+                    local u = tonumber(uses) or 1
+                    n = n + (u < 1 and 1 or u)
+                    if n >= cap then return true end
+                end
+            end)
+        end
+        return n
+    end
+    local char_cnt = count_uses(function(s) return s == "charcoal" or s:find("charcoal") ~= nil end, 4)
+    local eth_cnt = count_uses(is_ethanol_section, 4)
 
     local target_product = mode
     if mode == "auto" then
