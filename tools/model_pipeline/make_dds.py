@@ -1,6 +1,8 @@
 """PNG -> DXT1 .dds with a full mip chain, header laid out like the existing HomesteadHF atlases.
-usage: python -I make_dds.py in.png out.dds"""
-import io, struct, sys
+usage: python -I make_dds.py in.png out.dds [DXT1|DXT5]
+DXT5 (PNG with alpha) goes through dxt5_encode.py: box filter mips on premultiplied alpha and an endpoint-fitting
+encoder, because Pillow's LANCZOS mips and DXT5 writer leave saturated specks along alpha edges (needs numpy)."""
+import io, os, struct, sys
 from PIL import Image
 
 
@@ -22,12 +24,18 @@ def main(src, dst, fmt="DXT1"):
     im = Image.open(src).convert("RGB" if fmt == "DXT1" else "RGBA")
     w, h = im.size
     levels = []
-    cur = im
-    while True:
-        levels.append(dxt_blocks(cur, fmt))
-        if cur.size == (1, 1):
-            break
-        cur = cur.resize((max(1, cur.size[0] // 2), max(1, cur.size[1] // 2)), Image.LANCZOS)
+    if fmt == "DXT5":
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import numpy as np
+        import dxt5_encode
+        levels = [dxt5_encode.encode_level(lv) for lv in dxt5_encode.build_chain(np.array(im))]
+    else:
+        cur = im
+        while True:
+            levels.append(dxt_blocks(cur, fmt))
+            if cur.size == (1, 1):
+                break
+            cur = cur.resize((max(1, cur.size[0] // 2), max(1, cur.size[1] // 2)), Image.LANCZOS)
     hdr = bytearray(128)
     hdr[0:4] = b"DDS "
     struct.pack_into("<7I", hdr, 4, 124, 0xA1007, h, w, len(levels[0]), 0, len(levels))
