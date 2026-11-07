@@ -1916,7 +1916,7 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
                 break
             end
         end
-        if not has_lab and not camp.hub_id then
+        if not has_lab then
             return true, "No Lab Station", "Requires a Chemist Station, Distiller, Medstation, Ammo Bench, Stove, or Workbench"
         end
 
@@ -3511,7 +3511,7 @@ function stalker_camp_builder.process_chemist_job(npc_id, hub_id, camp, survivor
             has_lab = true
         end
     end
-    if not has_lab and not (camp and camp.hub_id) and not hub_id then
+    if not has_lab then
         if survivor then survivor.shortfall_reason = "No Lab Station" end
         return false
     end

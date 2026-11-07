@@ -265,6 +265,18 @@ do
     eq(count_sec("prt_i_cloth"), 0, "Chain 1c: scrapper NEVER turns scrap metal into cloth")
 end
 
+-- Test Chain 2-lab: a Chemist with no lab structure at all is paused with "No Lab Station" and makes nothing
+do
+    reset_env({ "charcoal", "charcoal", "vodka" })
+    local camp = { hub_id = 1, structures = { [20] = "water_pump" }, survivors = {} }
+    local chem = { name = "Chemist", job = "chemist", tier = 0, chemist_mode = "powder" }
+    local paused_l, reason_l = sb._calc_job_paused_status(chem, camp, 1, nil)
+    eq(paused_l, true, "Chain 2-lab: chemist paused with no lab structure")
+    eq(reason_l, "No Lab Station", "Chain 2-lab: pause reason")
+    eq(sb.process_chemist_job(105, 1, camp, chem, 1), false, "Chain 2-lab: process_chemist_job refuses")
+    eq(count_sec("powder_1"), 0, "Chain 2-lab: nothing synthesized")
+end
+
 -- Test Chain 2a: Chemist synthesizes Gunpowder (powder_1) from 2x Charcoal + 1x Alcohol/Vodka, then Crafter crafts ammo
 do
     reset_env({ "charcoal", "charcoal", "vodka", "prt_i_scrap" })
