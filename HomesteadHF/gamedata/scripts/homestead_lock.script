@@ -421,7 +421,17 @@ local function hook_set_frozen(id)
         if obj then
             local ok, err = pcall(function()
                 if self.is_frozen then save_spot(obj:id(), obj) else clear_spot(obj:id()) end
-                set_static(obj, self.is_frozen)
+                if self.is_frozen then
+                    -- like on_piece_frozen: a collider that is not online yet is waited for by heal_solid
+                    local sec = obj:section()
+                    if set_static(obj, true) then
+                        solid_online[obj:id()] = nil
+                    elseif is_solid(sec) or collider_of(sec) then
+                        solid_online[obj:id()] = true
+                    end
+                else
+                    set_static(obj, false)
+                end
             end)
             if not ok then report(err) end
         end
