@@ -113,7 +113,7 @@ Without these base mods active, you will experience missing section crashes when
 				<group name="HD Inventory Icons Framework Compatibility" type="SelectExactlyOne">
 					<plugins order="Explicit">
 						<plugin name="No HD icons">
-							<description>Select this if the HD Inventory Icons Framework is not installed. The inventory keeps the standard Homestead icons.</description>
+							<description>Select this if the HD Inventory Icons Framework is not installed (this is the default unless the installer finds the framework). The inventory keeps the standard Homestead icons.</description>
 							<files />
 							<typeDescriptor>
 								<dependencyType>
@@ -121,7 +121,7 @@ Without these base mods active, you will experience missing section crashes when
 									<patterns>
 										<pattern>
 											<dependencies operator="And">
-												<fileDependency file="gamedata\scripts\rax_icon_layers.script" state="Active" />
+												<fileDependency file="gamedata\scripts\zz_hd_inventory_icons_patches.script" state="Active" />
 											</dependencies>
 											<type name="Optional" />
 										</pattern>
@@ -130,7 +130,7 @@ Without these base mods active, you will experience missing section crashes when
 							</typeDescriptor>
 						</plugin>
 						<plugin name="HD Inventory Icons (requires HD Inventory Icons Framework)">
-							<description>Adds 4x HD inventory icons for the Homestead building kit, workstations and crates through the HD Inventory Icons Framework (icon_override). Install it only when the HD Inventory Icons Framework is active in your profile; without it these files are ignored. Adds one 4096x4096 icon sheet (about 21 MB).</description>
+							<description>Adds 4x HD inventory icons for the Homestead building kit, workstations and crates through the HD Inventory Icons Framework (icon_override). REQUIRES the HD Inventory Icons Framework to be active in your profile. Without it, G.A.M.M.A. does not apply the icon scale and the Homestead items get inventory footprints 12 to 16 cells wide, so many of them do not fit. Adds one 4096x4096 icon sheet (about 21 MB).</description>
 							<files>
 								<folder source="05_HDIcons_Patch/gamedata" destination="gamedata" priority="5" />
 							</files>
@@ -140,7 +140,7 @@ Without these base mods active, you will experience missing section crashes when
 									<patterns>
 										<pattern>
 											<dependencies operator="And">
-												<fileDependency file="gamedata\scripts\rax_icon_layers.script" state="Active" />
+												<fileDependency file="gamedata\scripts\zz_hd_inventory_icons_patches.script" state="Active" />
 											</dependencies>
 											<type name="Recommended" />
 										</pattern>
