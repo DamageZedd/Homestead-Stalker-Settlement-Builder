@@ -317,6 +317,9 @@ local function forget_piece(se_obj)
     if not id then return end
     online[id] = nil
     solid_online[id] = nil
+    collider_breaks[id] = nil      -- the id goes to a later piece, which must not inherit these
+    missed_freeze[id] = nil
+    fight_count[id] = nil
     clear_spot(id)
     if se_load_var(id, nil, COLLIDER_OF) then
         se_save_var(id, nil, COLLIDER_OF, nil)
