@@ -701,6 +701,26 @@ local function is_enemy_to_actor(o)
     return ok and rel == game_object.enemy
 end
 
+-- The player's own people: a settler of this settlement, a refugee, or a companion. Their relation to
+-- the player is the faction's, and Homestead's own raid reputation losses (and a player faction
+-- change) can turn it to "enemy" while they live in the camp, so it isn't a reason to shoot them.
+-- A rival camp's member is no resident: it stays a target.
+local function is_own_resident(o)
+    local sb = stalker_camp_builder
+    if not sb then return false end
+    local ok_id, id = pcall(o.id, o)
+    if not ok_id or not id then return false end
+    local lookup = sb.settler_lookup and sb.settler_lookup[id]
+    if type(lookup) == "table" and not lookup.is_rival then
+        return true
+    end
+    if type(sb.is_companion) == "function" then
+        local ok_c, comp = pcall(sb.is_companion, o)
+        if ok_c and comp then return true end
+    end
+    return false
+end
+
 local function is_valid_target(o)
     if not o then
         return false
@@ -719,6 +739,9 @@ local function is_valid_target(o)
             return false
         end
         if not is_enemy_to_actor(o) then
+            return false
+        end
+        if is_own_resident(o) then
             return false
         end
         if o:wounded() then
