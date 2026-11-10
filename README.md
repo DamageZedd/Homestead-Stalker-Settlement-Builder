@@ -7,7 +7,7 @@
 
 *Build camps. Recruit survivors. Automate production. Hold the line.*
 
-![Version](https://img.shields.io/badge/version-v1.4.1-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-v1.4.2-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
 
 **[GAMMA Discord Thread](https://discord.com/channels/912320241713958912/1515669053606334504/1542893750408315030)** · **[Full Changelog](CHANGELOG.md)** · **[ModDB](https://www.moddb.com/mods/stalker-anomaly/addons/homestead-stalker-settlement-builder)** · **[Latest Release](https://github.com/DamageZedd/Homestead-Stalker-Settlement-Builder/releases/latest)**
 
@@ -22,7 +22,32 @@ Plant a Settlement Flag to establish a 50-meter settlement boundary. Construct b
 
 ---
 
-## 🆕 New in v1.4.1
+## 🆕 New in v1.4.2
+
+### 🛠️ Base-Building & Furniture Fixes
+Pieces and colliders that reused a freed id no longer inherit a stale broken-collider count; a piece frozen again from the radial menu is healed at once; physics strikes from placed pieces are recognised by their shape and cancelled (weapon, blast and creature hits still land); furniture on triangle foundations stands on the paving instead of floating.
+
+### ⚗️ Chemist Fixes
+The Chemist counts charcoal and vodka in uses, so one bag or bottle is enough to work; each can or tin of fuel pays its own inputs (no more 3-4 free cans per batch), no inputs are lost when storage fills mid-batch, and the Focus directive survives a move to another camp.
+
+### 🪵 Wood & Scrap Stock Cap
+With the Supply Surplus Cap on, a Timber woodcutter stops at 40 wood and a scrapper at 40 scrap metal in camp storage (`Stockpile Full`), instead of filling every box with one non-stacking item per unit.
+
+### 🎯 Turrets Spare Your Settlers
+Turrets never target your own settlers, refugees or companions, whatever their relation to the player reads.
+
+### 🏕️ Needs, Raiders & Rival Camps
+The Woodcutter keeps working while the camp is short of water (the charcoal he makes filters it), and raw mutant meat is eaten last instead of never. Raiders re-check their weapon each time a band is made up, and raider toasts follow Verbose Notifications. A takeover on another level now reaches the PDA.
+
+### 🖼️ FOMOD, HD Icons & Russian
+The FOMOD finds the HD Inventory Icons Framework by its own file, the HD icon edges are cleaner, and the Russian raid-reputation message no longer raises a script error.
+
+Full list in the [changelog](CHANGELOG.md).
+
+---
+
+## 🆕 New in v1.4.1 and v1.4.0
+
 
 ### ⚗️ Chemist & Chemist Station
 A new **Chemist** job and placeable **Chemist Station** built from vanilla Anomaly assets and textures. The Chemist synthesizes smokeless gunpowder (`powder_1` / `powder_2`) and refined kerosene / liquid generator fuel from Woodcutter charcoal and Brewer vodka/ethanol, closing the multi-stage production chain from raw timber and grain to ammunition and power. The station includes 300 kg of settlement storage for chemicals, crafting materials and medical supplies.
