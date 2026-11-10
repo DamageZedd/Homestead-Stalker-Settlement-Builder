@@ -1990,7 +1990,7 @@
         <text>Enable Supply Surplus Cap</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_enable_surplus_cap_desc">
-        <text>When enabled, camp cooks, crafters, and medics pause production when camp storage already holds abundant supplies (15+ cooked meals, 8+ medical items, 6+ ammo boxes) to prevent overflowing while away. Turn OFF for infinite production.</text>
+        <text>When enabled, camp cooks, crafters, medics, woodcutters and scrappers pause production when camp storage already holds abundant supplies (15+ cooked meals, 8+ medical items, 6+ ammo boxes, 40+ wood, 40+ scrap metal) to prevent overflowing while away. Turn OFF for infinite production.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_realtime_job_hunter_interval_min">
         <text>Hunter Job Cycle (minutes)</text>

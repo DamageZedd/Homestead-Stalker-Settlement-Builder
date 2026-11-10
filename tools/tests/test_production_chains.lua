@@ -425,6 +425,88 @@ do
     sb.get_auto_sort_target_box = real_target
 end
 
+-- Test Chain 8: wood and scrap metal stop at the 40 stock cap (a tester's camp filled ~200 kg of timber)
+do
+    eq(sb.WOOD_STOCK_CAP, 40, "Chain 8: wood stock cap")
+    eq(sb.SCRAP_STOCK_CAP, 40, "Chain 8: scrap stock cap")
+    sb.cfg.yield_wood_min, sb.cfg.yield_wood_max = 8, 8
+
+    -- a full woodpile: a Timber woodcutter cuts nothing and pauses
+    local items = {}
+    for _ = 1, 40 do items[#items + 1] = "prt_i_wood" end
+    reset_env(items)
+    local camp = { hub_id = 1, structures = {}, survivors = {} }
+    local wc = { name = "Woodcutter", job = "woodcutter", tier = 0, woodcutter_mode = "timber" }
+    eq(sb.process_woodcutter_job(106, 1, camp, wc, 1), false, "Chain 8: no timber past the cap")
+    eq(wc.shortfall_reason, "Stockpile Full", "Chain 8: woodcutter shortfall")
+    eq(count_sec("prt_i_wood"), 40, "Chain 8: woodpile unchanged")
+    local p, r = sb._calc_job_paused_status(wc, camp, 1, nil)
+    eq(p, true, "Chain 8: timber woodcutter paused at the cap")
+    eq(r, "Stockpile Full", "Chain 8: timber pause reason")
+
+    -- 37 stored: a cycle of 8 is cut to the 3 that fit under the cap
+    items = {}
+    for _ = 1, 37 do items[#items + 1] = "prt_i_wood" end
+    reset_env(items)
+    wc.shortfall_reason = nil
+    eq(sb.process_woodcutter_job(106, 1, camp, wc, 1), true, "Chain 8: timber up to the cap")
+    eq(count_sec("prt_i_wood"), 40, "Chain 8: woodpile filled to exactly 40")
+
+    -- cap off: the woodpile grows as before
+    sb.cfg.enable_surplus_cap = false
+    items = {}
+    for _ = 1, 40 do items[#items + 1] = "prt_i_wood" end
+    reset_env(items)
+    eq(sb.process_woodcutter_job(106, 1, camp, wc, 1), true, "Chain 8: cap off cuts timber")
+    eq(count_sec("prt_i_wood"), 48, "Chain 8: cap off adds the full cycle")
+    eq((sb._calc_job_paused_status(wc, camp, 1, nil)), false, "Chain 8: cap off never pauses timber")
+    sb.cfg.enable_surplus_cap = true
+
+    -- a full scrap pile: the scrapper salvages nothing and pauses
+    items = {}
+    for _ = 1, 40 do items[#items + 1] = "prt_i_scrap" end
+    reset_env(items)
+    local camp_s = { hub_id = 1, structures = { [11] = "workbench" }, survivors = {} }
+    local sc = { name = "Scrapper", job = "scrapper", tier = 0 }
+    eq(sb.process_scrapper_job(107, 1, camp_s, sc, 1), false, "Chain 8: no scrap past the cap")
+    eq(sc.shortfall_reason, "Stockpile Full", "Chain 8: scrapper shortfall")
+    eq(count_sec("prt_i_scrap"), 40, "Chain 8: scrap pile unchanged")
+    eq(count_sec("prt_i_fasteners"), 0, "Chain 8: no fasteners while capped")
+    p, r = sb._calc_job_paused_status(sc, camp_s, 1, nil)
+    eq(p, true, "Chain 8: scrapper paused at the cap")
+    eq(r, "Stockpile Full", "Chain 8: scrapper pause reason")
+
+    -- 39 stored: a cycle of 3 scrap is cut to the 1 that fits
+    items = {}
+    for _ = 1, 39 do items[#items + 1] = "prt_i_scrap" end
+    reset_env(items)
+    sc.shortfall_reason = nil
+    eq(sb.process_scrapper_job(107, 1, camp_s, sc, 1), true, "Chain 8: scrap up to the cap")
+    eq(count_sec("prt_i_scrap"), 40, "Chain 8: scrap pile filled to exactly 40")
+
+    -- a full scrap pile at a Salvage Table still refines copper wire, and salvages nothing new
+    items = {}
+    for _ = 1, 40 do items[#items + 1] = "prt_i_scrap" end
+    for _ = 1, 6 do items[#items + 1] = "prt_i_fasteners" end
+    reset_env(items)
+    local camp_t = { hub_id = 1, structures = { [11] = "salvage_table" }, survivors = {} }
+    local st = { name = "Scrapper", job = "scrapper", tier = 0, has_tools = true }
+    eq((sb._calc_job_paused_status(st, camp_t, 1, nil)), false, "Chain 8: refining scrapper not paused at the cap")
+    eq(sb.process_scrapper_job(107, 1, camp_t, st, 1), true, "Chain 8: capped scrapper refines")
+    eq(count_sec("prt_i_copper"), 1, "Chain 8: copper wire from the full pile")
+    eq(count_sec("prt_i_scrap"), 38, "Chain 8: refining draws the pile down")
+    eq(count_sec("prt_i_fasteners"), 5, "Chain 8: no new fasteners while capped")
+
+    -- an Auto woodcutter on its timber turn burns the full woodpile instead
+    items = {}
+    for _ = 1, 40 do items[#items + 1] = "prt_i_wood" end
+    reset_env(items)
+    local wa = { name = "Woodcutter", job = "woodcutter", tier = 0, woodcutter_mode = "auto", _woodcutter_alt = true }
+    eq(sb.process_woodcutter_job(106, 1, camp, wa, 1), true, "Chain 8: auto woodcutter works at the cap")
+    eq(count_sec("prt_i_wood"), 35, "Chain 8: auto burnt 5 wood")
+    check(count_sec("charcoal") >= 3, "Chain 8: auto made charcoal")
+end
+
 if fails > 0 then
     print(string.format("%d/%d checks FAILED", fails, checks))
     os.exit(1)
