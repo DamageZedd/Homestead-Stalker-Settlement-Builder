@@ -84,6 +84,19 @@ local function in_player_settlement(lvl, pos)
     return false
 end
 
+-- a rival camp's name without its level: spawn_single_rival_camp makes it "<level> <kind> #<n>", so a report that
+-- adds the level after the name ("%s (%s)") would say it twice ("Rostok Enclave #38 (Rostok)"). A plain prefix
+-- comparison, since level names hold brackets; a name that doesn't start with the level stays whole
+function stalker_camp_builder.rival_camp_short_name(name, lvl_name)
+    if type_(name) == "string" and type_(lvl_name) == "string" and lvl_name ~= "" then
+        local prefix = lvl_name .. " "
+        if #name > #prefix and name:sub(1, #prefix) == prefix then
+            return name:sub(#prefix + 1)
+        end
+    end
+    return name
+end
+
 
 -- whether the player has taken this squad as companions (axr_companions keeps them by squad id)
 local function is_companion_squad(id)
@@ -1105,7 +1118,7 @@ local function trigger_rival_skirmish_sos(sb, camp, actor, level_name, same_leve
             camp.sos_faction = camp.faction
             local faction_name = game.translate_string(camp.faction or "stalker")
             local lvl_name = game.translate_string(camp.level or level_name)
-            local mayday_text = sformat(game.translate_string("st_mayday_forces_taking_fire"), faction_name, camp.name, lvl_name)
+            local mayday_text = sformat(game.translate_string("st_mayday_forces_taking_fire"), faction_name, sb.rival_camp_short_name(camp.name, lvl_name), lvl_name)
             if same_level or in_player_settlement(camp.level or level_name, camp.position) then
                 if actor then
                     stalker_camp_builder.camp_send_tip(actor, mayday_text, nil, "red_danger", 14000, nil, "combat", true)
@@ -2850,7 +2863,7 @@ function stalker_camp_builder.upgrade_rival_camp_tier(camp, new_tier)
         if db.actor then
             local fac_name = camp.faction and game.translate_string(camp.faction) or "Forces"
             local lvl_name = game.translate_string(camp.level or level_name)
-            stalker_camp_builder.camp_send_tip(db.actor, sformat(game.translate_string("st_recon_expanded_stronghold"), fac_name, camp.name, lvl_name), nil, "general_stalker", 12000, nil, "general")
+            stalker_camp_builder.camp_send_tip(db.actor, sformat(game.translate_string("st_recon_expanded_stronghold"), fac_name, sb.rival_camp_short_name(camp.name, lvl_name), lvl_name), nil, "general_stalker", 12000, nil, "general")
         end
     end
 end
@@ -3098,7 +3111,7 @@ function stalker_camp_builder.zombify_rival_camp(camp)
 
         if db.actor then
             local lvl_name = game.translate_string(camp.level or level.name())
-            stalker_camp_builder.camp_send_tip(db.actor, sformat(game.translate_string("st_recon_psy_surge_zombified"), camp.name, lvl_name), nil, "red_danger", 14000, nil, "general")
+            stalker_camp_builder.camp_send_tip(db.actor, sformat(game.translate_string("st_recon_psy_surge_zombified"), sb.rival_camp_short_name(camp.name, lvl_name), lvl_name), nil, "red_danger", 14000, nil, "general")
         end
     end
 end
@@ -3163,7 +3176,7 @@ function stalker_camp_builder.transform_to_mutant_nest(camp, mutant_type)
 
     if db.actor then
         local lvl_name = game.translate_string(camp.level or level.name())
-        stalker_camp_builder.camp_send_tip(db.actor, sformat(game.translate_string("st_recon_mutant_overrun_den"), camp.name, lvl_name), nil, "red_danger", 12000, nil, "combat")
+        stalker_camp_builder.camp_send_tip(db.actor, sformat(game.translate_string("st_recon_mutant_overrun_den"), sb.rival_camp_short_name(camp.name, lvl_name), lvl_name), nil, "red_danger", 12000, nil, "combat")
     end
 end
 
