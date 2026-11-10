@@ -217,7 +217,7 @@ if ($Skip -notcontains 'calls') {
     foreach ($g in ($aliasGlobals | Group-Object File)) {
         $aliasNames = @($g.Group.Alias | Sort-Object -Unique)
         $hdr = ''
-        $listing = & $Luac -l -p (Join-Path $root $g.Name) 2>&1
+        $listing = & { $ErrorActionPreference = 'Continue'; & $Luac -l -p (Join-Path $root $g.Name) 2>&1 }
         $hit = @{}
         foreach ($line in $listing) {
             $line = "$line"
@@ -232,7 +232,7 @@ if ($Skip -notcontains 'calls') {
     # the same, for files that use `sb.` but never declare any alias at all
     foreach ($s in $scripts) {
         if ($aliasGlobals | Where-Object { $_.File -eq $s -and $_.Alias -eq 'sb' }) { continue }
-        $listing = & $Luac -l -p (Join-Path $root $s) 2>&1
+        $listing = & { $ErrorActionPreference = 'Continue'; & $Luac -l -p (Join-Path $root $s) 2>&1 }
         foreach ($line in $listing) {
             if ("$line" -match '^\s*\d+\s+\[(\d+)\]\s+GETGLOBAL\s+\d+\s+-?\d+\s*; sb\s*$') {
                 Add-Finding 'ALIAS_NOT_LOCAL' $s "sb used as a global but no 'local sb = <module>' exists in the file" "line $($Matches[1])"
