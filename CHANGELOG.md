@@ -1,5 +1,52 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## v1.4.2 — Base-Building Fixes, Chemist Economy & Wood/Scrap Cap
+
+### 🛠️ Base-Building Physics & Furniture
+- **Piece strikes are recognised by their shape**: the engine reports a placed piece's physics hit with the victim itself as the source, so the old check never matched. A hit with no weapon whose source is the victim (or nil) is now cancelled when a placed piece or collider is within 2.5 m; weapon, bullet, blast and creature hits still go through.
+- **Collider state is cleared when a piece is freed**: a piece that reused a freed id inherited the old piece's broken-collider count, so a wall could never get colliders or door mode and a slab could stay out of door mode.
+- **Re-freezing from the radial menu**: a piece frozen again from the radial menu now joins the fast solid-heal pass at once instead of waiting for the slower cycle while sitting on its new collider.
+- **Door mode no longer asserts without a physics shell**: the two collider-off and broken-collider paths now check for a shell first.
+- **Furniture on triangle foundations**: stands on the paving instead of floating 2 cm above it.
+
+### ⚗️ Chemist & Production
+- **Chemist inputs counted in uses**: a single charcoal bag or vodka bottle (3 uses) now lets the Chemist work, matching the PDA pause check; before, he failed every cycle with "Need 2x Charcoal" or "Need 2x Vodka/Alcohol" while the PDA showed him working.
+- **Each can or tin pays its own inputs**: one set of inputs used to yield 3-4 full cans of kerosene (about 31,500-42,000 RU/h). Batches stay at 4 cans or 6 tins, and a batch whose output would overflow to the Market Stall is not made.
+- **No inputs lost when storage fills mid-batch**: a unit's inputs are taken only once storage has room for that unit.
+- **Chemist directive survives a camp change**: Focus (Fuel or Gunpowder) is kept when the settler moves to another settlement instead of falling back to Auto.
+- **Chemist fixes**: "No Lab Station" now shows when no lab structure stands; the Auto text says what Auto does (make the lower of powder and fuel); the PDA Drug-Making Kit line says what the kit does (adds one to the batch, nothing when a Chemist Station, Moonshine Distiller or Field Infirmary stands).
+- **Scrapper and Medic use only the Hunter's pelts and trophies**: they no longer take any `hide_*` belt, other mutant parts such as chimera hearts, or raw meat from storage. The Scrapper's cloth cap now counts the bandages it actually makes in G.A.M.M.A.
+- **Free upkeep never lowers a gun's condition.**
+
+### 🪵 Wood & Scrap Stock Cap
+- **Wood and scrap metal stock cap (`is_camp_supply_capped`, `process_woodcutter_job`, `process_scrapper_job`)**: with the Supply Surplus Cap on, a Timber woodcutter stops at 40 wood in camp storage and a scrapper at 40 scrap metal (`Stockpile Full`), and a cycle only fills the room left under the cap. These jobs used to fill every box with one non-stacking item per unit (a tester reported about 200 kg of timber). An Auto woodcutter burns the full woodpile into charcoal instead, and a scrapper at a Salvage Table or with tools salvages nothing new but goes on refining the full pile into copper wire and cloth. The cap limits how much is made; it does not make the items stack. Turn the cap off in MCM for the old behaviour.
+
+### 🏕️ Living Needs
+- **Woodcutter keeps working while the camp is short of water**: a pump needs a charcoal filter, and charcoal is the Woodcutter's work, so a camp that ran dry could never recover. The Woodcutter is no longer marked hungry (other settlers are, as before).
+- **Raw mutant meat is eaten last** instead of never.
+
+### ⚔️ Raiders & Recruits
+- **A raider's weapon is re-read each time a band is made up**, so a raider who was once out of ammo is sent again after re-arming, and one who lost a gun is no longer sent.
+- **Raider toasts follow Verbose Notifications**; the radio feed and camp log still get every report.
+- **A dismantle cancels raider missions once**, and the dead `has_ammo` check is removed.
+- **A paused job's progress is restored against the same time-of-day interval** for every job type.
+
+### 🎯 Turrets
+- **Turrets never target your own settlers, refugees or companions**, whatever their relation to the player reads.
+
+### 📡 Rival Camps
+- **A takeover on another level reaches the PDA** (ZONE SKIRMISH), so a remote camp's story no longer skips from zombified to Stronghold.
+- **Camp reports name the level once**: "Rostok Enclave #38 (Rostok)" instead of repeating the level.
+
+### 🖼️ FOMOD, HD Icons & Localization
+- **FOMOD detects the HD Inventory Icons Framework by its own file** (`zz_hd_inventory_icons_patches.script`), not `rax_icon_layers.script`, which other mods also ship; the HD option's description says it needs the framework. "No HD icons" stays the default unless it is found.
+- **HD icon mips rebuilt** with a box filter on premultiplied alpha and a fitted DXT5 encoder: the saturated specks around icon edges are gone (level 0 unchanged).
+- **Russian raid-reputation message**: slots reordered, so it no longer raises a script error when raiders die.
+
+### 🔧 Tooling
+- `check.ps1` no longer aborts its alias section on a `luac` syntax error under PowerShell 5.1.
+- New regression tests for the changes above.
+
 ## v1.4.1 — Base-Building Physics, Closed-Loop Production Chains & Settler Cap
 
 ### 🛠️ Base-Building Physics, Colliders & Snapping
@@ -19,7 +66,6 @@
 - **Strict Recipe Realism (`process_scrapper_job` / `process_ammo_crafting`)**:
   - **Scrapper**: removed unrealistic metal-to-cloth conversion. Surplus metal (`>= 15 prt_i_scrap` + `>= 5 prt_i_fasteners`) now exclusively draws **Copper Wire (`prt_i_copper`)** (when `copper_cnt < 8`) for the Electrician's batteries. **Cloth (`prt_i_cloth` / `bandage`)** is produced exclusively from realistic textile/hide sources: curing Hunter mutant pelts (`hide_*`) + `1x charcoal` -> `2x prt_i_cloth`, and dismantling ruined outfits/armor/helmets (`< 35%` condition) -> `2x prt_i_cloth` + `3x prt_i_scrap` + `2x prt_i_fasteners`.
   - **Ammo Crafter**: removed improvised black powder from `process_ammo_crafting` so the Ammo Crafter consumes real gunpowder (`powder_1` / `powder_2`) synthesized by the Chemist or scavenged from the Zone.
-- **Wood and scrap metal stock cap (`is_camp_supply_capped`, `process_woodcutter_job`, `process_scrapper_job`)**: with the Supply Surplus Cap on, a Timber woodcutter stops at 40 wood in camp storage and a scrapper at 40 scrap metal (`Stockpile Full`), and a cycle only fills the room left under the cap. Each wood or scrap unit is its own non-stacking item, so these jobs used to fill every box (a tester reported about 200 kg of timber). An Auto woodcutter burns the full woodpile into charcoal instead, and a scrapper at a Salvage Table or with tools salvages nothing new but goes on refining the full pile into copper wire and cloth. Turn the cap off in MCM for the old behaviour.
 - **Charcoal Water Filtration (`update_camp_jobs`)**: Water Pumps and Water Purifiers now accept `3x charcoal + 1x prt_i_cloth/bandage` as a renewable charcoal filter bed when commercial water filters are unavailable.
 - **Charcoal Stove Priority & Canned Rations (`process_cook_job`)**: Cooks now recognize `homestead_field_kitchen` as a full stove, burn renewable `charcoal` before `kerosene`/`gasoline` (preserving liquid fuel for the Generator Station), and pack a bonus canned ration (`tushonka`/`conserva`, which also pays the Technician's repair fee) when cooking with clean water and surplus Farmer potatoes (`> 6` stored).
 - **Medic Trophy Bio-Synthesis (`process_medic_job`)**: Tier 2+ Medics working at a Field Infirmary (`medstation`) consume a non-meat Hunter mutant trophy (`mutant_part_*`) when synthesizing medkits to upgrade the lead unit into a `stimpack` or `medkit_army`.
