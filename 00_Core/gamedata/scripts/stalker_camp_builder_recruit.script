@@ -1008,7 +1008,16 @@ function stalker_camp_builder.recruit_npc_to_camp(actor, npc, hub_id)
                     elseif restored_job == "medic"    then rt_interval = sb.cfg.medic_job_interval or (sb.defaults and sb.defaults.medic_job_interval) or 1500
                     elseif restored_job == "electrician" then rt_interval = sb.cfg.electrician_job_interval or (sb.defaults and sb.defaults.electrician_job_interval) or 900
                     elseif restored_job == "chemist"     then rt_interval = sb.cfg.realtime_job_chemist_interval or (sb.defaults and sb.defaults.realtime_job_chemist_interval) or 1200
+                    elseif restored_job == "hunter"   then rt_interval = sb.cfg.realtime_job_hunter_interval
+                    elseif restored_job == "woodcutter" then rt_interval = sb.cfg.realtime_job_woodcutter_interval or (sb.defaults and sb.defaults.realtime_job_woodcutter_interval) or 1200
+                    elseif restored_job == "brewer" then rt_interval = sb.cfg.realtime_job_brewer_interval or (sb.defaults and sb.defaults.realtime_job_brewer_interval) or 1200
+                    elseif restored_job == "farmer" then rt_interval = sb.cfg.realtime_job_farmer_interval or (sb.defaults and sb.defaults.realtime_job_farmer_interval) or 1200
+                    elseif restored_job == "trader" then rt_interval = sb.cfg.realtime_job_trader_interval or (sb.defaults and sb.defaults.realtime_job_trader_interval) or 900
+                    elseif restored_job == "scrapper" then rt_interval = sb.cfg.realtime_job_scrapper_interval or (sb.defaults and sb.defaults.realtime_job_scrapper_interval) or 1200
                     end
+                    -- get_job_progress measures against the time-of-day adjusted interval, so restore with the same one
+                    local rt_tod = sb.get_time_of_day_mult and sb.get_time_of_day_mult(restored_job) or 1.0
+                    rt_interval = (rt_interval or 300) / (rt_tod > 0 and rt_tod or 1.0)
                     restored_job_start_realtime = time_global() - (s.paused_job_progress * (rt_interval or 300) * 1000)
                 end
                 -- printf(sformat("[Homestead] recruit_npc_to_camp: restoring paused job '%s' (xp=%d, tier=%d) for npc %d", restored_job, restored_xp, restored_tier, npc_id))
