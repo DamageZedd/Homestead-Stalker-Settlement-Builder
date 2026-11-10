@@ -23,6 +23,13 @@ local FOOD_CLASS = {
     chocolate = "comfort", chocolate_p = "comfort", raisins = "comfort", nuts = "comfort", mint = "comfort",
     vodka = "comfort", vodka2 = "comfort", vodka_quality = "comfort", beer = "comfort", energy_drink = "comfort",
 }
+-- raw meat from the hunt: eaten last, only when nothing else is in the pantry (needs_round appends "raw" to the order)
+local RAW_MEAT = {
+    mutant_part_tushkano_meat = true, mutant_part_dog_meat = true, mutant_part_psevdodog_meat = true,
+    mutant_part_flesh_meat = true, mutant_part_boar_chop = true, mutant_part_snork_hand = true,
+    mutant_part_krovosos_meat = true, mutant_part_psysucker_meat = true, mutant_part_lurker_meat = true,
+    mutant_part_chimera_meat = true,
+}
 -- cooked meat (meat_*, which the cook makes from raw mutant_part_* meat) counts as protein below
 local WATER_SECTIONS = {
     water_drink = true, mineral_water = true, flask = true, tea = true, drink_crow = true,
@@ -47,6 +54,7 @@ function sb.needs_class_of(sec)
     local c = FOOD_CLASS[sec]
     if c then return c end
     if string.sub(sec, 1, 5) == "meat_" then return "protein" end
+    if RAW_MEAT[sec] then return RAW_CLASS end
     return nil
 end
 

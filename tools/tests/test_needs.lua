@@ -15,6 +15,8 @@ eq(sb.needs_class_of("vodka"), "comfort", "vodka is comfort food")
 eq(sb.needs_class_of("water_drink"), "water", "water")
 eq(sb.needs_class_of("meat_dog"), "protein", "cooked meat is protein")
 eq(sb.needs_class_of("bandage"), nil, "bandage is no food")
+eq(sb.needs_class_of("mutant_part_dog_meat"), "raw", "raw meat is the raw class")
+eq(sb.needs_class_of("mutant_part_dog_tail"), nil, "a tail is no food")
 eq(sb.needs_class_of(nil), nil, "nil")
 
 -- catch-up: a long sleep costs at most the cap
