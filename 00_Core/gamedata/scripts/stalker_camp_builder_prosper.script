@@ -127,7 +127,8 @@ end
 function sb.prosper_apply_standing(obj, survivor)
     local queue = survivor and survivor.standing_queue
     if not (obj and queue and #queue > 0 and sb.cfg.settler_standing_enabled ~= false) then return end
-    if not (obj.alive and obj:alive()) then return end
+    -- every game object has .alive; on anything but a creature calling it is a script error
+    if not (IsStalker(obj) and obj:alive()) then return end
     local ok = pcall(function()
         for _, step in ipairs(queue) do
             if step.rank ~= 0 then
@@ -163,7 +164,7 @@ function sb.prosper_try_buy(npc_id, survivor)
     local tier = survivor.tier or 0
     if tier <= (survivor.bought_tier or 0) then return false end
     local npc = level.object_by_id(npc_id)
-    if not (npc and npc:alive() and alife_create_item) then return false end
+    if not (npc and IsStalker(npc) and npc:alive() and alife_create_item) then return false end
     -- the record's own faction: another mod may change the NPC's live one
     local loadout = PROSPER_LOADOUTS[(string.gsub(survivor.community or npc:character_community() or "", "^actor_", ""))]
     if not loadout then return false end
@@ -314,7 +315,7 @@ function sb.prosper_try_move_on(hub_id, camp, survivor, npc_id)
     if camp.active_raid or job == "guard" or job == "trader" then return false end
     if sb.is_companion and sb.is_companion(npc_id) then return false end
     local obj = level.object_by_id(npc_id)
-    if not (obj and obj:alive()) then return false end
+    if not (obj and IsStalker(obj) and obj:alive()) then return false end
     if math.random(100) > (sb.cfg.settler_move_on_chance or 10) then return false end
 
     local flags = { keep = false }

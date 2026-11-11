@@ -63,6 +63,8 @@ _G.level = {
 }
 _G.alife_object = function() return nil end
 _G.alife = function() return nil end
+-- the online settlers here are stalkers; an object marked is_item is not
+_G.IsStalker = function(o) return o ~= nil and not o.is_item end
 _G.AddScriptCallback = function() end
 _G.SendScriptCallback = function() end
 _G.vector = function()
@@ -168,6 +170,17 @@ now_tg = now_tg + 1000000
 sb.set_survivor_job(42, "cook")
 local prog_reassign = sb.get_job_progress(surv, sb.active_camps[100], 100)
 check(math.abs((prog_reassign or 0) - 0.5) < 0.02, "set_survivor_job back to paused_job should restore ~50% progress, got " .. tostring(prog_reassign))
+
+-- 7. An id reused by an item (a settler despawned without dying): alive() on it is the engine's
+-- "cannot access class member Alive", so nothing calls it
+online_npcs[77] = { is_item = true, alive = function() error("cannot access class member Alive") end }
+local item_surv = { tier = 3, bought_tier = 3, savings = 99999, standing_queue = { { rank = 10, rep = 0 } }, community = "stalker" }
+check(pcall(sb.prosper_apply_standing, online_npcs[77], item_surv), "prosper_apply_standing must not call alive() on an item")
+check(#item_surv.standing_queue == 1, "standing stays queued for the real settler")
+local ok_buy, bought = pcall(sb.prosper_try_buy, 77, item_surv)
+check(ok_buy and bought == false, "prosper_try_buy must not call alive() on an item")
+check(pcall(sb.process_settler_equipment, 100, sb.active_camps[100], item_surv, 77), "process_settler_equipment must not call alive() on an item")
+online_npcs[77] = nil
 
 if fails == 0 then
     print("test_companion_loan: all passed")

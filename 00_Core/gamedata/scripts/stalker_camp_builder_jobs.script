@@ -4070,7 +4070,8 @@ function stalker_camp_builder.process_settler_equipment(hub_id, camp, survivor, 
     if survivor.on_expedition then return end
 
     local npc = level.object_by_id(npc_id)
-    if not (npc and npc:alive()) then return end
+    -- an id reused by an item: alive() on it is the engine's "cannot access class member Alive"
+    if not (npc and IsStalker(npc) and npc:alive()) then return end
 
     local cat = sb.get_camp_categorized_boxes and sb.get_camp_categorized_boxes(camp, hub_id)
     local buckets = cat and cat.boxes_by_bucket
@@ -4547,7 +4548,9 @@ function stalker_camp_builder.update_camp_jobs()
                 local job = survivor.job or "idle"
                 -- Settler Equipment Maintenance: inspect Armory and Quartermaster for upgrades
                 local last_eq = survivor.last_equip_check or 0
-                if (current_sec - last_eq) >= 1800 * sb.game_timer_scale() then
+                -- a settler despawned without dying keeps its record until the next load (released_id),
+                -- and the object that has its id meanwhile is someone or something else
+                if survivor.released_id ~= npc_id and (current_sec - last_eq) >= 1800 * sb.game_timer_scale() then
                     survivor.last_equip_check = current_sec
                     sb.guarded_call("process_settler_equipment", sb.process_settler_equipment, hub_id, camp, survivor, npc_id)
                     sb.guarded_call("prosper_tick", sb.prosper_tick, hub_id, camp, survivor, npc_id)

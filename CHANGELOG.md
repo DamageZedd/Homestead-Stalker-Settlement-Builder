@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **"Alive" script error from settlers who were despawned**: a settler removed by another mod without dying keeps its record until the next load, and the object that gets its id meanwhile is someone or something else. The equipment check, the savings purchase, rank and reputation, and the camp's friend relations no longer act on that object; on an item, calling alive() was the engine's "cannot access class member Alive" error, and on a stranger the settler's savings could buy them a gun.
 - **No free charcoal or vodka from a failed batch**: when a Chemist unit or a water pump's charcoal filter bed could not be finished, each charcoal or vodka use already taken was put back as a new full item (a bag of charcoal holds 3 uses). Each now goes back as the one use it was.
 - **Faster job pause checks**: the Storage Full check that every producing settler runs each job tick reuses the box weights the camp already keeps, instead of weighing every storage box again.
 - **Outposts no longer float on slopes**: the ground probe took the height of the nearest AI node, which can stand up to 5 m away, whenever the ground under a piece differed from it by more than 0.5 m, so pieces down a slope floated at the node's height. A ground hit within the slope's reach is now kept, and only a hit on something above the ground (a tree, overhang or roof) is replaced. Outposts already in a save are checked once more on the next level entry while they are offline, and a radio on its table keeps its height above the table.

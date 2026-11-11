@@ -481,11 +481,12 @@ function stalker_camp_builder.set_camp_settler_relations(hub_id, npc_id, is_join
 
     local npc_obj = level.object_by_id(npc_id)  -- nil if offline
 
-    for other_id, _ in pairs(camp.survivors) do
-        if other_id ~= npc_id then
+    for other_id, other in pairs(camp.survivors) do
+        -- a record released without dying: its id now names someone or something else
+        if other_id ~= npc_id and other.released_id ~= other_id then
             if is_joining then
                 local other_obj = level.object_by_id(other_id)
-                if npc_obj and other_obj then
+                if npc_obj and other_obj and IsStalker(other_obj) then
                     npc_obj:force_set_goodwill(1000, other_obj)
                     other_obj:force_set_goodwill(1000, npc_obj)
                 end
