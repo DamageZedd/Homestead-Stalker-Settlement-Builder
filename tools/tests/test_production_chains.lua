@@ -542,6 +542,27 @@ do
     sb.get_survivor_tier_mult = function(s) return (s and s.tier and s.tier >= 2) and 1.5 or 1.0 end
 end
 
+-- Test Chain 10: a Chemist unit that cannot be stored puts back what it took one use at a time;
+-- a deposit with no uses is a new full item, so a single charcoal use came back as a 3-use bag
+do
+    reset_env({ "charcoal", "charcoal", "vodka" })
+    local camp = { hub_id = 1, structures = { [16] = "chemist_station" }, survivors = {} }
+    local chem = { name = "Chemist", job = "chemist", tier = 0, chemist_mode = "powder" }
+    local real_deposit = sb.deposit_item_to_camp
+    local put_back = {}
+    sb.deposit_item_to_camp = function(h, c, sec, is_yellow, map_tier, cond, parts, uses)
+        if sec == "powder_1" or sec == "powder_2" then return false end   -- the unit can't be stored
+        put_back[#put_back + 1] = { sec = sec, uses = uses }
+        return real_deposit(h, c, sec)
+    end
+    eq(sb.process_chemist_job(105, 1, camp, chem, 1), false, "Chain 10: unit not stored")
+    eq(#put_back, 3, "Chain 10: 2 charcoal uses and 1 vodka use put back")
+    for i, p in ipairs(put_back) do
+        eq(p.uses, 1, "Chain 10: put-back " .. i .. " (" .. tostring(p.sec) .. ") returns one use, not a full item")
+    end
+    sb.deposit_item_to_camp = real_deposit
+end
+
 if fails > 0 then
     print(string.format("%d/%d checks FAILED", fails, checks))
     os.exit(1)

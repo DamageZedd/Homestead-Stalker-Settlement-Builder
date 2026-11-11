@@ -1582,7 +1582,9 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
 
         local has_room = false
         if sb.get_auto_sort_target_box then
-            has_room = sb.get_auto_sort_target_box(camp, hub_id, test_sec, false, test_w) ~= nil
+            -- the box weights the inventory snapshot keeps (cleared whenever storage changes), so
+            -- each settler's check does not weigh every box again
+            has_room = sb.get_auto_sort_target_box(camp, hub_id, test_sec, false, test_w, camp and camp._cached_box_weights) ~= nil
         else
             has_room = (snap and snap.has_storage_room) or (sb.camp_has_storage_room and sb.camp_has_storage_room(camp, hub_id, test_w))
         end
@@ -1839,7 +1841,7 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         end
         local has_room = false
         if sb.get_auto_sort_target_box then
-            has_room = sb.get_auto_sort_target_box(camp, hub_id, "prt_i_scrap", false, 0.5) ~= nil
+            has_room = sb.get_auto_sort_target_box(camp, hub_id, "prt_i_scrap", false, 0.5, camp and camp._cached_box_weights) ~= nil
         else
             has_room = (snap and snap.has_storage_room) or (sb.camp_has_storage_room and sb.camp_has_storage_room(camp, hub_id, 0.5))
         end
@@ -3784,8 +3786,10 @@ function stalker_camp_builder.process_chemist_job(npc_id, hub_id, camp, survivor
         end
         short = c_taken < req_char or #e_taken < req_eth
         if short or not sb.deposit_item_to_camp(hub_id, camp, out_sec) then
-            for _ = 1, c_taken do sb.deposit_item_to_camp(hub_id, camp, "charcoal") end
-            for i = 1, #e_taken do sb.deposit_item_to_camp(hub_id, camp, e_taken[i]) end
+            -- each was taken one use at a time: a deposit without uses is a new full item (a bag of
+            -- charcoal holds 3), so each goes back as one use
+            for _ = 1, c_taken do sb.deposit_item_to_camp(hub_id, camp, "charcoal", nil, nil, nil, nil, 1) end
+            for i = 1, #e_taken do sb.deposit_item_to_camp(hub_id, camp, e_taken[i], nil, nil, nil, nil, 1) end
             break
         end
         deposited = deposited + 1
@@ -4250,8 +4254,9 @@ function stalker_camp_builder.process_water_pumps(hub_id, camp, pumps_count, cam
                 if cloth_taken then
                     consumed_filter = "charcoal_bed"
                 else
+                    -- one use each, as taken (a deposit without uses is a new 3-use bag)
                     for _ = 1, c_taken do
-                        sb.deposit_item_to_camp(hub_id, camp, "charcoal")
+                        sb.deposit_item_to_camp(hub_id, camp, "charcoal", nil, nil, nil, nil, 1)
                     end
                 end
             end
