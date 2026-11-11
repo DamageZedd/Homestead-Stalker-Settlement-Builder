@@ -105,6 +105,8 @@ function on_mcm_load()
             { id = "needs_job_refusal", type = "check", val = 1, def = true },
             { id = "needs_guard_penalty", type = "check", val = 1, def = true },
             { id = "needs_desertion", type = "check", val = 1, def = true },
+            { id = "needs_medical", type = "check", val = 1, def = true },
+            { id = "needs_ammo", type = "check", val = 1, def = true },
         }) },
 
         -- 3. Rival Settlements

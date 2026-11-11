@@ -194,23 +194,27 @@ end
 -- real-time job cycle interval (in seconds) for a job, or nil when the job has no cycle
 function stalker_camp_builder.get_job_rt_interval(job, survivor)
     local sb = stalker_camp_builder
-    if job == "cook" then return sb.cfg.realtime_job_cook_interval
-    elseif job == "craft" then return sb.cfg.realtime_job_craft_interval
-    elseif job == "repair" then return sb.cfg.realtime_job_repair_interval
-    elseif job == "hunter" then return sb.cfg.realtime_job_hunter_interval
-    elseif job == "medic" then return sb.cfg.medic_job_interval or (sb.defaults and sb.defaults.medic_job_interval) or 1500
-    elseif job == "electrician" then return sb.cfg.electrician_job_interval or (sb.defaults and sb.defaults.electrician_job_interval) or 900
-    elseif job == "woodcutter" then return sb.cfg.realtime_job_woodcutter_interval or (sb.defaults and sb.defaults.realtime_job_woodcutter_interval) or 1200
-    elseif job == "brewer" then return sb.cfg.realtime_job_brewer_interval or (sb.defaults and sb.defaults.realtime_job_brewer_interval) or 1200
-    elseif job == "farmer" then return sb.cfg.realtime_job_farmer_interval or (sb.defaults and sb.defaults.realtime_job_farmer_interval) or 1200
-    elseif job == "trader" then return sb.cfg.realtime_job_trader_interval or (sb.defaults and sb.defaults.realtime_job_trader_interval) or 900
-    elseif job == "scrapper" then return sb.cfg.realtime_job_scrapper_interval or (sb.defaults and sb.defaults.realtime_job_scrapper_interval) or 1200
-    elseif job == "chemist" then return sb.cfg.realtime_job_chemist_interval or (sb.defaults and sb.defaults.realtime_job_chemist_interval) or 1200
+    local base = nil
+    if job == "cook" then base = sb.cfg.realtime_job_cook_interval
+    elseif job == "craft" then base = sb.cfg.realtime_job_craft_interval
+    elseif job == "repair" then base = sb.cfg.realtime_job_repair_interval
+    elseif job == "hunter" then base = sb.cfg.realtime_job_hunter_interval
+    elseif job == "medic" then base = sb.cfg.medic_job_interval or (sb.defaults and sb.defaults.medic_job_interval) or 1500
+    elseif job == "electrician" then base = sb.cfg.electrician_job_interval or (sb.defaults and sb.defaults.electrician_job_interval) or 900
+    elseif job == "woodcutter" then base = sb.cfg.realtime_job_woodcutter_interval or (sb.defaults and sb.defaults.realtime_job_woodcutter_interval) or 1200
+    elseif job == "brewer" then base = sb.cfg.realtime_job_brewer_interval or (sb.defaults and sb.defaults.realtime_job_brewer_interval) or 1200
+    elseif job == "farmer" then base = sb.cfg.realtime_job_farmer_interval or (sb.defaults and sb.defaults.realtime_job_farmer_interval) or 1200
+    elseif job == "trader" then base = sb.cfg.realtime_job_trader_interval or (sb.defaults and sb.defaults.realtime_job_trader_interval) or 900
+    elseif job == "scrapper" then base = sb.cfg.realtime_job_scrapper_interval or (sb.defaults and sb.defaults.realtime_job_scrapper_interval) or 1200
+    elseif job == "chemist" then base = sb.cfg.realtime_job_chemist_interval or (sb.defaults and sb.defaults.realtime_job_chemist_interval) or 1200
     elseif job == "scavenge" then
         if survivor and survivor.on_expedition then return nil end
-        return sb.cfg.realtime_job_scavenge_interval or (sb.defaults and sb.defaults.realtime_job_scavenge_interval) or 900
+        base = sb.cfg.realtime_job_scavenge_interval or (sb.defaults and sb.defaults.realtime_job_scavenge_interval) or 900
     end
-    return nil
+    if base and survivor and sb.needs_is_wounded and sb.needs_is_wounded(survivor) then
+        return base * 2.0
+    end
+    return base
 end
 
 -- restore a survivor's saved cycle progress (`paused_job_progress` in [0, 1]) when returning to `job`

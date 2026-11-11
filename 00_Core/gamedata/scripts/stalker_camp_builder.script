@@ -950,6 +950,8 @@ local defaults = {
     needs_guard_penalty = true,       -- Starving guards count for less (x0.6) in the camp's defense.
     needs_desertion = true,           -- Settlers may leave over a food or water shortage (the usual low-morale rule).
     needs_variety_bonus = true,       -- A varied diet (three food classes in three days) adds a little morale.
+    needs_medical = true,             -- Wounded settlers consume medical supplies to heal; medical gap costs morale.
+    needs_ammo = true,                -- Guards consume ammo during raids; ammo shortage halves unsupplied guard defense.
     dismantle_removes_furniture = false, -- When true, dismantling removes all furniture, building pieces, containers and loose ground clutter.
 
     trader_loot_table = {
@@ -3995,6 +3997,7 @@ function save_state(m_data)
         put("stalker_camp_builder_active_convoys", function() return pack_table_vectors(stalker_camp_builder.active_convoys or {}) end)
         m_data.stalker_camp_builder_hospitality_end_sec = stalker_camp_builder.hospitality_buff_end_sec
         m_data.stalker_camp_builder_faction_retaliation_timers = stalker_camp_builder.faction_retaliation_timers or {}
+        m_data.stalker_camp_builder_faction_retaliation_targets = stalker_camp_builder.faction_retaliation_targets or {}
         -- the names of the fields that failed above, so load_state keeps what it has for them
         if #failed > 0 then m_data.stalker_camp_builder_save_failed = failed end
     end)
@@ -4146,6 +4149,7 @@ function load_state(m_data)
     local raw_hosp = m_data.stalker_camp_builder_hospitality_end_sec
     stalker_camp_builder.hospitality_buff_end_sec = (type_(raw_hosp) == "number") and raw_hosp or nil
     stalker_camp_builder.faction_retaliation_timers = m_data.stalker_camp_builder_faction_retaliation_timers or {}
+    stalker_camp_builder.faction_retaliation_targets = m_data.stalker_camp_builder_faction_retaliation_targets or {}
 
     if save_version < 2 then
         for hub_id, camp in pairs_(stalker_camp_builder.active_camps) do

@@ -1431,6 +1431,12 @@ local function pay_success(hub_id, camp, m, rc, home)
     if sb.raiders_mission_claim(m, "goodwill") then
         hit = apply_goodwill(m.faction, sb.raiders_is_friendly(faction_goodwill(m.faction)))
     end
+    if sb.queue_faction_retaliation and m.faction and not NOT_A_FACTION[m.faction] then
+        local fgw = faction_goodwill(m.faction)
+        if fgw <= -1000 or (sb.cfg and sb.cfg.raiders_bandit_mode) then
+            sb.queue_faction_retaliation(m.faction, hub_id)
+        end
+    end
     local text = string.format(tr("st_homestead_raider_success"), tr(m.faction), n, bounty)
     if #hit > 0 then text = text .. " " .. string.format(tr("st_homestead_raider_goodwill"), table.concat(hit, ", ")) end
     return text

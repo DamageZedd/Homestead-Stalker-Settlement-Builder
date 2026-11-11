@@ -35,6 +35,13 @@ local WATER_SECTIONS = {
     water_drink = true, mineral_water = true, flask = true, tea = true, drink_crow = true,
 }
 
+-- medical supplies (Phase 5): bandages, medkits, stimpacks, used to treat wounded settlers
+local MED_SECTIONS = {
+    bandage = true, medkit = true, medkit_army = true, medkit_scientic = true, medkit_elite = true,
+    stimpack = true, stimpack_army = true, stimpack_scientic = true,
+    salicidic_acid = true, morphine = true,
+}
+
 local CLASS_ORDER = { "staple", "protein", "comfort" }
 local CLASS_PRIORITY = { protein = 1, staple = 2, comfort = 3 }
 local RAW_CLASS = "raw"
@@ -43,6 +50,7 @@ local VARIETY_WINDOW = 3          -- rounds a class still counts towards variety
 local PENALTY_PER_UNSERVED = 5    -- happiness lost per settler left without food or water, cap below
 local PENALTY_UNSERVED_CAP = 20
 local PENALTY_STARVING = 25       -- flat, from the second short round in a row
+local PENALTY_MEDICAL_GAP = 10    -- happiness lost when wounded settlers lack medical supplies
 local PENALTY_CAP = 35            -- the most the needs can take off the happiness score
 local VARIETY_BONUS = 5           -- three classes in three rounds
 local DEFAULT_INTERVAL = 86400
@@ -56,6 +64,20 @@ function sb.needs_class_of(sec)
     if string.sub(sec, 1, 5) == "meat_" then return "protein" end
     if RAW_MEAT[sec] then return RAW_CLASS end
     return nil
+end
+
+function sb.needs_is_med(sec)
+    if type(sec) ~= "string" then return false end
+    if MED_SECTIONS[sec] then return true end
+    if string.sub(sec, 1, 6) == "medkit" or string.sub(sec, 1, 8) == "stimpack" then return true end
+    return false
+end
+
+local function is_ammo_box(sec)
+    return type(sec) == "string" and string.sub(sec, 1, 5) == "ammo_" and not sec:find("battery")
+end
+function sb.needs_is_ammo(sec)
+    return is_ammo_box(sec)
 end
 
 -- how many rounds are due after elapsed seconds; a sleep never costs more than catchup_cap rounds,
@@ -73,10 +95,16 @@ function sb.needs_tier(unserved, short_rounds)
 end
 
 -- the happiness change for a round: negative when short, a small bonus for a varied diet
-function sb.needs_penalty(tier, unserved, variety, variety_bonus_on)
+function sb.needs_penalty(tier, unserved, variety, variety_bonus_on, medical_gap)
+    local p = 0
     if tier >= 2 then
-        local p = mmin(PENALTY_UNSERVED_CAP, (unserved or 0) * PENALTY_PER_UNSERVED)
+        p = mmin(PENALTY_UNSERVED_CAP, (unserved or 0) * PENALTY_PER_UNSERVED)
         if tier >= 3 then p = p + PENALTY_STARVING end
+    end
+    if medical_gap then
+        p = p + PENALTY_MEDICAL_GAP
+    end
+    if p > 0 then
         return -mmin(PENALTY_CAP, p)
     end
     if variety_bonus_on and (variety or 0) >= 3 then return VARIETY_BONUS end
@@ -87,7 +115,7 @@ end
 -- place. io.eat(order) eats one food item from the first class in order that has stock and returns the
 -- class eaten (or nil), io.drink() drinks one and returns true when it could. opts: mult (consumption
 -- multiplier), water_free (a pump supplies the water), grace (no penalty, no shortage counted),
--- variety_bonus. Returns a result table; nothing here reads the engine.
+-- variety_bonus, wounded_count. Returns a result table; nothing here reads the engine.
 function sb.needs_round(st, n, opts, io)
     st.round = (st.round or 0) + 1
     st.last = st.last or {}
@@ -120,6 +148,20 @@ function sb.needs_round(st, n, opts, io)
         end
     end
 
+    -- Medical care for wounded settlers (Phase 5)
+    local wounded_in = opts.wounded_count or 0
+    local treated, unserved_med = 0, 0
+    if wounded_in > 0 and io.med then
+        for _ = 1, wounded_in do
+            if io.med() then
+                treated = treated + 1
+            else
+                unserved_med = unserved_med + 1
+            end
+        end
+    end
+    local medical_gap = (unserved_med > 0)
+
     local variety = 0
     for _, c in ipairs(CLASS_ORDER) do
         if st.last[c] and st.round - st.last[c] < VARIETY_WINDOW then variety = variety + 1 end
@@ -127,7 +169,10 @@ function sb.needs_round(st, n, opts, io)
 
     -- a settler lacking both food and water counts once: the camp's worse shortage decides
     local unserved = mmin(n or 0, mmax(no_food, no_water))
-    local res = { fed = fed, no_food = no_food, no_water = no_water, unserved = unserved, variety = variety }
+    local res = {
+        fed = fed, no_food = no_food, no_water = no_water, unserved = unserved, variety = variety,
+        treated = treated, unserved_med = unserved_med, medical_gap = medical_gap,
+    }
     if opts.grace then
         -- and no shortage counted: needs_mark_settlers marks as many settlers hungry as are unserved
         res.tier, res.penalty, res.unserved = 0, 0, 0
@@ -139,7 +184,7 @@ function sb.needs_round(st, n, opts, io)
         st.short_rounds = 0
     end
     res.tier = sb.needs_tier(unserved, st.short_rounds)
-    res.penalty = sb.needs_penalty(res.tier, unserved, variety, opts.variety_bonus)
+    res.penalty = sb.needs_penalty(res.tier, unserved, variety, opts.variety_bonus, medical_gap)
     return res
 end
 
@@ -196,8 +241,19 @@ function sb.needs_process(hub_id, camp)
     for _ in pairs(camp.survivors) do n = n + 1 end
     if n == 0 then return end
 
+    local wounded_count = 0
+    local wounded_survivors = {}
+    for _, s in pairs(camp.survivors or {}) do
+        local is_w = (s.raider and flag_on(s.raider.wounded_until)) or flag_on(s.wounded_until)
+        if is_w then
+            wounded_count = wounded_count + 1
+            wounded_survivors[#wounded_survivors + 1] = s
+        end
+    end
+
     local empty_class = {}
     local empty_water = false
+    local empty_med = false
     local function eat(order)
         for _, c in ipairs(order) do
             if not empty_class[c] then
@@ -215,16 +271,24 @@ function sb.needs_process(hub_id, camp)
         empty_water = true
         return false
     end
+    local function med()
+        if empty_med then return false end
+        local got = sb.find_and_consume_item(hub_id, camp, sb.needs_is_med, nil)
+        if got then return true end
+        empty_med = true
+        return false
+    end
 
     local opts = {
         mult = sb.cfg.needs_consumption_mult or 1.0,
-        water_free = false,
+        water_free = camp_has_pump(camp),
         grace = now < (st.grace_until or 0),
         variety_bonus = sb.cfg.needs_variety_bonus ~= false,
+        wounded_count = (sb.cfg.needs_medical ~= false) and wounded_count or 0,
     }
     local res
     for _ = 1, due do
-        res = sb.needs_round(st, n, opts, { eat = eat, drink = drink })
+        res = sb.needs_round(st, n, opts, { eat = eat, drink = drink, med = med })
     end
     if not res then return end
 
@@ -236,6 +300,24 @@ function sb.needs_process(hub_id, camp)
     sb.needs_mark_settlers(camp, res, now, interval)
     -- the old hunger penalty must not stack on top of this one
     camp.hungry_until, camp.hungry_count = nil, nil
+
+    if res.treated and res.treated > 0 then
+        for i = 1, mmin(res.treated, #wounded_survivors) do
+            local ws = wounded_survivors[i]
+            if ws.raider and ws.raider.wounded_until then ws.raider.wounded_until = nil end
+            if ws.wounded_until then ws.wounded_until = nil end
+        end
+        if db.actor and sb.camp_send_tip then
+            sb.camp_send_tip(db.actor, string.format(game.translate_string("st_homestead_needs_med_treated"), camp.name or "Settlement", res.treated),
+                nil, "general_stalker", 8000, hub_id, "general", true)
+        end
+    end
+
+    if res.medical_gap and db.actor and sb.camp_send_tip and (now - (st.last_med_warn or -1e9)) >= 43200 then
+        st.last_med_warn = now
+        sb.camp_send_tip(db.actor, string.format(game.translate_string("st_homestead_needs_medical_gap"), camp.name or "Settlement", res.unserved_med or 1),
+            nil, "red_danger", 9000, hub_id, "combat", true)
+    end
 
     -- a camp sliding towards the leaving line hears about it, at most once in two game days
     if res.penalty < 0 and (camp.happiness or 100) < 30 and sb.cfg.needs_desertion ~= false
@@ -288,7 +370,41 @@ function sb.needs_survivor_state(survivor)
     if not (survivor and sb.needs_enabled_now()) then return nil end
     if flag_on(survivor.needs_starving_until) then return "starving" end
     if flag_on(survivor.needs_hungry_until) then return "hungry" end
+    if sb.needs_is_wounded and sb.needs_is_wounded(survivor) then return "wounded" end
     return "fed"
+end
+
+-- wounded settler check: raider wounded timer or general camp wounded timer
+function sb.needs_is_wounded(survivor)
+    if not (survivor and sb.needs_enabled_now()) then return false end
+    local now = sb.game_sec()
+    if survivor.raider and survivor.raider.wounded_until and now < survivor.raider.wounded_until then return true end
+    if survivor.wounded_until and now < survivor.wounded_until then return true end
+    return false
+end
+
+-- guards consume ammo during raids; ammo deficit reduces defense effectiveness for that raid
+function sb.needs_process_guard_ammo(hub_id, camp, guard_count)
+    if not (camp and guard_count and guard_count > 0 and sb.needs_enabled_now()) then return 1.0 end
+    if sb.cfg and sb.cfg.needs_ammo == false then return 1.0 end
+    local supplied = 0
+    for _ = 1, guard_count do
+        local got = sb.find_and_consume_item(hub_id, camp, is_ammo_box, nil)
+        if got then
+            supplied = supplied + 1
+        else
+            break
+        end
+    end
+    if supplied < guard_count then
+        local unsupplied = guard_count - supplied
+        if db and db.actor and sb.camp_send_tip and game and game.translate_string then
+            sb.camp_send_tip(db.actor, string.format(game.translate_string("st_homestead_needs_ammo_shortage"), camp.name or "Settlement", unsupplied),
+                nil, "red_danger", 12000, hub_id, "combat", true)
+        end
+        return (supplied + unsupplied * 0.5) / guard_count
+    end
+    return 1.0
 end
 
 -- starving guards count for less in the camp's defense (the raid chance reads it)

@@ -2167,7 +2167,28 @@
         <text>ОТЧЕТ ОБ УГРОЗЕ: Стая свирепых мутантов захватила %s (%s) и устроила там логово!</text>
     </string>
     <string id="st_recon_retaliation_hit_squad">
-        <text>ПЕРЕХВАТ СВЯЗИ: Командование группировки %s отправило карательный отряд для ликвидации нападавших!</text>
+        <text>ПЕРЕХВАТ СВЯЗИ: Командование %s отправило карательный отряд с целью атаковать %s!</text>
+    </string>
+    <string id="st_event_camp_retaliation_attack">
+        <text>ОТВЕТНЫЙ УДАР: %s подвергся нападению карательного отряда группировки %s!</text>
+    </string>
+    <string id="st_retaliation_raid_defended">
+        <text>НАПАДЕНИЕ ОТБИТО: Гарнизон %s удержал оборону и уничтожил карательный отряд %s!</text>
+    </string>
+    <string id="st_retaliation_offline_repelled">
+        <text>ОТЧЕТ ОБ ОБОРОНЕ: В ваше отсутствие гарнизон %s успешно отбил карательный рейд %s!</text>
+    </string>
+    <string id="st_retaliation_offline_breached">
+        <text>ТРЕВОЖНЫЙ ОТЧЕТ: В ваше отсутствие %s был захвачен и разграблен отрядом %s!</text>
+    </string>
+    <string id="st_homestead_needs_medical_gap">
+        <text>НЕХВАТКА МЕДИКАМЕНТОВ: В лагере %s ранено поселенцев: %d, но на складе нет медикаментов!</text>
+    </string>
+    <string id="st_homestead_needs_med_treated">
+        <text>МЕДИЦИНСКАЯ ПОМОЩЬ: Медикаменты со склада %s использованы для лечения раненых (%d чел.).</text>
+    </string>
+    <string id="st_homestead_needs_ammo_shortage">
+        <text>НЕХВАТКА БОЕПРИПАСОВ: В арсенале %s мало патронов! Охранники (%d чел.) сражаются с ограниченным боезапасом!</text>
     </string>
     <string id="st_recon_rescue_complete">
         <text>СПАСЕНИЕ ЗАВЕРШЕНО: Командир %s: 'Спасибо за выручку, сталкер! Возьми эти %d RU в награду.'</text>
@@ -2893,6 +2914,18 @@
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_desertion_desc">
         <text>Выкл: падение морали из-за нехватки еды или воды не заставляет поселенцев покидать лагерь.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_medical">
+        <text>Потребность в медикаментах</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_medical_desc">
+        <text>Раненые поселенцы требуют бинтов и аптечек со склада для лечения. Нехватка медикаментов снижает мораль лагеря.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_ammo">
+        <text>Расход боеприпасов охраной</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_ammo_desc">
+        <text>Охранники лагеря расходуют патроны со склада во время нападений. Нехватка патронов вдвое снижает эффективность безоружной охраны.</text>
     </string>
     <string id="st_homestead_needs_leaving">
         <text>%s: боевой дух упал из-за нехватки припасов. Поселенцы могут начать уходить.</text>

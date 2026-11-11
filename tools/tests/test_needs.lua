@@ -148,5 +148,68 @@ eq(sb.needs_blocks_desertion(camp), true, "shortage morale cannot drive settlers
 camp.needs.penalty = 5
 eq(sb.needs_blocks_desertion(camp), false, "no shortage, no block")
 
+-- Phase 5: medical supplies & guard ammo
+eq(sb.needs_is_med("bandage"), true, "bandage is med")
+eq(sb.needs_is_med("medkit_army"), true, "medkit_army is med")
+eq(sb.needs_is_med("stimpack"), true, "stimpack is med")
+eq(sb.needs_is_med("bread"), false, "bread is not med")
+
+eq(sb.needs_is_ammo("ammo_5.45x39_fmj"), true, "ammo 5.45 is ammo")
+eq(sb.needs_is_ammo("ammo_12x70_buck"), true, "buckshot is ammo")
+eq(sb.needs_is_ammo("ammo_battery"), false, "battery is not ammo")
+eq(sb.needs_is_ammo("vodka"), false, "vodka is not ammo")
+
+-- medical gap penalty
+eq(sb.needs_penalty(0, 0, 0, false, true), -10, "medical gap penalty on fed camp")
+eq(sb.needs_penalty(2, 2, 0, false, true), -20, "tier 2 (-10) + med gap (-10) = -20")
+eq(sb.needs_penalty(3, 2, 0, false, true), -35, "penalty capped at -35")
+
+-- wounded treatment in needs_round
+st = {}
+local med_stock = 2
+local io_med = pantry({ staple = 5 })
+io_med.med = function()
+    if med_stock > 0 then med_stock = med_stock - 1; return true end
+    return false
+end
+r = sb.needs_round(st, 2, { water_free = true, wounded_count = 2 }, io_med)
+eq(r.treated, 2, "2 wounded treated")
+eq(r.medical_gap, false, "no medical gap when treated")
+eq(med_stock, 0, "all 2 med used")
+
+-- medical gap when shortage
+st = {}
+r = sb.needs_round(st, 2, { water_free = true, wounded_count = 2 }, io_med)
+eq(r.treated, 0, "0 treated, med empty")
+eq(r.medical_gap, true, "medical gap triggered")
+eq(r.penalty, -10, "penalty reflects med gap")
+
+-- wounded check
+local surv_w = { wounded_until = 2000 }
+local surv_rw = { raider = { wounded_until = 2000 } }
+local surv_ok = {}
+now = 1500
+eq(sb.needs_is_wounded(surv_w), true, "settler wounded")
+eq(sb.needs_is_wounded(surv_rw), true, "raider wounded")
+eq(sb.needs_is_wounded(surv_ok), false, "healthy settler")
+now = 2500
+eq(sb.needs_is_wounded(surv_w), false, "wound healed after time")
+
+-- guard ammo consumption
+local ammo_in_box = 3
+sb.find_and_consume_item = function(hub, c, check_fn)
+    if ammo_in_box > 0 and check_fn("ammo_9x18_fmj") then
+        ammo_in_box = ammo_in_box - 1
+        return "ammo_9x18_fmj"
+    end
+    return nil
+end
+local test_c = { survivors = {} }
+local def_mult = sb.needs_process_guard_ammo(1, test_c, 3)
+eq(def_mult, 1.0, "3 guards fed 3 ammo boxes: full defense")
+eq(ammo_in_box, 0, "ammo box empty now")
+def_mult = sb.needs_process_guard_ammo(1, test_c, 4)
+eq(def_mult, 0.5, "4 guards with 0 ammo boxes: 0.5 defense mult")
+
 print(fails == 0 and "all needs tests passed" or (fails .. " FAILED"))
 os.exit(fails == 0 and 0 or 1)

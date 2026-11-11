@@ -560,7 +560,7 @@
         <text>Faction Retaliation Raids</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_retaliation_raids_desc">
-        <text>Eliminating a hostile rival camp starts a 2 to 4 hour timer. When it runs out, the defeated faction sets up a new outpost on a random level and a retaliatory expedition is reported. No squad is sent after you.</text>
+        <text>Eliminating a hostile rival camp starts a 2 to 4 hour timer. When it runs out, the defeated faction launches a punitive hit squad against your settlement.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_rival_camp_hospitality">
         <text>Friendly Camp Hospitality</text>
@@ -2152,7 +2152,28 @@
         <text>HAZARD REPORT: A ferocious mutant pack has overrun %s (%s) and established a feeding den!</text>
     </string>
     <string id="st_recon_retaliation_hit_squad">
-        <text>RADIO INTERCEPT: %s command has deployed a retaliation hit squad to hunt down the attackers!</text>
+        <text>RADIO INTERCEPT: %s command has deployed a retaliation hit squad targeting %s!</text>
+    </string>
+    <string id="st_event_camp_retaliation_attack">
+        <text>RETALIATION STRIKE: %s is under assault by a %s punitive strike team!</text>
+    </string>
+    <string id="st_retaliation_raid_defended">
+        <text>RETALIATION REPELLED: The %s garrison held the perimeter and defeated the %s hit squad!</text>
+    </string>
+    <string id="st_retaliation_offline_repelled">
+        <text>DEFENSE REPORT: While you were away, the %s garrison repelled a %s retaliation raid!</text>
+    </string>
+    <string id="st_retaliation_offline_breached">
+        <text>DISASTER REPORT: While you were away, %s was raided and plundered by a %s strike team!</text>
+    </string>
+    <string id="st_homestead_needs_medical_gap">
+        <text>MEDICAL SHORTAGE: %s has %d wounded settlers but lacks medical supplies in storage!</text>
+    </string>
+    <string id="st_homestead_needs_med_treated">
+        <text>MEDICAL CARE: %s medical supplies were used to treat %d wounded settlers.</text>
+    </string>
+    <string id="st_homestead_needs_ammo_shortage">
+        <text>AMMO SHORTAGE: %s armory has insufficient ammunition! %d guards are fighting with depleted ammo!</text>
     </string>
     <string id="st_recon_rescue_complete">
         <text>RESCUE COMPLETE: %s commander: 'Thank you for the backup, stalker! Take these %d RU as a reward.'</text>
@@ -2980,6 +3001,18 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_needs_desertion_desc">
         <text>Off: low morale caused by a food or water shortage does not make settlers leave. Low morale from other causes still can.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_medical">
+        <text>Medical Supplies Need</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_medical_desc">
+        <text>Wounded settlers require bandages and medkits from camp storage to heal. An unsupplied medical gap causes morale loss.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_ammo">
+        <text>Guard Ammo Consumption</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_ammo_desc">
+        <text>Camp guards consume ammunition boxes from storage during raids. An ammo shortage halves unsupplied guard effectiveness.</text>
     </string>
     <string id="st_homestead_needs_leaving">
         <text>%s: morale is low after the shortages. Settlers may start to leave.</text>

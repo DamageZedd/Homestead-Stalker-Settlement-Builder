@@ -1229,6 +1229,48 @@ local function resolve_pending_rival_skirmish(sb, camp, actor, sim, level_name, 
     end
 end
 
+function stalker_camp_builder.find_retaliation_target_camp(faction)
+    local sb = stalker_camp_builder
+    if not (sb.active_camps and next(sb.active_camps)) then return nil end
+    local cur_lvl = level and level.name and level.name()
+    local best_id, best_score = nil, -1
+    for hub_id, camp in pairs(sb.active_camps) do
+        if camp.survivors and next(camp.survivors) then
+            local count = 0
+            for _ in pairs(camp.survivors) do count = count + 1 end
+            local score = count
+            if cur_lvl and camp.level == cur_lvl then score = score + 50 end
+            if camp.is_primary then score = score + 100 end
+            if score > best_score then
+                best_score = score
+                best_id = hub_id
+            end
+        end
+    end
+    return best_id
+end
+
+function stalker_camp_builder.queue_faction_retaliation(faction, target_hub_id)
+    local sb = stalker_camp_builder
+    if not faction or faction == "monster" or faction == "zombied" or faction == "trader" or faction == "none" then return end
+    if sb.cfg and sb.cfg.rival_camp_retaliation_raids == false then return end
+    sb.faction_retaliation_timers = sb.faction_retaliation_timers or {}
+    sb.faction_retaliation_targets = sb.faction_retaliation_targets or {}
+
+    if sb.faction_retaliation_timers[faction] then return end
+
+    if not target_hub_id or not (sb.active_camps and sb.active_camps[target_hub_id]) then
+        target_hub_id = sb.find_retaliation_target_camp(faction)
+    end
+    if not target_hub_id then return end
+
+    local current_sec = sb.game_sec()
+    local timer_scale = sb.game_timer_scale and sb.game_timer_scale() or 1
+    local delay = mrandom(7200, 14400) * timer_scale
+    sb.faction_retaliation_timers[faction] = current_sec + delay
+    sb.faction_retaliation_targets[faction] = target_hub_id
+end
+
 local function mark_rival_garrison_eliminated(sb, camp, actor, current_sec)
     camp.status = "unoccupied"
     camp.unoccupied_time = current_sec
@@ -1257,10 +1299,7 @@ local function mark_rival_garrison_eliminated(sb, camp, actor, current_sec)
         local actor_comm = (actor and actor.character_community) and actor:character_community() or "stalker"
         local rel = relation_registry.community_relation(old_faction, actor_comm)
         if rel <= -1000 then
-            sb.faction_retaliation_timers = sb.faction_retaliation_timers or {}
-            if not sb.faction_retaliation_timers[old_faction] then
-                sb.faction_retaliation_timers[old_faction] = current_sec + mrandom(7200, 14400) -- 2 to 4 game hours
-            end
+            sb.queue_faction_retaliation(old_faction, nil)
         end
     end
 end
@@ -1619,9 +1658,13 @@ function stalker_camp_builder.update_rival_camps()
     sb.surge_was_active = surge_active_now
 
     sb.faction_retaliation_timers = sb.faction_retaliation_timers or {}
+    sb.faction_retaliation_targets = sb.faction_retaliation_targets or {}
     for retal_faction, target_retal_sec in pairs_(sb.faction_retaliation_timers) do
         if current_sec >= target_retal_sec then
             sb.faction_retaliation_timers[retal_faction] = nil
+            local target_hub_id = sb.faction_retaliation_targets[retal_faction]
+            sb.faction_retaliation_targets[retal_faction] = nil
+
             if total_rival_camps < sb.cfg.max_rival_camps then
                 local levels_list = sb.get_all_levels_with_smarts()
                 if #levels_list > 0 then
@@ -1630,14 +1673,33 @@ function stalker_camp_builder.update_rival_camps()
                     for i = #shuffled, 2, -1 do local j = mrandom(i); shuffled[i], shuffled[j] = shuffled[j], shuffled[i] end
                     for _, target_lvl in ipairs_(shuffled) do
                         if sb.spawn_single_rival_camp(target_lvl, retal_faction) then
-                            if actor then
-                                local fac_name = game.translate_string(retal_faction)
-                                stalker_camp_builder.camp_send_tip(actor, sformat(game.translate_string("st_recon_retaliatory_expedition"), fac_name), nil, "red_danger", 10000, nil, "general")
-                            end
                             break
                         end
                     end
                 end
+            end
+
+            -- Dispatch Retaliation Strike against targeted player settlement
+            local target_camp = target_hub_id and sb.active_camps and sb.active_camps[target_hub_id]
+            if not target_camp or not (target_camp.survivors and next(target_camp.survivors)) then
+                target_hub_id = sb.find_retaliation_target_camp(retal_faction)
+                target_camp = target_hub_id and sb.active_camps and sb.active_camps[target_hub_id]
+            end
+
+            if target_camp then
+                target_camp.pending_retaliation = {
+                    faction = retal_faction,
+                    due_sec = current_sec,
+                    hub_id = target_hub_id,
+                }
+                if actor then
+                    local fac_name = game.translate_string(retal_faction)
+                    local camp_name = target_camp.name or "Settlement"
+                    stalker_camp_builder.camp_send_tip(actor, sformat(game.translate_string("st_recon_retaliation_hit_squad"), fac_name, camp_name), nil, "red_danger", 12000, target_hub_id, "combat", true)
+                end
+            elseif actor then
+                local fac_name = game.translate_string(retal_faction)
+                stalker_camp_builder.camp_send_tip(actor, sformat(game.translate_string("st_recon_retaliatory_expedition"), fac_name), nil, "red_danger", 10000, nil, "general")
             end
         end
     end

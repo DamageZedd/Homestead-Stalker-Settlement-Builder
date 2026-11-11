@@ -208,7 +208,8 @@ function trigger_random_camp_event(hub_id, camp, hub_obj)
     end
 end
 
-function spawn_camp_raid(hub_id, camp, hub_obj)
+function spawn_camp_raid(hub_id, camp, hub_obj, opts)
+    opts = opts or {}
     local actor = db.actor
     local mrandom = math.random
     local hub_pos = hub_obj.position
@@ -268,7 +269,24 @@ function spawn_camp_raid(hub_id, camp, hub_obj)
 
     local section = nil
     local raid_faction = nil
-    if mrandom(100) <= 35 then
+    if opts.faction then
+        raid_faction = opts.faction
+        local vet_sec = raid_faction .. "_sim_squad_veteran"
+        local adv_sec = raid_faction .. "_sim_squad_advanced"
+        if ini_sys and ini_sys:section_exist(vet_sec) then
+            section = vet_sec
+        elseif ini_sys and ini_sys:section_exist(adv_sec) then
+            section = adv_sec
+        elseif sb.get_dynamic_squad_section_for_faction then
+            section = sb.get_dynamic_squad_section_for_faction(raid_faction)
+        else
+            section = adv_sec
+        end
+        if not (ini_sys and ini_sys:section_exist(section)) then
+            section = "monolith_sim_squad_veteran"
+            raid_faction = "monolith"
+        end
+    elseif mrandom(100) <= 35 then
         local mutant_squads = {
             "simulation_snork",
             "simulation_bloodsucker",
@@ -352,8 +370,34 @@ function spawn_camp_raid(hub_id, camp, hub_obj)
             settlers_lost = 0,
             original_squad_size = squad_size,
             remaining_count = squad_size,
+            is_retaliation = opts.is_retaliation or false,
         }
-        stalker_camp_builder.camp_send_tip(actor, string.format(game.translate_string("st_event_camp_under_attack"), game.translate_string(level.name()), game.translate_string("st_hostiles") or "hostiles"), nil, "red_danger", 15000, hub_id, "combat", true)
+        if opts.is_retaliation then
+            local camp_name = camp.name or "Settlement"
+            local fac_name = game.translate_string(raid_faction or "hostiles")
+            stalker_camp_builder.camp_send_tip(actor, string.format(game.translate_string("st_event_camp_retaliation_attack"), camp_name, fac_name), nil, "red_danger", 15000, hub_id, "combat", true)
+        else
+            stalker_camp_builder.camp_send_tip(actor, string.format(game.translate_string("st_event_camp_under_attack"), game.translate_string(level.name()), game.translate_string("st_hostiles") or "hostiles"), nil, "red_danger", 15000, hub_id, "combat", true)
+        end
+
+        -- Raiders present in camp mobilize as defenders
+        if camp and camp.survivors then
+            for _, s_data in pairs(camp.survivors) do
+                if s_data.job == "raider" then
+                    s_data.raider = type(s_data.raider) == "table" and s_data.raider or {}
+                    s_data.raider.defending = true
+                end
+            end
+        end
+
+        -- Guard ammo check (Living Needs Phase 5)
+        if stalker_camp_builder.needs_process_guard_ammo then
+            local stats = stalker_camp_builder.get_camp_stats(camp, hub_obj)
+            local guards = (stats.guards or 0) + (stats.raider_guards or 0)
+            if guards > 0 then
+                stalker_camp_builder.needs_process_guard_ammo(hub_id, camp, guards)
+            end
+        end
 
         local has_alarm = false
         local alarm_pos = hub_obj.position
@@ -418,6 +462,30 @@ function process_camp_raids()
         -- perf: only whether the camp has a survivor matters, not how many (no full count per camp)
         if stalker_camp_builder.sync_timer_scale then stalker_camp_builder.sync_timer_scale(camp) end
         local has_survivor = camp.survivors and next(camp.survivors) ~= nil
+
+        -- Pending faction retaliation strike check
+        if camp.pending_retaliation and has_survivor then
+            local pret = camp.pending_retaliation
+            local hub_obj = alife_object(hub_id)
+            if hub_obj and hub_obj.position then
+                local on_same_level = (not camp.level or camp.level == cur_lvl)
+                local dist = hub_obj.position:distance_to(player_pos)
+                if on_same_level and dist <= cfg.event_player_dist then
+                    if not camp.active_raid then
+                        camp.pending_retaliation = nil
+                        last_raid_game_sec = current_sec
+                        spawn_camp_raid(hub_id, camp, hub_obj, { faction = pret.faction, is_retaliation = true })
+                        break
+                    end
+                elseif (current_sec - (pret.due_sec or current_sec)) >= 86400 then
+                    camp.pending_retaliation = nil
+                    if stalker_camp_builder.resolve_offline_retaliation then
+                        stalker_camp_builder.resolve_offline_retaliation(hub_id, camp, pret.faction)
+                    end
+                end
+            end
+        end
+
         -- a camp gets one raid cooldown of peace after it is founded
         local is_new = camp.created_time and (current_sec - camp.created_time) < cfg.raid_cooldown
         -- one raid at a time: a second would leave the first squad its "actor" target
@@ -549,6 +617,11 @@ function check_completed_raids()
             if squad and squad.scripted_target == "actor" then
                 squad.scripted_target = nil
             end
+            if camp and camp.survivors then
+                for _, s_data in pairs(camp.survivors) do
+                    if s_data.raider then s_data.raider.defending = nil end
+                end
+            end
             pcall(stalker_camp_builder.raid_apply_reputation, camp.active_raid, squad ~= nil)
             camp.active_raid = nil
         elseif camp.active_raid then
@@ -603,13 +676,61 @@ function check_completed_raids()
                     raiders_killed = raid.original_squad_size - raid.remaining_count
                 end
                 if db.actor then
-                    stalker_camp_builder.camp_send_tip(db.actor, string.format(game.translate_string("st_raid_summary"), camp_name, raiders_killed, raid.guards_lost or 0), nil, "general_stalker", 12000, hub_id, "combat", true)
+                    if raid.is_retaliation then
+                        local fac_name = game.translate_string(raid.faction or "hostiles")
+                        stalker_camp_builder.camp_send_tip(db.actor, string.format(game.translate_string("st_retaliation_raid_defended"), camp_name, fac_name), nil, "general_stalker", 12000, hub_id, "combat", true)
+                    else
+                        stalker_camp_builder.camp_send_tip(db.actor, string.format(game.translate_string("st_raid_summary"), camp_name, raiders_killed, raid.guards_lost or 0), nil, "general_stalker", 12000, hub_id, "combat", true)
+                    end
+                end
+                -- Raiders stand down from defending
+                if camp and camp.survivors then
+                    for _, s_data in pairs(camp.survivors) do
+                        if s_data.raider then s_data.raider.defending = nil end
+                    end
                 end
                 if stalker_camp_builder.send_settler_callback then
                     stalker_camp_builder.send_settler_callback("homestead_on_raid_defended", hub_id, raiders_killed, raid.guards_lost or 0)
                 end
                 pcall(stalker_camp_builder.raid_apply_reputation, raid, false)
                 camp.active_raid = nil
+            end
+        end
+    end
+end
+
+-- Offline resolution when a pending retaliation raid matures while player is away for >= 1 in-game day
+function stalker_camp_builder.resolve_offline_retaliation(hub_id, camp, retal_faction)
+    local sb = stalker_camp_builder
+    local hub_obj = alife_object and alife_object(hub_id)
+    local stats = sb.get_camp_stats and sb.get_camp_stats(camp, hub_obj)
+    local defense = stats and stats.defense or 0
+    local needed = 25
+    local camp_name = camp.name or "Settlement"
+    local fac_name = game.translate_string(retal_faction or "hostiles")
+
+    if defense >= needed then
+        if db.actor and sb.camp_send_tip then
+            sb.camp_send_tip(db.actor,
+                string.format(game.translate_string("st_retaliation_offline_repelled"), camp_name, fac_name),
+                nil, "general_stalker", 12000, hub_id, "combat", true)
+        end
+        if sb.find_and_consume_item then
+            sb.find_and_consume_item(hub_id, camp, function(sec) return type(sec) == "string" and sec:find("^ammo_") and not sec:find("battery") end, nil)
+            sb.find_and_consume_item(hub_id, camp, sb.needs_is_med or function(sec) return sec == "bandage" or sec:find("medkit") end, nil)
+        end
+    else
+        if db.actor and sb.camp_send_tip then
+            sb.camp_send_tip(db.actor,
+                string.format(game.translate_string("st_retaliation_offline_breached"), camp_name, fac_name),
+                nil, "red_danger", 15000, hub_id, "combat", true)
+        end
+        camp.happiness = math.max(0, (camp.happiness or 50) - 15)
+        camp._stats_cache = nil
+        if camp.survivors then
+            for _, s in pairs(camp.survivors) do
+                s.needs_hungry_until = sb.game_sec() + 86400
+                break
             end
         end
     end
