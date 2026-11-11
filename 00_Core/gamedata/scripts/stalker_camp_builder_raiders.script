@@ -891,7 +891,9 @@ local function target_info(key, rc, now_sec)
     local story = false
     if squad and sb.squad_has_story_npc then story = sb.squad_has_story_npc(squad) and true or false end
     return {
-        occupied = squad ~= nil and not rc.cleared and rc.status == nil and rc.faction ~= nil,
+        -- `cleared` is only the map colour (set for every non-hostile camp): an emptied camp has a status.
+        -- Friendly camps are sendable (owner decision 2026-11-04, docs/design/raiders.md section 4)
+        occupied = squad ~= nil and rc.status == nil and rc.faction ~= nil,
         faction = rc.faction,
         story = story,
         nest = rc.status == "mutant_nest",
@@ -1441,7 +1443,7 @@ local function resolve_mission(hub_id, camp, id, m, forced)
     local now_sec = game_now()
     local rc = sb.rival_camps and sb.rival_camps[m.target_key]
     local squad = rc and valid_camp_squad(rc, rc.squad_id)
-    local target_ok = rc ~= nil and not rc.cleared and rc.status == nil and squad ~= nil and rc.faction == m.faction
+    local target_ok = rc ~= nil and rc.status == nil and squad ~= nil and rc.faction == m.faction
     local result
     if forced then
         result = rc and forced or "gone"

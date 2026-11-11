@@ -93,5 +93,17 @@ sb.snap_rival_camps_to_ground()
 eq(camp.ground_fix_v5, nil, "not marked while a piece is online")
 online[101] = nil
 
+-- a placed chest that is not on a node (the node is 3 m away) and floats: only its height changes,
+-- it is not moved onto the node away from its furniture
+local chest2 = se(200, "inv_box", 3, 10.08, 0)
+sb.rival_camps[2] = {
+    level = "l01_escape", chest_id = 200, position = { x = 3, y = 10.08, z = 0 },
+    snapped = true, ground_snapped_v2 = true, ground_snapped_v4 = true, decorations = {},
+}
+sb.snap_rival_camps_to_ground()
+near(chest2.position.x, 3, "placed chest keeps its x")
+near(chest2.position.y, ground(3) + 0.08, "placed chest goes down to the ground")
+eq(sb.rival_camps[2].site_checked, true, "site marked checked")
+
 if fails == 0 then print("OK") end
 os.exit(fails == 0 and 0 or 1)

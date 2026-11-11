@@ -1234,6 +1234,10 @@ local function mark_rival_garrison_eliminated(sb, camp, actor, current_sec)
     camp.unoccupied_time = current_sec
     camp.ruins_decay_time = mrandom(7200, 18000) -- 2 to 5 game hours
     local old_faction = camp.faction
+    -- as the time-up path does: the reclaim roll skips the faction that just lost the outpost and
+    -- allows one reclaim before the ruins decay (without these, the same faction came back again and again)
+    camp.last_faction = old_faction
+    camp.takeover_count = (camp.takeover_count or 0) + 1
     camp.faction = nil
     camp.squad_id = nil
     camp.extra_squad_ids = nil
@@ -1906,7 +1910,10 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
                     local shift_x, shift_z = 0, 0
                     local smart_lvid = parent_smart and parent_smart.m_level_vertex_id
                     local slope_tol = sb.cfg.rival_camp_slope_tolerance or 2.2
-                    if smart_lvid and smart_lvid < 4294967295 and not (camp.snapped and camp.ground_snapped_v4) then
+                    -- a site is searched for once: a tier upgrade away from the level clears `snapped` so
+                    -- its new pieces are grounded, and must not move an outpost the player has already seen
+                    local site_placed = camp.site_checked or (camp.snapped and camp.ground_snapped_v4)
+                    if smart_lvid and smart_lvid < 4294967295 and not site_placed then
                         local site_lvid, site_vpos = check_flat_camp_site(pos.x, pos.z, pos.y, slope_tol)
                         if not site_vpos then
                             local sp = parent_smart.position
@@ -1966,7 +1973,9 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
 
                     local target_x = pos.x + shift_x
                     local target_z = pos.z + shift_z
-                    if cvpos and ((target_x - cvpos.x)^2 + (target_z - cvpos.z)^2 > 0.5) then
+                    -- an outpost already placed keeps its spot: only its height is corrected (moving the
+                    -- chest onto the node would leave its furniture behind)
+                    if cvpos and not site_placed and ((target_x - cvpos.x)^2 + (target_z - cvpos.z)^2 > 0.5) then
                         target_x = cvpos.x
                         target_z = cvpos.z
                     end
@@ -2123,6 +2132,7 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
                         camp.snapped = true
                         camp.ground_snapped_v2 = true
                         camp.ground_snapped_v4 = true
+                        camp.site_checked = true
                     end
                     -- once per camp: outposts snapped by the old probe (which floated pieces on
                     -- slopes) are checked again with the corrected one

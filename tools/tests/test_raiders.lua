@@ -335,6 +335,11 @@ do
     eq(s.loss, 60, "preview goodwill loss"); eq(s.friendly, false, "not friendly")
     eq(s.odds >= 0.05 and s.odds <= 0.9, true, "preview odds in range")
     eq(sb.raiders_outpost_status("gone", 7).reason, "empty", "cleared outpost is not a target")
+    -- a friendly faction's outpost is marked cleared (the map colour) but is held: it is a target
+    -- (owner decision 2026-11-04: friendly camps are always sendable)
+    sb.rival_camps.k2.cleared = true
+    eq(sb.raiders_outpost_status("k2", 7).state, "ready", "a friendly (cleared-coloured) held outpost is a target")
+    sb.rival_camps.k2.cleared = nil
     eq(sb.raiders_outpost_status("nokey", 7).reason, "empty", "unknown outpost")
     camp3.survivors[12].job = "idle"
     eq(sb.raiders_outpost_status("k1", 7).reason, "no_guard", "no guard home")

@@ -1684,7 +1684,7 @@ function SettlementManagerPDA:RefreshRaidPanel()
     local sb = stalker_camp_builder
     local item = self.rival_list:GetSelectedItem()
     local rcamp = item and sb and sb.rival_camps and sb.rival_camps[item.smart]
-    if not (rcamp and sb.raiders_outpost_status) or rcamp.status ~= nil or rcamp.cleared or rcamp.faction == "monster" then
+    if not (rcamp and sb.raiders_outpost_status) or rcamp.status ~= nil or rcamp.faction == "monster" then
         btn:Show(false)
         info:SetText("")
         self.raid_armed = nil
