@@ -7,7 +7,7 @@
 
 *Build camps. Recruit survivors. Automate production. Hold the line.*
 
-![Version](https://img.shields.io/badge/version-v1.4.2-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-v1.4.3-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
 
 **[GAMMA Discord Thread](https://discord.com/channels/912320241713958912/1515669053606334504/1542893750408315030)** · **[Full Changelog](CHANGELOG.md)** · **[ModDB](https://www.moddb.com/mods/stalker-anomaly/addons/homestead-stalker-settlement-builder)** · **[Latest Release](https://github.com/DamageZedd/Homestead-Stalker-Settlement-Builder/releases/latest)**
 
@@ -22,7 +22,20 @@ Plant a Settlement Flag to establish a 50-meter settlement boundary. Construct b
 
 ---
 
-## 🆕 New in v1.4.2
+## 🆕 New in v1.4.3
+
+### 🖼️ HD Icons & Workstation Sheet Fixes
+Restored the lossless `v1.4.0` Level 0 DXT5 blocks across all 45 pre-existing models in `ui_icon_homestead_hd_1.dds` (eliminating the Level 0 alpha quantization and edge specks introduced by Pillow's DXT5 writer in `v1.4.1`), rebuilt `ui_icon_homestead_workstations.dds` cleanly via `dxt5_encode`, and added a runtime guard so `ico_homestead.ltx` is ignored whenever the HD Inventory Icons Framework (`zz_hd_inventory_icons_patches`) is not active (including after an MO2 Merge upgrade).
+
+### 🪵 Configurable Wood & Scrap Stockpile Caps
+Added MCM sliders for **Wood Stockpile Cap (`wood_stock_cap`)** and **Scrap Metal Stockpile Cap (`scrap_stock_cap`)** under *Jobs & Production* (`20–500`, default `200`, up from the fixed `40` in `v1.4.2`).
+
+### 📡 Rival Outpost Placement & Takeover Tuning
+Outposts spawned on unloaded maps now check for a flat, walkable 3 m AI-grid perimeter on level entry and relocate to the nearest open AI ground around their smart terrain instead of anchoring against walls, roofs, or cliffs. Abandoned outposts can now be reclaimed at most once (preferring a different faction than the one that just left) before their ruins decay and a fresh site is chosen.
+
+---
+
+## 📦 Previous in v1.4.2
 
 ### 🛠️ Base-Building & Furniture Fixes
 Pieces and colliders that reused a freed id no longer inherit a stale broken-collider count; a piece frozen again from the radial menu is healed at once; physics strikes from placed pieces are recognised by their shape and cancelled (weapon, blast and creature hits still land); furniture on triangle foundations stands on the paving instead of floating.
