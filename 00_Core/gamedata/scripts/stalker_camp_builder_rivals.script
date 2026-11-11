@@ -1779,10 +1779,24 @@ find_ground_anchor = function(x, z, ref_y, smart_y)
         end
     end
 
-    -- The downward ray can hit a tree, rock overhang or roof above the spot.
-    -- If it disagrees with the walkable ground height right here, trust the ground.
-    if surface_y and target_vpos and math.abs(surface_y - target_vpos.y) > 0.5 then
-        surface_y = target_vpos.y
+    -- The downward ray can hit a tree, rock overhang or roof above the spot. The node may stand up
+    -- to 5 m away, so on a slope the ground here differs from the node's height by up to that
+    -- distance: a hit within that band is the ground and is kept (using the node's height there
+    -- floated pieces on slopes). Only a hit higher than that is replaced: the ray is cast again
+    -- from just above the ground, and failing that the node's height is used.
+    if surface_y and target_vpos then
+        local hdx, hdz = x - target_vpos.x, z - target_vpos.z
+        local band = 0.5 + math.sqrt(hdx * hdx + hdz * hdz)
+        if surface_y > target_vpos.y + band then
+            local below = sb.get_surface_y and sb.get_surface_y(x, z, target_vpos.y, band, band + 2.0)
+            if below and below <= target_vpos.y + band then
+                surface_y = below
+            else
+                surface_y = target_vpos.y
+            end
+        elseif surface_y < target_vpos.y - band then
+            surface_y = target_vpos.y
+        end
     end
 
     local final_y = surface_y or (target_vpos and target_vpos.y) or base_y
@@ -1838,7 +1852,7 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
     local has_work = false
     for _, c in pairs(sb.rival_camps) do
         if type(c) == "table" and c.level == level_name and c.chest_id then
-            if (not c.ground_snapped_v4) or (not c.snapped)
+            if (not c.ground_snapped_v4) or (not c.snapped) or (not c.ground_fix_v5)
                 or (c.smart_name and sb.is_underground_smart(c.smart_name))
                 or (c.level and sb.is_underground_level(c.level))
             then
@@ -1981,13 +1995,39 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
                         camp.game_vertex_id = gvid
                     end
 
+                    -- the camp is marked ground_fix_v5 only when every piece was offline: the server
+                    -- position of an online piece is not where it stands
+                    local all_offline = not level.object_by_id(camp.chest_id)
+
                     if camp.decorations then
+                        -- a piece standing on another (the radio on its table) shares its x/z and stands
+                        -- higher; the ray passes through the table, so it is moved with its base instead
+                        local dinfo, stacked_on, moved = {}, {}, {}
+                        for _, dec_id in ipairs(camp.decorations) do
+                            local se_d = sim:object(dec_id)
+                            if se_d and sb.is_camp_decor(camp, dec_id, se_d) then
+                                local p = se_d.position
+                                dinfo[dec_id] = { x = p.x, y = p.y, z = p.z }
+                            end
+                            if level.object_by_id(dec_id) then all_offline = false end
+                        end
+                        for id_a, a in pairs(dinfo) do
+                            for id_b, b in pairs(dinfo) do
+                                if id_a ~= id_b and (a.x - b.x) ^ 2 + (a.z - b.z) ^ 2 < 0.09 and a.y > b.y + 0.2 then
+                                    stacked_on[id_a] = id_b
+                                    break
+                                end
+                            end
+                        end
+
                         local surviving = {}
                         for _, dec_id in ipairs(camp.decorations) do
                             local se_decor = sim:object(dec_id)
                             -- an id that no longer names outpost furniture is dropped, not moved
                             local is_decor = se_decor and sb.is_camp_decor(camp, dec_id, se_decor)
-                            if is_decor then
+                            if is_decor and stacked_on[dec_id] then
+                                surviving[#surviving + 1] = dec_id
+                            elseif is_decor then
                                 local dpos = se_decor.position
                                 local decor_x, decor_z = dpos.x + shift_x, dpos.z + shift_z
                                 local dlvid, dvpos, d_surface_y, d_has_vis = find_ground_anchor(decor_x, decor_z, dpos.y, target_chest_y)
@@ -2025,6 +2065,7 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
                                     se_decor.position = new_dpos
                                     se_decor.m_level_vertex_id = final_dlvid
                                     se_decor.m_game_vertex_id = dgvid
+                                    moved[dec_id] = { y = final_decor_y, lvid = final_dlvid, gvid = dgvid }
                                     surviving[#surviving + 1] = dec_id
                                     local cl_decor = level.object_by_id(dec_id)
                                     if cl_decor then
@@ -2043,6 +2084,16 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
                                         end)
                                     end
                                 end
+                            end
+                        end
+                        -- a stacked piece keeps its height above its base
+                        for dec_id, base_id in pairs(stacked_on) do
+                            local m, a, b = moved[base_id], dinfo[dec_id], dinfo[base_id]
+                            local se_decor = m and sim:object(dec_id)
+                            if se_decor then
+                                se_decor.position = v_new_decor:set(a.x + shift_x, m.y + (a.y - b.y), a.z + shift_z)
+                                se_decor.m_level_vertex_id = m.lvid
+                                se_decor.m_game_vertex_id = m.gvid
                             end
                         end
                         camp.decorations = surviving
@@ -2072,6 +2123,11 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
                         camp.snapped = true
                         camp.ground_snapped_v2 = true
                         camp.ground_snapped_v4 = true
+                    end
+                    -- once per camp: outposts snapped by the old probe (which floated pieces on
+                    -- slopes) are checked again with the corrected one
+                    if all_offline then
+                        camp.ground_fix_v5 = true
                     end
                 end
             end
