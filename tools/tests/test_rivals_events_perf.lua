@@ -3,6 +3,10 @@
 -- Run: lua tools/tests/test_rivals_events_perf.lua   (Lua 5.1, from the repo root)
 stalker_camp_builder = { cfg = {}, defaults = {} }
 local sb = stalker_camp_builder
+-- the rivals script keeps a probe vector at file scope
+vector = vector or function()
+    return setmetatable({ x = 0, y = 0, z = 0 }, { __index = { set = function(v, x, y, z) v.x, v.y, v.z = x, y, z; return v end } })
+end
 dofile("00_Core/gamedata/scripts/stalker_camp_builder_rivals.script")
 dofile("00_Core/gamedata/scripts/stalker_camp_builder_expeditions.script")
 dofile("00_Core/gamedata/scripts/stalker_camp_builder_events.script")
