@@ -811,6 +811,18 @@ function SettlementManagerPDA:InitControls()
     self:Register(self.btn_rename_survivor, "btn_rename_survivor")
     self:AddCallback("btn_rename_survivor", ui_events.BUTTON_CLICKED, self.OnRenameSurvivorClicked, self)
 
+    self.btn_companion_loan = xml:Init3tButton("job_content:btn_companion_loan", self.job_content)
+    if self.btn_companion_loan then
+        self:Register(self.btn_companion_loan, "btn_companion_loan")
+        self:AddCallback("btn_companion_loan", ui_events.BUTTON_CLICKED, self.OnCompanionLoanClicked, self)
+    end
+
+    self.btn_sworn_toggle = xml:Init3tButton("job_content:btn_sworn_toggle", self.job_content)
+    if self.btn_sworn_toggle then
+        self:Register(self.btn_sworn_toggle, "btn_sworn_toggle")
+        self:AddCallback("btn_sworn_toggle", ui_events.BUTTON_CLICKED, self.OnSwornToggleClicked, self)
+    end
+
     self.btn_refresh_survivors = xml:Init3tButton("left_container:btn_refresh_survivors", self.left_container)
     self:Register(self.btn_refresh_survivors, "btn_refresh_survivors")
     self:AddCallback("btn_refresh_survivors", ui_events.BUTTON_CLICKED, self.OnManualRefresh, self)
@@ -866,7 +878,8 @@ function SettlementManagerPDA:InitControls()
     self.sv_pages = {
         job = job_page,
         orders = { self.pos_header_bg, self.pos_header_lbl, self.pos_bg, self.survivor_pos_txt,
-            self.btn_position_here, self.btn_position_recall, self.btn_rename_survivor },
+            self.btn_position_here, self.btn_position_recall, self.btn_companion_loan, self.btn_sworn_toggle,
+            self.btn_rename_survivor },
         transfer = { self.transfer_header_bg, self.transfer_lbl, self.transfer_bg, self.transfer_list,
             self.btn_transfer, self.btn_banish },
         stats = { self.stats_header_bg, self.stats_lbl, self.stats_bg },
@@ -1711,10 +1724,15 @@ function SettlementManagerPDA:RefreshRaidPanel()
     elseif armed then
         label = tr("st_pda_raid_btn_confirm")
         text = sformat(tr("st_pda_raid_preview"), tr(st.faction), st.band, math.floor(st.odds * 100 + 0.5), st.loss)
+        if st.recon then
+            text = text .. "\\n" .. sformat(tr("st_pda_raid_recon"), st.recon.garrison or 0, st.recon.stash_items or 0)
+        end
         if st.friendly then
             text = text .. "\\n" .. tr("st_pda_raid_preview_friendly")
             color = hs_theme.argb("danger")
         end
+    elseif st.recon then
+        text = sformat(tr("st_pda_raid_recon"), st.recon.garrison or 0, st.recon.stash_items or 0)
     end
     btn:Enable(st.state == "ready" or recallable)
     if btn:TextControl() then btn:TextControl():SetText(label) end
@@ -2537,7 +2555,7 @@ function SettlementManagerPDA:UpdateSurvivorHeader(s_item, job, job_lbl, is_paus
     local rows = {
         { tr("st_pda_sv_stat_needs"), needs_txt, needs_role },
         { tr("st_pda_sv_stat_morale"), morale_txt, morale_role },
-        { tr("st_pda_sv_stat_rank"), string.format("%s (T%d)", tiers[tier] or tiers[0], tier), "good" },
+        { tr("st_pda_sv_stat_rank"), string.format("%s (T%d)%s", tiers[tier] or tiers[0], tier, s_item.sworn and " [Sworn]" or ""), "good" },
         { tr("st_pda_sv_stat_xp"), string.format("%d / %d", xp, caps[tier] or 500), "body" },
     }
     for i, r in ipairs(rows) do
@@ -2589,6 +2607,13 @@ function SettlementManagerPDA:LayoutSurvivorPages()
     pos(self.btn_position_recall, 178, oy)
     size(self.btn_position_recall, 172, 26)
     oy = oy + 30
+    if self.btn_companion_loan and self.btn_sworn_toggle then
+        pos(self.btn_companion_loan, 0, oy)
+        size(self.btn_companion_loan, 172, 26)
+        pos(self.btn_sworn_toggle, 178, oy)
+        size(self.btn_sworn_toggle, 172, 26)
+        oy = oy + 30
+    end
     if self.lay_has_dir then
         pos(self.btn_job_directive, 0, oy)
         size(self.btn_job_directive, 350, 26)
@@ -2658,17 +2683,89 @@ end
 
 -- On the Orders page the "Recall to Workbench" button recalls a raider's whole mission while they are out
 -- (no loot, no goodwill change); it is disabled with the reason once the band is already on its way back.
+-- Also refreshes the Bodyguard/Companion loan button and Sworn retention toggle.
 function SettlementManagerPDA:RefreshRecallButton(survivor_id)
     local btn = self.btn_position_recall
-    if not (btn and btn:TextControl()) then return end
-    local rf = stalker_camp_builder.raiders_recall_for and stalker_camp_builder.raiders_recall_for(survivor_id)
-    local label = "st_pda_btn_position_recall"
-    if rf then label = rf.ok and "st_pda_raid_btn_recall" or ("st_pda_raid_recall_why_" .. tostring(rf.reason)) end
-    btn:Enable(not rf or rf.ok)
-    if self.recall_btn_label ~= label then
-        self.recall_btn_label = label
-        btn:TextControl():SetText(game.translate_string(label))
+    local s_item = self:GetSurvivorInfo(survivor_id)
+    local is_comp = s_item and (s_item.job == "companion" or s_item.is_companion)
+    if btn and btn:TextControl() then
+        local rf = stalker_camp_builder.raiders_recall_for and stalker_camp_builder.raiders_recall_for(survivor_id)
+        local label = is_comp and "st_pda_btn_companion_return" or "st_pda_btn_position_recall"
+        if rf then label = rf.ok and "st_pda_raid_btn_recall" or ("st_pda_raid_recall_why_" .. tostring(rf.reason)) end
+        btn:Enable(not rf or rf.ok)
+        if self.recall_btn_label ~= label then
+            self.recall_btn_label = label
+            btn:TextControl():SetText(game.translate_string(label))
+        end
     end
+
+    local lbtn = self.btn_companion_loan
+    if lbtn and lbtn:TextControl() then
+        local loan_lbl = is_comp and "st_pda_btn_companion_return" or "st_pda_btn_companion_loan"
+        if self.loan_btn_label ~= loan_lbl then
+            self.loan_btn_label = loan_lbl
+            lbtn:TextControl():SetText(game.translate_string(loan_lbl))
+        end
+        hs_theme.set_active(lbtn, is_comp == true)
+    end
+
+    local sbtn = self.btn_sworn_toggle
+    if sbtn and sbtn:TextControl() then
+        local is_sworn = s_item and s_item.sworn == true
+        local sworn_lbl = is_sworn and "st_pda_btn_sworn_on" or "st_pda_btn_sworn_off"
+        if self.sworn_btn_label ~= sworn_lbl then
+            self.sworn_btn_label = sworn_lbl
+            sbtn:TextControl():SetText(game.translate_string(sworn_lbl))
+        end
+        hs_theme.set_active(sbtn, is_sworn == true)
+    end
+end
+
+function SettlementManagerPDA:OnCompanionLoanClicked()
+    play_pda_ui_sound([[interface\inv_slot]])
+    local item = self.survivor_list:GetSelectedItem()
+    if not item then return end
+    local survivor_id = item.survivor_id
+    local s_item = self:GetSurvivorInfo(survivor_id)
+    if not s_item then return end
+
+    if s_item.job == "companion" or s_item.is_companion then
+        if stalker_camp_builder.return_companion_to_settlement then
+            stalker_camp_builder.return_companion_to_settlement(survivor_id, false)
+        end
+    else
+        if stalker_camp_builder.loan_settler_as_companion then
+            local ok, reason = stalker_camp_builder.loan_settler_as_companion(survivor_id)
+            if not ok and actor_menu and actor_menu.set_msg then
+                local msg_key = "st_pda_companion_loan_" .. tostring(reason or "failed")
+                local msg = game.translate_string(msg_key)
+                if msg == msg_key then msg = "Cannot loan settler right now (" .. tostring(reason) .. ")." end
+                actor_menu.set_msg(1, msg, 3)
+            end
+        end
+    end
+    self:OnSettlementSelected()
+end
+
+function SettlementManagerPDA:OnSwornToggleClicked()
+    play_pda_ui_sound([[interface\inv_slot]])
+    local item = self.survivor_list:GetSelectedItem()
+    if not item then return end
+    local survivor_id = item.survivor_id
+    if stalker_camp_builder.toggle_settler_sworn then
+        local ok, is_sworn = stalker_camp_builder.toggle_settler_sworn(survivor_id)
+        if ok and actor_menu and actor_menu.set_msg then
+            local s_item = self:GetSurvivorInfo(survivor_id)
+            local name = (s_item and s_item.name) or "Settler"
+            local msg_key = is_sworn and "st_pda_sworn_enabled_msg" or "st_pda_sworn_disabled_msg"
+            local tmpl = game.translate_string(msg_key)
+            if tmpl == msg_key then
+                tmpl = is_sworn and "%s is now sworn to the settlement and will not move on." or "%s is no longer sworn and may move on at Master tier."
+            end
+            actor_menu.set_msg(1, string.format(tmpl, name), 3)
+        end
+    end
+    self:OnSurvivorSelected()
 end
 
 function SettlementManagerPDA:OnPositionRecallClicked()
@@ -2676,6 +2773,14 @@ function SettlementManagerPDA:OnPositionRecallClicked()
     if not item then return end
 
     local survivor_id = item.survivor_id
+    local surv_info = self:GetSurvivorInfo(survivor_id)
+    if surv_info and (surv_info.job == "companion" or surv_info.is_companion) then
+        if stalker_camp_builder.return_companion_to_settlement then
+            stalker_camp_builder.return_companion_to_settlement(survivor_id, false)
+            self:OnSettlementSelected()
+            return
+        end
+    end
 
     local rf = stalker_camp_builder.raiders_recall_for and stalker_camp_builder.raiders_recall_for(survivor_id)
     if rf then
@@ -2962,7 +3067,9 @@ function SettlementManagerPDA:FormatSurvivorStatus(survivor, camp, hub_id)
 
     local job = survivor.job or "idle"
     if job == "companion" or survivor.is_companion then
-        return "[PAUSED: Companion]", c_orange
+        local pj = survivor.paused_job or "idle"
+        local pj_lbl = hs_perf.job_label(pj)
+        return sformat("[COMPANION: %s]", pj_lbl), c_orange
     end
 
     if job == "idle" then

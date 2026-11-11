@@ -3593,4 +3593,37 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_pda_raid_blk_no_guard">
         <text>Keep at least one guard at home before sending raiders.</text>
     </string>
+    <string id="st_pda_btn_companion_loan">
+        <text>Request Bodyguard</text>
+    </string>
+    <string id="st_pda_btn_companion_return">
+        <text>Return to Settlement</text>
+    </string>
+    <string id="st_pda_btn_sworn_on">
+        <text>Sworn Veteran: ON</text>
+    </string>
+    <string id="st_pda_btn_sworn_off">
+        <text>Sworn Veteran: OFF</text>
+    </string>
+    <string id="st_pda_sworn_enabled_msg">
+        <text>%s is now sworn to the settlement and will not move on.</text>
+    </string>
+    <string id="st_pda_sworn_disabled_msg">
+        <text>%s is no longer sworn and may move on at Master tier.</text>
+    </string>
+    <string id="st_pda_companion_loan_wrong_level">
+        <text>Cannot request bodyguard: travel to the settlement's level first.</text>
+    </string>
+    <string id="st_pda_companion_loan_on_expedition">
+        <text>Cannot request bodyguard while settler is away on a scavenging expedition.</text>
+    </string>
+    <string id="st_pda_companion_loan_on_mission">
+        <text>Cannot request bodyguard while settler is away on a raid.</text>
+    </string>
+    <string id="st_pda_companion_loan_already_companion">
+        <text>Settler is already in your companion squad.</text>
+    </string>
+    <string id="st_pda_raid_recon">
+        <text>Recon Intel: %d garrison | ~%d stash items (+25%% Tactical Board)</text>
+    </string>
 </string_table>

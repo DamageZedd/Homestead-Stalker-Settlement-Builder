@@ -219,10 +219,10 @@ function sb.prosper_tick(hub_id, camp, survivor, npc_id)
         sb.prosper_on_promotion(survivor, t)
     end
     if tier > (survivor.standing_tier or 0) then survivor.standing_tier = tier end
-    if sb.is_companion and sb.is_companion(npc_id) then return end
     if survivor.on_expedition then return end
-    local obj = level.object_by_id(npc_id)
+    local obj = level and level.object_by_id and level.object_by_id(npc_id)
     if obj then sb.prosper_apply_standing(obj, survivor) end
+    if survivor.job == "companion" or survivor.is_companion or (sb.is_companion and sb.is_companion(npc_id)) then return end
     if sb.prosper_try_buy(npc_id, survivor) then return end
     sb.guarded_call("prosper_try_move_on", sb.prosper_try_move_on, hub_id, camp, survivor, npc_id)
 end
@@ -306,6 +306,7 @@ end
 -- the faction's goodwill with the player rises, and the player gets word of it
 function sb.prosper_try_move_on(hub_id, camp, survivor, npc_id)
     if not (prosper_move_on_on() and survivor and camp and npc_id) then return false end
+    if survivor.sworn then return false end
     if (survivor.tier or 0) < 3 or (survivor.bought_tier or 0) < 3 then return false end
     if (survivor.savings or 0) < (sb.cfg.settler_move_on_savings or 5000) then return false end
     local job = survivor.job

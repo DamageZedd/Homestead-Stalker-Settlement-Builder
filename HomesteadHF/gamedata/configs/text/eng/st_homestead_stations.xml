@@ -33,4 +33,10 @@
 	<string id="st_job_chemist_station_work">
 		<text>%s operated the Chemist Station, synthesizing %dx %s from charcoal and alcohol!</text>
 	</string>
+	<string id="st_homestead_raider_station">
+		<text>Tactical Planning Board</text>
+	</string>
+	<string id="st_homestead_raider_station_descr">
+		<text>A reinforced raid command and tactical briefing table equipped with an annotated military topographic Zone map, compound breach schematic, upright General Staff recon pinboard, surveillance photographs, military field radio transceiver, binoculars, walkie-talkie, combat knife, sidearm, grenades, and under-table armory crate. Raiders plan operations here, granting +25% raid attack strength and live recon intelligence on rival outpost garrisons and stashes in the PDA. Use it to open its storage: 300 kg of settlement storage for weapons, ammo, and grenades. Weighs 30 kg to carry.</text>
+	</string>
 </string_table>

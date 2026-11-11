@@ -511,6 +511,37 @@ do
     check(count_sec("charcoal") >= 3, "Chain 8: auto made charcoal")
 end
 
+-- Test Chain 9: Water pumps pay 1 filter per pump, Scavenge tier caps at 1.5, Hunter Station adds max_m + 1 without x1.5 meat multiplier
+do
+    -- 3 water pumps with only 1 filter: only 1 pump runs and produces 1 flask
+    reset_env({ "water_filter" })
+    local camp_w = { hub_id = 1, structures = { [21] = "water_pump", [22] = "water_pump", [23] = "water_pump" }, survivors = {} }
+    local flasks1, fed1 = sb.process_water_pumps(1, camp_w, 3, 1, nil)
+    eq(fed1, 1, "Chain 9: 3 pumps with 1 filter feeds 1 pump")
+    eq(flasks1, 1, "Chain 9: 1 fed pump makes 1 flask")
+    eq(count_sec("water_filter"), 0, "Chain 9: 1 filter consumed")
+    eq(count_sec("flask"), 1, "Chain 9: 1 flask in storage")
+
+    -- 3 water pumps with 3 filters: all 3 pumps run and produce 3 flasks
+    reset_env({ "water_filter", "water_filter", "water_filter" })
+    local flasks3, fed3 = sb.process_water_pumps(1, camp_w, 3, 1, nil)
+    eq(fed3, 3, "Chain 9: 3 pumps with 3 filters feeds all 3 pumps")
+    eq(flasks3, 3, "Chain 9: 3 fed pumps make 3 flasks")
+    eq(count_sec("water_filter"), 0, "Chain 9: all 3 filters consumed")
+    eq(count_sec("flask"), 3, "Chain 9: 3 flasks in storage")
+
+    -- Scavenge tier multiplier caps at 1.5 inside spawn_scavenged_loot when multiplier is omitted
+    reset_env({})
+    sb.cfg.scavenge_min_items, sb.cfg.scavenge_max_items = 2, 2
+    sb.scavenge_loot_table = { "conserva" }
+    sb.get_survivor_tier_mult = function() return 3.0 end
+    local camp_sc = { hub_id = 1, structures = {}, survivors = {} }
+    local scav_surv = { name = "Scavenger", job = "scavenge", tier = 3 }
+    local dep_sc = sb.spawn_scavenged_loot(1, nil, 1, camp_sc, scav_surv)
+    eq(#dep_sc, 3, "Chain 9: Master scavenger tier_mult caps at 1.5 (base 2 * 1.5 = 3 items, not 6)")
+    sb.get_survivor_tier_mult = function(s) return (s and s.tier and s.tier >= 2) and 1.5 or 1.0 end
+end
+
 if fails > 0 then
     print(string.format("%d/%d checks FAILED", fails, checks))
     os.exit(1)

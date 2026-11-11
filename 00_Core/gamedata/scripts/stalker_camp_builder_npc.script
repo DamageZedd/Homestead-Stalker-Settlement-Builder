@@ -464,6 +464,7 @@ function stalker_camp_builder.get_settler_job_target(npc_id, hub_id)
         scrapper = {"repair_bench", "workbench", "box", "stash"},
         scavenge = {"salvage_table", "stash", "box", "fridge", "workbench"},
         scavenger = {"salvage_table", "stash", "box", "fridge", "workbench"},
+        raider = {"raider_station", "guard_post", "barricade", "stash", "box"},
         hunter = {"fridge", "box", "stash", "workbench"},
         idle = {"piano", "radio"}
     }

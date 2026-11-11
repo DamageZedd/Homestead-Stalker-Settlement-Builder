@@ -3596,5 +3596,38 @@
     <string id="st_guide_s3o_body">
         <text>%c[255,238,196,112]>> ХИМИЧЕСКИЙ СИНТЕЗ ПОРОХА И ТОПЛИВА%c[default]\n \n  - %c[255,144,238,144]Рабочее место:%c[default] работает за %c[255,100,200,255]Полевой химлабораторией%c[default], %c[255,100,200,255]Лабораторией медика%c[default], %c[255,100,200,255]Полевым лазаретом%c[default], %c[255,100,200,255]Перегонным аппаратом%c[default] или верстаком. Химлаборатория дает %c[255,144,238,144]+1 дополнительный выход%c[default] за каждый цикл.\n  - %c[255,238,196,112]Синтез пороха:%c[default] тратит %c[255,100,200,255]2x древесного угля + 1x водку/спирт%c[default] -&gt; производит %c[255,144,238,144]бездымный порох%c[default] (powder_1 / powder_2) для оружейника.\n  - %c[255,238,196,112]Синтез топлива:%c[default] тратит %c[255,100,200,255]2x древесного угля + 2x водку/спирт%c[default] -&gt; производит %c[255,144,238,144]керосин / канистру топлива%c[default] (kerosene / explo_jerrycan_fuel) для генератора и печей.\n  - %c[255,100,200,255]Директивы (КПК или диалог):%c[default] переключайте между %c[255,144,238,144]Авторежимом%c[default], %c[255,144,238,144]Только порохом%c[default] и %c[255,144,238,144]Только топливом%c[default].</text>
     </string>
+    <string id="st_pda_btn_companion_loan">
+        <text>Взять в отряд</text>
+    </string>
+    <string id="st_pda_btn_companion_return">
+        <text>Вернуть в поселение</text>
+    </string>
+    <string id="st_pda_btn_sworn_on">
+        <text>Ветеран насовсем: ВКЛ</text>
+    </string>
+    <string id="st_pda_btn_sworn_off">
+        <text>Ветеран насовсем: ВЫКЛ</text>
+    </string>
+    <string id="st_pda_sworn_enabled_msg">
+        <text>%s принес присягу поселению и не покинет его.</text>
+    </string>
+    <string id="st_pda_sworn_disabled_msg">
+        <text>%s больше не связан присягой и может уйти на ранге Мастера.</text>
+    </string>
+    <string id="st_pda_companion_loan_wrong_level">
+        <text>Нельзя взять в отряд: сначала перейдите на локацию поселения.</text>
+    </string>
+    <string id="st_pda_companion_loan_on_expedition">
+        <text>Нельзя взять в отряд: поселенец сейчас в вылазке за хабаром.</text>
+    </string>
+    <string id="st_pda_companion_loan_on_mission">
+        <text>Нельзя взять в отряд: поселенец сейчас в рейде.</text>
+    </string>
+    <string id="st_pda_companion_loan_already_companion">
+        <text>Поселенец уже в вашем отряде.</text>
+    </string>
+    <string id="st_pda_raid_recon">
+        <text>Разведданные: гарнизон %d | ~%d предм. в тайнике (+25%% тактический стол)</text>
+    </string>
 </string_table>
 

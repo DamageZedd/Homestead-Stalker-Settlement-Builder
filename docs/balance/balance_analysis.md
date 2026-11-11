@@ -26,9 +26,9 @@ formulas at tier 1 and no specialization.
 
 | Job | Novice RU/h | Best case RU/h | Input at best case RU/h | Limiter |
 |---|---|---|---|---|
-| scavenge | 2100 | 12200 | none | 20 % ambush; the loot pool (about 1/5 of it is powder) |
+| scavenge | 2100 | 6110 | none | tier capped at 1.5, 20 % ambush; the loot pool (about 1/5 of it is powder) |
 | hunter, no station | 1800 | 4400 | none | tier capped at 1.5 |
-| hunter, station | 6400 | 11600 | none | station bonus is max+1 and x1.5 and pelts and trophies |
+| hunter, station | 5200 | 8672 | none | station bonus is max+1, 75 % pelt and 60 % trophy |
 | craft | 3300 | 16500 | about 500 | powder from scavenging, stock cap 8 |
 | medic bandage | 2400 | 31200 | 360 | stock cap 15 |
 | medic akvatab | 10900 | 86900 | 3800 | stock cap 8 per batch, 5 vodka uses |
@@ -52,9 +52,8 @@ Outliers, left as they are (they are tuned behaviours, or need a code change):
   the batch, or cap the batch at 4 for the rare types.
 * Repair: the fee is one use of vodka, conserva or tushonka (about 315 RU) whatever the gear is worth. A Master with a
   Workshop and a repair bench restores 56 % of a rifle (26950) per item, three items per cycle. A scaled fee would fix it (code).
-* Hunter Station: max+1 and x1.5 together, plus pelts and trophies, is 3.5x a station-less novice. Probably intended
-  as the reward for building it.
-* Scavenge has no cap on the tier multiplier (hunters are capped at 1.5): a Master in a Hideout makes 12 items an hour for no input.
+* Hunter Station: max+1 meat plus 75 % pelt and 60 % trophy rolls (the redundant x1.5 meat multiplier was removed in round 5e).
+* Scavenge tier multiplier is capped at 1.5 (matching Hunter), so a Master in a Hideout makes 6.1 items an hour (was 12.2) and does not outscale active Stash Expeditions.
 
 ## 3. Units: real time against game time
 
@@ -152,10 +151,17 @@ Measured by `test_balance_numbers.lua` (medic ceiling 95000 to 46000, chemist ke
 `test_medic_batch.lua`, `test_chemist_batch.lua`, `test_production_chains.lua` (chains 6 and 7), `test_repair_fee.lua`,
 `test_game_timer_scale.lua`.
 
+## 5e. Remaining outliers (Hunter Station, Scavenge tier cap, Water Pumps)
+
+| # | Change | Before | After | Where |
+|---|---|---|---|---|
+| 13 | Hunter Station meat bonus | `max_m + 1` AND `multiplier * 1.5` on raw meat on top of 75 % pelt and 60 % trophy rolls (11600 RU/h best case) | `max_m + 1` plus 75 % pelt and 60 % trophy rolls (8672 RU/h best case, ceiling 11000) | `jobs` `spawn_hunted_meat` |
+| 14 | Scavenge tier multiplier cap | uncapped (`tier_mult` up to 3.0; 12.2 items/h, 12200 RU/h best case) | capped at `math.min(1.5, tier_mult)` (matching Hunter; 6.1 items/h, 6110 RU/h best case, ceiling 7500) | `jobs` `spawn_scavenged_loot`, `update_camp_jobs` |
+| 15 | Water pumps pay 1 filter per pump | 1 filter total per interval fed all `pumps_count` pumps (`pumps_count * spec_mult` flasks for 1 filter) | each pump consumes its own filter or charcoal bed (`fed_pumps * spec_mult` flasks for `fed_pumps` filters) | `jobs` `process_water_pumps` |
+
 ## 6. Flagged, left alone
 
-* (Fixed in later rounds: medic batches, repair fee, game-time timers under RTZ, early rounds, rival and equipment timers, expedition walk, needs default, Chemist batches; see 5b, 5c and 5d.)
-* Hunter Station double bonus, uncapped scavenge tier multiplier, three pumps for the price of one filter.
+* (Fixed in later rounds: medic batches, repair fee, game-time timers under RTZ, early rounds, rival and equipment timers, expedition walk, needs default, Chemist batches, Hunter Station double bonus, uncapped scavenge tier multiplier, water pump filter per pump; see 5b, 5c, 5d and 5e.)
 * Raid cooldown (20 real minutes rest, 40 wounded, 3 a day), build kit, furniture lock, performance work: untouched.
 * Players with a saved MCM profile keep their old Trader price of 60 until they press Default.
 

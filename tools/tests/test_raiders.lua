@@ -704,5 +704,128 @@ do
     eq(#sb.raiders_blocker_lines(nil, 10, fmt), 0, "nil list")
 end
 
+-- real outpost chest looting: item classification, treasure_manager.caches, live/offline chest children, and forbid toggle
+do
+    local k, v = sb.raiders_item_info("ammo_5.45x39_fmj")
+    eq(k, "ammo", "ammo section kind"); eq(v, 140, "ammo fallback value")
+    k, v = sb.raiders_item_info("grenade_f1"); eq(k, "ammo", "grenade counts as ammo")
+    k, v = sb.raiders_item_info("medkit_army"); eq(k, "med", "medkit kind")
+    k, v = sb.raiders_item_info("conserva"); eq(k, "food", "food kind")
+    k, v = sb.raiders_item_info("wpn_ak74", nil, 0.5); eq(k, "weapon", "weapon kind"); eq(v, 750, "weapon value scaled by condition")
+    k, v = sb.raiders_item_info("wpn_addon_silencer"); eq(k, "other", "weapon addon is other, not weapon")
+    k, v = sb.raiders_item_info("specops_outfit"); eq(k, "armor", "armor kind")
+    k, v = sb.raiders_item_info("detector_elite"); eq(k, "other", "detector is other")
+
+    local NOW = 5000000
+    local released_ids, dep_records = {}, {}
+    sb.game_sec = function() return NOW end
+    time_global = function() return NOW * 1000 end
+    game = { translate_string = function(id) return id end }
+    level = { name = function() return "l01_escape" end, get_time_factor = function() return 10 end }
+    db = { actor = { id = function() return 1 end, give_money = function() end } }
+    local objs = {
+        [10] = { alive = true }, [11] = { alive = true }, [12] = { alive = true },
+        [50] = { alive = function() return true end },
+        [900] = { id = 900, children = { 901, 902, 903 } },
+        [901] = { id = 901, parent_id = 900, section = "wpn_ak74", condition = 0.42 },
+        [902] = { id = 902, parent_id = 900, section = "ammo_5.45x39_fmj" },
+        [903] = { id = 903, parent_id = 900, section = "specops_outfit", condition = 0.31 },
+    }
+    for id in pairs(objs) do objs[id].can_switch_online = function() return false end end
+    local sim = { set_switch_online = function() end, set_switch_offline = function() end }
+    alife = function() return sim end
+    alife_object = function(id) return objs[id] end
+    alife_release = function(o) if type(o) == "table" and o.id then released_ids[o.id] = true end end
+    sb.safe_alife_release = nil
+    utils_obj = { switch_online = function() end }
+    relation_registry = { community_relation = function() return 0 end, change_community_goodwill = function() return true end,
+                          community_goodwill = function() return 0 end }
+    sb.camp_send_tip = function() end
+    sb.add_radio_feed_entry = function() end
+    sb.allow_home_squad_online = function() end
+    sb.prosper_credit = function() end
+    sb.safe_squad_members = function() local done; return function() if not done then done = true; return { id = 50, object = objs[50] } end end end
+    sb.deposit_item_to_camp = function(_, _, sec, is_yellow, map_tier, cond, parts, uses)
+        dep_records[#dep_records + 1] = { sec = sec, is_yellow = is_yellow, tier = map_tier, cond = cond, parts = parts, uses = uses }
+        return true
+    end
+    sb.get_player_faction = function() return "actor_stalker" end
+    treasure_manager = { caches = { [900] = "medkit_army,mineral_water__2,itm_basickit" } }
+    sb.rival_camps = {
+        k1 = { chest_id = 900, squad_id = 900, faction = "bandit", tier = 2, position = { x = 100, z = 0 }, level = "l01_escape" },
+    }
+    local camp = { survivors = {
+        [10] = { job = "raider", tier = 3 }, [11] = { job = "raider", tier = 3 }, [12] = { job = "guard", tier = 1 },
+    } }
+    sb.active_camps = { [7] = camp }
+    objs[7] = { position = { x = 0, z = 0 } }
+
+    -- 6 items total in chest 900: 3 in treasure_manager.caches (medkit_army=med, mineral_water__2=food, itm_basickit=other)
+    -- and 3 server items (902 ammo_5.45x39_fmj=ammo, 901 wpn_ak74=weapon, 903 specops_outfit=armor).
+    -- 60% of 6 = 4 items taken in preference order: ammo (902), med (medkit_army), food (mineral_water__2), other (itm_basickit).
+    -- Left behind: weapon (901) and armor (903).
+    eq(sb.raiders_send(7, camp, nil, "k1"), true, "send against real chest")
+    NOW = NOW + 6 * 3600
+    local rnd = math.random; math.random = function(n) if n then return 1 end return 0.01 end
+    sb.raiders_process(); math.random = rnd
+
+    eq(#dep_records, 4, "4 of 6 real chest items taken")
+    eq(dep_records[1].sec, "ammo_5.45x39_fmj", "1st taken: ammo from chest child")
+    eq(dep_records[2].sec, "medkit_army", "2nd taken: med from cache")
+    eq(dep_records[3].sec, "mineral_water", "3rd taken: food from cache with uses split")
+    eq(dep_records[3].uses, 2, "mineral_water__2 preserves 2 uses")
+    eq(dep_records[4].sec, "itm_basickit", "4th taken: toolkit from cache")
+    eq(dep_records[4].is_yellow, true, "toolkit marked is_yellow")
+    eq(released_ids[902], true, "taken server item 902 released from chest")
+    eq(released_ids[901], nil, "left-behind weapon 901 stays in chest")
+    eq(released_ids[903], nil, "left-behind armor 903 stays in chest")
+    eq(treasure_manager.caches[900], false, "all cache items were taken, so cache is marked false (emptied)")
+
+    -- Second run: forbid weapon/armor on a chest with 1 med, 1 food, 1 weapon in cache + 1 weapon, 1 armor in chest
+    dep_records, released_ids = {}, {}
+    NOW = NOW + 3 * 86400
+    camp.raider_state = nil
+    for _, sv in pairs(camp.survivors) do sv.raider = nil end
+    objs[900] = { id = 900, children = { 901, 903 } }
+    treasure_manager.caches[900] = "bandage,bread,wpn_pm"
+    sb.cfg.raiders_forbid_weapon_armor = true
+    eq(sb.raiders_send(7, camp, nil, "k1"), true, "send with forbid weapon/armor")
+    NOW = NOW + 6 * 3600
+    math.random = function(n) if n then return 1 end return 0.01 end
+    sb.raiders_process(); math.random = rnd
+    sb.cfg.raiders_forbid_weapon_armor = nil
+
+    -- Non-weapon/armor pool has 2 items (bandage, bread); 60% of 2 = 1 item (bandage).
+    -- Left in cache: wpn_pm and bread. Left in chest: 901 and 903.
+    eq(#dep_records, 1, "forbid: 60% of 2 non-weapon items = 1 taken")
+    eq(dep_records[1].sec, "bandage", "forbid: bandage taken first")
+    eq(released_ids[901], nil, "forbid: chest weapon untouched")
+    eq(released_ids[903], nil, "forbid: chest armor untouched")
+    eq(treasure_manager.caches[900], "wpn_pm,bread", "forbid: unlooted cache weapon and food remain in treasure_manager.caches")
+    treasure_manager = nil
+
+    -- Raider Station (Tactical Planning Board): +25% attack strength & outpost recon intel
+    eq(sb.camp_has_raider_station(camp), false, "no raider_station initially")
+    local base_str = sb.raiders_band_strength({ { rank = 2 } }, false)
+    local boosted_str = sb.raiders_band_strength({ { rank = 2 } }, true)
+    near(boosted_str, base_str * 1.25, 1e-6, "raider_station grants +25% band attack strength")
+
+    NOW = NOW + 3 * 86400
+    camp.raider_state = nil
+    camp.survivors = { [10] = { job = "raider", tier = 1 }, [12] = { job = "guard", tier = 1 } }
+    local st_no_board = sb.raiders_outpost_status("k1", 7)
+    eq(st_no_board.state, "ready", "outpost ready without board")
+    eq(st_no_board.recon, nil, "no recon intel without raider_station")
+
+    camp.structures = { [501] = "raider_station" }
+    eq(sb.camp_has_raider_station(camp), true, "camp_has_raider_station detects raider_station")
+    local st_with_board = sb.raiders_outpost_status("k1", 7)
+    eq(st_with_board.state, "ready", "outpost ready with board")
+    eq(st_with_board.odds > st_no_board.odds, true, "raider_station improves raid win odds")
+    eq(type(st_with_board.recon), "table", "recon intel provided when raider_station stands")
+    eq(st_with_board.recon.garrison, 1, "recon reports live garrison count")
+    eq(st_with_board.recon.stash_items, 2, "recon reports actual chest item count")
+end
+
 if fails > 0 then print("test_raiders: " .. fails .. " FAILED"); os.exit(1) end
 print("test_raiders: all passed")

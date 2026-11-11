@@ -274,7 +274,7 @@ On by default (MCM, Needs group); with it off, Homestead behaves exactly as befo
 - Raiders recalled while the settlement is under attack arrive as defenders and count as full guards until it is over; no raid can be sent during an attack
 - MCM **Auto-Recall Raiders** (off by default) brings bands home to defend automatically when a raid hits the settlement
 - **Visible raid fights** (always on): when your raiders reach an outpost while you are nearby, a squad appears on your side of it and attacks the garrison where you can see it; clearing the garrison wins, losing the whole squad is a disaster. If you leave, change level, load a save or the fight stalls, the raid is settled by the usual odds. Recalling or changing the job of raiders stops the fight
-- The loot is a generated haul for now, not the outpost's real chest
+- Raiders loot the outpost's actual chest (both G.A.M.M.A. `treasure_manager` stash contents and items stored inside the box), taking their share in preference order (ammo, meds, food, other, weapons, armor) and leaving the rest (plus any forbidden weapons/armor) in the chest for you to find; only an empty chest falls back to a generated haul
 
 ## 🔧 Camp Technician & WPO
 

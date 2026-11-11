@@ -98,19 +98,19 @@ local function job(name, ru_per_hour, limit, items_per_hour)
     check(ru_per_hour <= limit, name .. " best case " .. math.floor(ru_per_hour) .. " RU/h exceeds ceiling " .. limit)
 end
 
--- scavenge: no input, 20% ambush, night x1.2
+-- scavenge: tier capped at 1.5, no input, 20% ambush, night x1.2
 do
-    local mult = TIER * spec_max.scavenge * MORALE
+    local mult = math.min(1.5, TIER) * spec_max.scavenge * MORALE
     local items = randomized(D.scavenge_min_items, D.scavenge_max_items) * mult * (1 - D.scavenge_ambush_chance / 100)
-    job("scavenge (master, hideout)", per_hour(items * COST.scav_item, D.realtime_job_scavenge_interval, 1.2), 14000,
+    job("scavenge (master, hideout)", per_hour(items * COST.scav_item, D.realtime_job_scavenge_interval, 1.2), 7500,
         per_hour(items, D.realtime_job_scavenge_interval, 1.2))
 end
--- hunter: tier capped at 1.5, station max+1 and x1.5, 75% pelt, 60% trophy
+-- hunter: tier capped at 1.5, station max+1, 75% pelt, 60% trophy
 do
-    local mult = math.min(1.5, TIER) * spec_max.hunter * MORALE * 1.5
+    local mult = math.min(1.5, TIER) * spec_max.hunter * MORALE
     local meat = randomized(D.hunter_min_meat, D.hunter_max_meat + 1) * mult
     local value = (meat * COST.meat + 0.75 * COST.hide + 0.6 * COST.trophy) * (1 - D.hunter_ambush_chance / 100)
-    job("hunter (master, hideout, station)", per_hour(value, D.realtime_job_hunter_interval), 16000)
+    job("hunter (master, hideout, station)", per_hour(value, D.realtime_job_hunter_interval), 11000)
 end
 -- craft: one box per cycle x tier x spec + bench; input-limited by powder from scavenging
 do
@@ -181,6 +181,9 @@ check(jobs:find("MEDIC_RARE_BATCH_MAX = 4", 1, true), "medic rare batch cap chan
 check(jobs:find("CHEMIST_FUEL_BATCH_MAX = 4", 1, true), "chemist fuel batch cap changed")
 check(jobs:find("total_out = sb.chemist_batch_size(total_out, char_cnt, eth_cnt, req_char, req_eth)", 1, true), "chemist batch no longer pays per unit")
 check(jobs:find("math.min(math.floor(count * total_mult + 0.5), 16)", 1, true), "brewer 16 cap changed")
+check(jobs:find("local scav_mult = mmin(1.5, tier_mult) * spec_mult", 1, true), "scavenge 1.5 tier cap changed")
+check(not jobs:find("if has_hunter_station then\n        max_m = max_m + 1\n        multiplier = multiplier * 1.5", 1, true), "hunter station x1.5 double bonus returned")
+check(jobs:find("local total_flasks = fed_pumps * spec_mult", 1, true), "water pumps no longer pay 1 filter per pump")
 
 -- 5. specialization table lists the stats the jobs read -------------------------------------------------------
 local function spec_has(spec, stat) return type(D.camp_specializations[spec][stat]) == "number" end

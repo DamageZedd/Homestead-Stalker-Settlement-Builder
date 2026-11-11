@@ -195,11 +195,22 @@ function sb.raiders_member_strength(m)
         * (1 + 0.1 * mmax(0, num(m.armor_tier, 0)))
 end
 
-function sb.raiders_band_strength(band)
+local RAIDER_STATION_ATTACK_MULT = 1.25
+
+function sb.camp_has_raider_station(camp)
+    if type(camp) ~= "table" or type(camp.structures) ~= "table" then return false end
+    for _, stype in pairs(camp.structures) do
+        if stype == "raider_station" then return true end
+    end
+    return false
+end
+
+function sb.raiders_band_strength(band, has_station)
     local total = 0
     for _, m in ipairs(type(band) == "table" and band or {}) do
         total = total + sb.raiders_member_strength(m)
     end
+    if has_station then total = total * RAIDER_STATION_ATTACK_MULT end
     return total
 end
 
@@ -286,10 +297,50 @@ end
 
 -- item kinds in the order raiders prefer them
 local KIND_ORDER = { ammo = 1, med = 2, food = 3, other = 4, weapon = 5, armor = 6 }
+local KIND_FALLBACK_VALUE = { ammo = 140, med = 150, food = 45, other = 200, weapon = 1500, armor = 2000 }
+
+-- Classify a section into a raider loot kind (ammo, med, food, other, weapon, armor) and base ruble value.
+function sb.raiders_item_info(sec, ini, cond)
+    if type(sec) ~= "string" or sec == "" then return "other", 0 end
+    local ikind = ini and ini.r_string_ex and ini:r_string_ex(sec, "kind")
+    local kind = "other"
+    if sec:find("^ammo_") or sec:find("^grenade_") or ikind == "w_ammo" or ikind == "w_explosive"
+        or (ini and ini.r_float_ex and num(ini:r_float_ex(sec, "box_size"), 0) > 0) then
+        kind = "ammo"
+    elseif (ini and ini.r_string_ex and ini:r_string_ex(sec, "burn_protection") ~= nil)
+        or (ikind and (ikind == "o_light" or ikind == "o_medium" or ikind == "o_heavy" or ikind == "o_sci" or ikind == "o_helmet"))
+        or sec:find("outfit") or sec:find("^helm_") or sec:find("helmet") or sec:find("^specops_") or sec:find("^exo_") or sec:find("trenchcoat") then
+        kind = "armor"
+    elseif not sec:find("^wpn_addon") and ((ini and ini.r_string_ex and ini:r_string_ex(sec, "ammo_class") ~= nil)
+        or sec:find("^wpn_") or (ikind and ikind:find("^w_") and ikind ~= "w_misc")) then
+        kind = "weapon"
+    elseif ikind == "i_medical" or sec:find("^medkit") or sec:find("bandage") or sec:find("antirad")
+        or sec:find("stimpack") or sec:find("jgut") or sec:find("yadulin") or sec:find("tetrad")
+        or sec:find("glucose") or sec:find("salicidic") or sec:find("morphine") or sec:find("adrenalin")
+        or sec:find("analgetic") or sec:find("akvatab") or sec:find("survival_kit") or sec:find("^drug_") then
+        kind = "med"
+    elseif ikind == "i_food" or ikind == "i_drink" or sec:find("^meat_")
+        or sec == "bread" or sec == "kolbasa" or sec == "conserva" or sec == "tushonka" or sec == "vodka"
+        or sec == "flask" or sec == "mineral_water" or sec == "water_drink" or sec:find("beans")
+        or sec:find("chili") or sec:find("chocolate") or sec:find("mre") or sec:find("ration")
+        or sec:find("corn") or sec:find("nuts") or sec:find("raisins") or sec:find("salmon") or sec:find("sausage") then
+        kind = "food"
+    end
+    local val = ini and ini.r_float_ex and num(ini:r_float_ex(sec, "cost"), 0) or 0
+    if val <= 0 then val = KIND_FALLBACK_VALUE[kind] or 200 end
+    if type(cond) == "number" and cond > 0 and cond < 0.99 then
+        val = mfloor(val * mmax(0.1, cond) + 0.5)
+    end
+    return kind, val
+end
 
 local function kind_of(item)
     local k = type(item) == "table" and item.kind
-    return KIND_ORDER[k] and k or "other"
+    if KIND_ORDER[k] then return k end
+    if type(item) == "table" and type(item.sec) == "string" then
+        return (sb.raiders_item_info(item.sec))
+    end
+    return "other"
 end
 
 -- Split a chest's items. items = list of { sec, kind, value }. Takes loot_fraction of the item
@@ -917,10 +968,10 @@ local function guard_count(camp)
     return n
 end
 
-local function band_odds(band, rc, squad)
+local function band_odds(band, rc, squad, camp)
     local members = {}
     for i, s in ipairs(band) do members[i] = { rank = s.tier or 0 } end
-    return sb.raid_odds(sb.raiders_band_strength(members),
+    return sb.raid_odds(sb.raiders_band_strength(members, sb.camp_has_raider_station(camp)),
         sb.raiders_defender_strength(squad_alive_count(squad), rc.tier or 1, 0))
 end
 
@@ -972,7 +1023,7 @@ function sb.raiders_send(hub_id, camp, npc_id, key)
         return false
     end
 
-    local odds = band_odds(band, rc, squad)
+    local odds = band_odds(band, rc, squad, camp)
     local id = st.next_id; st.next_id = id + 1
     local m = sb.raiders_new_mission(id, key, rc.level, rc.faction, ids, now_sec, sb.raiders_mission_duration(dist), odds)
     camp.raider_missions = camp.raider_missions or {}
@@ -1019,6 +1070,130 @@ local function haul_items(tier)
         items[#items + 1] = { sec = HAUL_TIER2[1], kind = HAUL_TIER2[2], value = HAUL_TIER2[3] }
     end
     return items
+end
+
+local function is_yellow_kit(sec)
+    return type(sec) == "string" and (sec:find("itm_basickit") or sec:find("itm_advancedkit")
+        or sec:find("itm_expertkit") or sec:find("itm_ammokit") or sec:find("itm_drugkit")) ~= nil
+end
+
+-- Collect the real items sitting in an outpost's chest: unspawned G.A.M.M.A. treasure_manager.caches[chest_id]
+-- entries plus live client/server items parented to chest_id. Returns items, had_cache.
+local function chest_items(rc)
+    local chest_id = type(rc) == "table" and rc.chest_id
+    if not chest_id then return {}, false end
+    local ini = ini_sys or sys_ini or (system_ini and system_ini())
+    local items, seen, had_cache = {}, {}, false
+    local caches = treasure_manager and treasure_manager.caches
+    if type(caches) == "table" and type(caches[chest_id]) == "string" then
+        had_cache = true
+        for entry in string.gmatch(caches[chest_id], "[^,%s]+") do
+            local sec, u = string.match(entry, "^(.-)__(%d+)$")
+            local uses = u and tonumber(u) or nil
+            if not sec or sec == "" or (ini and ini.section_exist and not ini:section_exist(sec)) then
+                sec, uses = entry, nil
+            end
+            if sec ~= "" and not (ini and ini.section_exist and not ini:section_exist(sec)) then
+                local kind, value = sb.raiders_item_info(sec, ini)
+                items[#items + 1] = {
+                    sec = sec, kind = kind, value = value, uses = uses,
+                    is_yellow = is_yellow_kit(sec), cache_entry = entry,
+                }
+            end
+        end
+    end
+
+    local function add_obj(id, sec, se_item, cl_item)
+        if not id or seen[id] or type(sec) ~= "string" or sec == "" then return end
+        if ini and ini.section_exist and not ini:section_exist(sec) then return end
+        seen[id] = true
+        local cond, uses, parts
+        if cl_item then
+            if cl_item.condition then
+                local ok, c = pcall(cl_item.condition, cl_item)
+                if ok and type(c) == "number" and c < 0.99 then cond = c end
+            end
+            if cl_item.get_remaining_uses then
+                local ok, u = pcall(cl_item.get_remaining_uses, cl_item)
+                if ok and type(u) == "number" and u > 0 then uses = u end
+            end
+        end
+        if not cond and se_item then
+            if type(se_item.condition) == "number" and se_item.condition < 0.99 then
+                cond = se_item.condition
+            elseif utils_stpk then
+                local is_wpn = (ini and ini.r_string_ex and ini:r_string_ex(sec, "ammo_class") ~= nil and not sec:find("knife"))
+                    or (sec:find("^wpn_") and not sec:find("^wpn_addon") and not sec:find("knife"))
+                local fn = is_wpn and utils_stpk.get_weapon_data or utils_stpk.get_item_data
+                if fn then
+                    local ok, d = pcall(fn, se_item)
+                    if ok and type(d) == "table" and type(d.condition) == "number" and d.condition < 0.99 then
+                        cond = d.condition
+                    end
+                end
+            end
+        end
+        if cond and item_parts and item_parts.get_parts_con then
+            local ok, p = pcall(item_parts.get_parts_con, nil, id)
+            if ok and p then parts = p end
+        end
+        local kind, value = sb.raiders_item_info(sec, ini, cond)
+        items[#items + 1] = {
+            id = id, sec = sec, kind = kind, value = value,
+            cond = cond, parts = parts, uses = uses, is_yellow = is_yellow_kit(sec),
+        }
+    end
+
+    local cl_box = level and level.object_by_id and level.object_by_id(chest_id)
+    if cl_box and cl_box.iterate_inventory_box then
+        pcall(function()
+            cl_box:iterate_inventory_box(function(_, item)
+                if item then
+                    local ok_i, iid = pcall(function() return item:id() end)
+                    local ok_s, isec = pcall(function() return item:section() end)
+                    if ok_i and ok_s and iid and isec then
+                        add_obj(iid, isec, alife_object and alife_object(iid), item)
+                    end
+                end
+            end, cl_box)
+        end)
+    end
+    if sb.invalidate_server_container_cache then pcall(sb.invalidate_server_container_cache, chest_id) end
+    if sb.iterate_server_container then
+        pcall(sb.iterate_server_container, chest_id, function(cid, se_item)
+            if cid and se_item then
+                local ok_s, isec = pcall(function()
+                    return se_item.section_name and se_item:section_name() or se_item.section
+                end)
+                if ok_s and isec then
+                    add_obj(cid, isec, se_item, level and level.object_by_id and level.object_by_id(cid))
+                end
+            end
+        end)
+    else
+        local se_box = alife_object and alife_object(chest_id)
+        local sim = alife and alife()
+        if se_box and sim and sim.get_children then
+            pcall(function()
+                for cid in sim:get_children(se_box) do
+                    local se_item = cid and alife_object(cid)
+                    if se_item and (se_item.parent_id == nil or se_item.parent_id == chest_id) then
+                        local isec = se_item.section_name and se_item:section_name() or se_item.section
+                        add_obj(cid, isec, se_item, level and level.object_by_id and level.object_by_id(cid))
+                    end
+                end
+            end)
+        elseif se_box and type(se_box.children) == "table" then
+            for _, cid in ipairs(se_box.children) do
+                local se_item = cid and alife_object and alife_object(cid)
+                if se_item and (se_item.parent_id == nil or se_item.parent_id == chest_id) then
+                    local isec = se_item.section_name and se_item:section_name() or se_item.section
+                    add_obj(cid, isec, se_item, level and level.object_by_id and level.object_by_id(cid))
+                end
+            end
+        end
+    end
+    return items, had_cache
 end
 
 -- the daily goodwill cap is per player, not per camp: every camp's record keeps the same running totals
@@ -1111,8 +1286,15 @@ function sb.raiders_outpost_status(key, prefer_hub)
             missions_today = raider_state(camp).missions_today or 0, raid_active = camp.active_raid ~= nil }
         local ok, why = sb.raiders_can_send(info, t)
         if ok then
-            return { state = "ready", hub_id = hub_id, band = #band, odds = band_odds(band, rc, squad),
-                faction = rc.faction, friendly = t.friendly,
+            local recon
+            if sb.camp_has_raider_station(camp) then
+                local real = chest_items(rc)
+                local tier = rc.tier or 1
+                local est_stash = #real > 0 and #real or (6 + 3 * tier + (tier >= 2 and 1 or 0))
+                recon = { garrison = squad_alive_count(squad), stash_items = est_stash }
+            end
+            return { state = "ready", hub_id = hub_id, band = #band, odds = band_odds(band, rc, squad, camp),
+                faction = rc.faction, friendly = t.friendly, recon = recon,
                 loss = sb.raiders_faction_loss(rc.faction, t.friendly, spent_today(), own_faction()) }
         end
         if not first_why then first_why, first_camp = why, camp end
@@ -1204,12 +1386,36 @@ local function pay_success(hub_id, camp, m, rc, home)
     local n, bounty = 0, 0
     -- once per mission: an abstract and a visible resolver share this path
     if sb.raiders_mission_claim(m, "loot") then
-        local split = sb.raiders_loot_split(haul_items(tier))
+        local real, had_cache = chest_items(rc)
+        local pool = #real > 0 and real or haul_items(tier)
+        local split = sb.raiders_loot_split(pool)
+        local kept_cache, released_any = {}, false
+        for _, it in ipairs(split.left) do
+            if it.cache_entry then kept_cache[#kept_cache + 1] = it.cache_entry end
+        end
         for _, it in ipairs(split.taken) do
+            local deposited_ok = false
             if sb.deposit_item_to_camp then
-                local ok, dep = pcall(sb.deposit_item_to_camp, hub_id, camp, it.sec, false, tier, nil, nil, nil, true)
-                if ok and dep then n = n + 1 end
+                local ok, dep = pcall(sb.deposit_item_to_camp, hub_id, camp, it.sec, it.is_yellow or false, tier, it.cond, it.parts, it.uses, true)
+                if ok and dep then n = n + 1; deposited_ok = true end
             end
+            if deposited_ok then
+                if it.id and alife_object then
+                    local se_it = alife_object(it.id)
+                    if se_it and (se_it.parent_id == nil or se_it.parent_id == rc.chest_id) then
+                        pcall(sb.safe_alife_release or alife_release, se_it)
+                        released_any = true
+                    end
+                end
+            elseif it.cache_entry then
+                kept_cache[#kept_cache + 1] = it.cache_entry
+            end
+        end
+        if had_cache and treasure_manager and type(treasure_manager.caches) == "table" and rc.chest_id then
+            treasure_manager.caches[rc.chest_id] = #kept_cache > 0 and table.concat(kept_cache, ",") or false
+        end
+        if released_any and sb.invalidate_server_container_cache then
+            pcall(sb.invalidate_server_container_cache, rc.chest_id)
         end
         bounty = sb.raiders_bounty(tier)
         if db.actor and bounty > 0 then pcall(db.actor.give_money, db.actor, bounty) end

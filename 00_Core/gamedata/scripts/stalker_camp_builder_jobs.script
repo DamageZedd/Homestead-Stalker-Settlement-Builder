@@ -191,6 +191,52 @@ local function is_market_stall_box(camp, box_id)
     return false
 end
 
+-- real-time job cycle interval (in seconds) for a job, or nil when the job has no cycle
+function stalker_camp_builder.get_job_rt_interval(job, survivor)
+    local sb = stalker_camp_builder
+    if job == "cook" then return sb.cfg.realtime_job_cook_interval
+    elseif job == "craft" then return sb.cfg.realtime_job_craft_interval
+    elseif job == "repair" then return sb.cfg.realtime_job_repair_interval
+    elseif job == "hunter" then return sb.cfg.realtime_job_hunter_interval
+    elseif job == "medic" then return sb.cfg.medic_job_interval or (sb.defaults and sb.defaults.medic_job_interval) or 1500
+    elseif job == "electrician" then return sb.cfg.electrician_job_interval or (sb.defaults and sb.defaults.electrician_job_interval) or 900
+    elseif job == "woodcutter" then return sb.cfg.realtime_job_woodcutter_interval or (sb.defaults and sb.defaults.realtime_job_woodcutter_interval) or 1200
+    elseif job == "brewer" then return sb.cfg.realtime_job_brewer_interval or (sb.defaults and sb.defaults.realtime_job_brewer_interval) or 1200
+    elseif job == "farmer" then return sb.cfg.realtime_job_farmer_interval or (sb.defaults and sb.defaults.realtime_job_farmer_interval) or 1200
+    elseif job == "trader" then return sb.cfg.realtime_job_trader_interval or (sb.defaults and sb.defaults.realtime_job_trader_interval) or 900
+    elseif job == "scrapper" then return sb.cfg.realtime_job_scrapper_interval or (sb.defaults and sb.defaults.realtime_job_scrapper_interval) or 1200
+    elseif job == "chemist" then return sb.cfg.realtime_job_chemist_interval or (sb.defaults and sb.defaults.realtime_job_chemist_interval) or 1200
+    elseif job == "scavenge" then
+        if survivor and survivor.on_expedition then return nil end
+        return sb.cfg.realtime_job_scavenge_interval or (sb.defaults and sb.defaults.realtime_job_scavenge_interval) or 900
+    end
+    return nil
+end
+
+-- restore a survivor's saved cycle progress (`paused_job_progress` in [0, 1]) when returning to `job`
+function stalker_camp_builder.restore_paused_job_progress(survivor, job)
+    local sb = stalker_camp_builder
+    if not survivor then return end
+    local prog = tonumber(survivor.paused_job_progress) or 0
+    survivor.paused_job_progress = nil
+    local now_sec = sb.game_sec()
+    local tg = time_global()
+    local rt_interval = sb.get_job_rt_interval and sb.get_job_rt_interval(job or survivor.job, survivor)
+    if prog > 0 and rt_interval and rt_interval > 0 then
+        local tod_mult = sb.get_time_of_day_mult and sb.get_time_of_day_mult(job or survivor.job) or 1.0
+        local effective_interval = rt_interval / (tod_mult > 0 and tod_mult or 1.0)
+        local elapsed_sec = math.min(effective_interval - 1, math.max(0, prog * effective_interval))
+        local tf = sb.time_factor and sb.time_factor() or 10
+        survivor.job_start_time = now_sec - (elapsed_sec * tf)
+        survivor.job_start_realtime = tg - (elapsed_sec * 1000)
+        survivor.paused_elapsed = nil
+    else
+        survivor.job_start_time = now_sec
+        survivor.job_start_realtime = tg
+        survivor.paused_elapsed = nil
+    end
+end
+
 -- set_survivor_job -- assigns a job to a settler and re-syncs their
 function stalker_camp_builder.set_survivor_job(npc_id, job)
     local sb = stalker_camp_builder
@@ -213,13 +259,19 @@ function stalker_camp_builder.set_survivor_job(npc_id, job)
                 -- companions and scavengers on an expedition still need the handling below
                 if surv.job == job and not was_companion and not surv.on_expedition then return end
 
+                local resume_paused = was_companion and (surv.paused_job == job)
                 surv.job = job
                 surv.full_pause = nil
                 surv.shortfall_reason = nil
                 surv.shortfall_job = job
-                surv.job_start_time = sb.game_sec()
-                surv.job_start_realtime = time_global()
-                surv.paused_elapsed = nil
+                if resume_paused and sb.restore_paused_job_progress then
+                    sb.restore_paused_job_progress(surv, job)
+                else
+                    surv.paused_job_progress = nil
+                    surv.job_start_time = sb.game_sec()
+                    surv.job_start_realtime = time_global()
+                    surv.paused_elapsed = nil
+                end
                 surv._cached_paused_tg = nil
                 surv._cached_paused_job = nil
                 surv.assigned_furniture = {}
@@ -338,8 +390,8 @@ function stalker_camp_builder.spawn_scavenged_loot(box_id, multiplier, hub_id, c
     if not target_box then return {}, false end
 
     local target_level = (camp and camp.level and camp.level ~= "unknown" and camp.level)
-                      or (hub_id and alife_object(hub_id) and sim and game_graph() and sim:level_name(game_graph():vertex(alife_object(hub_id).m_game_vertex_id):level_id()))
-                      or (level and level.name())
+                      or (hub_id and alife_object(hub_id) and sim and game_graph and game_graph() and sim:level_name(game_graph():vertex(alife_object(hub_id).m_game_vertex_id):level_id()))
+                      or (level and level.name and level.name())
                       or "l01_escape"
     local map_tier = (sb.gamma_map_tiers and sb.gamma_map_tiers[target_level]) or 2
 
@@ -348,7 +400,7 @@ function stalker_camp_builder.spawn_scavenged_loot(box_id, multiplier, hub_id, c
     if min_items > max_items then min_items, max_items = max_items, min_items end
     local base_count = math.random(min_items, max_items)
 
-    local tier_mult = (sb.get_survivor_tier_mult and survivor and sb.get_survivor_tier_mult(survivor)) or 1.0
+    local tier_mult = mmin(1.5, (sb.get_survivor_tier_mult and survivor and sb.get_survivor_tier_mult(survivor)) or 1.0)
     local spec_mult = (sb.get_specialization_mult and camp and sb.get_specialization_mult(camp, "scavenge")) or 1.0
     local mult = multiplier or (tier_mult * spec_mult)
     if not mult or mult <= 0 then mult = 1.0 end
@@ -455,7 +507,6 @@ function stalker_camp_builder.spawn_hunted_meat(box_id, multiplier, hub_id, camp
     if min_m > max_m then min_m, max_m = max_m, min_m end
     if has_hunter_station then
         max_m = max_m + 1
-        multiplier = multiplier * 1.5
     end
     local num_items = math.max(1, math.floor(math.random(min_m, max_m) * multiplier + 0.5))
     local deposited_meats = {}
@@ -1426,7 +1477,9 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
     local job = survivor.job or "idle"
 
     if job == "companion" or survivor.is_companion then
-        return true, "Companion", "Settler is travelling with player companion squad"
+        local pj = survivor.paused_job or "idle"
+        local pj_lbl = pj:sub(1, 1):upper() .. pj:sub(2)
+        return true, "Companion (" .. pj_lbl .. ")", "Settler is travelling with player companion squad (Paused: " .. pj_lbl .. ")"
     end
 
     if job == "idle" or job == "guard" then
@@ -2022,7 +2075,9 @@ function stalker_camp_builder.get_job_paused_status(survivor, camp, hub_id, max_
     local job = survivor.job or "idle"
 
     if job == "companion" or survivor.is_companion then
-        return true, "Companion", "Settler is travelling with player companion squad"
+        local pj = survivor.paused_job or "idle"
+        local pj_lbl = pj:sub(1, 1):upper() .. pj:sub(2)
+        return true, "Companion (" .. pj_lbl .. ")", "Settler is travelling with player companion squad (Paused: " .. pj_lbl .. ")"
     end
 
     if job == "idle" or job == "guard" then
@@ -4157,6 +4212,80 @@ function stalker_camp_builder.process_settler_equipment(hub_id, camp, survivor, 
     end
 end
 
+-- each water pump consumes its own filter (or 3-charcoal + 1-cloth filter bed); only pumps
+-- that receive a filter produce flasks for the cycle
+function stalker_camp_builder.process_water_pumps(hub_id, camp, pumps_count, camp_box_id, camp_snap)
+    local sb = stalker_camp_builder
+    if not pumps_count or pumps_count <= 0 or not camp_box_id then return 0, 0, false end
+    if output_box(camp, hub_id, "flask") == nil then
+        -- Storage is full; wait until container room frees up before consuming filters
+        return 0, 0, true
+    end
+    local fed_pumps = 0
+    for _ = 1, pumps_count do
+        local consumed_filter = nil
+        if not camp_snap or (camp_snap.water_filter_count or 0) > 0 then
+            consumed_filter = sb.camp_consume_item(hub_id, camp, function(sec)
+                if not sec then return false end
+                local s = sec:lower()
+                return sb.cfg.water_filters and (sb.cfg.water_filters[sec] or sb.cfg.water_filters[s])
+            end, camp_box_id)
+        end
+        -- Closed-loop charcoal filtration: 3 charcoal + 1 cloth (or bandage) forms a filter bed.
+        -- Note: charcoal is itself in cfg.water_filters, so the pump above already takes a single
+        -- charcoal use as a plain filter first; this bed only runs on a stale snapshot.
+        if not consumed_filter and sb.find_and_consume_item and sb.deposit_item_to_camp then
+            local char_cnt = (fed_pumps == 0 and camp_snap and camp_snap.charcoal_count)
+                or (sb.camp_count_item and sb.camp_count_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, 3)) or 0
+            local has_f_cloth = (fed_pumps == 0 and camp_snap and (camp_snap.has_cloth or camp_snap.has_bandage))
+                or (sb.camp_has_item and sb.camp_has_item(hub_id, camp, function(s) return is_cloth(s) or s == "bandage" end))
+            if char_cnt >= 3 and has_f_cloth then
+                local c_taken = 0
+                for _ = 1, 3 do
+                    if sb.find_and_consume_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, camp_box_id) then
+                        c_taken = c_taken + 1
+                    end
+                end
+                local cloth_taken = (c_taken >= 3) and sb.find_and_consume_item(hub_id, camp, function(s) return is_cloth(s) or s == "bandage" end, camp_box_id)
+                if cloth_taken then
+                    consumed_filter = "charcoal_bed"
+                else
+                    for _ = 1, c_taken do
+                        sb.deposit_item_to_camp(hub_id, camp, "charcoal")
+                    end
+                end
+            end
+        end
+        if not consumed_filter then break end
+        fed_pumps = fed_pumps + 1
+    end
+
+    if fed_pumps <= 0 then return 0, 0, false end
+
+    local spec_mult = (sb.get_specialization_mult and sb.get_specialization_mult(camp, "water")) or 1.0
+    local total_flasks = fed_pumps * spec_mult
+    local flasks_to_deposit = math.max(1, math.floor(total_flasks) + (math.random() < (total_flasks - math.floor(total_flasks)) and 1 or 0))
+
+    local deposited_flasks = 0
+    if sb.deposit_item_to_camp and camp and hub_id then
+        for _ = 1, flasks_to_deposit do
+            if not sb.deposit_item_to_camp(hub_id, camp, "flask") then break end
+            deposited_flasks = deposited_flasks + 1
+        end
+    else
+        local dest_id = camp_box_id or hub_id
+        local dest_se = alife_object(dest_id)
+        local pos = dest_se and dest_se.position or STATIC_ZERO_VECTOR
+        local lvid = dest_se and dest_se.m_level_vertex_id or 0
+        local gvi = dest_se and dest_se.m_game_vertex_id or 0
+        for _ = 1, flasks_to_deposit do
+            alife():create("flask", pos, lvid, gvi, dest_id)
+            deposited_flasks = deposited_flasks + 1
+        end
+    end
+    return deposited_flasks, fed_pumps, false
+end
+
 function stalker_camp_builder.update_camp_jobs()
     local mmin = math.min
     local mmax = math.max
@@ -4356,70 +4485,11 @@ function stalker_camp_builder.update_camp_jobs()
                 end
 
                 if pumps_count > 0 and camp_box_id then
-                    local has_water_room = output_box(camp, hub_id, "flask") ~= nil
-                    if not has_water_room then
-                        -- Storage is full; wait until container room frees up before consuming filters
-                    else
-                        -- the cycle waits for a filter, so this runs on every update while there is none:
-                        -- the snapshot's count spares a camp without one the box scan
-                        local consumed_filter = nil
-                        if not camp_snap or (camp_snap.water_filter_count or 0) > 0 then
-                            consumed_filter = sb.camp_consume_item(hub_id, camp, function(sec)
-                                if not sec then return false end
-                                local s = sec:lower()
-                                return sb.cfg.water_filters and (sb.cfg.water_filters[sec] or sb.cfg.water_filters[s])
-                            end, camp_box_id)
-                        end
-                        -- Closed-loop charcoal filtration: 3 charcoal + 1 cloth (or bandage) forms a filter bed.
-                        -- Note: charcoal is itself in cfg.water_filters, so the pump above already takes a single
-                        -- charcoal use as a plain filter first; this bed only runs on a stale snapshot.
-                        if not consumed_filter and sb.find_and_consume_item and sb.deposit_item_to_camp then
-                            local char_cnt = (camp_snap and camp_snap.charcoal_count)
-                                or (sb.camp_count_item and sb.camp_count_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, 3)) or 0
-                            local has_f_cloth = (camp_snap and (camp_snap.has_cloth or camp_snap.has_bandage))
-                                or (sb.camp_has_item and sb.camp_has_item(hub_id, camp, function(s) return is_cloth(s) or s == "bandage" end))
-                            if char_cnt >= 3 and has_f_cloth then
-                                local c_taken = 0
-                                for _ = 1, 3 do
-                                    if sb.find_and_consume_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, camp_box_id) then
-                                        c_taken = c_taken + 1
-                                    end
-                                end
-                                local cloth_taken = (c_taken >= 3) and sb.find_and_consume_item(hub_id, camp, function(s) return is_cloth(s) or s == "bandage" end, camp_box_id)
-                                if cloth_taken then
-                                    consumed_filter = "charcoal_bed"
-                                else
-                                    for _ = 1, c_taken do
-                                        sb.deposit_item_to_camp(hub_id, camp, "charcoal")
-                                    end
-                                end
-                            end
-                        end
-
-                        if consumed_filter then
+                    local deposited_flasks, fed_pumps, full_wait = sb.process_water_pumps(hub_id, camp, pumps_count, camp_box_id, camp_snap)
+                    if not full_wait then
+                        if fed_pumps > 0 then
                             camp.last_water_time = current_sec
                             camp.water_filter_warned = nil
-                            local spec_mult = (sb.get_specialization_mult and sb.get_specialization_mult(camp, "water")) or 1.0
-                            local total_flasks = pumps_count * spec_mult
-                            local flasks_to_deposit = math.max(1, math.floor(total_flasks) + (math.random() < (total_flasks - math.floor(total_flasks)) and 1 or 0))
-
-                            local deposited_flasks = 0
-                            if sb.deposit_item_to_camp and camp and hub_id then
-                                for i = 1, flasks_to_deposit do
-                                    if not sb.deposit_item_to_camp(hub_id, camp, "flask") then break end
-                                    deposited_flasks = deposited_flasks + 1
-                                end
-                            else
-                                local dest_id = camp_box_id or hub_id
-                                local dest_se = alife_object(dest_id)
-                                local pos = dest_se and dest_se.position or STATIC_ZERO_VECTOR
-                                local lvid = dest_se and dest_se.m_level_vertex_id or 0
-                                local gvi = dest_se and dest_se.m_game_vertex_id or 0
-                                for i = 1, flasks_to_deposit do
-                                    alife():create("flask", pos, lvid, gvi, dest_id)
-                                    deposited_flasks = deposited_flasks + 1
-                                end
-                            end
                             if deposited_flasks > 0 then
                                 sb.camp_send_tip(actor, game.translate_string("st_job_water_pumped"), nil, "general_stalker", 10000)
                             end
@@ -4614,7 +4684,7 @@ function stalker_camp_builder.update_camp_jobs()
                                         if loot_box and sb.is_actual_container(loot_box) then
                                             local tier_mult = sb.get_survivor_tier_mult(survivor)
                                             local spec_mult = sb.get_specialization_mult(camp, "scavenge")
-                                            local scav_mult = tier_mult * spec_mult
+                                            local scav_mult = mmin(1.5, tier_mult) * spec_mult
                                             local scav_box = loot_box
                                             local scav_name = survivor.name or "Scavenger"
                                             local deposited = sb.spawn_scavenged_loot(scav_box, scav_mult, hub_id, camp, survivor)

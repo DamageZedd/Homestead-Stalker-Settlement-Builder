@@ -45,8 +45,8 @@ x1.10 (`recruit:2841`), `craft_output_multiplier` (MCM 1-3, default 1), ambush 2
 
 | Job | Input | Output | Caps | Source |
 |---|---|---|---|---|
-| scavenge | none | 1-2 items (main:789) x tier x spec, drawn from `generate_gamma_stash_loot` for the map tier | none | jobs:223 |
-| hunter | none | 1-2 raw meat (main:744) x min(1.5, tier) x spec; with a Hunter Station max+1, x1.5, 75 % pelt, 60 % trophy | none | jobs:350 |
+| scavenge | none | 1-2 items (main:789) x min(1.5, tier) x spec, drawn from `generate_gamma_stash_loot` for the map tier | tier cap 1.5 | jobs:302 |
+| hunter | none | 1-2 raw meat (main:744) x min(1.5, tier) x spec; with a Hunter Station max+1, 75 % pelt, 60 % trophy | tier cap 1.5 | jobs:429 |
 | craft | 1 powder use + 1 scrap | 1 ammo box x tier x spec, +1 with an ammo bench; basic ammo only | stock 8 per class, 15 auto | jobs:658 |
 | repair | 1 use of vodka, conserva or tushonka per item | +25 % condition (MCM) x spec x bench 1.5; items per cycle = tier mult | none | jobs:895 |
 | cook | 1 raw meat, fuel use on a stove, water (tier 2) or vodka (tier 3) | 1 meal x spec(food) | food stock 15 | jobs:1806 |
@@ -62,7 +62,7 @@ x1.10 (`recruit:2841`), `craft_output_multiplier` (MCM 1-3, default 1), ambush 2
 | farmer, potato | none | 3-6 (+3 station) x tier x spec(food) | 30, stock 40 | jobs:2817 |
 | farmer, bread | 3 grain per batch | 2 (3 station, +1 at tier 2) bread per batch, 1-2 batches | 8, stock 40 | jobs:2849 |
 | trader | goods in the stall stash | RU = base cost x condition x `trader_price_percent` x min(1.5, tier mult); top 12 items | 12 items | jobs:2974 |
-| water pump | 1 filter per interval | pumps x spec flasks (3 uses each) | needs room | jobs:3749 |
+| water pump | 1 filter per pump per interval | fed_pumps x spec flasks (3 uses each) | needs room | jobs:4161 |
 | fridge | none | +0.25 condition on food | n/a | jobs:3812 |
 
 ## 3. Expeditions, raids, events, rivals

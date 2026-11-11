@@ -1488,9 +1488,11 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                 end
             elseif not camp.takeover_at then
                 -- no takeover coming: the abandoned camp decays
-                local is_empty = true
+                local is_empty = not (treasure_manager and treasure_manager.caches
+                    and type_(treasure_manager.caches[camp.chest_id]) == "string"
+                    and treasure_manager.caches[camp.chest_id] ~= "")
                 local box_obj = level.object_by_id(camp.chest_id)
-                if box_obj then
+                if box_obj and is_empty then
                     local function check_empty(temp, item)
                         is_empty = false
                     end

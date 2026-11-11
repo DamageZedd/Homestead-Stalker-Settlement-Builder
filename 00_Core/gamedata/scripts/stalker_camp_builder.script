@@ -443,6 +443,8 @@ local JOB_DISPATCH = {
                     anims = {"wait_trade", "press", "wait_na"} },
     chemist     = { try = {"chemist_station", "distiller", "medstation", "ammo_bench", "stove", "workbench"},
                     anims = {"probe_stand", "roast_kolbasa_bred", "wait_na"} },
+    raider      = { try = {"raider_station", "guard_post", "barricade", "stash"},
+                    anims = {"probe_stand", "guard", "threat_na", "wait_na"} },
 }
 
 function safe_squad_members(squad)
@@ -1504,6 +1506,7 @@ local structure_type_exact = {
     placeable_guard_post          = "guard_post",
     placeable_salvage_table       = "salvage_table",
     placeable_chemist_station     = "chemist_station",
+    placeable_raider_station      = "raider_station",
     placeable_ammo_bench        = "ammo_bench",
     placeable_wood_station      = "wood_station",
     placeable_generator_station = "generator_station",
@@ -1544,6 +1547,7 @@ local structure_type_substrings = {
     ammo_bench   = {"ammo_bench", "reloading", "bullet_press", "ammo_craft"},
     distiller    = {"distiller", "samogon", "still"},
     chemist_station = {"chemist_station", "chem_bench"},
+    raider_station = {"raider_station", "tactical_board", "raid_table"},
     hunter_station = {"hunter_station", "butchering", "tanning_station", "carcass_rack"},
     farmer_station = {"farmer_station", "farm_plot", "garden_bed", "potato_bed"},
     bed         = {"bed", "couch", "sleep", "tent", "cot"},
@@ -1562,7 +1566,7 @@ local structure_type_substrings = {
 }
 
 local structure_type_check_order = {
-    "generator_station", "repair_bench", "hunter_station", "farmer_station", "wood_station", "ammo_bench", "distiller", "chemist_station", "salvage_table", "guard_post", "gadget", "fridge", "stove", "bed", "barricade", "water_pump",
+    "generator_station", "repair_bench", "hunter_station", "farmer_station", "wood_station", "ammo_bench", "distiller", "chemist_station", "raider_station", "salvage_table", "guard_post", "gadget", "fridge", "stove", "bed", "barricade", "water_pump",
     "alarm", "workbench", "medstation", "piano", "radio",
     "stash",  -- broad catch-all always last
 }

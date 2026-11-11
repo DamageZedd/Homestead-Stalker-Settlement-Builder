@@ -1505,109 +1505,181 @@ function stalker_camp_builder.can_recruit_back(p1, p2)
     return false
 end
 
+-- Loan a settlement survivor to the player's companion squad (callable from dialogue or PDA).
+-- Preserves paused_job, paused_job_progress, xp, tier, savings, and assigned_pos; flushes any
+-- queued rank/reputation standing onto the online NPC, and marks the survivor as sworn (retained).
+function stalker_camp_builder.loan_settler_as_companion(npc_id)
+    local sb = stalker_camp_builder
+    local id_num = tonumber(npc_id) or npc_id
+    if not id_num or id_num == 0 then return false, "invalid_id" end
+    if db.actor and id_num == db.actor:id() then return false, "invalid_id" end
+
+    local found_hub, found_camp, survivor, matched_id
+    for hub_id, camp in pairs(sb.active_camps or {}) do
+        if camp.survivors then
+            local k = (camp.survivors[id_num] and id_num)
+                or (camp.survivors[npc_id] and npc_id)
+                or (camp.survivors[tostring(id_num)] and tostring(id_num))
+            if k then
+                found_hub = hub_id
+                found_camp = camp
+                survivor = camp.survivors[k]
+                matched_id = k
+                break
+            end
+        end
+    end
+    if not survivor then return false, "not_found" end
+    if survivor.job == "companion" or survivor.is_companion or (sb.is_companion and sb.is_companion(id_num)) then
+        return false, "already_companion"
+    end
+    if survivor.on_expedition then
+        return false, "on_expedition"
+    end
+    if survivor.on_mission then
+        return false, "on_mission"
+    end
+
+    -- If called from PDA (no dialogue open), ensure the settler is on the player's level
+    local se_npc = alife and alife() and alife():object(id_num)
+    if se_npc and game_graph and level and level.name then
+        local ok_lvl, same_lvl = pcall(function()
+            local npc_lvl = alife():level_name(game_graph():vertex(se_npc.m_game_vertex_id):level_id())
+            return npc_lvl == level.name()
+        end)
+        if ok_lvl and not same_lvl then
+            return false, "wrong_level"
+        end
+    end
+
+    survivor.paused_job = (survivor.job ~= "companion") and (survivor.job or "idle") or (survivor.paused_job or "idle")
+    survivor.paused_xp = survivor.xp or 0
+    survivor.paused_tier = survivor.tier or 0
+    survivor.paused_job_progress = sb.get_job_progress and sb.get_job_progress(survivor, found_camp, found_hub) or 0
+    survivor.job = "companion"
+    survivor.is_companion = true
+    survivor.sworn = true
+    survivor._cached_paused_tg = nil
+    survivor._cached_paused_job = nil
+
+    local m_data = alife_storage_manager and alife_storage_manager.get_state and alife_storage_manager.get_state()
+    if m_data and m_data.stalker_camp_builder_banished_companions then
+        m_data.stalker_camp_builder_banished_companions[id_num] = nil
+    end
+    if m_data and m_data.stalker_camp_builder_freed_settlers then
+        m_data.stalker_camp_builder_freed_settlers[id_num] = nil
+    end
+
+    if sb.raiders_cancel_for then
+        sb.raiders_cancel_for(found_hub, matched_id)
+    end
+    sb.set_camp_settler_relations(found_hub, id_num, false)
+
+    if level and level.object_by_id and level.object_by_id(id_num) == nil and utils_obj and utils_obj.switch_online then
+        utils_obj.switch_online(id_num)
+    end
+
+    local function attach_online(online_npc)
+        -- Flush any earned rank & reputation standing so the bodyguard enters the squad at full rank
+        local tier = survivor.tier or 0
+        if sb.prosper_on_promotion then
+            for t = (survivor.standing_tier or 0) + 1, tier do
+                sb.prosper_on_promotion(survivor, t)
+            end
+            if tier > (survivor.standing_tier or 0) then survivor.standing_tier = tier end
+        end
+        if sb.prosper_apply_standing then
+            sb.prosper_apply_standing(online_npc, survivor)
+        end
+
+        -- 1. Restore settler logic & clean up movement / state locks
+        if sb.restore_settler_logic then
+            sb.restore_settler_logic(online_npc)
+        end
+        if xr_motivator and xr_motivator.script_release then
+            pcall(function() xr_motivator.script_release(online_npc) end)
+        end
+        if sb.camp_npc_released then
+            sb.camp_npc_released[id_num] = nil
+        end
+
+        pcall(function()
+            online_npc:set_movement_type(move.walk)
+            online_npc:set_body_state(move.standing)
+            online_npc:set_mental_state(anim.free)
+            if state_mgr and state_mgr.set_state then
+                state_mgr.set_state(online_npc, "idle")
+            end
+        end)
+
+        local st = db and db.storage and db.storage[id_num]
+        if st then
+            st.beh_homestead_active = nil
+            if st.beh then
+                st.beh.rally_lvid = nil
+                st.beh.am_i_reached = nil
+            end
+        end
+        if save_var then save_var(online_npc, "fight_from_point", nil) end
+
+        -- 2. Clear holding & settler infoportions
+        online_npc:disable_info_portion("npcx_beh_wait")
+        online_npc:disable_info_portion("npcx_beh_cannot_dismiss")
+        online_npc:disable_info_portion("homestead_settler_guard")
+        online_npc:disable_info_portion("homestead_settler_patrol")
+        if not online_npc:has_info("npcx_is_companion") then
+            online_npc:give_info_portion("npcx_is_companion")
+        end
+
+        -- 3. Dedicated companion squad conversion
+        if sb.convert_settler_to_companion_squad then
+            sb.convert_settler_to_companion_squad(id_num, online_npc)
+        end
+
+        -- 4. Hand off to axr_companions
+        if axr_companions and axr_companions.add_to_actor_squad then
+            axr_companions.add_to_actor_squad(online_npc)
+            if axr_companions.set_companion_to_follow_state then
+                axr_companions.set_companion_to_follow_state(online_npc)
+            end
+        end
+
+        -- 5. Feedback to player
+        if actor_menu and actor_menu.set_msg then
+            actor_menu.set_msg(1, string.format(game.translate_string("st_recruit_back_msg") or "%s joined your squad as a companion.", survivor.name or "Settler"), 4)
+        end
+    end
+
+    local immediate_npc = level and level.object_by_id and level.object_by_id(id_num)
+    if immediate_npc and not CreateTimeEvent then
+        attach_online(immediate_npc)
+        return true
+    end
+
+    if CreateTimeEvent then
+        local retry_count = 0
+        CreateTimeEvent("recruit_back_" .. id_num, "recruit_back_deferred_" .. id_num, 0, function()
+            retry_count = retry_count + 1
+            local online_npc = level and level.object_by_id and level.object_by_id(id_num)
+            if not online_npc then
+                if retry_count > 30 then
+                    return true
+                end
+                return false
+            end
+            attach_online(online_npc)
+            return true
+        end)
+    end
+    return true
+end
+
 function stalker_camp_builder.recruit_back(p1, p2)
     local actor, npc = resolve_speakers(p1, p2)
-    local sformat = string.format
-    local sb = stalker_camp_builder
     if not npc then return end
     local npc_id = npc:id()
     if npc_id == 0 or (actor and npc_id == actor:id()) then return end
-
-    for hub_id, camp in pairs(sb.active_camps) do
-        if camp.survivors and camp.survivors[npc_id] then
-            local survivor = camp.survivors[npc_id]
-            survivor.paused_job = (survivor.job ~= "companion") and (survivor.job or "idle") or (survivor.paused_job or "idle")
-            survivor.paused_xp = survivor.xp or 0
-            survivor.paused_tier = survivor.tier or 0
-            survivor.paused_job_progress = sb.get_job_progress and sb.get_job_progress(survivor) or 0
-            survivor.job = "companion"
-            survivor.is_companion = true
-
-            local m_data = alife_storage_manager.get_state()
-            if m_data and m_data.stalker_camp_builder_banished_companions then
-                m_data.stalker_camp_builder_banished_companions[npc_id] = nil
-            end
-
-            if sb.raiders_cancel_for then
-                sb.raiders_cancel_for(hub_id, npc_id)
-            end
-            sb.set_camp_settler_relations(hub_id, npc_id, false)
-
-            if level.object_by_id(npc_id) == nil then
-                utils_obj.switch_online(npc_id)
-            end
-
-            local retry_count = 0
-            CreateTimeEvent("recruit_back_" .. npc_id, "recruit_back_deferred_" .. npc_id, 0, function()
-                retry_count = retry_count + 1
-                local online_npc = level.object_by_id(npc_id)
-                if not online_npc then
-                    if retry_count > 30 then
-                        return true
-                    end
-                    return false
-                end
-
-                -- 1. Restore settler logic & clean up movement / state locks
-                if sb.restore_settler_logic then
-                    sb.restore_settler_logic(online_npc)
-                end
-                if xr_motivator and xr_motivator.script_release then
-                    pcall(function() xr_motivator.script_release(online_npc) end)
-                end
-                sb.camp_npc_released[npc_id] = nil
-
-                pcall(function()
-                    online_npc:set_movement_type(move.walk)
-                    online_npc:set_body_state(move.standing)
-                    online_npc:set_mental_state(anim.free)
-                    if state_mgr and state_mgr.set_state then
-                        state_mgr.set_state(online_npc, "idle")
-                    end
-                end)
-
-                local st = db.storage[npc_id]
-                if st then
-                    st.beh_homestead_active = nil
-                    if st.beh then
-                        st.beh.rally_lvid = nil
-                        st.beh.am_i_reached = nil
-                    end
-                end
-                save_var(online_npc, "fight_from_point", nil)
-
-                -- 2. Clear holding & settler infoportions
-                online_npc:disable_info_portion("npcx_beh_wait")
-                online_npc:disable_info_portion("npcx_beh_cannot_dismiss")
-                online_npc:disable_info_portion("homestead_settler_guard")
-                online_npc:disable_info_portion("homestead_settler_patrol")
-                if not online_npc:has_info("npcx_is_companion") then
-                    online_npc:give_info_portion("npcx_is_companion")
-                end
-
-                -- 3. Dedicated companion squad conversion
-                -- Anomaly/GAMMA companion tracking (axr_companions.companion_squads) tracks SQUADS,
-                -- and beh_companion requires a squad commander or actor target to follow!
-                if sb.convert_settler_to_companion_squad then
-                    sb.convert_settler_to_companion_squad(npc_id, online_npc)
-                end
-
-                -- 4. Hand off to axr_companions
-                if axr_companions and axr_companions.add_to_actor_squad then
-                    axr_companions.add_to_actor_squad(online_npc)
-                    if axr_companions.set_companion_to_follow_state then
-                        axr_companions.set_companion_to_follow_state(online_npc)
-                    end
-                end
-
-                -- 5. Feedback to player
-                actor_menu.set_msg(1, string.format(game.translate_string("st_recruit_back_msg") or "%s joined your squad as a companion.", survivor.name or "Settler"), 4)
-
-                return true
-            end)
-            break
-        end
-    end
+    stalker_camp_builder.loan_settler_as_companion(npc_id)
 end
 
 -- ============================================================================
@@ -1654,40 +1726,69 @@ function stalker_camp_builder.get_return_to_settlement_text(npc, dialog_id, phra
     return game.translate_string("st_return_to_settlement_ask") or "Return to your settlement duties."
 end
 
+-- Return a loaned companion settler back to their settlement job and restore their paused cycle progress.
+function stalker_camp_builder.return_companion_to_settlement(npc_id, skip_purge)
+    local sb = stalker_camp_builder
+    local id_num = tonumber(npc_id) or npc_id
+    if not id_num then return false, "invalid_id" end
+
+    for hub_id, camp in pairs(sb.active_camps or {}) do
+        if camp.survivors then
+            local s = camp.survivors[id_num] or camp.survivors[npc_id] or camp.survivors[tostring(id_num)]
+            if s and (s.job == "companion" or s.is_companion or s.paused_job) then
+                local online_npc = level and level.object_by_id and level.object_by_id(id_num)
+                if not skip_purge then
+                    if sb.purge_settler_companion_and_squad_state then
+                        sb.purge_settler_companion_and_squad_state(id_num, online_npc, false, true)
+                    elseif online_npc then
+                        if axr_companions and axr_companions.remove_from_actor_squad then
+                            axr_companions.remove_from_actor_squad(online_npc)
+                        end
+                        online_npc:disable_info_portion("npcx_is_companion")
+                        online_npc:disable_info_portion("npcx_beh_wait")
+                        online_npc:disable_info_portion("npcx_beh_cannot_dismiss")
+                        online_npc:disable_info_portion("homestead_settler_guard")
+                        online_npc:disable_info_portion("homestead_settler_patrol")
+                    end
+                end
+
+                local resumed_job = s.paused_job or "idle"
+                s.job = resumed_job
+                s.paused_job = nil
+                s.is_companion = nil
+                s._cached_paused_tg = nil
+                s._cached_paused_job = nil
+                if sb.restore_paused_job_progress then
+                    sb.restore_paused_job_progress(s, resumed_job)
+                else
+                    s.paused_job_progress = nil
+                    s.job_start_time = sb.game_sec()
+                    s.job_start_realtime = time_global()
+                end
+
+                sb.set_camp_settler_relations(hub_id, id_num, true)
+                if sb.teleport_npc_to_camp_hub then
+                    sb.teleport_npc_to_camp_hub(id_num, hub_id, true)
+                elseif sb.teleport_settler_to_camp_level then
+                    sb.teleport_settler_to_camp_level(id_num, hub_id, true)
+                end
+
+                local c_name = sb.get_camp_label(camp)
+                if actor_menu and actor_menu.set_msg then
+                    actor_menu.set_msg(1, string.format(game.translate_string("st_return_to_settlement_msg") or "%s is returning to settlement duties at %s.", s.name or "Settler", c_name), 4)
+                end
+                return true, hub_id
+            end
+        end
+    end
+    return false, "not_companion"
+end
+
 function stalker_camp_builder.return_to_settlement(p1, p2)
     local actor, npc = resolve_speakers(p1, p2)
     if not npc then return end
     local npc_id = npc:id()
-    local sb = stalker_camp_builder
-
-    for hub_id, camp in pairs(sb.active_camps or {}) do
-        if camp.survivors then
-            local s = camp.survivors[npc_id] or camp.survivors[tostring(npc_id)]
-            if s and (s.job == "companion" or s.is_companion or s.paused_job) then
-                if axr_companions and axr_companions.remove_from_actor_squad then
-                    axr_companions.remove_from_actor_squad(npc)
-                end
-                npc:disable_info_portion("npcx_is_companion")
-                npc:disable_info_portion("npcx_beh_wait")
-                npc:disable_info_portion("npcx_beh_cannot_dismiss")
-                npc:disable_info_portion("homestead_settler_guard")
-                npc:disable_info_portion("homestead_settler_patrol")
-
-                s.job = s.paused_job or "idle"
-                s.paused_job = nil
-                s.is_companion = nil
-                s.job_start_time = sb.game_sec()
-                s.job_start_realtime = time_global()
-
-                sb.set_camp_settler_relations(hub_id, npc_id, true)
-                sb.teleport_npc_to_camp_hub(npc_id, hub_id, true)
-
-                local c_name = sb.get_camp_label(camp)
-                actor_menu.set_msg(1, string.format(game.translate_string("st_return_to_settlement_msg") or "%s is returning to settlement duties at %s.", s.name or "Settler", c_name), 4)
-                break
-            end
-        end
-    end
+    stalker_camp_builder.return_companion_to_settlement(npc_id, false)
 end
 
 -- The camp and entry of a settler away with the player as a companion, or nothing
@@ -1710,17 +1811,7 @@ function stalker_camp_builder.return_dismissed_settler(npc_id)
     local sb = stalker_camp_builder
     local hub_id, camp, s = sb.find_companion_settler(npc_id)
     if not s or (sb.is_companion and sb.is_companion(npc_id)) then return end
-    s.job = s.paused_job or "idle"
-    s.paused_job = nil
-    s.is_companion = nil
-    s.job_start_time = sb.game_sec()
-    s.job_start_realtime = time_global()
-
-    sb.set_camp_settler_relations(hub_id, npc_id, true)
-    sb.teleport_npc_to_camp_hub(npc_id, hub_id, true)
-
-    local c_name = sb.get_camp_label(camp)
-    actor_menu.set_msg(1, string.format(game.translate_string("st_return_to_settlement_msg") or "%s is returning to settlement duties at %s.", s.name or "Settler", c_name), 4)
+    sb.return_companion_to_settlement(npc_id, true)
 end
 
 -- ============================================================================
@@ -4341,22 +4432,56 @@ function stalker_camp_builder.survivor_has_custom_position(actor, npc)
     return false
 end
 
+-- Toggle a survivor's Sworn / Retained status so they never leave via `prosper_try_move_on`.
+function stalker_camp_builder.toggle_settler_sworn(npc_id)
+    local sb = stalker_camp_builder
+    local id_num = tonumber(npc_id) or npc_id
+    if not id_num then return false, false end
+    for _, camp in pairs(sb.active_camps or {}) do
+        if camp.survivors then
+            local s = camp.survivors[id_num] or camp.survivors[npc_id] or camp.survivors[tostring(id_num)]
+            if s then
+                s.sworn = not s.sworn
+                return true, s.sworn == true
+            end
+        end
+    end
+    return false, false
+end
+
 -- A settler who joins the player through the vanilla companion dialog keeps their camp job, so
 -- npc_on_update kept sending them back to their station: pause the job as recruit_back does
 function stalker_camp_builder.mark_settler_companion(npc_id)
     local sb = stalker_camp_builder
+    local id_num = tonumber(npc_id) or npc_id
     for hub_id, camp in pairs(sb.active_camps or {}) do
-        local survivor = camp.survivors and camp.survivors[npc_id]
+        local survivor = camp.survivors and (camp.survivors[id_num] or camp.survivors[npc_id] or camp.survivors[tostring(id_num)])
         if survivor then
             if survivor.job ~= "companion" then
                 survivor.paused_job = survivor.job or "idle"
                 survivor.paused_xp = survivor.xp or 0
                 survivor.paused_tier = survivor.tier or 0
-                survivor.paused_job_progress = sb.get_job_progress and sb.get_job_progress(survivor) or 0
+                survivor.paused_job_progress = sb.get_job_progress and sb.get_job_progress(survivor, camp, hub_id) or 0
                 survivor.job = "companion"
                 survivor.is_companion = true
+                survivor.sworn = true
+                survivor._cached_paused_tg = nil
+                survivor._cached_paused_job = nil
+                local online_npc = level and level.object_by_id and level.object_by_id(id_num)
+                if online_npc then
+                    local tier = survivor.tier or 0
+                    if sb.prosper_on_promotion then
+                        for t = (survivor.standing_tier or 0) + 1, tier do
+                            sb.prosper_on_promotion(survivor, t)
+                        end
+                        if tier > (survivor.standing_tier or 0) then survivor.standing_tier = tier end
+                    end
+                    if sb.prosper_apply_standing then
+                        sb.prosper_apply_standing(online_npc, survivor)
+                    end
+                end
                 -- the station the settler beh scheme held them at
-                local st = db.storage[npc_id]
+                local st = db and db.storage and db.storage[id_num]
                 if st then
                     st.beh_homestead_active = nil
                     if type(st.beh) == "table" then
@@ -4365,14 +4490,14 @@ function stalker_camp_builder.mark_settler_companion(npc_id)
                     end
                 end
                 -- anchor_settler_to_smart's override on the squad would keep it from following
-                local se_npc = alife_object(npc_id)
+                local se_npc = alife_object(id_num)
                 local squad = se_npc and get_object_squad(se_npc)
                 if squad then
                     squad.get_script_target = nil
                 end
                 -- the squad is the companion system's now (convert_settler_to_companion_squad drops the entry too)
                 if sb.settler_home_squads then
-                    sb.settler_home_squads[npc_id] = nil
+                    sb.settler_home_squads[id_num] = nil
                 end
             end
             return
