@@ -541,6 +541,14 @@
             <texture>ui_button_ordinary</texture>
             <text font="letterica16" align="c" vert_align="c">st_pda_btn_rename_survivor</text>
         </btn_rename_survivor>
+        <btn_companion_loan x="6" y="510" width="167" height="26" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_companion_loan</text>
+        </btn_companion_loan>
+        <btn_sworn_toggle x="178" y="510" width="167" height="26" check_mode="0" stretch="1">
+            <texture>ui_button_ordinary</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_sworn_off</text>
+        </btn_sworn_toggle>
 
         <!-- Module 5: Remote Outpost Transfer Module -->
         <transfer_header_bg x="0" y="553" width="350" height="1" stretch="1">

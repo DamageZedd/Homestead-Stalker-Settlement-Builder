@@ -556,6 +556,14 @@
             <texture>ui_homestead_btn_tactical</texture>
             <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_pda_btn_rename_survivor</text>
         </btn_rename_survivor>
+        <btn_companion_loan x="6" y="510" width="167" height="26" check_mode="0">
+            <texture>ui_homestead_btn_tactical</texture>
+            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_pda_btn_companion_loan</text>
+        </btn_companion_loan>
+        <btn_sworn_toggle x="178" y="510" width="167" height="26" check_mode="0">
+            <texture>ui_homestead_btn_tactical</texture>
+            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_pda_btn_sworn_off</text>
+        </btn_sworn_toggle>
 
         <!-- Module 5: Remote Outpost Transfer Module -->
         <transfer_header_bg x="0" y="534" width="350" height="20" stretch="1">

@@ -703,12 +703,12 @@ function SettlementManagerPDA:InitControls()
     self:AddCallback("btn_filter_work", ui_events.BUTTON_CLICKED, self.OnFilterWorkClicked, self)
     self:AddCallback("btn_filter_idle", ui_events.BUTTON_CLICKED, self.OnFilterIdleClicked, self)
 
-    self.sv_col_bg = xml:InitStatic("survivors_panel:sv_col_bg", self.survivors_panel)
-    self.sv_col_name = xml:InitTextWnd("survivors_panel:sv_col_name", self.survivors_panel)
-    self.sv_col_job = xml:InitTextWnd("survivors_panel:sv_col_job", self.survivors_panel)
-    self.sv_col_rank = xml:InitTextWnd("survivors_panel:sv_col_rank", self.survivors_panel)
-    self.sv_col_needs = xml:InitTextWnd("survivors_panel:sv_col_needs", self.survivors_panel)
-
+    self.sv_col_bg = xml:InitStatic("survivors_panel:sv_col_bg", self.survivors_panel)
+    self.sv_col_name = xml:InitTextWnd("survivors_panel:sv_col_name", self.survivors_panel)
+    self.sv_col_job = xml:InitTextWnd("survivors_panel:sv_col_job", self.survivors_panel)
+    self.sv_col_rank = xml:InitTextWnd("survivors_panel:sv_col_rank", self.survivors_panel)
+    self.sv_col_needs = xml:InitTextWnd("survivors_panel:sv_col_needs", self.survivors_panel)
+
     self.survivor_list = xml:InitListBox("survivors_panel:survivor_list", self.survivors_panel)
     self:Register(self.survivor_list, "survivor_list")
     self:AddCallback("survivor_list", ui_events.LIST_ITEM_CLICKED, self.OnSurvivorSelected, self)
@@ -811,13 +811,27 @@ function SettlementManagerPDA:InitControls()
     self:Register(self.btn_rename_survivor, "btn_rename_survivor")
     self:AddCallback("btn_rename_survivor", ui_events.BUTTON_CLICKED, self.OnRenameSurvivorClicked, self)
 
-    self.btn_companion_loan = xml:Init3tButton("job_content:btn_companion_loan", self.job_content)
+    -- the theme XMLs (every FOMOD install) may lack these two newer nodes, and Init3tButton on a
+    -- missing node is an engine assert that no pcall catches: probe first, as init_safe_job_btn does
+    local function job_node_exists(tag_name)
+        local found = false
+        pcall(function()
+            xml:NavigateToRoot()
+            if xml:NavigateToNode("job_content", 0) and xml:NavigateToNode(tag_name, 0) then
+                found = true
+            end
+            xml:NavigateToRoot()
+        end)
+        return found
+    end
+
+    self.btn_companion_loan = job_node_exists("btn_companion_loan") and xml:Init3tButton("job_content:btn_companion_loan", self.job_content) or nil
     if self.btn_companion_loan then
         self:Register(self.btn_companion_loan, "btn_companion_loan")
         self:AddCallback("btn_companion_loan", ui_events.BUTTON_CLICKED, self.OnCompanionLoanClicked, self)
     end
 
-    self.btn_sworn_toggle = xml:Init3tButton("job_content:btn_sworn_toggle", self.job_content)
+    self.btn_sworn_toggle = job_node_exists("btn_sworn_toggle") and xml:Init3tButton("job_content:btn_sworn_toggle", self.job_content) or nil
     if self.btn_sworn_toggle then
         self:Register(self.btn_sworn_toggle, "btn_sworn_toggle")
         self:AddCallback("btn_sworn_toggle", ui_events.BUTTON_CLICKED, self.OnSwornToggleClicked, self)

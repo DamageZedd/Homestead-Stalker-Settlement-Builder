@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Settlements page no longer crashes on open**: the new Loan as Companion and Sworn buttons were only in the core PDA layout, and every FOMOD install uses a theme's layout instead, so building the page hit a missing node (an engine assert). The buttons are now in all three themes, and the page checks for them first.
 - **"Alive" script error from settlers who were despawned**: a settler removed by another mod without dying keeps its record until the next load, and the object that gets its id meanwhile is someone or something else. The equipment check, the savings purchase, rank and reputation, and the camp's friend relations no longer act on that object; on an item, calling alive() was the engine's "cannot access class member Alive" error, and on a stranger the settler's savings could buy them a gun.
 - **No free charcoal or vodka from a failed batch**: when a Chemist unit or a water pump's charcoal filter bed could not be finished, each charcoal or vodka use already taken was put back as a new full item (a bag of charcoal holds 3 uses). Each now goes back as the one use it was.
 - **Faster job pause checks**: the Storage Full check that every producing settler runs each job tick reuses the box weights the camp already keeps, instead of weighing every storage box again.
