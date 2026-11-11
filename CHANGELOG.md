@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-- **Wood and scrap stock caps are MCM sliders** (`wood_stock_cap`, `scrap_stock_cap`, Jobs & Production): 20 to 500, default 100 (was a fixed 40). They apply while the Supply Surplus Cap is on. Each unit is still its own item, so a very high cap fills boxes.
+- **Wood and scrap stock caps are MCM sliders** (`wood_stock_cap`, `scrap_stock_cap`, Jobs & Production): 20 to 500, default 200 (was a fixed 40). They apply while the Supply Surplus Cap is on. Each unit is still its own item, so a very high cap fills boxes.
+- **HD Inventory Icons & 1x Workstation Icons (`ui_icon_homestead_hd_1.dds`, `ui_icon_homestead_workstations.dds`, `stalker_camp_builder.script`)**: restored the lossless `v1.4.0` Level 0 DXT5 blocks across all 45 pre-existing models in `ui_icon_homestead_hd_1.dds` (fixing the Level 0 alpha quantization and edge specks introduced by Pillow's DXT5 writer in `v1.4.1` that `v1.4.2`'s mip-only pass did not touch), rebuilt `ui_icon_homestead_workstations.dds` from `v1.4.0`'s clean pixels plus the Chemist Station via `dxt5_encode`, and added a runtime guard in `on_game_start` so `ico_homestead.ltx` is ignored by RAX Icon Override whenever `HD Inventory Icons Framework` (`zz_hd_inventory_icons_patches`) is not active (e.g. after an MO2 Merge upgrade).
+- **Rival Outpost Flat-Site Ground Snapping & Takeover Cap (`stalker_camp_builder_rivals.script`)**: outposts spawned on unloaded maps now verify a flat, walkable 3 m AI-grid perimeter on level entry (`check_flat_camp_site`) and relocate to the nearest open AI ground around their smart terrain instead of stopping at the very edge of a wall, roof or cliff; `find_ground_anchor` always rejects downward ray hits > 0.5 m off the walkable AI node height; and abandoned outposts can be reclaimed at most once (preferring a different faction than the one that just left) before their ruins decay and a new site is chosen.
 
 ## v1.4.2 — Base-Building Fixes, Chemist Economy & Wood/Scrap Cap
 

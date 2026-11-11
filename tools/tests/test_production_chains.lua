@@ -427,8 +427,8 @@ end
 
 -- Test Chain 8: wood and scrap metal stop at the 40 stock cap (a tester's camp filled ~200 kg of timber)
 do
-    eq(sb.get_stock_cap("wood"), 100, "Chain 8: default wood stock cap")
-    eq(sb.get_stock_cap("scrap"), 100, "Chain 8: default scrap stock cap")
+    eq(sb.get_stock_cap("wood"), 200, "Chain 8: default wood stock cap")
+    eq(sb.get_stock_cap("scrap"), 200, "Chain 8: default scrap stock cap")
     -- the caps come from MCM; the rest of the chain runs at 40
     sb.cfg.wood_stock_cap, sb.cfg.scrap_stock_cap = 40, 40
     eq(sb.get_stock_cap("wood"), 40, "Chain 8: wood stock cap follows the setting")

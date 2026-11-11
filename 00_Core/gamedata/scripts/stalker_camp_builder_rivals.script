@@ -1031,6 +1031,8 @@ local function resolve_rival_camp_time_up(sb, camp, squad, sim, actor, same_leve
         camp.unoccupied_time = current_sec
         camp.ruins_decay_time = mrandom(7200, 18000) -- 2 to 5 game hours
         local old_faction = camp.faction
+        camp.last_faction = old_faction
+        camp.takeover_count = (camp.takeover_count or 0) + 1
         camp.faction = nil
         camp.squad_id = nil
         camp.extra_squad_ids = nil
@@ -1424,20 +1426,32 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
             local occupant_squad = nil
             local occupant_faction = nil
             -- one takeover roll per abandonment; a won roll brings the new garrison 1 to 3 game
-            -- hours later, and not while the player is within online switch distance
+            -- hours later, and not while the player is within online switch distance. An outpost
+            -- can be reclaimed at most once before its ruins decay and a fresh site is chosen.
             if camp.takeover_at == nil then
                 camp.takeover_at = false
-                if mrandom(100) <= (sb.cfg.rival_friendly_takeover or 25) then
+                if (camp.takeover_count or 0) <= 1 and mrandom(100) <= (sb.cfg.rival_friendly_takeover or 25) then
                     camp.takeover_at = current_sec + mrandom(3600, 10800)
                 end
             end
             local player_near = is_player_near(camp.level or level_name, camp.position)
             if camp.takeover_at and current_sec >= camp.takeover_at and not player_near then
                 local level_facs = sb.get_level_factions(camp.level or level_name)
-                occupant_faction = level_facs[mrandom(#level_facs)]
-                local camp_pos = v_scratch_pos:set(camp.position.x, camp.position.y, camp.position.z)
-                local squad_sec = sb.get_dynamic_squad_section_for_faction(occupant_faction)
-                occupant_squad = sb.create_squad_at_pos(squad_sec, camp_pos, camp.level_vertex_id, camp.game_vertex_id)
+                if level_facs and #level_facs > 1 and camp.last_faction then
+                    local other_facs = {}
+                    for i = 1, #level_facs do
+                        if level_facs[i] ~= camp.last_faction then
+                            other_facs[#other_facs + 1] = level_facs[i]
+                        end
+                    end
+                    if #other_facs > 0 then level_facs = other_facs end
+                end
+                occupant_faction = level_facs and level_facs[mrandom(#level_facs)]
+                if occupant_faction then
+                    local camp_pos = v_scratch_pos:set(camp.position.x, camp.position.y, camp.position.z)
+                    local squad_sec = sb.get_dynamic_squad_section_for_faction(occupant_faction)
+                    occupant_squad = sb.create_squad_at_pos(squad_sec, camp_pos, camp.level_vertex_id, camp.game_vertex_id)
+                end
             end
 
             if occupant_squad then
@@ -1765,16 +1779,39 @@ find_ground_anchor = function(x, z, ref_y, smart_y)
 
     -- The downward ray can hit a tree, rock overhang or roof above the spot.
     -- If it disagrees with the walkable ground height right here, trust the ground.
-    if surface_y and target_vpos then
-        local hdx = x - target_vpos.x
-        local hdz = z - target_vpos.z
-        if (hdx * hdx + hdz * hdz) <= 2.25 and math.abs(surface_y - target_vpos.y) > 0.5 then
-            surface_y = target_vpos.y
-        end
+    if surface_y and target_vpos and math.abs(surface_y - target_vpos.y) > 0.5 then
+        surface_y = target_vpos.y
     end
 
     local final_y = surface_y or (target_vpos and target_vpos.y) or base_y
     return target_lvid, target_vpos, final_y, surface_y
+end
+
+-- Check whether (x, z) sits directly on an AI vertex with a walkable, reasonably flat 3m perimeter
+-- so outposts do not anchor against walls, roofs, boulders, or cliff edges.
+local v_site_probe = vector()
+local SITE_OFFSETS = { { 3.0, 0.0 }, { -3.0, 0.0 }, { 0.0, 3.0 }, { 0.0, -3.0 } }
+local function check_flat_camp_site(x, z, ref_y, slope_tol)
+    if not (level and level.vertex_id and level.vertex_position) then return nil, nil end
+    local lvid = level.vertex_id(v_site_probe:set(x, ref_y, z))
+    if not (lvid and lvid < 4294967295 and lvid ~= -1) then return nil, nil end
+    local vpos = level.vertex_position(lvid)
+    if not vpos then return nil, nil end
+    local dx, dz = x - vpos.x, z - vpos.z
+    if (dx * dx + dz * dz) > 0.64 then return nil, nil end
+    local tol = slope_tol or 2.2
+    for i = 1, 4 do
+        local ox, oz = vpos.x + SITE_OFFSETS[i][1], vpos.z + SITE_OFFSETS[i][2]
+        local nlvid = level.vertex_id(v_site_probe:set(ox, vpos.y, oz))
+        if not (nlvid and nlvid < 4294967295 and nlvid ~= -1) then return nil, nil end
+        local nvpos = level.vertex_position(nlvid)
+        if not nvpos then return nil, nil end
+        local ndx, ndz = ox - nvpos.x, oz - nvpos.z
+        if (ndx * ndx + ndz * ndz) > 1.0 or math.abs(nvpos.y - vpos.y) > tol then
+            return nil, nil
+        end
+    end
+    return lvid, vpos
 end
 
 -- snap_rival_camps_to_ground -- precision surface anchoring for chests,
@@ -1847,28 +1884,61 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
                     local parent_smart = (camp.smart_name and SIMBOARD and SIMBOARD.smarts_by_names) and SIMBOARD.smarts_by_names[camp.smart_name]
                     local smart_y = parent_smart and parent_smart.position.y
 
-                    -- the spot was picked on another level, untested: in a wall, a building or rubble the
-                    -- chest has no AI node under it and may be out of the player's reach. Until the outpost
-                    -- is snapped, such a chest steps toward its smart terrain to the first spot with a node,
-                    -- or to the smart terrain's own, and the furniture moves with it
+                    -- the spot was picked on another level, untested: in a wall, a building, rubble or on a
+                    -- steep ledge the chest has no flat 3m AI perimeter under it. Until the outpost is snapped,
+                    -- relocate such a chest to the nearest flat, walkable AI site around its smart terrain.
                     local shift_x, shift_z = 0, 0
                     local smart_lvid = parent_smart and parent_smart.m_level_vertex_id
+                    local slope_tol = sb.cfg.rival_camp_slope_tolerance or 2.2
                     if smart_lvid and smart_lvid < 4294967295 and not (camp.snapped and camp.ground_snapped_v4) then
-                        local under = level.vertex_id(v_probe:set(pos.x, pos.y, pos.z))
-                        if not (under and under < 4294967295) then
+                        local site_lvid, site_vpos = check_flat_camp_site(pos.x, pos.z, pos.y, slope_tol)
+                        if not site_vpos then
                             local sp = parent_smart.position
                             local to_x, to_z = sp.x - pos.x, sp.z - pos.z
                             local dist = msqrt(to_x * to_x + to_z * to_z)
-                            local node = smart_lvid
-                            for t = 0.5, dist, 0.5 do
-                                local id = level.vertex_id(v_probe:set(pos.x + to_x * t / dist, pos.y, pos.z + to_z * t / dist))
-                                if id and id < 4294967295 then
-                                    node = id
-                                    break
+                            local found_vpos = nil
+                            if dist > 4.0 then
+                                for t = 3.5, dist - 4.0, 1.5 do
+                                    local _, cand_vpos = check_flat_camp_site(pos.x + to_x * t / dist, pos.z + to_z * t / dist, sp.y, slope_tol)
+                                    if cand_vpos and math.abs(cand_vpos.y - sp.y) <= 8.0 then
+                                        found_vpos = cand_vpos
+                                        break
+                                    end
                                 end
                             end
-                            local np = level.vertex_position(node)
-                            shift_x, shift_z = np.x - pos.x, np.z - pos.z
+                            if not found_vpos then
+                                local base_ang = math.atan2(pos.z - sp.z, pos.x - sp.x)
+                                local radii = { 22, 28, 16, 33 }
+                                for r_i = 1, #radii do
+                                    local r = radii[r_i]
+                                    for a_i = 0, 15 do
+                                        local ang = base_ang + a_i * (math.pi / 8)
+                                        local cx, cz = sp.x + r * mcos(ang), sp.z + r * msin(ang)
+                                        local _, cand_vpos = check_flat_camp_site(cx, cz, sp.y, slope_tol)
+                                        if cand_vpos and math.abs(cand_vpos.y - sp.y) <= 8.0 then
+                                            found_vpos = cand_vpos
+                                            break
+                                        end
+                                    end
+                                    if found_vpos then break end
+                                end
+                            end
+                            if not found_vpos then
+                                local node = smart_lvid
+                                if dist > 0.5 then
+                                    for t = 0.5, dist, 0.5 do
+                                        local id = level.vertex_id(v_probe:set(pos.x + to_x * t / dist, pos.y, pos.z + to_z * t / dist))
+                                        if id and id < 4294967295 then
+                                            node = id
+                                            break
+                                        end
+                                    end
+                                end
+                                found_vpos = level.vertex_position(node)
+                            end
+                            if found_vpos then
+                                shift_x, shift_z = found_vpos.x - pos.x, found_vpos.z - pos.z
+                            end
                         end
                     end
 
@@ -1880,7 +1950,7 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
 
                     local target_x = pos.x + shift_x
                     local target_z = pos.z + shift_z
-                    if cvpos and ((target_x - cvpos.x)^2 + (target_z - cvpos.z)^2 > 9.0) then
+                    if cvpos and ((target_x - cvpos.x)^2 + (target_z - cvpos.z)^2 > 0.5) then
                         target_x = cvpos.x
                         target_z = cvpos.z
                     end

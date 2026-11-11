@@ -523,8 +523,8 @@ end
 -- the woodpile and the scrap pile: each unit is its own non-stacking item, so an uncapped
 -- woodcutter or scrapper fills every box with hundreds of them
 -- the defaults; MCM sets the caps (wood_stock_cap, scrap_stock_cap)
-stalker_camp_builder.WOOD_STOCK_CAP = 100
-stalker_camp_builder.SCRAP_STOCK_CAP = 100
+stalker_camp_builder.WOOD_STOCK_CAP = 200
+stalker_camp_builder.SCRAP_STOCK_CAP = 200
 function stalker_camp_builder.get_stock_cap(category)
     local sb = stalker_camp_builder
     local v
@@ -533,7 +533,7 @@ function stalker_camp_builder.get_stock_cap(category)
     else
         v = (sb.cfg and sb.cfg.scrap_stock_cap) or sb.SCRAP_STOCK_CAP
     end
-    return tonumber(v) or 100
+    return tonumber(v) or 200
 end
 
 -- is_camp_supply_capped -- checks if camp already has an abundant stockpile

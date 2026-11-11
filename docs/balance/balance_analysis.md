@@ -34,14 +34,14 @@ formulas at tier 1 and no specialization.
 | medic akvatab | 10900 | 86900 | 3800 | stock cap 8 per batch, 5 vodka uses |
 | medic medkit | 6000 | 48000 | 5400 | stock cap 8 |
 | chemist kerosene | 31500 | 42000 | 17640 (was 4410) | 4 cans per batch, each pays 2 charcoal + 2 vodka uses; 20 min cycle |
-| woodcutter | 2400 | 15800 | none | stock cap 100 (MCM), 40 per cycle |
+| woodcutter | 2400 | 15800 | none | stock cap 200 (MCM), 40 per cycle |
 | brewer | 8500 | 45400 | 3000-4100 | 16 per cycle, 7-10 wood |
-| scrapper | 1100 | 8100 | none | scrap stock cap 100 (MCM), 35 / 25 per cycle |
+| scrapper | 1100 | 8100 | none | scrap stock cap 200 (MCM), 35 / 25 per cycle |
 | farmer bread | 3600 | 25200 | 400-800 | stock cap 40, 8 per batch |
 | trader | n/a | 12 items per 15 min | player goods | now 25 % of base |
 
 Reading it: every producer returns more than its input, which is the design. The checks that keep this from running away
-are the stock caps (medic 8 / 15, cook 15, ammo 8, farmer 40, wood 100, scrap 100, both set in MCM), the per-cycle caps and input scarcity (powder, wood,
+are the stock caps (medic 8 / 15, cook 15, ammo 8, farmer 40, wood 200, scrap 200, both set in MCM), the per-cycle caps and input scarcity (powder, wood,
 vodka). Cash needs the Trader or a vendor, and a vendor pays 0.10-0.35.
 
 Outliers, left as they are (they are tuned behaviours, or need a code change):
