@@ -1045,7 +1045,7 @@ function pistol_turret_wrapper:update(delta)
         self.scan_t = 0.4
 
         local candidates = find_best_target_cached(self, self.object, 20)
-        local picked_id = nil
+        local picked_id, picked_aim = nil, nil
 
         -- the best-scored hostile can be behind cover (often the one just lost, which the turret
         -- still faces): take the first of the best few that is in sight
@@ -1055,26 +1055,36 @@ function pistol_turret_wrapper:update(delta)
                 local aim_pos = get_target_aim_pos(picked_obj)
                 if turret_target_visible(self, picked_obj, aim_pos) then
                     picked_id = candidates[i]
-                    self.aim_pos_cached = aim_pos
-                    self.target_last_seen_t = 0
+                    picked_aim = aim_pos
                     break
                 end
             end
         end
 
+        -- the aim and the sight timer belong to the target actually tracked: setting them for a visible
+        -- candidate that is not taken kept a hidden target "seen" for ever, and the turret never fired
+        -- at the visible one
         local cur_target = get_obj_by_id_safe(self.target_id)
+        local take = false
         if not cur_target or not is_valid_target(cur_target) then
             self.target_id = picked_id
-        elseif picked_id and self.target_id and picked_id ~= self.target_id then
+            take = picked_id ~= nil
+        elseif picked_id and picked_id == self.target_id then
+            take = true
+        elseif picked_id and self.target_id then
             local turret_pos = self.object:position()
             local cur_dist = cur_target:position():distance_to(turret_pos)
             local picked_obj = get_obj_by_id_safe(picked_id)
             local new_dist = picked_obj and picked_obj:position():distance_to(turret_pos) or 999999
-            if new_dist < cur_dist then
+            -- a visible hostile also replaces one the turret has lost sight of
+            if new_dist < cur_dist or (self.target_last_seen_t or 0) > 0 then
                 self.target_id = picked_id
-                self.aim_pos_cached = picked_obj and get_target_aim_pos(picked_obj) or nil
-                self.target_last_seen_t = 0
+                take = true
             end
+        end
+        if take then
+            self.aim_pos_cached = picked_aim
+            self.target_last_seen_t = 0
         end
     end
 

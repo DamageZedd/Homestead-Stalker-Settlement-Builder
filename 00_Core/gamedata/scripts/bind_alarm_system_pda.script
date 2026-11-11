@@ -93,6 +93,20 @@ local function is_in_front_of_bone(obj, bone_name, target_obj, min_dot)
     return forward:dotproduct(dir) >= min_dot
 end
 
+-- the player's own settlers and companions: a raid reputation loss or a faction change can make them
+-- read "enemy" to the player, and the turret already spares them (bind_pistol_turret is_own_resident)
+local function is_own_resident(o, id)
+    local sb = stalker_camp_builder
+    if not sb then return false end
+    local lookup = sb.settler_lookup and sb.settler_lookup[id]
+    if type(lookup) == "table" and not lookup.is_rival then return true end
+    if type(sb.is_companion) == "function" then
+        local ok_c, comp = pcall(sb.is_companion, o)
+        if ok_c and comp then return true end
+    end
+    return false
+end
+
 local function has_clear_los(alarm_obj, target_obj, target_pos, rp)
     if not alarm_obj or not target_obj or not target_pos or not rp then
         return false
@@ -155,7 +169,7 @@ function alarm_has_targets(alarm_obj, radius, rp)
             if o:alive() and o:id() ~= actor_id then
                 if monster_classes[cls] then
                     is_threat = true
-                elseif cls == clsid.script_stalker then
+                elseif cls == clsid.script_stalker and not is_own_resident(o, o:id()) then
                     if db.actor and o.relation then
                         local rel = o:relation(db.actor)
                         if rel == game_object.enemy then

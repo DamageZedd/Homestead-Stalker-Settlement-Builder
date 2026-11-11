@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Turrets fire at the hostile they can see**: a target scan reset the sight timer of the target being tracked whenever any hostile was visible, so a turret aimed at an enemy behind cover never gave it up and never fired at a visible one farther away. A visible hostile now also replaces a target the turret has lost sight of.
+- **Alarms ignore your own settlers and companions**: a raid reputation loss or faction change can make them read "enemy", and both alarms then sounded (and the PDA alarm sent a combat tip) at your residents walking past. They now skip them, as the turrets already did.
+- **Small fixes**: the settler furniture cache is cleared on load instead of being replaced (the replacement was never used, so the real cache was never cleared), and the watchdog item callbacks are registered once instead of twice.
 - **An outpost is not reclaimed by the same faction over and over**: when a garrison was killed (by you, raiders or offline combat) rather than leaving when its time was up, the outpost did not record which faction lost it or count the takeover, so the reclaim roll could bring the same faction back each time. Both ways an outpost empties now record them.
 - **Placed outposts stay where they are**: the one-time height re-check keeps a chest's spot (it no longer slides onto the nearest AI node away from its furniture), and a tier upgrade made while you are on another level no longer re-runs the site search and moves the whole outpost.
 - **Raiders can be sent at friendly outposts**: every outpost of a non-hostile faction is marked cleared for its map colour, and the raid checks read that as empty, so friendly camps could never be raided (owner decision 2026-11-04: they are always sendable, with the goodwill warning).

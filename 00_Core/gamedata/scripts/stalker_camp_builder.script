@@ -163,7 +163,11 @@ function patch_watchdog_lag_protection()
     hook_debug_spawner()
     safe_register_callback("actor_on_first_update", hook_debug_spawner)
 
-    -- Also grant immunity when actor receives or registers any homestead or placeable item
+    -- Also grant immunity when actor receives or registers any homestead or placeable item.
+    -- Once: this runs at file load and again from on_game_start, and the callback table is keyed by
+    -- function, so two new closures were both kept and every entity registration ran the check twice
+    if stalker_camp_builder._homestead_wd_callbacks_registered or not RegisterScriptCallback then return end
+    stalker_camp_builder._homestead_wd_callbacks_registered = true
     safe_register_callback("actor_on_item_take", function(obj)
         if obj and a_rax_wd and a_rax_wd.save_state then
             local ok, sec = pcall(_obj_section, obj)
@@ -4035,8 +4039,12 @@ function load_state(m_data)
     stalker_camp_builder.reset_scan_camp_structures_cache()
     stalker_camp_builder.camp_box_id_cache = {}
     stalker_camp_builder.settler_lookup = {}
+    -- cleared in place: npc_on_update and its helpers hold the file-local table, so a new table here
+    -- left them filling the old one (never cleared) while the cleanup paths emptied the new one
     if stalker_camp_builder.camp_npc_furniture_cache then
-        stalker_camp_builder.camp_npc_furniture_cache = {}
+        for k in pairs(stalker_camp_builder.camp_npc_furniture_cache) do
+            stalker_camp_builder.camp_npc_furniture_cache[k] = nil
+        end
     end
     if stalker_camp_builder.settler_home_squads then
         stalker_camp_builder.settler_home_squads = {}

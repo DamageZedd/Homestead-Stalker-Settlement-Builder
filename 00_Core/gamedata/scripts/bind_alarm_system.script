@@ -122,6 +122,20 @@ local function has_clear_los(alarm_obj, target_obj, target_pos, rp)
     return (not hit_dist) or hit_dist <= 0 or hit_dist >= (dist - 0.05)
 end
 
+-- the player's own settlers and companions: a raid reputation loss or a faction change can make them
+-- read "enemy" to the player, and the turret already spares them (bind_pistol_turret is_own_resident)
+local function is_own_resident(o, id)
+    local sb = stalker_camp_builder
+    if not sb then return false end
+    local lookup = sb.settler_lookup and sb.settler_lookup[id]
+    if type(lookup) == "table" and not lookup.is_rival then return true end
+    if type(sb.is_companion) == "function" then
+        local ok_c, comp = pcall(sb.is_companion, o)
+        if ok_c and comp then return true end
+    end
+    return false
+end
+
 local function is_enemy_stalker_to_actor(o)
     if not o or not db.actor then
         return false
@@ -136,6 +150,9 @@ local function is_enemy_stalker_to_actor(o)
     local ok_oid, oid = pcall(o.id, o)
     local ok_aid, aid = pcall(actor.id, actor)
     if ok_oid and ok_aid and oid == aid then
+        return false
+    end
+    if ok_oid and is_own_resident(o, oid) then
         return false
     end
 
