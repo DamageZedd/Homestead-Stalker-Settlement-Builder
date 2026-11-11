@@ -522,8 +522,19 @@ end
 
 -- the woodpile and the scrap pile: each unit is its own non-stacking item, so an uncapped
 -- woodcutter or scrapper fills every box with hundreds of them
-stalker_camp_builder.WOOD_STOCK_CAP = 40
-stalker_camp_builder.SCRAP_STOCK_CAP = 40
+-- the defaults; MCM sets the caps (wood_stock_cap, scrap_stock_cap)
+stalker_camp_builder.WOOD_STOCK_CAP = 100
+stalker_camp_builder.SCRAP_STOCK_CAP = 100
+function stalker_camp_builder.get_stock_cap(category)
+    local sb = stalker_camp_builder
+    local v
+    if category == "wood" then
+        v = (sb.cfg and sb.cfg.wood_stock_cap) or sb.WOOD_STOCK_CAP
+    else
+        v = (sb.cfg and sb.cfg.scrap_stock_cap) or sb.SCRAP_STOCK_CAP
+    end
+    return tonumber(v) or 100
+end
 
 -- is_camp_supply_capped -- checks if camp already has an abundant stockpile
 function stalker_camp_builder.is_camp_supply_capped(hub_id, camp, category, survivor_or_order)
@@ -538,10 +549,10 @@ function stalker_camp_builder.is_camp_supply_capped(hub_id, camp, category, surv
     local check_func = nil
 
     if category == "wood" then
-        cap = sb.WOOD_STOCK_CAP
+        cap = sb.get_stock_cap("wood")
         check_func = is_wood_part
     elseif category == "scrap" then
-        cap = sb.SCRAP_STOCK_CAP
+        cap = sb.get_stock_cap("scrap")
         check_func = is_scrap
     elseif category == "food" then
         cap = 15
@@ -1847,12 +1858,12 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
             -- on Auto the charcoal cycles go on burning the full woodpile, so only Timber pauses
             local wood_full
             if snap then
-                wood_full = (snap.wood_count or 0) >= sb.WOOD_STOCK_CAP
+                wood_full = (snap.wood_count or 0) >= sb.get_stock_cap("wood")
             else
                 wood_full = sb.is_camp_supply_capped(hub_id, camp, "wood")
             end
             if wood_full then
-                return true, "Stockpile Full", "Wood stockpile is full (" .. sb.WOOD_STOCK_CAP .. "+ stored)"
+                return true, "Stockpile Full", "Wood stockpile is full (" .. sb.get_stock_cap("wood") .. "+ stored)"
             end
         end
         return false, nil, nil
@@ -1946,7 +1957,7 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
             if struct_type == "salvage_table" then can_refine = true break end
         end
         if not can_refine and sb.is_camp_supply_capped(hub_id, camp, "scrap") then
-            return true, "Stockpile Full", "Scrap metal stockpile is full (" .. sb.SCRAP_STOCK_CAP .. "+ stored)"
+            return true, "Stockpile Full", "Scrap metal stockpile is full (" .. sb.get_stock_cap("scrap") .. "+ stored)"
         end
         return false, nil, nil
 

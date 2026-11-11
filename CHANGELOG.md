@@ -1,5 +1,9 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## Unreleased
+
+- **Wood and scrap stock caps are MCM sliders** (`wood_stock_cap`, `scrap_stock_cap`, Jobs & Production): 20 to 500, default 100 (was a fixed 40). They apply while the Supply Surplus Cap is on. Each unit is still its own item, so a very high cap fills boxes.
+
 ## v1.4.2 — Base-Building Fixes, Chemist Economy & Wood/Scrap Cap
 
 ### 🛠️ Base-Building Physics & Furniture

@@ -908,6 +908,8 @@ local defaults = {
     settlement_map_spot_style = 0,    -- 0: Tactical Base (Homestead), 1: PAW Stalker Pin, 2: Classic Green Dot
     outpost_map_spot_style = 0,       -- 0: Faction Badges & Insignias, 1: Tactical Outposts, 2: PAW Pushpins, 3: Classic Dots
     enable_surplus_cap = true,        -- Anti-flooding surplus governor: pauses crafters/cooks/medics when camp stores are abundant.
+    wood_stock_cap = 100,             -- Wood a camp stores before a Timber woodcutter pauses (Supply Surplus Cap on).
+    scrap_stock_cap = 100,            -- Scrap metal a camp stores before a scrapper pauses (Supply Surplus Cap on).
     settler_cut_enabled = true,       -- Settlers keep a cut of their work (savings on the Homestead record).
     settler_cut_per_cycle = 60,       -- Savings a settler earns per completed work cycle, before the tier multiplier.
     settler_savings_cap = 20000,      -- Most RU a settler may save; a full job pauses once it is reached.
@@ -985,6 +987,8 @@ local mcm_option_path = {
     settlement_map_spot_style = "stalker_camp_builder/general/settlement_map_spot_style",
 
     enable_surplus_cap = "stalker_camp_builder/jobs/enable_surplus_cap",
+    wood_stock_cap = "stalker_camp_builder/jobs/wood_stock_cap",
+    scrap_stock_cap = "stalker_camp_builder/jobs/scrap_stock_cap",
     realtime_job_cook_interval_min = "stalker_camp_builder/jobs/realtime_job_cook_interval_min",
     realtime_job_craft_interval_min = "stalker_camp_builder/jobs/realtime_job_craft_interval_min",
     realtime_job_repair_interval_min = "stalker_camp_builder/jobs/realtime_job_repair_interval_min",

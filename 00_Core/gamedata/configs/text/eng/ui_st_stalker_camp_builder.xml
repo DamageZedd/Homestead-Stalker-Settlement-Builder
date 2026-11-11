@@ -1990,7 +1990,19 @@
         <text>Enable Supply Surplus Cap</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_enable_surplus_cap_desc">
-        <text>When enabled, camp cooks, crafters, medics, woodcutters and scrappers pause production when camp storage already holds abundant supplies (15+ cooked meals, 8+ medical items, 6+ ammo boxes, 40+ wood, 40+ scrap metal) to prevent overflowing while away. Turn OFF for infinite production.</text>
+        <text>When enabled, camp cooks, crafters, medics, woodcutters and scrappers pause production when camp storage already holds abundant supplies (15+ cooked meals, 8+ medical items, 6+ ammo boxes, wood and scrap metal at their own caps below) to prevent overflowing while away. Turn OFF for infinite production.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_wood_stock_cap">
+        <text>Wood Stock Cap</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_wood_stock_cap_desc">
+        <text>Wood a camp stores before a Timber woodcutter pauses (Stockpile Full). Needs the Supply Surplus Cap on. Each unit is its own item, so a very high cap fills boxes and can slow the game.</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_scrap_stock_cap">
+        <text>Scrap Metal Stock Cap</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_scrap_stock_cap_desc">
+        <text>Scrap metal a camp stores before a scrapper stops salvaging (Stockpile Full). Needs the Supply Surplus Cap on. Each unit is its own item, so a very high cap fills boxes and can slow the game.</text>
     </string>
     <string id="ui_mcm_stalker_camp_builder_realtime_job_hunter_interval_min">
         <text>Hunter Job Cycle (minutes)</text>

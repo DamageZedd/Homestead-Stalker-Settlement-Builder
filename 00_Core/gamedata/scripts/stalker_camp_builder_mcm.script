@@ -50,6 +50,8 @@ function on_mcm_load()
             { id = "title", type = "slide", link = "ui_options_slider_player", text = "ui_mcm_stalker_camp_builder_title", size = {512, 50}, spacing = 20 },
             { id = "jobs_header", type = "desc", text = "ui_mcm_stalker_camp_builder_jobs_desc", clr = {255, 255, 255, 255} },
             { id = "enable_surplus_cap", type = "check", val = 1, def = true },
+            { id = "wood_stock_cap",  type = "track", val = 2, min = 20, max = 500, step = 10, def = 100 },
+            { id = "scrap_stock_cap", type = "track", val = 2, min = 20, max = 500, step = 10, def = 100 },
             { id = "realtime_job_cook_interval_min",     type = "track", val = 2, min = 1,   max = 60,  step = 1, def = 15 },
             { id = "realtime_job_craft_interval_min",    type = "track", val = 2, min = 2,   max = 120, step = 1, def = 20 },
             { id = "realtime_job_repair_interval_min",   type = "track", val = 2, min = 1,   max = 90,  step = 1, def = 15 },
