@@ -2182,7 +2182,15 @@ function stalker_camp_builder.process_cook_job(npc_id, hub_id, camp, survivor, b
     local consumed_vodka = nil
     local cooking_method = game.translate_string("st_cooking_at_campfire")
 
+    -- the meal is known only after the meat and the cooking tier are: a canned ration and a cooked
+    -- steak go to different boxes (a canned-food box takes only the first), so both need room
     local dest_test_box = sb.get_auto_sort_target_box and sb.get_auto_sort_target_box(camp, hub_id, "tushonka", false, 0.5)
+    if dest_test_box then
+        local steak = first_existing_section("meat_boar", "meat_dog", "meat_flesh")
+        if steak and steak ~= "tushonka" then
+            if not sb.get_auto_sort_target_box(camp, hub_id, steak, false, 0.5) then dest_test_box = nil end
+        end
+    end
     if not dest_test_box then
         if survivor then survivor.shortfall_reason = "Storage Full" end
         return false
@@ -2583,13 +2591,19 @@ function stalker_camp_builder.process_medic_job(npc_id, box_id, camp, survivor)
 
         local out_sec = target_sec
         if i == 1 and has_infirmary and sb.find_and_consume_item then
-            if sb.find_and_consume_item(hub_id, camp, is_mutant_trophy, nil) then
-                out_sec = first_existing_section("stimpack", "medkit_army", "medkit_scientic", "medkit")
+            -- the trophy is spent only when the upgraded medkit has a box to go to
+            local up_sec = first_existing_section("stimpack", "medkit_army", "medkit_scientic", "medkit")
+            local up_room = not (sb.deposit_item_to_camp and camp and hub_id) or output_box(camp, hub_id, up_sec) ~= nil
+            if up_room and sb.find_and_consume_item(hub_id, camp, is_mutant_trophy, nil) then
+                out_sec = up_sec
             end
         end
 
         if sb.deposit_item_to_camp and camp and hub_id then
-            if not sb.deposit_item_to_camp(hub_id, camp, out_sec) then break end
+            -- the inputs are spent: if the upgraded medkit does not fit, the plain one still pays for them
+            local stored = sb.deposit_item_to_camp(hub_id, camp, out_sec)
+            if not stored and out_sec ~= target_sec then stored = sb.deposit_item_to_camp(hub_id, camp, target_sec) end
+            if not stored then break end
             deposited_med = deposited_med + 1
         else
             alife():create(out_sec, box_pos, box_lvid, box_gvi, target_box_id)

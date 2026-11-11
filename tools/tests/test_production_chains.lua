@@ -563,6 +563,51 @@ do
     sb.deposit_item_to_camp = real_deposit
 end
 
+-- Chain 11: the Medic's upgraded medkit has no room: the trophy is kept and the plain medkit is stored
+do
+    local real_box, real_deposit = sb.get_auto_sort_target_box, sb.deposit_item_to_camp
+    sb.get_auto_sort_target_box = function(_, _, sec)
+        if sec == "stimpack" then return nil end
+        return 1
+    end
+    reset_env({ "vodka", "vodka", "vodka", "vodka", "bandage", "mutant_part_boar_leg" })
+    local camp = { hub_id = 1, structures = { [14] = "medstation" }, survivors = {} }
+    local surv = { name = "Medic", job = "medic", tier = 2, medic_order = "medkit" }
+    eq(sb.process_medic_job(104, 1, camp, surv), true, "Chain 11: medic job succeeded")
+    eq(count_sec("mutant_part_boar_leg"), 1, "Chain 11: trophy kept when the stimpack has no box")
+    eq(count_sec("stimpack"), 0, "Chain 11: no stimpack")
+    eq(count_sec("medkit"), 1, "Chain 11: plain medkit stored")
+
+    -- the box check passes but the deposit of the stimpack fails: the plain medkit still pays for the inputs
+    sb.get_auto_sort_target_box = real_box
+    sb.deposit_item_to_camp = function(h, c, sec)
+        if sec == "stimpack" then return nil end
+        return real_deposit(h, c, sec)
+    end
+    reset_env({ "vodka", "vodka", "vodka", "vodka", "bandage", "mutant_part_boar_leg" })
+    eq(sb.process_medic_job(104, 1, camp, surv), true, "Chain 11: deposit fallback succeeded")
+    eq(count_sec("medkit"), 1, "Chain 11: plain medkit stored when the stimpack deposit fails")
+    eq(count_sec("vodka"), 0, "Chain 11: inputs went into the medkit")
+    sb.deposit_item_to_camp = real_deposit
+end
+
+-- Chain 12: the Cook checks room for a cooked steak as well as a canned ration before using up fuel and meat
+do
+    local real_box = sb.get_auto_sort_target_box
+    sb.get_auto_sort_target_box = function(_, _, sec)
+        if sec == "tushonka" then return 1 end   -- only the canned-food box has room
+        return nil
+    end
+    reset_env({ "mutant_part_boar_chop", "charcoal" })
+    local camp = { hub_id = 1, structures = { [10] = "stove", [1] = "fridge" }, survivors = {} }
+    local surv = { name = "Cook", job = "cook", tier = 2, cook_mode = "tier2" }
+    eq(sb.process_cook_job(103, 1, camp, surv, 1), false, "Chain 12: cook refuses with no room for a steak")
+    eq(count_sec("mutant_part_boar_chop"), 1, "Chain 12: meat kept")
+    eq(count_sec("charcoal"), 1, "Chain 12: fuel kept")
+    eq(surv.shortfall_reason, "Storage Full", "Chain 12: reason shown")
+    sb.get_auto_sort_target_box = real_box
+end
+
 if fails > 0 then
     print(string.format("%d/%d checks FAILED", fails, checks))
     os.exit(1)
