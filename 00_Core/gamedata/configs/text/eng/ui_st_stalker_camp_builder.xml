@@ -2996,6 +2996,12 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="ui_mcm_stalker_camp_builder_needs_guard_penalty_desc">
         <text>While a camp is starving its guards count for less in the camp's defense, which raises the raid chance.</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_production_penalty">
+        <text>Starving Production Slowdown</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_production_penalty_desc">
+        <text>While a settlement is starving, all working settlers produce at half speed (cycle intervals are doubled).</text>
+    </string>
     <string id="ui_mcm_stalker_camp_builder_needs_desertion">
         <text>Shortages Can Drive Settlers Away</text>
     </string>

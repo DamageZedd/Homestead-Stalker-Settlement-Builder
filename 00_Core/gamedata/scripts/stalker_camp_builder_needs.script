@@ -217,6 +217,9 @@ function sb.needs_happiness_delta(camp)
     return n.penalty
 end
 
+-- defined below; needs_process reads it, so it is declared before it
+local flag_on
+
 -- the settlers' daily round for one camp; called in place of the old one-ration loop
 function sb.needs_process(hub_id, camp)
     if not (camp and camp.survivors) then return end
@@ -342,7 +345,7 @@ end
 local HUNGRY_EXEMPT_JOB = { farmer = true, hunter = true, cook = true, scavenge = true, scavenger = true, woodcutter = true }
 local GUARD_MULT = 0.6
 
-local function flag_on(until_sec)
+function flag_on(until_sec)
     return until_sec ~= nil and sb.game_sec() < until_sec
 end
 
@@ -413,6 +416,15 @@ function sb.needs_guard_mult(camp)
     local n = live_needs(camp)
     if n and (n.tier or 0) >= 3 then return GUARD_MULT end
     return 1
+end
+
+-- production slowdown from needs: settlers work at 0.5x speed (double cycle interval) while starving
+function sb.needs_is_starving(survivor, camp)
+    if not sb.needs_enabled_now() then return false end
+    if sb.cfg and sb.cfg.needs_production_penalty == false then return false end
+    if survivor and flag_on(survivor.needs_starving_until) then return true end
+    local n = live_needs(camp)
+    return n and (n.tier or 0) >= 3
 end
 
 -- the MCM switch that stops a food or water shortage from driving settlers away

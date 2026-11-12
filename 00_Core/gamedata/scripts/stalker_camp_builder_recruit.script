@@ -1001,21 +1001,7 @@ function stalker_camp_builder.recruit_npc_to_camp(actor, npc, hub_id)
                 restored_xp = s.paused_xp or 0
                 restored_tier = s.paused_tier or 0
                 if s.paused_job_progress and s.paused_job_progress > 0 then
-                    local rt_interval = 300
-                    if     restored_job == "cook"     then rt_interval = sb.cfg.realtime_job_cook_interval
-                    elseif restored_job == "craft"    then rt_interval = sb.cfg.realtime_job_craft_interval
-                    elseif restored_job == "repair"   then rt_interval = sb.cfg.realtime_job_repair_interval
-                    elseif restored_job == "scavenge" then rt_interval = sb.cfg.realtime_job_scavenge_interval
-                    elseif restored_job == "medic"    then rt_interval = sb.cfg.medic_job_interval or (sb.defaults and sb.defaults.medic_job_interval) or 1500
-                    elseif restored_job == "electrician" then rt_interval = sb.cfg.electrician_job_interval or (sb.defaults and sb.defaults.electrician_job_interval) or 900
-                    elseif restored_job == "chemist"     then rt_interval = sb.cfg.realtime_job_chemist_interval or (sb.defaults and sb.defaults.realtime_job_chemist_interval) or 1200
-                    elseif restored_job == "hunter"   then rt_interval = sb.cfg.realtime_job_hunter_interval
-                    elseif restored_job == "woodcutter" then rt_interval = sb.cfg.realtime_job_woodcutter_interval or (sb.defaults and sb.defaults.realtime_job_woodcutter_interval) or 1200
-                    elseif restored_job == "brewer" then rt_interval = sb.cfg.realtime_job_brewer_interval or (sb.defaults and sb.defaults.realtime_job_brewer_interval) or 1200
-                    elseif restored_job == "farmer" then rt_interval = sb.cfg.realtime_job_farmer_interval or (sb.defaults and sb.defaults.realtime_job_farmer_interval) or 1200
-                    elseif restored_job == "trader" then rt_interval = sb.cfg.realtime_job_trader_interval or (sb.defaults and sb.defaults.realtime_job_trader_interval) or 900
-                    elseif restored_job == "scrapper" then rt_interval = sb.cfg.realtime_job_scrapper_interval or (sb.defaults and sb.defaults.realtime_job_scrapper_interval) or 1200
-                    end
+                    local rt_interval = (sb.get_job_rt_interval and sb.get_job_rt_interval(restored_job, s, search_camp)) or 300
                     -- get_job_progress measures against the time-of-day adjusted interval, so restore with the same one
                     local rt_tod = sb.get_time_of_day_mult and sb.get_time_of_day_mult(restored_job) or 1.0
                     rt_interval = (rt_interval or 300) / (rt_tod > 0 and rt_tod or 1.0)

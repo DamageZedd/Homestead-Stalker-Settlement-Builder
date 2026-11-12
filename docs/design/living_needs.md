@@ -183,3 +183,11 @@ Nothing can be play-tested here; every phase ends with a short in-game checklist
 - Desertion: new MCM `needs_desertion`; when off, a shortage-driven penalty blocks the below-20 desertion roll. A warning toast (once per 2 game days) appears when happiness is under 30 with an active penalty.
 - New MCM options: `needs_job_refusal`, `needs_guard_penalty`, `needs_desertion` (all default on, effective only with the master toggle).
 - Not done: production at half rate while starving (listed in section 4), the Stores sub-panel, medical/ammo (phase 5). The unused string `st_homestead_needs_tier_1` is kept for a future "Thin" tier.
+
+## 15. Implementation status (phase 5 done, not play-tested)
+
+- Water pump free water fix: `camp_has_pump(camp)` properly supplies free drinking water to settlers when an operational water pump is present, without consuming bottled water flasks.
+- Medical care & wounded treatment: wounded settlers and raiders convalescing from raids or hazards now work at 50% speed (`get_job_rt_interval` interval doubled). Storage bandages and medkits (`needs_is_med`) are automatically drawn during living needs rounds (`needs_round`) to treat injuries and clear convalescence timers (`st_homestead_needs_med_treated`).
+- Medical gap penalty: harboring wounded settlers without medical supplies in storage incurs a `-10` happiness penalty (`PENALTY_MEDICAL_GAP`) with warning alert `st_homestead_needs_medical_gap`.
+- Guard ammo consumption during raids: guards consume ammo boxes (`needs_is_ammo`) during defense raids (`needs_process_guard_ammo`). If camp ammo supplies are insufficient, guard defense rating scales to 50% and issues an ammo deficit alert (`st_homestead_needs_ammo_shortage`).
+- New MCM options: `needs_medical` and `needs_ammo` (under Jobs & Needs).

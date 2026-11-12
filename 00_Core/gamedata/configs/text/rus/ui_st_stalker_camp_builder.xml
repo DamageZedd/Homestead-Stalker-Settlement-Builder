@@ -2909,6 +2909,12 @@
     <string id="ui_mcm_stalker_camp_builder_needs_guard_penalty_desc">
         <text>В голодающем лагере охранники дают меньше очков защиты, что повышает риск налетов.</text>
     </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_production_penalty">
+        <text>Замедление работы при голоде</text>
+    </string>
+    <string id="ui_mcm_stalker_camp_builder_needs_production_penalty_desc">
+        <text>В голодающем лагере все работающие поселенцы трудятся вдвое медленнее (интервал рабочих циклов удваивается).</text>
+    </string>
     <string id="ui_mcm_stalker_camp_builder_needs_desertion">
         <text>Нехватка провизии вызывает дезертирство</text>
     </string>

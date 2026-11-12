@@ -192,7 +192,7 @@ local function is_market_stall_box(camp, box_id)
 end
 
 -- real-time job cycle interval (in seconds) for a job, or nil when the job has no cycle
-function stalker_camp_builder.get_job_rt_interval(job, survivor)
+function stalker_camp_builder.get_job_rt_interval(job, survivor, camp)
     local sb = stalker_camp_builder
     local base = nil
     if job == "cook" then base = sb.cfg.realtime_job_cook_interval
@@ -211,10 +211,20 @@ function stalker_camp_builder.get_job_rt_interval(job, survivor)
         if survivor and survivor.on_expedition then return nil end
         base = sb.cfg.realtime_job_scavenge_interval or (sb.defaults and sb.defaults.realtime_job_scavenge_interval) or 900
     end
-    if base and survivor and sb.needs_is_wounded and sb.needs_is_wounded(survivor) then
-        return base * 2.0
+    if not base then return nil end
+    local mult = 1.0
+    if survivor and sb.needs_is_wounded and sb.needs_is_wounded(survivor) then
+        mult = mult * 2.0
     end
-    return base
+    if not camp and survivor and sb.settler_lookup then
+        local s_id = survivor.npc_id or survivor.id
+        local lk = s_id and sb.settler_lookup[s_id]
+        if lk and lk.camp then camp = lk.camp end
+    end
+    if sb.needs_is_starving and sb.needs_is_starving(survivor, camp) then
+        mult = mult * 2.0
+    end
+    return base * mult
 end
 
 -- restore a survivor's saved cycle progress (`paused_job_progress` in [0, 1]) when returning to `job`
@@ -339,8 +349,11 @@ function stalker_camp_builder.set_survivor_job(npc_id, job)
                         camp = camp,
                         survivor = surv,
                     }
-                    sb.settler_lookup[matched_id] = entry
-                    if id_num then sb.settler_lookup[id_num] = entry end
+                    local lookup_key = id_num or matched_id
+                    sb.settler_lookup[lookup_key] = entry
+                    if id_str and id_str ~= lookup_key then
+                        sb.settler_lookup[id_str] = nil
+                    end
                 end
                 camp._stats_cache_tick = nil
                 camp._stats_cache = nil
@@ -4579,26 +4592,7 @@ function stalker_camp_builder.update_camp_jobs()
                     survivor.shortfall_job = job
                 end
 
-                local rt_interval
-                if     job == "scavenge" then
-                    if survivor.on_expedition then
-                        rt_interval = nil
-                    else
-                        rt_interval = sb.cfg.realtime_job_scavenge_interval or (sb.defaults and sb.defaults.realtime_job_scavenge_interval) or 900
-                    end
-                elseif job == "hunter"   then rt_interval = sb.cfg.realtime_job_hunter_interval
-                elseif job == "craft"    then rt_interval = sb.cfg.realtime_job_craft_interval
-                elseif job == "repair"   then rt_interval = sb.cfg.realtime_job_repair_interval
-                elseif job == "cook"     then rt_interval = sb.cfg.realtime_job_cook_interval
-                elseif job == "medic"    then rt_interval = sb.cfg.medic_job_interval or (sb.defaults and sb.defaults.medic_job_interval) or 1500
-                elseif job == "electrician" then rt_interval = sb.cfg.electrician_job_interval or (sb.defaults and sb.defaults.electrician_job_interval) or 900
-                elseif job == "woodcutter" then rt_interval = sb.cfg.realtime_job_woodcutter_interval or (sb.defaults and sb.defaults.realtime_job_woodcutter_interval) or 1200
-                elseif job == "brewer"   then rt_interval = sb.cfg.realtime_job_brewer_interval or (sb.defaults and sb.defaults.realtime_job_brewer_interval) or 1200
-                elseif job == "farmer"   then rt_interval = sb.cfg.realtime_job_farmer_interval or (sb.defaults and sb.defaults.realtime_job_farmer_interval) or 1200
-                elseif job == "trader"   then rt_interval = sb.cfg.realtime_job_trader_interval or (sb.defaults and sb.defaults.realtime_job_trader_interval) or 900
-                elseif job == "scrapper" then rt_interval = sb.cfg.realtime_job_scrapper_interval or (sb.defaults and sb.defaults.realtime_job_scrapper_interval) or 1200
-                elseif job == "chemist"  then rt_interval = sb.cfg.realtime_job_chemist_interval or (sb.defaults and sb.defaults.realtime_job_chemist_interval) or 1200
-                end
+                local rt_interval = sb.get_job_rt_interval and sb.get_job_rt_interval(job, survivor, camp)
                 if not rt_interval or rt_interval <= 0 then
                     -- no cycle runs while the settler is away (companion, expedition) or has none:
                     -- the job starts a fresh one when it resumes
@@ -4946,22 +4940,7 @@ function stalker_camp_builder.get_job_progress(survivor, camp, hub_id)
         -- Not on expedition: fall through to calculate local patrol cycle progress
     end
 
-    local rt_interval
-    if     job == "cook"     then rt_interval = sb.cfg.realtime_job_cook_interval
-    elseif job == "craft"    then rt_interval = sb.cfg.realtime_job_craft_interval
-    elseif job == "repair"   then rt_interval = sb.cfg.realtime_job_repair_interval
-    elseif job == "hunter"   then rt_interval = sb.cfg.realtime_job_hunter_interval
-    elseif job == "medic"    then rt_interval = sb.cfg.medic_job_interval or (sb.defaults and sb.defaults.medic_job_interval) or 1500
-    elseif job == "electrician" then rt_interval = sb.cfg.electrician_job_interval or (sb.defaults and sb.defaults.electrician_job_interval) or 900
-    elseif job == "woodcutter" then rt_interval = sb.cfg.realtime_job_woodcutter_interval or (sb.defaults and sb.defaults.realtime_job_woodcutter_interval) or 1200
-    elseif job == "brewer"   then rt_interval = sb.cfg.realtime_job_brewer_interval or (sb.defaults and sb.defaults.realtime_job_brewer_interval) or 1200
-    elseif job == "farmer"   then rt_interval = sb.cfg.realtime_job_farmer_interval or (sb.defaults and sb.defaults.realtime_job_farmer_interval) or 1200
-    elseif job == "trader"   then rt_interval = sb.cfg.realtime_job_trader_interval or (sb.defaults and sb.defaults.realtime_job_trader_interval) or 900
-    elseif job == "scrapper" then rt_interval = sb.cfg.realtime_job_scrapper_interval or (sb.defaults and sb.defaults.realtime_job_scrapper_interval) or 1200
-    elseif job == "chemist"  then rt_interval = sb.cfg.realtime_job_chemist_interval or (sb.defaults and sb.defaults.realtime_job_chemist_interval) or 1200
-    elseif job == "scavenge" then rt_interval = sb.cfg.realtime_job_scavenge_interval or (sb.defaults and sb.defaults.realtime_job_scavenge_interval) or 900
-    else return nil  -- idle / guard have no cycle to display
-    end
+    local rt_interval = sb.get_job_rt_interval and sb.get_job_rt_interval(job, survivor, camp)
     if not rt_interval or rt_interval <= 0 then return 0 end
 
     local tg = time_global()
@@ -5029,22 +5008,7 @@ function stalker_camp_builder.get_job_time_remaining(survivor, camp, hub_id)
         -- Not on expedition: fall through to calculate local patrol time remaining
     end
 
-    local rt_interval
-    if     job == "cook"     then rt_interval = sb.cfg.realtime_job_cook_interval
-    elseif job == "craft"    then rt_interval = sb.cfg.realtime_job_craft_interval
-    elseif job == "repair"   then rt_interval = sb.cfg.realtime_job_repair_interval
-    elseif job == "hunter"   then rt_interval = sb.cfg.realtime_job_hunter_interval
-    elseif job == "medic"    then rt_interval = sb.cfg.medic_job_interval or (sb.defaults and sb.defaults.medic_job_interval) or 1500
-    elseif job == "electrician" then rt_interval = sb.cfg.electrician_job_interval or (sb.defaults and sb.defaults.electrician_job_interval) or 900
-    elseif job == "woodcutter" then rt_interval = sb.cfg.realtime_job_woodcutter_interval or (sb.defaults and sb.defaults.realtime_job_woodcutter_interval) or 1200
-    elseif job == "brewer"   then rt_interval = sb.cfg.realtime_job_brewer_interval or (sb.defaults and sb.defaults.realtime_job_brewer_interval) or 1200
-    elseif job == "farmer"   then rt_interval = sb.cfg.realtime_job_farmer_interval or (sb.defaults and sb.defaults.realtime_job_farmer_interval) or 1200
-    elseif job == "trader"   then rt_interval = sb.cfg.realtime_job_trader_interval or (sb.defaults and sb.defaults.realtime_job_trader_interval) or 900
-    elseif job == "scrapper" then rt_interval = sb.cfg.realtime_job_scrapper_interval or (sb.defaults and sb.defaults.realtime_job_scrapper_interval) or 1200
-    elseif job == "chemist"  then rt_interval = sb.cfg.realtime_job_chemist_interval or (sb.defaults and sb.defaults.realtime_job_chemist_interval) or 1200
-    elseif job == "scavenge" then rt_interval = sb.cfg.realtime_job_scavenge_interval or (sb.defaults and sb.defaults.realtime_job_scavenge_interval) or 900
-    else return nil
-    end
+    local rt_interval = sb.get_job_rt_interval and sb.get_job_rt_interval(job, survivor, camp)
     if not rt_interval or rt_interval <= 0 then return 0 end
 
     local tod_mult = sb.get_time_of_day_mult and sb.get_time_of_day_mult(job) or 1.0

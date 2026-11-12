@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Starving settlements work at half speed**: while a settlement is starving, every working settler's job cycle takes twice as long (four times for a wounded settler). New MCM option Starving Production Slowdown (on by default).
 - **Medic and Cook no longer lose their inputs on a full box**: the Medic spent the mutant trophy before checking the upgraded medkit had a box, and lost the vodka and bandage too if it did not fit (it now keeps the trophy, and falls back to the plain medkit). The Cook checked room only for a canned ration, then burned fuel and meat for a steak that had nowhere to go (it now checks both).
 - **Turrets fire at the hostile they can see**: a target scan reset the sight timer of the target being tracked whenever any hostile was visible, so a turret aimed at an enemy behind cover never gave it up and never fired at a visible one farther away. A visible hostile now also replaces a target the turret has lost sight of.
 - **Alarms ignore your own settlers and companions**: a raid reputation loss or faction change can make them read "enemy", and both alarms then sounded (and the PDA alarm sent a combat tip) at your residents walking past. They now skip them, as the turrets already did.

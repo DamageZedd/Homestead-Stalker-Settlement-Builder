@@ -948,6 +948,7 @@ local defaults = {
     needs_catchup_cap = 1,            -- Most rounds a long sleep or wait may cost; 1 is the old behaviour.
     needs_job_refusal = true,         -- A settler who went without food or water will not work until fed.
     needs_guard_penalty = true,       -- Starving guards count for less (x0.6) in the camp's defense.
+    needs_production_penalty = true,  -- Starving settlers work at half speed (double cycle interval).
     needs_desertion = true,           -- Settlers may leave over a food or water shortage (the usual low-morale rule).
     needs_variety_bonus = true,       -- A varied diet (three food classes in three days) adds a little morale.
     needs_medical = true,             -- Wounded settlers consume medical supplies to heal; medical gap costs morale.

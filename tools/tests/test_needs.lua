@@ -211,5 +211,34 @@ eq(ammo_in_box, 0, "ammo box empty now")
 def_mult = sb.needs_process_guard_ammo(1, test_c, 4)
 eq(def_mult, 0.5, "4 guards with 0 ammo boxes: 0.5 defense mult")
 
+-- starving check
+now = 1000
+local surv_starving = { needs_starving_until = 1500 }
+local surv_normal = {}
+local camp_starving = { needs = { tier = 3, until_sec = 2000 } }
+local camp_short = { needs = { tier = 2, until_sec = 2000 } }
+eq(sb.needs_is_starving(surv_starving, nil), true, "survivor starving until")
+eq(sb.needs_is_starving(surv_normal, camp_starving), true, "camp starving tier 3")
+eq(sb.needs_is_starving(surv_normal, camp_short), false, "camp tier 2 not starving")
+
+sb.cfg.needs_production_penalty = false
+eq(sb.needs_is_starving(surv_starving, camp_starving), false, "penalty off in mcm")
+sb.cfg.needs_production_penalty = true
+
+-- test get_job_rt_interval scaling
+sb.cfg.realtime_job_cook_interval = 900
+vector = vector or function() return { x = 0, y = 0, z = 0 } end
+dofile("00_Core/gamedata/scripts/stalker_camp_builder_jobs.script")
+eq(sb.get_job_rt_interval("cook", surv_normal, camp_short), 900, "cook normal interval")
+eq(sb.get_job_rt_interval("cook", surv_w, camp_short), 1800, "cook wounded interval x2")
+eq(sb.get_job_rt_interval("cook", surv_normal, camp_starving), 1800, "cook starving interval x2")
+eq(sb.get_job_rt_interval("cook", surv_w, camp_starving), 3600, "cook wounded + starving interval x4")
+
+-- regression: needs_process called flag_on before its local was declared (a nil global), so the
+-- needs round errored for every camp with settlers
+db = db or {}
+local np_ok, np_err = pcall(sb.needs_process, 1, { hub_id = 1, needs = { last_round_sec = now - 86400 * 10, round = 0, short_rounds = 0 }, survivors = { [7] = { name = "A", job = "cook", wounded_until = 2000 } } })
+eq(np_ok, true, "needs_process runs for a camp with settlers (" .. tostring(np_err) .. ")")
+
 print(fails == 0 and "all needs tests passed" or (fails .. " FAILED"))
 os.exit(fails == 0 and 0 or 1)
