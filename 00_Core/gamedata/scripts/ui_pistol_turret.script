@@ -238,6 +238,8 @@ end
 
 function UIPistolTurret:TestAndShow(obj_id)
     self.pistol_turret_id = obj_id
+    self._last_mag_count = nil
+    self._last_channel = nil
     self:Initialize()
     self:ShowDialog(true)
     Register_UI("UIPistolTurret", "ui_sleep_dialog")
@@ -254,6 +256,11 @@ function UIPistolTurret:Update()
     if wrapper.get_channel then
         channel = wrapper:get_channel()
     end
+    if self._last_mag_count == mag_count and self._last_channel == channel then
+        return
+    end
+    self._last_mag_count = mag_count
+    self._last_channel = channel
     self.ammo_amount:SetText(
         gc("st_ammo_amount") .. ": " .. tostring(mag_count) .. "/40\\n - " .. gc("st_turret_channel") .. ": " .. channel_to_text(channel)
     )

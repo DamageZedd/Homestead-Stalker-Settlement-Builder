@@ -608,6 +608,193 @@ do
     sb.get_auto_sort_target_box = real_box
 end
 
+-- Chain 13 (BUG 4): Cook rolls back fuel, vodka, water & meat on output failure, and refunds potatoes on canning failure
+;(function()
+    local real_deposit = sb.deposit_item_to_camp
+    local put_back = {}
+    sb.deposit_item_to_camp = function(h, c, sec, is_y, tier, cond, parts, uses)
+        if sec == "meat_boar_a" or sec == "meat_boar_b" or sec == "meat_boar" or sec == "tushonka" then
+            return nil
+        end
+        put_back[#put_back + 1] = { sec = sec, uses = uses }
+        return real_deposit(h, c, sec)
+    end
+    reset_env({ "charcoal", "vodka", "mutant_part_boar_chop" })
+    local camp = { hub_id = 1, structures = { [10] = "stove", [1] = "fridge" }, survivors = {} }
+    local cook = { name = "Cook", job = "cook", tier = 3, cook_mode = "tier3" }
+    eq(sb.process_cook_job(103, 1, camp, cook, 1), false, "Chain 13a: cook fails when storage rejects output")
+    eq(cook.shortfall_reason, "Storage Full", "Chain 13a: shortfall reason")
+    eq(count_sec("charcoal"), 1, "Chain 13a: charcoal refunded")
+    eq(count_sec("vodka"), 1, "Chain 13a: vodka refunded")
+    eq(count_sec("mutant_part_boar_chop"), 1, "Chain 13a: raw meat refunded")
+    for i, p in ipairs(put_back) do
+        eq(p.uses, 1, "Chain 13a: refund " .. i .. " uses=1")
+    end
+
+    -- Canning failure refunds both consumed potatoes while keeping the cooked meal
+    sb.deposit_item_to_camp = function(h, c, sec, is_y, tier, cond, parts, uses)
+        if sec == "tushonka" or sec == "conserva" then return nil end
+        return real_deposit(h, c, sec)
+    end
+    reset_env({
+        "charcoal", "water_drink", "mutant_part_boar_chop",
+        "homestead_potato", "homestead_potato", "homestead_potato", "homestead_potato",
+        "homestead_potato", "homestead_potato", "homestead_potato",
+    })
+    cook = { name = "Cook", job = "cook", tier = 2, cook_mode = "tier2" }
+    eq(sb.process_cook_job(103, 1, camp, cook, 1), true, "Chain 13b: cook meal succeeds even when canning box is full")
+    eq(count_sec("homestead_potato"), 7, "Chain 13b: all 7 potatoes refunded after canning deposit failure")
+    sb.deposit_item_to_camp = real_deposit
+end)()
+
+-- Chain 14 (BUG 4): Medic refunds inputs on mid-unit ethanol failure and total deposit failure
+;(function()
+    local real_deposit = sb.deposit_item_to_camp
+    local put_back = {}
+    sb.deposit_item_to_camp = function(h, c, sec, _, _, _, _, uses)
+        if sec == "medkit" or sec == "stimpack" then return nil end
+        put_back[#put_back + 1] = { sec = sec, uses = uses }
+        return real_deposit(h, c, sec)
+    end
+    reset_env({ "bandage", "vodka", "vodka", "vodka", "vodka" })
+    local camp = { hub_id = 1, structures = { [14] = "medstation" }, survivors = {} }
+    local med = { name = "Medic", job = "medic", tier = 0, medic_order = "medkit" }
+    eq(sb.process_medic_job(104, 1, camp, med), false, "Chain 14a: medic fails when storage full")
+    eq(med.shortfall_reason, "Storage Full", "Chain 14a: medic shortfall")
+    eq(#put_back, 5, "Chain 14a: bandage + 4 vodka uses refunded on deposit failure")
+    for i, p in ipairs(put_back) do
+        eq(p.uses, 1, "Chain 14a: put-back " .. i .. " uses=1")
+    end
+
+    -- Mid-unit failure: bandage consumed + 1 vodka consumed before 2nd vodka consume fails
+    put_back = {}
+    local real_consume = sb.camp_consume_item
+    local eth_calls = 0
+    sb.camp_consume_item = function(h, c, pred)
+        if pred("vodka") then
+            eth_calls = eth_calls + 1
+            if eth_calls >= 2 then return nil end
+        end
+        return real_consume(h, c, pred)
+    end
+    reset_env({ "bandage", "vodka", "vodka", "vodka", "vodka" })
+    eq(sb.process_medic_job(104, 1, camp, med), false, "Chain 14b: mid-unit ethanol shortfall aborts")
+    eq(#put_back, 2, "Chain 14b: bandage and partial vodka refunded mid-unit")
+    eq(count_sec("bandage"), 1, "Chain 14b: bandage back in storage")
+    eq(count_sec("vodka"), 4, "Chain 14b: all 4 vodka intact after mid-unit refund")
+    sb.camp_consume_item = real_consume
+    sb.deposit_item_to_camp = real_deposit
+end)()
+
+-- Chain 15 (BUG 4): Scrapper preserves ruined gear on storage full, pauses when capped & cannot refine, and refunds refining inputs
+;(function()
+    local real_deposit = sb.deposit_item_to_camp
+    local real_release = _G.alife_release
+    local released_ids = {}
+    _G.alife_release = function(se)
+        released_ids[se.id] = true
+        return real_release(se)
+    end
+    sb.deposit_item_to_camp = function() return nil end
+    reset_env({ "wpn_ak74" })
+    camp_inv[1].cond = 0.20
+    local camp = { hub_id = 1, structures = { [11] = "workbench" }, survivors = {} }
+    local sc = { name = "Scrapper", job = "scrapper", tier = 0, has_tools = true }
+    eq(sb.process_scrapper_job(107, 1, camp, sc, 1), false, "Chain 15a: scrapper fails when storage rejects scrap/fasteners")
+    eq(released_ids[camp_inv[1].id], nil, "Chain 15a: ruined weapon NOT released before deposit succeeds")
+    sb.deposit_item_to_camp = real_deposit
+    _G.alife_release = real_release
+
+    -- Capped scrap + tools/salvage_table WITHOUT refining mats must pause (not false-active)
+    local items = {}
+    for _ = 1, 40 do items[#items + 1] = "prt_i_scrap" end
+    reset_env(items)
+    local camp_t = { hub_id = 1, structures = { [11] = "salvage_table" }, survivors = {} }
+    local st = { name = "Scrapper", job = "scrapper", tier = 0, has_tools = true }
+    local p, r = sb._calc_job_paused_status(st, camp_t, 1, nil)
+    eq(p, true, "Chain 15b: capped scrapper with salvage_table but no refine mats is paused")
+    eq(r, "Stockpile Full", "Chain 15b: pause reason Stockpile Full")
+
+    -- Refining deposit failure refunds 2 scrap + 1 fastener
+    for _ = 1, 5 do items[#items + 1] = "prt_i_fasteners" end
+    reset_env(items)
+    sb.deposit_item_to_camp = function(h, c, sec, ...)
+        if sec == "prt_i_copper" then return nil end
+        return real_deposit(h, c, sec, ...)
+    end
+    eq(sb.process_scrapper_job(107, 1, camp_t, st, 1), false, "Chain 15c: returns false when copper deposit fails")
+    eq(count_sec("prt_i_scrap"), 40, "Chain 15c: 2 scrap refunded after copper deposit fail")
+    eq(count_sec("prt_i_fasteners"), 5, "Chain 15c: 1 fastener refunded after copper deposit fail")
+    sb.deposit_item_to_camp = real_deposit
+end)()
+
+-- Chain 16 (BUG 4/5): Woodcutter respects char_reserve=7 when chemist present and refunds wood on charcoal deposit fail
+;(function()
+    local real_deposit = sb.deposit_item_to_camp
+    local items = {}
+    for _ = 1, 6 do items[#items + 1] = "charcoal" end
+    for _ = 1, 6 do items[#items + 1] = "prt_i_wood" end
+    reset_env(items)
+    local camp = {
+        hub_id = 1,
+        structures = { [11] = "brewer_vat" },
+        survivors = {
+            [1] = { job = "brewer" },
+            [2] = { job = "chemist" },
+            [3] = { name = "Lumber", job = "woodcutter", woodcutter_mode = "auto", _woodcutter_alt = false },
+        },
+    }
+    eq(sb.process_woodcutter_job(106, 1, camp, camp.survivors[3], 1), true, "Chain 16a: charcoal=6 < reserve=7 still burns wood")
+    eq(count_sec("prt_i_wood"), 1, "Chain 16a: 5 wood consumed for charcoal despite wood < 10")
+
+    reset_env({ "prt_i_wood", "prt_i_wood", "prt_i_wood", "prt_i_wood", "prt_i_wood" })
+    sb.deposit_item_to_camp = function(h, c, sec, ...)
+        if sec == "charcoal" then return nil end
+        return real_deposit(h, c, sec, ...)
+    end
+    local wc = { name = "Lumber", job = "woodcutter", woodcutter_mode = "charcoal" }
+    eq(sb.process_woodcutter_job(106, 1, camp, wc, 1), false, "Chain 16b: charcoal deposit failure returns false")
+    eq(count_sec("prt_i_wood"), 5, "Chain 16b: all 5 wood scraps refunded on charcoal deposit fail")
+    sb.deposit_item_to_camp = real_deposit
+end)()
+
+-- Chain 17 (BUG 6 & PERF 3): get_job_paused_status invalidation + turret pre-filter skips non-gadget structures
+;(function()
+    local tg = 200000
+    local real_tg = _G.time_global
+    _G.time_global = function() return tg end
+    reset_env({})
+    local camp = { hub_id = 1, structures = { [10] = "stove" }, survivors = {}, _inv_rev = 1, _struct_rev = 1 }
+    local cook = { name = "Cook", job = "cook", cook_mode = "tier2" }
+    local p1 = sb.get_job_paused_status(cook, camp, 1, 10000, { food_count = 0, raw_meat_count = 0 })
+    eq(p1, true, "Chain 17a: initially paused with no meat")
+    tg = tg + 1000
+    camp._inv_rev = 2
+    local p2 = sb.get_job_paused_status(cook, camp, 1, 10000, { food_count = 0, raw_meat_count = 3 })
+    eq(p2, false, "Chain 17a: _inv_rev change invalidates paused cache within TTL")
+    camp._inv_snapshot_dirty = true
+    local p3 = sb.get_job_paused_status(cook, camp, 1, 10000, { food_count = 0, raw_meat_count = 0 })
+    eq(p3, true, "Chain 17a: _inv_snapshot_dirty invalidates paused cache within TTL")
+    _G.time_global = real_tg
+
+    -- PERF 3: turret scan must not call alife_object on non-gadget structures
+    local real_alife_obj = _G.alife_object
+    local touched_ids = {}
+    _G.alife_object = function(id)
+        touched_ids[id] = true
+        return real_alife_obj(id)
+    end
+    local camp_perf = {
+        hub_id = 1,
+        structures = { [10] = "stove", [11] = "workbench", [12] = "fridge", [13] = "bed", [99] = "gadget" },
+    }
+    sb.is_camp_supply_capped(1, camp_perf, "ammo", "auto")
+    eq(touched_ids[10], nil, "Chain 17b: stove skipped by turret pre-filter")
+    eq(touched_ids[11], nil, "Chain 17b: workbench skipped by turret pre-filter")
+    eq(touched_ids[99], true, "Chain 17b: gadget checked by turret pre-filter")
+    _G.alife_object = real_alife_obj
+end)()
+
 if fails > 0 then
     print(string.format("%d/%d checks FAILED", fails, checks))
     os.exit(1)

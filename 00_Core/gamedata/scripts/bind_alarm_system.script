@@ -19,13 +19,27 @@ local monster_classes = {
 }
 
 local ALARM_SCAN_INTERVAL = 0.15
+local STATE_SYNC_INTERVAL = 2.0
 local RAY_FLAGS = rq_target.rqtObject + rq_target.rqtStatic + rq_target.rqtObstacle
+local alarm_system_wrappers = {}
+
+local v_bone_fwd
+local v_target_center
+local v_front_dir
+local v_los_from
+local v_los_dir
 
 function toggle_alarm_system(obj_id)
     local data = hf_obj_manager.get_data(obj_id) or {}
     local is_on = data.is_on or false
+    local new_on = not is_on
 
-    hf_obj_manager.update_data(obj_id, { is_on = not is_on })
+    hf_obj_manager.update_data(obj_id, { is_on = new_on })
+    local wrp = alarm_system_wrappers[obj_id]
+    if wrp then
+        wrp.is_on = new_on
+        wrp.state_sync_t = STATE_SYNC_INTERVAL
+    end
 end
 
 --------------------------------------------------------------------------------
@@ -50,16 +64,18 @@ local function get_bone_forward(obj, bone_name)
         return nil
     end
 
-    local forward = vector()
+    v_bone_fwd = v_bone_fwd or vector()
+    local forward = v_bone_fwd
     forward:set(m.j)
     forward:normalize()
 
     return forward
 end
 
-local function get_target_center(o)
+local function get_target_center(o, out_vec)
     local p = o:position()
-    local center = vector():set(p)
+    local center = out_vec or vector()
+    center:set(p)
 
     if o:clsid() == clsid.script_stalker or o:clsid() == clsid.actor then
         center.y = center.y + 1.2
@@ -70,15 +86,20 @@ local function get_target_center(o)
     return center
 end
 
-local function is_in_front_of_bone(obj, bone_name, target_obj, min_dot)
+local function is_in_front_of_bone(obj, bone_name, target_pos_or_obj, min_dot)
     local forward = get_bone_forward(obj, bone_name)
     if not forward then
         return false
     end
 
-    local target_pos = get_target_center(target_obj)
+    local target_pos = target_pos_or_obj
+    if type(target_pos_or_obj.position) == "function" then
+        v_target_center = v_target_center or vector()
+        target_pos = get_target_center(target_pos_or_obj, v_target_center)
+    end
 
-    local dir = vector()
+    v_front_dir = v_front_dir or vector()
+    local dir = v_front_dir
     dir:set(target_pos)
     dir:sub(obj:position())
     dir:normalize()
@@ -91,10 +112,13 @@ local function has_clear_los(alarm_obj, target_obj, target_pos, rp)
         return false
     end
 
-    local from = vector()
+    v_los_from = v_los_from or vector()
+    v_los_dir = v_los_dir or vector()
+
+    local from = v_los_from
     from:set(alarm_obj:position())
 
-    local dir = vector()
+    local dir = v_los_dir
     dir:set(target_pos)
     dir:sub(from)
 
@@ -113,8 +137,14 @@ local function has_clear_los(alarm_obj, target_obj, target_pos, rp)
 
     local hit_obj = rp:get_object()
     if hit_obj then
-        local ok1, hid = pcall(function() return hit_obj:id() end)
-        local ok2, tid = pcall(function() return target_obj:id() end)
+        local ok1, hid = false, nil
+        if hit_obj.id then
+            ok1, hid = pcall(hit_obj.id, hit_obj)
+        end
+        local ok2, tid = false, nil
+        if target_obj.id then
+            ok2, tid = pcall(target_obj.id, target_obj)
+        end
         return ok1 and ok2 and hid == tid
     end
 
@@ -149,10 +179,10 @@ local function is_enemy_stalker_to_actor(o)
     local actor = db.actor
     local ok_oid, oid = pcall(o.id, o)
     local ok_aid, aid = pcall(actor.id, actor)
-    if ok_oid and ok_aid and oid == aid then
+    if not ok_oid or (ok_aid and oid == aid) then
         return false
     end
-    if ok_oid and is_own_resident(o, oid) then
+    if is_own_resident(o, oid) then
         return false
     end
 
@@ -168,40 +198,53 @@ end
 -- defense bonus for any alarm that was merely turned ON, regardless of
 -- whether it could actually see the attackers, which didn't match how
 -- the alarm item itself behaves.
+local scan_alarm_obj, scan_pos, scan_radius, scan_rp, scan_min_dot, scan_found
+
+local function alarm_scan_cb(o)
+    if scan_found then return true end
+    local cls = o:clsid()
+    -- perf: only stalkers and mutants can be targets; placed pieces and items around the alarm
+    -- are skipped before their position (a new vector each) is read
+    if cls ~= clsid.script_stalker and not monster_classes[cls] then return end
+    local opos = o:position()
+
+    if opos:distance_to(scan_pos) <= scan_radius then
+        local is_target = false
+
+        if cls == clsid.script_stalker then
+            is_target = is_enemy_stalker_to_actor(o)
+        elseif monster_classes[cls] then
+            is_target = true
+        end
+
+        if is_target and o:alive() then
+            v_target_center = v_target_center or vector()
+            local tpos = get_target_center(o, v_target_center)
+            if is_in_front_of_bone(scan_alarm_obj, "bone_led", tpos, scan_min_dot) and has_clear_los(scan_alarm_obj, o, tpos, scan_rp) then
+                scan_found = true
+                return true    -- stops the iteration
+            end
+        end
+    end
+end
+
 function alarm_has_targets(alarm_obj, radius, rp)
+    if not alarm_obj then return false end
     local pos = alarm_obj:position()
-    local min_dot = 0.2
-    local found = false
+    scan_alarm_obj = alarm_obj
+    scan_pos = pos
+    scan_radius = radius
+    scan_rp = rp
+    scan_min_dot = 0.2
+    scan_found = false
 
     -- only the objects around the alarm, not every online object in db.storage; the engine
     -- returns those whose bounding sphere reaches the radius, so the distance test stays
-    level.iterate_nearest(pos, radius, function(o)
-        local cls = o:clsid()
-        -- perf: only stalkers and mutants can be targets; placed pieces and items around the alarm
-        -- are skipped before their position (a new vector each) is read
-        if cls ~= clsid.script_stalker and not monster_classes[cls] then return end
-        local opos = o:position()
+    level.iterate_nearest(pos, radius, alarm_scan_cb)
 
-        if opos:distance_to(pos) <= radius then
-            local is_target = false
-
-            if cls == clsid.script_stalker then
-                is_target = is_enemy_stalker_to_actor(o)
-            elseif monster_classes[cls] then
-                is_target = true
-            end
-
-            if is_target and o:alive() then
-                local tpos = get_target_center(o)
-                if is_in_front_of_bone(alarm_obj, "bone_led", o, min_dot) and has_clear_los(alarm_obj, o, tpos, rp) then
-                    found = true
-                    return true    -- stops the iteration
-                end
-            end
-        end
-    end)
-
-    return found
+    local res = scan_found
+    scan_alarm_obj, scan_pos, scan_rp = nil, nil, nil
+    return res
 end
 
 --------------------------------------------------------------------------------
@@ -219,10 +262,18 @@ end
 function alarm_system_wrapper:__init(obj)
     super(obj)
 
+    local obj_id = self.object:id()
+    local data = hf_obj_manager.get_data(obj_id) or {}
+    self.is_on = data.is_on or false
+    self.state_sync_t = STATE_SYNC_INTERVAL
+    self.last_led_state = nil
+
     self.first_update = true
     self.scan_t = 0
     self.alarm_detected = false
     self.rp = ray_pick()
+
+    alarm_system_wrappers[obj_id] = self
 
     local snd_base = alarm_sound_base()
     self.snd_switch = sound_object(snd_base .. [[alarm_system_switch]])
@@ -238,8 +289,13 @@ function alarm_system_wrapper:update(delta)
     local dt = delta
     if dt > 1.0 then dt = dt / 1000.0 end
 
-    local data = hf_obj_manager.get_data(self.object:id()) or {}
-    local is_on = data.is_on or false
+    self.state_sync_t = (self.state_sync_t or 0) - dt
+    if self.is_on == nil or self.state_sync_t <= 0 then
+        self.state_sync_t = STATE_SYNC_INTERVAL
+        local data = hf_obj_manager.get_data(self.object:id()) or {}
+        self.is_on = data.is_on or false
+    end
+    local is_on = self.is_on or false
 
     self.scan_t = (self.scan_t or 0) - dt
     if self.scan_t <= 0 then
@@ -284,7 +340,10 @@ function alarm_system_wrapper:update(delta)
         end
     end
 
-    self.object:set_bone_visible("bone_led", is_on, false, false)
+    if self.last_led_state ~= is_on then
+        self.object:set_bone_visible("bone_led", is_on, false, false)
+        self.last_led_state = is_on
+    end
 
     self.last_state    = is_on
     self.last_detected = alarm_detected
@@ -295,6 +354,7 @@ end
 --------------------------------------------------------------------------------
 
 function alarm_system_wrapper:net_destroy()
+    alarm_system_wrappers[self.object:id()] = nil
     if self.snd_idle and self.snd_idle:playing() then
         self.snd_idle:stop()
     end

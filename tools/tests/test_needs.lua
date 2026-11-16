@@ -240,5 +240,62 @@ db = db or {}
 local np_ok, np_err = pcall(sb.needs_process, 1, { hub_id = 1, needs = { last_round_sec = now - 86400 * 10, round = 0, short_rounds = 0 }, survivors = { [7] = { name = "A", job = "cook", wounded_until = 2000 } } })
 eq(np_ok, true, "needs_process runs for a camp with settlers (" .. tostring(np_err) .. ")")
 
+-- regression: multi-round catch-up in needs_process must accumulate treated and decrement wounded_count
+local prev_find = sb.find_and_consume_item
+local prev_tip = sb.camp_send_tip
+local prev_actor = db.actor
+game = game or {}
+game.translate_string = game.translate_string or function(k) return k end
+
+local stock = { bread = 6, medkit = 1 }
+sb.find_and_consume_item = function(_, _, check_fn)
+    if stock.bread > 0 and check_fn("bread") then stock.bread = stock.bread - 1; return "bread" end
+    if stock.medkit > 0 and check_fn("medkit") then stock.medkit = stock.medkit - 1; return "medkit" end
+    return nil
+end
+local tips = {}
+db.actor = {}
+sb.camp_send_tip = function(_, text) tips[#tips + 1] = text end
+
+now = 1000 + 86400 * 10
+local catch_camp1 = {
+    hub_id = 1,
+    structures = { [10] = "water_pump" },
+    needs = { last_round_sec = now - 86400 * 3, round = 0, short_rounds = 0 },
+    survivors = {
+        [1] = { name = "W1", job = "cook", wounded_until = now + 5000 },
+    },
+}
+sb.needs_process(1, catch_camp1)
+eq(catch_camp1.survivors[1].wounded_until, nil, "catch-up clears wounded_until when treated in round 1 of 3")
+eq(catch_camp1.needs.penalty, 0, "no false medical_gap penalty on subsequent catch-up rounds after healing")
+eq(catch_camp1.needs.last_med_warn, nil, "no medical gap warning sent after settler already treated")
+
+-- partial catch-up treatment: 2 wounded, 1 medkit, due=3 -> 1 healed, 1 still wounded, unserved=1
+stock = { bread = 6, medkit = 1 }
+tips = {}
+local catch_camp2 = {
+    hub_id = 2,
+    structures = { [11] = "water_pump" },
+    needs = { last_round_sec = now - 86400 * 3, round = 0, short_rounds = 0 },
+    survivors = {
+        [1] = { name = "W1", job = "cook", wounded_until = now + 5000 },
+        [2] = { name = "W2", job = "medic", wounded_until = now + 5000 },
+    },
+}
+sb.needs_process(2, catch_camp2)
+local healed_count, still_wounded = 0, 0
+for _, sv in pairs(catch_camp2.survivors) do
+    if sv.wounded_until == nil then healed_count = healed_count + 1 else still_wounded = still_wounded + 1 end
+end
+eq(healed_count, 1, "catch-up heals 1 of 2 wounded even when last round had 0 medkits")
+eq(still_wounded, 1, "remaining wounded stays wounded")
+eq(catch_camp2.needs.penalty, -10, "medical gap penalty still applies for remaining unserved wounded")
+eq(catch_camp2.needs.last_med_warn, now, "medical gap warning recorded")
+
+sb.find_and_consume_item = prev_find
+sb.camp_send_tip = prev_tip
+db.actor = prev_actor
+
 print(fails == 0 and "all needs tests passed" or (fails .. " FAILED"))
 os.exit(fails == 0 and 0 or 1)

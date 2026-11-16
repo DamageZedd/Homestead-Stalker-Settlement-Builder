@@ -832,5 +832,104 @@ do
     eq(st_with_board.recon.stash_items, 2, "recon reports actual chest item count")
 end
 
+-- BUG 3 & BUG 9 regression tests (inner closure preserves Lua 5.1 main chunk local headroom)
+(function()
+    local NOW = 6000000
+    local RT = 1000
+    local retal_calls, callbacks = {}, {}
+    sb.game_sec = function() return NOW end
+    time_global = function() return RT * 1000 end
+    game = { translate_string = function(id) return id end }
+    level = { name = function() return "l01_escape" end, get_time_factor = function() return 10 end }
+    db = { actor = { id = function() return 1 end, give_money = function() end } }
+    local objs = {
+        [10] = { alive = true }, [11] = { alive = true }, [12] = { alive = true },
+        [50] = { alive = function() return true end },
+        [900] = { id = 900, children = {} },
+    }
+    for id in pairs(objs) do objs[id].can_switch_online = function() return false end end
+    local sim = { set_switch_online = function() end, set_switch_offline = function() end }
+    alife = function() return sim end
+    alife_object = function(id) return objs[id] end
+    alife_release = function() end
+    utils_obj = { switch_online = function() end }
+    sb.get_player_faction = function() return "actor_stalker" end
+    sb.safe_squad_members = function() return function() return nil end end
+    sb.camp_send_tip = function() end
+    sb.add_radio_feed_entry = function() end
+    sb.allow_home_squad_online = function() end
+    sb.prosper_credit = function() end
+    sb.deposit_item_to_camp = function() return true end
+    sb.queue_faction_retaliation = function(fac, hub) retal_calls[#retal_calls + 1] = { fac = fac, hub = hub } end
+
+    -- BUG 3: community_relation counts toward faction_goodwill (betrayal penalty + retaliation queue)
+    relation_registry = {
+        community_goodwill = function() return 0 end,
+        community_relation = function(f, own)
+            if f == "dolg" and own == "stalker" then return 1000 end
+            if f == "bandit" and own == "stalker" then return -2000 end
+            return 0
+        end,
+        change_community_goodwill = function() return true end,
+    }
+    sb.rival_camps = {
+        kd = { chest_id = 900, squad_id = 900, faction = "dolg", tier = 1, position = { x = 100, z = 0 }, level = "l01_escape" },
+        kb = { chest_id = 900, squad_id = 900, faction = "bandit", tier = 1, position = { x = 100, z = 0 }, level = "l01_escape" },
+    }
+    local camp = {
+        survivors = { [10] = { job = "raider", tier = 2 }, [11] = { job = "raider", tier = 2 }, [12] = { job = "guard", tier = 1 } },
+    }
+    sb.active_camps = { [7] = camp }
+    objs[7] = { position = { x = 0, z = 0 } }
+    local st_dolg = sb.raiders_outpost_status("kd", 7)
+    eq(st_dolg.friendly, true, "dolg friendly via community_relation=1000 even when personal goodwill=0")
+    eq(st_dolg.loss, 150, "betrayal penalty (60+100 capped at daily cap 150) included for faction friendly via community_relation")
+    local st_bandit = sb.raiders_outpost_status("kb", 7)
+    eq(st_bandit.friendly, false, "bandit not friendly via community_relation=-2000")
+
+    local rnd = math.random; math.random = function(n) if n then return 1 end return 0.01 end
+    eq(sb.raiders_send(7, camp, nil, "kb"), true, "send against hostile bandit camp")
+    NOW = NOW + 6 * 3600
+    sb.raiders_process(); math.random = rnd
+    eq(#retal_calls, 1, "retaliation queued when community_relation <= -1000 even with personal goodwill=0")
+    eq(retal_calls[1].fac, "bandit", "retaliation targets bandit faction")
+
+    -- BUG 9: MC offset persists across save_state/load_state with 0 settlements and resets across loads
+    RegisterScriptCallback = function(name, fn) callbacks[name] = fn end
+    on_game_start()
+    eq(type(callbacks.save_state), "function", "save_state callback registered")
+    eq(type(callbacks.load_state), "function", "load_state callback registered")
+
+    -- RealTimeZones active with 0 camps: real clock moves 20s at 10x (+200 mission s) while game clock barely moves (+2s => +198 MC.off)
+    sb.active_camps = {}
+    sb.cfg.raiders_real_time = nil
+    sb.time_factor = function() return 10 end
+    rtz_mcm = { get_config = function(k) return k == "enabled" end }
+    sb.raiders_load_state({})
+    RT = RT + 10; callbacks.actor_on_update() -- primes MC.r/MC.g at NOW
+    RT = RT + 20; NOW = NOW + 2; callbacks.actor_on_update()
+    local zero_camp_save = {}
+    sb.raiders_save_state(zero_camp_save)
+    eq(type(zero_camp_save.homestead_raiders_mc_g), "number", "save_state writes MC.g even with 0 camps")
+    near(zero_camp_save.homestead_raiders_mc_off, 198, "RTZ accumulated +198s clock offset with 0 camps")
+
+    -- Loading an older save without MC fields clears cached MC.off instead of leaking +198s
+    sb.raiders_load_state({})
+    local c_probe = { survivors = { [10] = { job = "raider", tier = 2, on_mission = 1 }, [12] = { job = "guard", tier = 1 } },
+        raider_missions = { [1] = { id = 1, state = "away", arrive_sec = NOW + 500 } } }
+    sb.format_expedition_time = function(sec) return "T" .. math.floor(sec) end
+    game.translate_string = function(id) return id .. ":%s" end
+    local lbl_clean = sb.raiders_pause_reason(c_probe.survivors[10], c_probe)
+    eq(lbl_clean:find("T500") ~= nil, true, "load_state resets stale cached MC.off on old/empty save")
+
+    -- Loading the 0-camp RTZ save restores the +198s offset cleanly
+    sb.raiders_load_state(zero_camp_save)
+    local lbl_rtz = sb.raiders_pause_reason(c_probe.survivors[10], c_probe)
+    eq(lbl_rtz:find("T302") ~= nil, true, "load_state restores MC.off for 0-camp RTZ save (500 - 198 = 302)")
+
+    sb.raiders_load_state({})
+    sb.format_expedition_time = nil; game.translate_string = function(id) return id end; rtz_mcm = nil
+end)()
+
 if fails > 0 then print("test_raiders: " .. fails .. " FAILED"); os.exit(1) end
 print("test_raiders: all passed")

@@ -220,7 +220,7 @@ function spawn_camp_raid(hub_id, camp, hub_obj, opts)
     local valid_spawn_pos, valid_spawn_lvi, valid_spawn_gvi = nil, nil, nil
 
     local ray_angles = {}
-    for i = 1, 16 do ray_angles[i] = (i - 1) * (math.pi / 8) end
+    for i = 1, 8 do ray_angles[i] = (i - 1) * (math.pi / 4) end
     for i = #ray_angles, 2, -1 do
         local j = mrandom(i)
         ray_angles[i], ray_angles[j] = ray_angles[j], ray_angles[i]
@@ -228,11 +228,12 @@ function spawn_camp_raid(hub_id, camp, hub_obj, opts)
 
     local test_p = vector()
     for _, angle in ipairs(ray_angles) do
-        for test_dist = min_spawn_dist, max_spawn_dist, 10 do
+        local ca, sa = math.cos(angle), math.sin(angle)
+        for test_dist = min_spawn_dist, max_spawn_dist, 20 do
             test_p:set(
-                hub_pos.x + test_dist * math.cos(angle),
+                hub_pos.x + test_dist * ca,
                 hub_pos.y,
-                hub_pos.z + test_dist * math.sin(angle)
+                hub_pos.z + test_dist * sa
             )
             local test_lvi, actual_p = stalker_camp_builder.get_ground_vertex_and_pos(test_p, hub_pos.y, 10.0)
             if test_lvi and actual_p and actual_p:distance_to(hub_pos) >= (boundary + 5) then
@@ -250,7 +251,7 @@ function spawn_camp_raid(hub_id, camp, hub_obj, opts)
     end
 
     if not valid_spawn_pos then
-        return
+        return false
     end
 
     local spawn_pos = valid_spawn_pos
@@ -409,8 +410,8 @@ function spawn_camp_raid(hub_id, camp, hub_obj, opts)
                     has_alarm = true
 
                     if bind_alarm_system and bind_alarm_system.toggle_alarm_system then
-                        local data = hf_obj_manager.get_data(id)
-                        if data and not data.is_on then
+                        local data = hf_obj_manager and hf_obj_manager.get_data and hf_obj_manager.get_data(id)
+                        if not (data and data.is_on) then
                             bind_alarm_system.toggle_alarm_system(id)
                         end
                     end
@@ -423,7 +424,9 @@ function spawn_camp_raid(hub_id, camp, hub_obj, opts)
                 snd:play_at_pos(db.actor, alarm_pos)
             end
         end
+        return true
     end
+    return false
 end
 
 -- has_active_alarm -- does this camp have a switched-on alarm siren
@@ -444,26 +447,14 @@ end
 
 function process_camp_raids()
     local current_sec = stalker_camp_builder.game_sec()
-
-    if not last_raid_game_sec then
-        last_raid_game_sec = current_sec
-        return
-    end
-
-    local elapsed = current_sec - last_raid_game_sec
-    if elapsed < cfg.raid_cooldown then
-        check_completed_raids()
-        return
-    end
-
     local player_pos = db.actor:position()
     local cur_lvl = level.name()
-    for hub_id, camp in pairs(stalker_camp_builder.active_camps) do
-        -- perf: only whether the camp has a survivor matters, not how many (no full count per camp)
-        if stalker_camp_builder.sync_timer_scale then stalker_camp_builder.sync_timer_scale(camp) end
-        local has_survivor = camp.survivors and next(camp.survivors) ~= nil
 
-        -- Pending faction retaliation strike check
+    -- Pending faction retaliation strikes bypass both the nil bootstrap and global raid_cooldown.
+    for hub_id, camp in pairs(stalker_camp_builder.active_camps) do
+        if stalker_camp_builder.sync_timer_scale then stalker_camp_builder.sync_timer_scale(camp) end
+        -- perf: only whether the camp has a survivor matters, not how many (no full count per camp)
+        local has_survivor = camp.survivors and next(camp.survivors) ~= nil
         if camp.pending_retaliation and has_survivor then
             local pret = camp.pending_retaliation
             local hub_obj = alife_object(hub_id)
@@ -472,10 +463,12 @@ function process_camp_raids()
                 local dist = hub_obj.position:distance_to(player_pos)
                 if on_same_level and dist <= cfg.event_player_dist then
                     if not camp.active_raid then
-                        camp.pending_retaliation = nil
-                        last_raid_game_sec = current_sec
-                        spawn_camp_raid(hub_id, camp, hub_obj, { faction = pret.faction, is_retaliation = true })
-                        break
+                        if spawn_camp_raid(hub_id, camp, hub_obj, { faction = pret.faction, is_retaliation = true }) then
+                            camp.pending_retaliation = nil
+                            last_raid_game_sec = current_sec
+                            check_completed_raids()
+                            return
+                        end
                     end
                 elseif (current_sec - (pret.due_sec or current_sec)) >= 86400 then
                     camp.pending_retaliation = nil
@@ -485,6 +478,22 @@ function process_camp_raids()
                 end
             end
         end
+    end
+
+    if not last_raid_game_sec then
+        last_raid_game_sec = current_sec
+        check_completed_raids()
+        return
+    end
+
+    local elapsed = current_sec - last_raid_game_sec
+    if elapsed < cfg.raid_cooldown then
+        check_completed_raids()
+        return
+    end
+
+    for hub_id, camp in pairs(stalker_camp_builder.active_camps) do
+        local has_survivor = camp.survivors and next(camp.survivors) ~= nil
 
         -- a camp gets one raid cooldown of peace after it is founded
         local is_new = camp.created_time and (current_sec - camp.created_time) < cfg.raid_cooldown
@@ -510,9 +519,10 @@ function process_camp_raids()
                         end
 
                         if math.random(100) <= raid_chance then
-                            last_raid_game_sec = current_sec
-                            spawn_camp_raid(hub_id, camp, hub_obj)
-                            break -- Process only one camp per tick
+                            if spawn_camp_raid(hub_id, camp, hub_obj) then
+                                last_raid_game_sec = current_sec
+                                break -- Process only one camp per tick
+                            end
                         end
                     end
                 end
@@ -629,40 +639,22 @@ function check_completed_raids()
             local squad = camp.active_raid.squad_id and alife_object(camp.active_raid.squad_id)
             local squad_alive = false
             if squad then
-                local has_alive = false
-                for k in stalker_camp_builder.safe_squad_members(squad) do
-                    local is_alive = false
-                    local online_obj = level.object_by_id(k.id)
-                    if online_obj then
-                        is_alive = online_obj:alive()
-                    else
-                        local sim = alife()
-                        local se_obj = k.object or (k.id and sim:object(k.id))
-                        if se_obj and se_obj:alive() then
-                            is_alive = true
-                        end
-                    end
-                    if is_alive then
-                        has_alive = true
-                        break
-                    end
-                end
-                squad_alive = has_alive
                 local alive_count = 0
+                local sim = alife()
                 for k in stalker_camp_builder.safe_squad_members(squad) do
                     local is_alive = false
                     local online_obj = level.object_by_id(k.id)
                     if online_obj then
                         is_alive = online_obj:alive()
                     else
-                        local sim2 = alife()
-                        local se_obj2 = k.object or (k.id and sim2:object(k.id))
-                        if se_obj2 and se_obj2:alive() then
+                        local se_obj = k.object or (k.id and sim and sim:object(k.id))
+                        if se_obj and se_obj:alive() then
                             is_alive = true
                         end
                     end
                     if is_alive then alive_count = alive_count + 1 end
                 end
+                squad_alive = alive_count > 0
                 raid.remaining_count = alive_count
             else
                 -- the engine releases a squad as soon as its last member dies
@@ -728,9 +720,9 @@ function stalker_camp_builder.resolve_offline_retaliation(hub_id, camp, retal_fa
         camp.happiness = math.max(0, (camp.happiness or 50) - 15)
         camp._stats_cache = nil
         if camp.survivors then
+            local hungry_until = sb.game_sec() + 86400
             for _, s in pairs(camp.survivors) do
-                s.needs_hungry_until = sb.game_sec() + 86400
-                break
+                s.needs_hungry_until = hungry_until
             end
         end
     end

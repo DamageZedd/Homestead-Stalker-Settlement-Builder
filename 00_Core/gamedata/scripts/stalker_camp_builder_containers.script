@@ -345,7 +345,7 @@ function stalker_camp_builder.safe_iterate_inventory_box(box_obj, callback)
             stalker_camp_builder.iterate_server_container(se_box, function(cid, se_item)
                 local item_obj = level and level.object_by_id and level.object_by_id(cid)
                 if item_obj then
-                    callback(nil, item_obj)
+                    return callback(nil, item_obj)
                 else
                     local dummy_item = {
                         section = function() return se_item:section_name() end,
@@ -356,7 +356,7 @@ function stalker_camp_builder.safe_iterate_inventory_box(box_obj, callback)
                             return (ok_u and u) or 1
                         end
                     }
-                    callback(nil, dummy_item)
+                    return callback(nil, dummy_item)
                 end
             end)
         end

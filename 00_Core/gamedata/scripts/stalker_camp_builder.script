@@ -391,6 +391,9 @@ function stalker_camp_builder.sync_timer_scale(camp)
             local function back(v) if type(v) == "number" and v <= now then return now - (now - v) * ratio end return v end
             sb.set_event_timers(back(raid_sec), back(event_sec))
         end
+        if sb.rescale_rival_timers then
+            sb.rescale_rival_timers(timer_scale_global, cur)
+        end
         timer_scale_global = cur
     end
 end
@@ -482,7 +485,7 @@ local function unpack_vector(v)
     return { x = v.x or 0, y = v.y or 0, z = v.z or 0 }
 end
 
-local function pack_table_vectors(tbl)
+local function pack_table_vectors(tbl, strip_transient)
     local type_ = type
     if type_(tbl) ~= "table" then return tbl end
     if tbl.__packed_vector then return tbl end  -- already packed
@@ -499,13 +502,15 @@ local function pack_table_vectors(tbl)
     end
     local result = {}
     for k, v in pairs(tbl) do
-        if type_(v) == "userdata" then
-            local packed = pack_vector(v)
-            result[k] = packed or v
-        elseif type_(v) == "table" then
-            result[k] = pack_table_vectors(v)
-        else
-            result[k] = v
+        if not (strip_transient and type_(k) == "string" and k:sub(1, 1) == "_" and k ~= "__packed_vector") then
+            if type_(v) == "userdata" then
+                local packed = pack_vector(v)
+                result[k] = packed or v
+            elseif type_(v) == "table" then
+                result[k] = pack_table_vectors(v, strip_transient)
+            else
+                result[k] = v
+            end
         end
     end
     return result
@@ -1755,7 +1760,6 @@ function get_camp_label(camp)
 end
 
 function get_recruitable_camps(npc_or_comm)
-    local list = {}
     local npc_comm = nil
     if type(npc_or_comm) == "string" then
         npc_comm = npc_or_comm
@@ -1763,61 +1767,94 @@ function get_recruitable_camps(npc_or_comm)
         npc_comm = npc_or_comm:character_community()
     end
 
-    for hub_id, camp in pairs(stalker_camp_builder.active_camps) do
+    local tg = time_global and time_global() or 0
+    local cur_lvl = level and level.name and level.name() or ""
+    local sb = stalker_camp_builder
+    local camps = sb.active_camps
+    local camp_sig = 0
+    local n_camps = 0
+    for hub_id, camp in pairs(camps) do
+        n_camps = n_camps + 1
+        local s_cnt = 0
+        if camp.survivors then
+            for _ in pairs(camp.survivors) do s_cnt = s_cnt + 1 end
+        end
+        camp_sig = camp_sig + ((tonumber(hub_id) or 0) % 997) + s_cnt * 13 + (camp._struct_rev or 0) * 19
+    end
+
+    local comm_key = npc_comm or ""
+    local rcache = sb._recruitable_cache
+    local cached = rcache and rcache[comm_key]
+    if cached and tg < cached.expires_tg and cached.lvl == cur_lvl and cached.n_camps == n_camps and cached.sig == camp_sig then
+        local out = {}
+        for i = 1, #cached.list do out[i] = cached.list[i] end
+        return out
+    end
+
+    local actor = db.actor
+    local actor_pos = actor and actor:position()
+    local sim = alife()
+    local gg = game_graph()
+    local list = {}
+
+    for hub_id, camp in pairs(camps) do
         local hub_obj = alife_object(hub_id)
         if hub_obj then
             -- the survivor cap holds independent of beds, as in recruit_npc_to_camp
             local capacity = mmin(get_camp_bed_capacity(camp), cfg.max_survivors_player_camp or 15)
             local survivor_count = 0
-            for k, v in pairs(camp.survivors) do
+            for _ in pairs(camp.survivors) do
                 survivor_count = survivor_count + 1
             end
             if survivor_count < capacity then
                 local safe = true
-                if npc_comm and stalker_camp_builder.can_settler_safely_live_in_camp then
-                    safe = stalker_camp_builder.can_settler_safely_live_in_camp(npc_comm, hub_id)
+                if npc_comm and sb.can_settler_safely_live_in_camp then
+                    safe = sb.can_settler_safely_live_in_camp(npc_comm, hub_id)
                 end
                 if safe then
-                    list[#list+1] = { hub_id = hub_id, camp = camp }
+                    local c_lvl = camp.level
+                    if (not c_lvl or c_lvl == "" or c_lvl == "unknown") and gg and sim then
+                        local gv = gg:vertex(hub_obj.m_game_vertex_id)
+                        if gv then c_lvl = sim:level_name(gv:level_id()) end
+                    end
+                    local is_same_lvl = (cur_lvl ~= "" and c_lvl and cur_lvl == c_lvl) or false
+                    local dist = 999999
+                    if is_same_lvl and actor_pos and hub_obj.position then
+                        dist = actor_pos:distance_to(hub_obj.position)
+                    end
+                    list[#list + 1] = { hub_id = hub_id, camp = camp, _same = is_same_lvl, _dist = dist }
                 end
             end
         end
     end
-    local actor = db.actor
-    local actor_pos = actor and actor:position()
-    local cur_lvl = level and level.name and level.name()
-    local sim = alife()
-    local gg = game_graph()
-
-    local function get_camp_info(item)
-        local camp = item.camp
-        local hub_obj = alife_object(item.hub_id)
-        local c_lvl = camp.level
-        if (not c_lvl or c_lvl == "" or c_lvl == "unknown") and hub_obj and gg and sim then
-            local gv = gg:vertex(hub_obj.m_game_vertex_id)
-            if gv then c_lvl = sim:level_name(gv:level_id()) end
-        end
-        local is_same_lvl = (cur_lvl and c_lvl and cur_lvl == c_lvl)
-        local dist = 999999
-        if is_same_lvl and actor_pos and hub_obj and hub_obj.position then
-            dist = actor_pos:distance_to(hub_obj.position)
-        end
-        return is_same_lvl, dist
-    end
 
     table.sort(list, function(a, b)
-        local a_same, a_dist = get_camp_info(a)
-        local b_same, b_dist = get_camp_info(b)
-        if a_same and not b_same then return true end
-        if b_same and not a_same then return false end
-        if a_same and b_same then
-            if math.abs(a_dist - b_dist) > 1.0 then
-                return a_dist < b_dist
+        if a._same and not b._same then return true end
+        if b._same and not a._same then return false end
+        if a._same and b._same then
+            if math.abs(a._dist - b._dist) > 1.0 then
+                return a._dist < b._dist
             end
         end
         return a.hub_id < b.hub_id
     end)
-    return list
+
+    for i = 1, #list do
+        list[i]._same = nil
+        list[i]._dist = nil
+    end
+
+    sb._recruitable_cache = rcache or {}
+    sb._recruitable_cache[comm_key] = {
+        list = list,
+        expires_tg = tg + 1000,
+        lvl = cur_lvl,
+        n_camps = n_camps,
+        sig = camp_sig,
+    }
+    local out = {}
+    for i = 1, #list do out[i] = list[i] end
+    return out
 end
 
 local get_smart_terrains_on_level
@@ -2890,24 +2927,6 @@ local function run_rival_npc_patrol(npc, npc_id, rival_info)
     end
 end
 
-local function refresh_settler_goodwill(npc, npc_id, my_camp, now_tg)
-    local cache = camp_npc_furniture_cache[npc_id]
-    local last_refresh = cache and cache.relation_refresh_tg or 0
-    if (now_tg - last_refresh) <= 10000 then return end
-
-    camp_npc_furniture_cache[npc_id] = cache or {}
-    camp_npc_furniture_cache[npc_id].relation_refresh_tg = now_tg
-
-    for other_id, other in pairs(my_camp.survivors) do
-        if other_id ~= npc_id and other.released_id ~= other_id then
-            local other_obj = level.object_by_id(other_id)
-            if other_obj and other_obj.alive and other_obj:alive() then
-                npc:force_set_goodwill(1000, other_obj)
-            end
-        end
-    end
-end
-
 local function handle_refugee_ai(npc, dist, hub_obj)
     if dist > 4 then
         -- the hub's vertex is under the workbench, and a refugee runs no scheme, so the sit
@@ -2982,12 +3001,13 @@ local function settler_find_struct_lvid(npc, npc_id, my_camp, my_survivor, struc
         return my_survivor.assigned_pos.lvid, nil
     end
 
+    local structures = my_camp.structures or {}
     if my_survivor then
         my_survivor.assigned_furniture = my_survivor.assigned_furniture or {}
         local assigned_id = my_survivor.assigned_furniture[struct_type_name]
         if assigned_id then
             -- the claim holds only while the camp still lists that furniture (as in get_settler_job_target)
-            local se_assigned = my_camp.structures[assigned_id] == struct_type_name and alife_object(assigned_id)
+            local se_assigned = structures[assigned_id] == struct_type_name and alife_object(assigned_id)
             if se_assigned then
                 return se_assigned.m_level_vertex_id, assigned_id
             else
@@ -2996,13 +3016,22 @@ local function settler_find_struct_lvid(npc, npc_id, my_camp, my_survivor, struc
         end
     end
 
+    local cache_key = npc_id .. "_" .. struct_type_name
+    local cached = camp_npc_furniture_cache[cache_key]
+    local now_tg = time_global()
+    local struct_rev = my_camp._struct_rev or 0
+    if cached and now_tg < cached.expires_tg and cached.rev == struct_rev then
+        return cached.lvid, cached.id
+    end
+
     local found_structs = {}
-    for struct_id, stype in pairs_(my_camp.structures) do
+    for struct_id, stype in pairs_(structures) do
         if stype == struct_type_name then
             found_structs[#found_structs + 1] = struct_id
         end
     end
 
+    local best_lvid, best_id = nil, nil
     if #found_structs > 0 then
         local assigned_to_others = {}
         for other_id, other_survivor in pairs_(my_camp.survivors or {}) do
@@ -3015,7 +3044,7 @@ local function settler_find_struct_lvid(npc, npc_id, my_camp, my_survivor, struc
         tsort(found_structs)
 
         local npc_pos = npc:position()
-        local best_lvid, best_dist, best_id = nil, math.huge, nil
+        local best_dist = math.huge
         for _, struct_id in ipairs(found_structs) do
             if not assigned_to_others[struct_id] then
                 local se_struct = alife_object(struct_id)
@@ -3041,42 +3070,12 @@ local function settler_find_struct_lvid(npc, npc_id, my_camp, my_survivor, struc
             my_survivor.assigned_furniture = my_survivor.assigned_furniture or {}
             my_survivor.assigned_furniture[struct_type_name] = best_id
         end
-
-        return best_lvid, best_id
-    end
-
-    local cache_key = npc_id .. "_" .. struct_type_name
-    local cached = camp_npc_furniture_cache[cache_key]
-    local now_tg = time_global()
-    if cached and now_tg < cached.expires_tg then
-        return cached.lvid, cached.id
-    end
-
-    for struct_id, stype in pairs_(my_camp.structures or {}) do
-        if stype == struct_type_name then
-            found_structs[#found_structs + 1] = struct_id
-        end
-    end
-
-    local found_lvid, assigned_id = nil, nil
-    if #found_structs > 0 then
-        tsort(found_structs)
-        local index = (npc_id % #found_structs) + 1
-        assigned_id = found_structs[index]
-        local se_struct = alife_object(assigned_id)
-        if se_struct then
-            found_lvid = se_struct.m_level_vertex_id
-            if my_survivor then
-                my_survivor.assigned_furniture = my_survivor.assigned_furniture or {}
-                my_survivor.assigned_furniture[struct_type_name] = assigned_id
-            end
-        end
     end
 
     camp_npc_furniture_cache[cache_key] = {
-        lvid = found_lvid, id = assigned_id, expires_tg = now_tg + 10000,
+        lvid = best_lvid, id = best_id, rev = struct_rev, expires_tg = now_tg + 10000,
     }
-    return found_lvid, assigned_id
+    return best_lvid, best_id
 end
 
 local function settler_job_target_lvid(npc, npc_id, my_camp, my_survivor, hub_obj, job_name, struct_type_name)
@@ -3423,7 +3422,6 @@ function npc_on_update(npc)
 
     local now_tg = time_global()
     if not my_survivor then my_survivor = {} end
-    refresh_settler_goodwill(npc, npc_id, my_camp, now_tg)
 
     if is_refugee then
         handle_refugee_ai(npc, dist, hub_obj)
@@ -3514,61 +3512,76 @@ function npc_on_update(npc)
     end
 
     -- IDLE WANDER: unstructured settlers scatter around the hub and pick an
-    local target_lvid
-
-    local wander_target_lvid = nil
+    local wander_rev = my_camp._struct_rev or 0
     -- the radio or piano corner is chosen for a whole idle period, not re-rolled every update
-    local wander = camp_npc_furniture_cache[npc_id] or {}
-    camp_npc_furniture_cache[npc_id] = wander
-    if now_tg > (wander.wander_pick_tg or 0) then
+    local wander = camp_npc_furniture_cache[npc_id]
+    if not wander then
+        wander = {}
+        camp_npc_furniture_cache[npc_id] = wander
+    end
+    local repick_wander = now_tg > (wander.wander_pick_tg or 0)
+    if repick_wander then
         wander.wander_pick_tg = now_tg + math.random(20000, 35000)
         wander.wander_music = math.random(100) <= 30
     end
-    if wander.wander_music then
-        for struct_id, struct_type in pairs_(my_camp.structures) do
-            if struct_type == "piano" or struct_type == "radio" then
-                local se_struct = alife_object(struct_id)
-                if se_struct then
-                    local struct_dist = se_struct.position:distance_to(hub_obj.position)
-                    if struct_dist <= (cfg.npc_leash_radius or 10) then
-                        wander_target_lvid = se_struct.m_level_vertex_id
+
+    local target_lvid
+    if not repick_wander and wander.wander_target_lvid and wander.wander_rev == wander_rev then
+        target_lvid = wander.wander_target_lvid
+    else
+        local wander_target_lvid = nil
+        if wander.wander_music and my_camp.structures then
+            for struct_id, struct_type in pairs_(my_camp.structures) do
+                if struct_type == "piano" or struct_type == "radio" then
+                    local se_struct = alife_object(struct_id)
+                    if se_struct then
+                        local struct_dist = se_struct.position:distance_to(hub_obj.position)
+                        if struct_dist <= (cfg.npc_leash_radius or 10) then
+                            wander_target_lvid = se_struct.m_level_vertex_id
+                        end
+                        break
                     end
-                    break
                 end
             end
         end
-    end
 
-    local campfire_lvid = wander_target_lvid
-    if not campfire_lvid then
-        for struct_id, struct_type in pairs_(my_camp.structures) do
-            if struct_type == "stove" then
-                local se_struct = alife_object(struct_id)
-                if se_struct then
-                    local struct_dist = se_struct.position:distance_to(hub_obj.position)
-                    if struct_dist <= (cfg.npc_leash_radius or 10) then
-                        campfire_lvid = se_struct.m_level_vertex_id
+        local campfire_lvid = wander_target_lvid
+        if not campfire_lvid and my_camp.structures then
+            for struct_id, struct_type in pairs_(my_camp.structures) do
+                if struct_type == "stove" then
+                    local se_struct = alife_object(struct_id)
+                    if se_struct then
+                        local struct_dist = se_struct.position:distance_to(hub_obj.position)
+                        if struct_dist <= (cfg.npc_leash_radius or 10) then
+                            campfire_lvid = se_struct.m_level_vertex_id
+                        end
+                        break
                     end
-                    break
                 end
             end
         end
-    end
 
-    if not campfire_lvid then
-        local slot = npc_id % 6
-        local angle_rad = math.rad(slot * 60)
-        local wander_dist = 3.0 + (npc_id % 3)
-        local scatter_pos = vector():set(
-            hub_obj.position.x + math.cos(angle_rad) * wander_dist,
-            hub_obj.position.y,
-            hub_obj.position.z + math.sin(angle_rad) * wander_dist)
-        local scatter_lvid = level.vertex_id(scatter_pos)
-        if scatter_lvid and scatter_lvid < 4294967295 then
-            campfire_lvid = scatter_lvid
+        if not campfire_lvid then
+            local slot = npc_id % 6
+            local angle_rad = math.rad(slot * 60)
+            local wander_dist = 3.0 + (npc_id % 3)
+            local scatter_pos = sb._wander_scratch_vec or (vector and vector())
+            if scatter_pos then
+                sb._wander_scratch_vec = scatter_pos
+                scatter_pos:set(
+                    hub_obj.position.x + math.cos(angle_rad) * wander_dist,
+                    hub_obj.position.y,
+                    hub_obj.position.z + math.sin(angle_rad) * wander_dist)
+                local scatter_lvid = level.vertex_id(scatter_pos)
+                if scatter_lvid and scatter_lvid < 4294967295 then
+                    campfire_lvid = scatter_lvid
+                end
+            end
         end
+        target_lvid = campfire_lvid or hub_obj.m_level_vertex_id
+        wander.wander_target_lvid = target_lvid
+        wander.wander_rev = wander_rev
     end
-    target_lvid = campfire_lvid or hub_obj.m_level_vertex_id
 
     local target_pos = level.vertex_position(target_lvid)
     local npc_dist = npc:position():distance_to(target_pos)
@@ -3714,6 +3727,7 @@ function hf_on_furniture_place(obj_id)
                 created_time = cur_sec,
                 last_raid_check_time = cur_sec
             }
+            stalker_camp_builder._recruitable_cache = nil
             refresh_settlement_map_spot(obj_id, stalker_camp_builder.active_camps[obj_id])  -- runtime camp marker, not serialized
 
             local ok_zone, se_zone = pcall(function()
@@ -3813,25 +3827,7 @@ function hf_on_before_furniture_release(obj_id)
             return
         end
         local se_hub = safe_alife_object(obj_id)
-        if stalker_camp_builder.release_legacy_camp_stash then
-            stalker_camp_builder.release_legacy_camp_stash(camp, se_hub and se_hub.position)
-        end
-        if camp.zone_id then
-            safe_deferred_release(camp.zone_id)
-            camp.zone_id = nil
-        end
-        stalker_camp_builder.release_camp_trader(camp)
-        stalker_camp_builder.end_camp_raid(camp)
-        pcall(function()
-            if level and level.map_remove_object_spot then
-                level.map_remove_object_spot(obj_id, "ui_pda2_actor_sleep_location")
-            end
-            if stalker_camp_builder.remove_all_camp_map_spots then
-                stalker_camp_builder.remove_all_camp_map_spots(obj_id)
-            end
-        end)
-        stalker_camp_builder.invalidate_scan_camp_structures_cache(obj_id)
-        stalker_camp_builder.active_camps[obj_id] = nil
+        stalker_camp_builder.teardown_camp_entry(obj_id, camp, se_hub and se_hub.position)
         pcall(function()
             if actor_menu and actor_menu.set_msg and game and game.translate_string then
                 actor_menu.set_msg(1, game.translate_string("st_hub_removed"), 3)
@@ -3983,7 +3979,7 @@ function save_state(m_data)
     end
     pcall(function()
         m_data.stalker_camp_builder_version = SAVE_STATE_VERSION
-        put("stalker_camp_builder_active_camps", function() return pack_table_vectors(stalker_camp_builder.active_camps) end)
+        put("stalker_camp_builder_active_camps", function() return pack_table_vectors(stalker_camp_builder.active_camps, true) end)
         put("stalker_camp_builder_rival_camps", function() return pack_table_vectors(stalker_camp_builder.rival_camps) end)
         local get_event_timers = stalker_camp_builder.get_event_timers
         local raid_sec, event_sec
@@ -4056,6 +4052,9 @@ function load_state(m_data)
     if stalker_camp_builder.settler_home_squad_cache then
         stalker_camp_builder.settler_home_squad_cache = {}
     end
+    stalker_camp_builder.non_settler_cache = {}
+    stalker_camp_builder._recruitable_cache = nil
+    timer_scale_global = nil
 
     -- time_global() stamps count from game launch: after a restart they lie in the future
     for hub_id, camp in pairs_(stalker_camp_builder.active_camps) do
@@ -4071,6 +4070,9 @@ function load_state(m_data)
         camp._cached_categorized_boxes = nil
         camp._cached_chest_supplies_tg = nil
         camp._stored_items_complete = nil
+        camp._stats_cache = nil
+        camp._stats_cache_tick = nil
+        camp._structures_scanned = nil
         if type_(camp.survivors) == "table" then
             for nid, surv in pairs_(camp.survivors) do
                 if type_(surv) == "table" then
@@ -4746,6 +4748,45 @@ local function rebase_all_survivor_jobs(cur_tg, cur_gsec, tf)
     end
 end
 
+function stalker_camp_builder.teardown_camp_entry(hub_id, camp, hub_pos)
+    if not hub_id then return end
+    local sb = stalker_camp_builder
+    camp = camp or (sb.active_camps and sb.active_camps[hub_id])
+    if not camp then return end
+    if sb.release_camp_residents then
+        pcall(sb.release_camp_residents, hub_id, camp)
+    end
+    if sb.release_camp_trader then
+        pcall(sb.release_camp_trader, camp)
+    end
+    if sb.release_legacy_camp_stash then
+        pcall(sb.release_legacy_camp_stash, camp, hub_pos)
+    end
+    if camp.zone_id then
+        safe_deferred_release(camp.zone_id)
+        camp.zone_id = nil
+    end
+    if sb.end_camp_raid then
+        pcall(sb.end_camp_raid, camp)
+    end
+    pcall(function()
+        if level and level.map_remove_object_spot then
+            level.map_remove_object_spot(hub_id, "ui_pda2_actor_sleep_location")
+        end
+        if sb.remove_all_camp_map_spots then
+            sb.remove_all_camp_map_spots(hub_id)
+        end
+    end)
+    if sb.invalidate_scan_camp_structures_cache then
+        sb.invalidate_scan_camp_structures_cache(hub_id)
+    end
+    if sb.invalidate_roof_cover_cache then
+        sb.invalidate_roof_cover_cache()
+    end
+    sb.active_camps[hub_id] = nil
+    sb._recruitable_cache = nil
+end
+
 local function clean_orphaned_camps(current_level)
     local to_remove = {}
     for hub_id, camp in pairs(stalker_camp_builder.active_camps) do
@@ -4756,12 +4797,7 @@ local function clean_orphaned_camps(current_level)
     for _, hub_id in ipairs(to_remove) do
         local camp = stalker_camp_builder.active_camps[hub_id]
         -- the settlers and expeditions are freed as dismantle_camp frees them, with no message or payout
-        if camp and stalker_camp_builder.release_camp_residents then
-            pcall(stalker_camp_builder.release_camp_residents, hub_id, camp)
-        end
-        level.map_remove_object_spot(hub_id, "ui_pda2_actor_sleep_location")
-        stalker_camp_builder.end_camp_raid(stalker_camp_builder.active_camps[hub_id])
-        stalker_camp_builder.active_camps[hub_id] = nil
+        stalker_camp_builder.teardown_camp_entry(hub_id, camp)
     end
 end
 
@@ -4885,6 +4921,18 @@ local function verify_and_heal_settlers()
         local hub_pos = hub_obj.position
         local stale = {}
 
+        -- an Invincible settler who died just before the save: finish respawning before checking survivors
+        -- so the newly created survivor gets anchored/pinned/healed in the pass below
+        if camp.respawning then
+            local resp_ids = {}
+            for dead_id in pairs(camp.respawning) do
+                resp_ids[#resp_ids + 1] = dead_id
+            end
+            for _, dead_id in ipairs(resp_ids) do
+                stalker_camp_builder.respawn_settler(hub_id, dead_id)
+            end
+        end
+
         -- restore_missing_settler moves a survivor to a new key, and a key added while pairs walks
         -- the table can make the walk skip others: walk the entries as they were
         local entries = {}
@@ -4927,11 +4975,6 @@ local function verify_and_heal_settlers()
         for _, npc_id in ipairs(stale) do
             camp.survivors[npc_id] = nil
             stalker_camp_builder.settler_lookup[npc_id] = nil
-        end
-
-        -- an Invincible settler who died just before the save: the respawn's time event is gone
-        for dead_id in pairs(camp.respawning or {}) do
-            stalker_camp_builder.respawn_settler(hub_id, dead_id)
         end
         end
     end
@@ -5693,70 +5736,143 @@ local DASHBOARD_CACHE_TTL_MS = 15000  -- 15 real seconds
 -- Returns: number of items actually transferred.
 function transfer_supplies(source_hub_id, target_hub_id, item_section, max_items)
     max_items = max_items or 10
-    local source_camp = stalker_camp_builder.active_camps[source_hub_id]
-    local target_camp = stalker_camp_builder.active_camps[target_hub_id]
+    if not item_section or source_hub_id == target_hub_id then return 0, "invalid_args" end
+    local sb = stalker_camp_builder
+    local source_camp = sb.active_camps[source_hub_id]
+    local target_camp = sb.active_camps[target_hub_id]
     if not source_camp or not target_camp then return 0, "no_camp" end
 
-    -- Find source chest (nearest stash to source hub)
     local source_hub_obj = alife_object(source_hub_id)
     if not source_hub_obj then return 0, "no_source_hub" end
+    local target_hub_obj = alife_object(target_hub_id)
+    if not target_hub_obj then return 0, "no_target_hub" end
+
+    -- Resolve valid containers on both camps (primary chests, hub stashes, storage boxes)
+    local src_containers = sb.get_camp_containers and sb.get_camp_containers(source_hub_id, source_camp) or {}
+    if #src_containers == 0 then return 0, "no_source_box" end
+    local dst_containers = sb.get_camp_containers and sb.get_camp_containers(target_hub_id, target_camp) or {}
+    if #dst_containers == 0 then return 0, "no_target_box" end
+
+    local src_box_set = {}
     local source_box_id = nil
-    local min_dist = 99999
-    for struct_id, struct_type in pairs(source_camp.structures or {}) do
-        if struct_type == "stash" then
-            local se = alife_object(struct_id)
-            if se then
-                local d = se.position:distance_to(source_hub_obj.position)
-                if d < min_dist then min_dist = d; source_box_id = struct_id end
-            end
+    local min_dist = math.huge
+    for _, cid in ipairs(src_containers) do
+        src_box_set[cid] = true
+        local se = alife_object(cid)
+        if se and se.position and source_hub_obj.position then
+            local d = se.position:distance_to(source_hub_obj.position)
+            if d < min_dist then min_dist = d; source_box_id = cid end
+        elseif not source_box_id then
+            source_box_id = cid
         end
     end
     if not source_box_id then return 0, "no_source_box" end
 
-    -- Find target chest
-    local target_hub_obj = alife_object(target_hub_id)
-    if not target_hub_obj then return 0, "no_target_hub" end
-    local target_box_id = nil
-    min_dist = 99999
-    for struct_id, struct_type in pairs(target_camp.structures or {}) do
-        if struct_type == "stash" then
-            local se = alife_object(struct_id)
-            if se then
-                local d = se.position:distance_to(target_hub_obj.position)
-                if d < min_dist then min_dist = d; target_box_id = struct_id end
-            end
-        end
-    end
-    if not target_box_id then return 0, "no_target_box" end
+    local ini = ini_sys or sys_ini or (system_ini and system_ini())
+    local box_sz = ini and ini:section_exist(item_section) and ini:r_float_ex(item_section, "box_size")
+    local is_ammo = ((IsItem and IsItem("ammo", item_section) ~= nil)
+        or (box_sz ~= nil and not ini:r_string_ex(item_section, "ammo_class")))
 
-    -- Find and move items
-    local transferred = 0
+    -- Snapshot candidate items (condition, uses, weapon/armor parts, ammo rounds) before moving
     local items_to_move = {}
-
-    stalker_camp_builder.camp_iterate_inventory(source_hub_id, source_camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
-        if transferred >= max_items then return true end
-        if sec == item_section then
-            items_to_move[#items_to_move+1] = item_id
-            transferred = transferred + 1
-            if transferred >= max_items then return true end
+    sb.camp_iterate_inventory(source_hub_id, source_camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
+        if #items_to_move >= max_items then return true end
+        if sec == item_section and (not cid or src_box_set[cid]) then
+            local snap_cond = cond or 1.0
+            local snap_uses = uses
+            local snap_parts = nil
+            local pend = sb.pending_item_cond and sb.pending_item_cond[item_id]
+            if type(pend) == "table" then
+                if type(pend.c) == "number" then snap_cond = pend.c end
+                if type(pend.p) == "table" then snap_parts = pend.p end
+            end
+            if not snap_parts and item_parts and item_parts.get_parts_con then
+                local ok_p, p = pcall(item_parts.get_parts_con, cl_item, item_id, false)
+                if ok_p and type(p) == "table" then snap_parts = p end
+            end
+            if not snap_parts and se_load_var then
+                local sname = se_obj and se_obj.section_name and (se_obj:section_name() .. "_" .. tostring(item_id))
+                local ok_p, p = pcall(function()
+                    return (sname and se_load_var(item_id, sname, "parts")) or se_load_var(item_id, nil, "parts")
+                end)
+                if ok_p and type(p) == "table" then snap_parts = p end
+            end
+            local snap_ammo = nil
+            if is_ammo then
+                if cl_item and cl_item.ammo_get_count then
+                    local ok_a, a = pcall(cl_item.ammo_get_count, cl_item)
+                    if ok_a and type(a) == "number" and a > 0 then snap_ammo = math.floor(a) end
+                end
+                if not snap_ammo and utils_stpk and utils_stpk.get_ammo_data and se_obj then
+                    local ok_a, ad = pcall(utils_stpk.get_ammo_data, se_obj)
+                    if ok_a and ad and type(ad.ammo_left) == "number" and ad.ammo_left > 0 then
+                        snap_ammo = math.floor(ad.ammo_left)
+                    end
+                end
+                if not snap_ammo and se_obj and se_obj.elapsed and type(se_obj.elapsed) == "number" and se_obj.elapsed > 0 then
+                    snap_ammo = math.floor(se_obj.elapsed)
+                end
+                if not snap_ammo and se_obj and se_obj.ammo_get_count then
+                    local ok_a, a = pcall(se_obj.ammo_get_count, se_obj)
+                    if ok_a and type(a) == "number" and a > 0 then snap_ammo = math.floor(a) end
+                end
+            end
+            items_to_move[#items_to_move + 1] = {
+                id = item_id,
+                box_id = cid or source_box_id,
+                cond = snap_cond,
+                uses = snap_uses,
+                parts = snap_parts,
+                ammo_elapsed = snap_ammo,
+            }
+            if #items_to_move >= max_items then return true end
         end
     end, source_box_id)
 
-    if transferred <= 0 then return 0 end
+    if #items_to_move == 0 then return 0 end
 
-    -- Actually move the items (release from source, create in target)
-    local sim = alife()
-    if not sim then return 0 end
-    local dest_se = alife_object(target_box_id)
-    if not dest_se then return 0, "no_dest_se" end
-    local pos = dest_se.position or vector()
-    local lvid = dest_se.m_level_vertex_id or 0
-    local gvi = dest_se.m_game_vertex_id or 0
-    for _, item_id in ipairs(items_to_move) do
-        local se_item = alife_object(item_id)
+    local transferred = 0
+    local dirty_src_boxes = {}
+    local cleared_pending = false
+    for _, snap in ipairs(items_to_move) do
+        local se_item = alife_object(snap.id)
         if se_item then
+            -- Deposit into target first so full target storage never drops or deletes source items
+            local dest_box_id = sb.deposit_item_to_camp and sb.deposit_item_to_camp(
+                target_hub_id, target_camp, item_section, false, 0,
+                snap.cond, snap.parts, snap.uses, false, snap.ammo_elapsed, true)
+            if not dest_box_id then
+                break
+            end
             alife_release(se_item)
-            sim:create(item_section, pos, lvid, gvi, target_box_id)
+            if sb.pending_item_cond and sb.pending_item_cond[snap.id] then
+                sb.pending_item_cond[snap.id] = nil
+                cleared_pending = true
+            end
+            if source_camp.stored_items then
+                source_camp.stored_items[snap.id] = nil
+            end
+            if snap.box_id then
+                dirty_src_boxes[snap.box_id] = true
+            end
+            transferred = transferred + 1
+        end
+    end
+
+    if cleared_pending and sb.save_pending_cond then
+        sb.save_pending_cond()
+    end
+
+    if transferred > 0 then
+        if sb.invalidate_server_container_cache then
+            for bid in pairs(dirty_src_boxes) do
+                sb.invalidate_server_container_cache(bid)
+            end
+        end
+        if sb.invalidate_camp_inventory_cache then
+            sb.invalidate_camp_inventory_cache(source_hub_id, source_camp)
+        else
+            source_camp._inv_rev = (source_camp._inv_rev or 0) + 1
         end
     end
 
@@ -5846,28 +5962,40 @@ function server_entity_on_unregister(se_obj, type_name)
         or (time_global and stalker_camp_builder.homestead_teardown_grace_until and time_global() < stalker_camp_builder.homestead_teardown_grace_until)
 
     if in_teardown_grace then
+        local obj_id = se_obj.id
+        if obj_id and stalker_camp_builder.non_settler_cache then
+            stalker_camp_builder.non_settler_cache[obj_id] = nil
+        end
+        if obj_id and stalker_camp_builder.rival_camps then
+            for _, rcamp in pairs(stalker_camp_builder.rival_camps) do
+                if type(rcamp) == "table" and rcamp.chest_id == obj_id then
+                    local m_data = alife_storage_manager and alife_storage_manager.get_state and alife_storage_manager.get_state()
+                    if m_data and m_data.player_created_stashes then
+                        m_data.player_created_stashes[obj_id] = nil
+                    end
+                    if treasure_manager then
+                        if treasure_manager.release_stash_by_id then
+                            pcall(treasure_manager.release_stash_by_id, obj_id)
+                        end
+                        if treasure_manager.caches then
+                            treasure_manager.caches[obj_id] = nil
+                        end
+                    end
+                    break
+                end
+            end
+        end
         return
     end
 
     local obj_id = se_obj.id
+    if stalker_camp_builder.non_settler_cache then
+        stalker_camp_builder.non_settler_cache[obj_id] = nil
+    end
 
     if stalker_camp_builder.active_camps[obj_id] then
         local camp = stalker_camp_builder.active_camps[obj_id]
-        if stalker_camp_builder.release_legacy_camp_stash then
-            stalker_camp_builder.release_legacy_camp_stash(camp, se_obj.position)
-        end
-        pcall(function()
-            if level and level.map_remove_object_spot then
-                level.map_remove_object_spot(obj_id, "ui_pda2_actor_sleep_location")
-            end
-        end)
-        if camp.zone_id then
-            local zid = camp.zone_id
-            safe_deferred_release(zid)
-        end
-        stalker_camp_builder.invalidate_scan_camp_structures_cache(obj_id)
-        stalker_camp_builder.end_camp_raid(camp)
-        stalker_camp_builder.active_camps[obj_id] = nil
+        stalker_camp_builder.teardown_camp_entry(obj_id, camp, se_obj.position)
         pcall(function()
             if actor_menu and actor_menu.set_msg and game and game.translate_string then
                 actor_menu.set_msg(1, game.translate_string("st_hub_removed"), 3)
@@ -5935,8 +6063,13 @@ function server_entity_on_unregister(se_obj, type_name)
                     end
                     -- the outpost registered its chest as a treasure cache (G.A.M.M.A. mode keeps the
                     -- entry): a later object with this id must not read as a stash
-                    if treasure_manager and treasure_manager.caches then
-                        treasure_manager.caches[obj_id] = nil
+                    if treasure_manager then
+                        if treasure_manager.release_stash_by_id then
+                            pcall(treasure_manager.release_stash_by_id, obj_id)
+                        end
+                        if treasure_manager.caches then
+                            treasure_manager.caches[obj_id] = nil
+                        end
                     end
                     stalker_camp_builder.rival_camps[key] = nil
                     break
@@ -5984,16 +6117,22 @@ function stalker_camp_builder.respawn_settler(hub_id, dead_id)
     local hub_obj = alife_object(hub_id)
     local sim = alife()
     if not (hub_obj and sim and survivor) then return end
-    local new_se = sim:create(entry.sec or "sim_default_stalker_0", hub_obj.position,
+    local new_sec = entry.sec or "sim_default_stalker_0"
+    local new_se = sim:create(new_sec, hub_obj.position,
         hub_obj.m_level_vertex_id, hub_obj.m_game_vertex_id)
     if not new_se then return end
     local new_id = new_se.id
     survivor.job = survivor.job or "idle"
+    survivor.section = new_sec
     -- a new NPC, without the old one's rank, reputation or weapon: prosper_tick gives them again
     survivor.standing_tier, survivor.standing_queue, survivor.bought_tier = nil, nil, nil
     camp.survivors[new_id] = survivor
     -- the record is kept in camp.respawning until the new settler holds it
     camp.respawning[dead_id] = nil
+    if stalker_camp_builder.non_settler_cache then
+        stalker_camp_builder.non_settler_cache[new_id] = nil
+    end
+    stalker_camp_builder._recruitable_cache = nil
     stalker_camp_builder.settler_lookup[new_id] = {
         hub_id = hub_id,
         camp = camp,
@@ -6007,12 +6146,24 @@ function stalker_camp_builder.respawn_settler(hub_id, dead_id)
     end
     survivor.pending_community = stalker_camp_builder.get_camp_dominant_faction
         and stalker_camp_builder.get_camp_dominant_faction(camp) or nil
-    camp_send_tip(db.actor, string.format(game.translate_string("st_event_settler_recovered"), survivor.name or "unknown"), nil, "general_stalker", 10000)
+    if stalker_camp_builder.anchor_settler_to_smart then
+        pcall(stalker_camp_builder.anchor_settler_to_smart, new_id, camp.level, hub_obj.position)
+    end
+    if stalker_camp_builder.pin_settler_home_squad then
+        pcall(stalker_camp_builder.pin_settler_home_squad, new_id)
+    end
+    set_camp_settler_relations(hub_id, new_id, true)
+    if db and db.actor then
+        camp_send_tip(db.actor, string.format(game.translate_string("st_event_settler_recovered"), survivor.name or "unknown"), nil, "general_stalker", 10000)
+    end
 end
 
 function npc_on_death_callback(npc, who)
     if not npc then return end
     local npc_id = npc:id()
+    if stalker_camp_builder.non_settler_cache then
+        stalker_camp_builder.non_settler_cache[npc_id] = nil
+    end
     -- a dead refugee doesn't move on: its entry would pass to whatever gets the id next
     if stalker_camp_builder.refugee_ids then
         stalker_camp_builder.refugee_ids[npc_id] = nil
@@ -6371,8 +6522,11 @@ function on_game_start()
             if lookup then
                 return not lookup.is_rival and not lookup.is_refugee
             end
-            if sb.non_settler_cache and sb.non_settler_cache[npc_id] then
-                return false
+            if sb.non_settler_cache then
+                local ns = sb.non_settler_cache[npc_id]
+                if type(ns) == "number" and (time_global and time_global() or 0) < ns then
+                    return false
+                end
             end
             local camps = sb.active_camps
             if camps and next(camps) then
@@ -6383,7 +6537,7 @@ function on_game_start()
                 end
             end
             if sb.non_settler_cache then
-                sb.non_settler_cache[npc_id] = true
+                sb.non_settler_cache[npc_id] = (time_global and time_global() or 0) + 5000
             end
             return false
         end

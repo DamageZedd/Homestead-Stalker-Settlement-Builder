@@ -5,6 +5,11 @@
 -- camp_find_item, camp_consume_item, camp_count_item.
 -- Everything else it needs is reached through stalker_camp_builder (sb.*).
 
+local pairs_ = pairs
+local ipairs_ = ipairs
+local pcall_ = pcall
+local type_ = type
+
 -- get_camp_containers -- gathers all valid container IDs belonging to a camp
 function stalker_camp_builder.get_camp_containers(hub_id, camp)
     local sb = stalker_camp_builder
@@ -183,13 +188,16 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
     local containers = sb.get_camp_containers(hub_id, camp) or {}
     if #containers == 0 then return false end
 
+    local ini = ini_sys or sys_ini or (system_ini and system_ini())
+    local level_obj = level and level.object_by_id
+
     local box_order = {}
     local seen_boxes = {}
     if priority_box_id and sb.is_valid_camp_box(priority_box_id, hub_id, camp) then
         box_order[1] = priority_box_id
         seen_boxes[priority_box_id] = true
     end
-    for _, bid in ipairs(containers) do
+    for _, bid in ipairs_(containers) do
         if not seen_boxes[bid] then
             seen_boxes[bid] = true
             box_order[#box_order + 1] = bid
@@ -197,11 +205,13 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
     end
 
     local any_box_online = false
-    for _, cid in ipairs(box_order) do
-        local box_obj = level and level.object_by_id and level.object_by_id(cid)
-        if box_obj and box_obj.iterate_inventory_box then
-            any_box_online = true
-            break
+    if level_obj then
+        for _, cid in ipairs_(box_order) do
+            local box_obj = level_obj(cid)
+            if box_obj and box_obj.iterate_inventory_box then
+                any_box_online = true
+                break
+            end
         end
     end
 
@@ -210,10 +220,10 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
         -- Perf: the stale-entry sweep after each box used to walk every stored item of the camp
         -- (boxes x items per scan). Index the stored ids by their box once per scan instead; the
         -- sweep below still reads each entry's current box_id, so the result is the same.
-        local stored_by_box = camp and camp.stored_items and stored_ids_by_box(camp.stored_items)
+        local stored_by_box = camp and camp.stored_items and next(camp.stored_items) and stored_ids_by_box(camp.stored_items)
         local scan_stopped = false
-        for _, cid in ipairs(box_order) do
-            local box_obj = level and level.object_by_id and level.object_by_id(cid)
+        for _, cid in ipairs_(box_order) do
+            local box_obj = level_obj and level_obj(cid)
             if box_obj and box_obj.iterate_inventory_box then
                 local stopped = false
                 local seen_in_box = {}
@@ -227,31 +237,41 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                     local se_obj = sim:object(iid)
                     if not se_obj then return end
                     -- uses owed from offline consumption come off before the uses are read
-                    if type(cl_item) == "userdata" and sb.pending_item_cond and sb.pending_item_cond[iid] then
+                    if type_(cl_item) == "userdata" and sb.pending_item_cond and sb.pending_item_cond[iid] then
                         sb.apply_pending_cond(cl_item)
                     end
                     local sec = cl_item:section()
                     local cond = 1.0
                     -- Perf: method + self straight into pcall (was a new closure per item, twice)
-                    local ok_c, c = pcall(cl_item.condition, cl_item)
+                    local ok_c, c = pcall_(cl_item.condition, cl_item)
                     if ok_c and c then cond = c end
                     local uses = 1
-                    local ok_u, u = pcall(cl_item.get_remaining_uses, cl_item)
+                    local ok_u, u = pcall_(cl_item.get_remaining_uses, cl_item)
                     if ok_u and u then uses = u end
                     local item_w = (cl_item.weight and cl_item:weight()) or nil
-                    local ini = ini_sys or sys_ini or system_ini()
                     local max_u = (cl_item.get_max_uses and cl_item:get_max_uses()) or (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or uses
 
                     if camp and camp.stored_items then
-                        camp.stored_items[iid] = {
-                            sec = sec,
-                            cond = cond,
-                            uses = uses,
-                            max_uses = max_u,
-                            box_id = cid,
-                            weight = item_w,
-                            verified = true
-                        }
+                        local entry = camp.stored_items[iid]
+                        if entry then
+                            entry.sec = sec
+                            entry.cond = cond
+                            entry.uses = uses
+                            entry.max_uses = max_u
+                            entry.box_id = cid
+                            entry.weight = item_w
+                            entry.verified = true
+                        else
+                            camp.stored_items[iid] = {
+                                sec = sec,
+                                cond = cond,
+                                uses = uses,
+                                max_uses = max_u,
+                                box_id = cid,
+                                weight = item_w,
+                                verified = true
+                            }
+                        end
                     end
 
                     local stop = callback(iid, sec, cond, uses, se_obj, cid, cl_item)
@@ -262,7 +282,7 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                 end)
                 if camp and camp.stored_items then
                     local stored_items = camp.stored_items
-                    for _, stored_iid in ipairs(stored_by_box and stored_by_box[cid] or NO_IDS) do
+                    for _, stored_iid in ipairs_(stored_by_box and stored_by_box[cid] or NO_IDS) do
                         local stored_it = stored_items[stored_iid]
                         if stored_it and stored_it.box_id == cid and not seen_in_box[stored_iid] then
                             -- the listing misses what a stopped scan never reached, and what was spawned
@@ -284,25 +304,35 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
                     if not (child_id and se_item) then return end
                     local sec = se_item:section_name()
                     local seen = camp and camp.stored_items and camp.stored_items[child_id]
+                    local same_sec = seen and seen.sec == sec
                     -- server items export no condition: keep the one recorded for this item
-                    local cond = (seen and seen.sec == sec and seen.cond) or se_item.condition or 1.0
-                    local ini = ini_sys or sys_ini or system_ini()
-                    local max_u = (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or 1
+                    local cond = (same_sec and seen.cond) or se_item.condition or 1.0
+                    local max_u_entry = (same_sec and seen.max_uses) or (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or 1
                     -- server items export no uses: an item with no record counts as one use, not all of them
-                    local uses = (seen and seen.sec == sec and seen.uses) or 1
+                    local uses = (same_sec and seen.uses) or 1
 
                     if camp and camp.stored_items then
-                        local same_sec = seen and seen.sec == sec
-                        local max_u_entry = (same_sec and seen.max_uses) or max_u
-                        camp.stored_items[child_id] = {
-                            sec = sec,
-                            cond = cond,
-                            uses = uses,
-                            max_uses = max_u_entry,
-                            box_id = cid,
-                            weight = (same_sec and seen.weight) or nil,
-                            verified = (same_sec and seen.verified) or false
-                        }
+                        local w_entry = (same_sec and seen.weight) or nil
+                        local v_entry = (same_sec and seen.verified) or false
+                        if seen then
+                            seen.sec = sec
+                            seen.cond = cond
+                            seen.uses = uses
+                            seen.max_uses = max_u_entry
+                            seen.box_id = cid
+                            seen.weight = w_entry
+                            seen.verified = v_entry
+                        else
+                            camp.stored_items[child_id] = {
+                                sec = sec,
+                                cond = cond,
+                                uses = uses,
+                                max_uses = max_u_entry,
+                                box_id = cid,
+                                weight = w_entry,
+                                verified = v_entry
+                            }
+                        end
                     end
 
                     local stop = callback(child_id, sec, cond, uses, se_item, cid, nil)
@@ -326,44 +356,79 @@ function stalker_camp_builder.camp_iterate_inventory(hub_id, camp, callback, pri
         if camp then
             camp.stored_items = camp.stored_items or {}
             if not camp._stored_items_complete then
-                for _, cid in ipairs(box_order) do
+                for _, cid in ipairs_(box_order) do
                     sb.iterate_server_container(cid, function(child_id, se_item)
                         if child_id and se_item then
                             local sec = se_item:section_name()
                             local seen = camp.stored_items and camp.stored_items[child_id]
+                            local same_sec = seen and seen.sec == sec
                             -- server items export no condition: keep the one recorded for this item
-                            local cond = (seen and seen.sec == sec and seen.cond) or se_item.condition or 1.0
-                            local ini = ini_sys or sys_ini or system_ini()
+                            local cond = (same_sec and seen.cond) or se_item.condition or 1.0
                             local max_u = (ini and ini:section_exist(sec) and ini:r_float_ex(sec, "max_uses")) or 1
                             -- server items export no uses: an item with no record counts as one use, not all of them
-                            local uses = (seen and seen.sec == sec and seen.uses) or 1
-                            camp.stored_items[child_id] = {
-                                sec = sec,
-                                cond = cond,
-                                uses = uses,
-                                max_uses = max_u,
-                                box_id = cid,
-                                weight = (seen and seen.sec == sec and seen.weight) or nil,
-                                verified = (seen and seen.verified) or false
-                            }
+                            local uses = (same_sec and seen.uses) or 1
+                            local w_entry = (same_sec and seen.weight) or nil
+                            local v_entry = (seen and seen.verified) or false
+                            if seen then
+                                seen.sec = sec
+                                seen.cond = cond
+                                seen.uses = uses
+                                seen.max_uses = max_u
+                                seen.box_id = cid
+                                seen.weight = w_entry
+                                seen.verified = v_entry
+                            else
+                                camp.stored_items[child_id] = {
+                                    sec = sec,
+                                    cond = cond,
+                                    uses = uses,
+                                    max_uses = max_u,
+                                    box_id = cid,
+                                    weight = w_entry,
+                                    verified = v_entry
+                                }
+                            end
                         end
                     end)
                 end
                 camp._stored_items_complete = true
             end
 
-            for iid, it in pairs(camp.stored_items) do
+            local by_box = {}
+            local se_by_id = {}
+            for iid, it in pairs_(camp.stored_items) do
                 local se_obj = sim:object(iid)
+                local pid = se_obj and se_obj.parent_id
                 -- only what is still in one of this camp's boxes, and still the same item
-                if not se_obj or not seen_boxes[se_obj.parent_id] or se_obj:section_name() ~= it.sec then
+                if not se_obj or not seen_boxes[pid] or se_obj:section_name() ~= it.sec then
                     camp.stored_items[iid] = nil
                 else
-                    local stop = callback(iid, it.sec, it.cond or 1.0, it.uses or 1, se_obj, it.box_id, nil)
-                    if stop == true then return true end
+                    if it.box_id ~= pid then
+                        it.box_id = pid
+                    end
+                    se_by_id[iid] = se_obj
+                    local list = by_box[pid]
+                    if not list then
+                        list = {}
+                        by_box[pid] = list
+                    end
+                    list[#list + 1] = iid
+                end
+            end
+            for _, cid in ipairs_(box_order) do
+                local list = by_box[cid]
+                if list then
+                    for _, iid in ipairs_(list) do
+                        local it = camp.stored_items[iid]
+                        if it then
+                            local stop = callback(iid, it.sec, it.cond or 1.0, it.uses or 1, se_by_id[iid], cid, nil)
+                            if stop == true then return true end
+                        end
+                    end
                 end
             end
         else
-            for _, cid in ipairs(box_order) do
+            for _, cid in ipairs_(box_order) do
                 local stopped = false
                 sb.iterate_server_container(cid, function(child_id, se_item)
                     if not (child_id and se_item) then return end
@@ -399,6 +464,7 @@ function stalker_camp_builder.invalidate_camp_inventory_cache(hub_id, camp)
         camp._cached_chest_supplies_tg = nil
         camp._cached_storage_metrics_tg = nil
         camp._stored_items_complete = nil
+        camp._inv_rev = (camp._inv_rev or 0) + 1
         if camp.survivors then
             for _, s in pairs(camp.survivors) do
                 s._cached_paused_tg = nil
@@ -824,6 +890,7 @@ function stalker_camp_builder.camp_consume_item(hub_id, camp, filter_fn, priorit
             camp._cached_box_weights = nil
             camp._cached_chest_supplies_tg = nil
             camp._cached_storage_metrics_tg = nil
+            camp._inv_rev = (camp._inv_rev or 0) + 1
         end
         return sec, id, box_id
     end
@@ -835,7 +902,9 @@ function stalker_camp_builder.camp_count_item(hub_id, camp, filter_fn, stop_at_c
     local count = 0
     sb.camp_iterate_inventory(hub_id, camp, function(item_id, sec, cond, uses, se_obj, cid, cl_item)
         if filter_fn(sec, cond, uses, se_obj) then
-            count = count + 1
+            local u = uses or 1
+            if u < 1 then u = 1 end
+            count = count + u
             if stop_at_cap and count >= stop_at_cap then
                 return true
             end

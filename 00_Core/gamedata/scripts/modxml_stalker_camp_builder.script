@@ -886,6 +886,16 @@ local function mac_is_active()
     return ok and found == true
 end
 
+local function is_pda_tab_enabled()
+    if ui_mcm and ui_mcm.get then
+        local ok, value = pcall(ui_mcm.get, "stalker_camp_builder/qol_debug/enable_pda_tab")
+        if ok and value == false then
+            return false
+        end
+    end
+    return true
+end
+
 function on_xml_read()
     local ipairs_ = ipairs
     local sfind = string.find
@@ -971,7 +981,7 @@ function on_xml_read()
                     end
                 end
             end
-        elseif sfind(xml_file_name, "ui[\\/]pda_xcvb.*%.xml") then
+        elseif sfind(xml_file_name, "ui[\\/]pda_xcvb.*%.xml") and not mac_is_active() and is_pda_tab_enabled() then
             local left_cont = xml_obj:query("left_container")
             if left_cont and left_cont[1] then
                 xml_obj:setElementAttr(left_cont[1], { height = "370" })

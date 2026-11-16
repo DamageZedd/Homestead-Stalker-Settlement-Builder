@@ -187,4 +187,56 @@ perf.reset()
 perf.job_label("guard")
 eq(tr_calls, 5, "reset drops the cache")
 
+-- 01_Theme_Modern: API parity + tab/button/banner/faction checks ---------------------------
+local modern = load_module("01_Theme_Modern/gamedata/scripts/ui_stalker_camp_builder_theme.script", "ui_stalker_camp_builder_theme_modern")
+for _, fn in ipairs({ "rgb", "argb", "markup", "recolor", "texture", "faction", "faction_codes", "set_active", "banner", "short" }) do
+    eq(type(modern[fn]), "function", "modern theme exports " .. fn)
+end
+local mbr, mbg, mbb = modern.rgb("body")
+eq(modern.argb(nil), GetARGB(255, mbr, mbg, mbb), "modern argb nil role is body")
+local mdr, mdg, mdb = modern.rgb("danger")
+eq(modern.argb("danger"), GetARGB(255, mdr, mdg, mdb), "modern argb danger")
+argb_calls = 0
+for _ = 1, 100 do modern.argb("danger"); modern.argb("body") end
+eq(argb_calls, 0, "modern argb hits cache")
+
+eq(modern.faction("Duty"), modern.faction("duty"), "modern faction is case-insensitive")
+eq(modern.faction("duty") ~= nil, true, "modern faction duty exists")
+eq(modern.faction("unknown_faction"), nil, "modern faction unknown is nil")
+local mcodes = modern.faction_codes()
+for k in pairs(theme.faction_codes()) do
+    eq(type(mcodes[k]), "string", "modern faction_codes has " .. k)
+end
+
+local btn_tex
+local mock_btn = { InitTexture = function(_, t) btn_tex = t end }
+modern.set_active(mock_btn, true, "tab")
+eq(btn_tex, "ui_homestead_tab_active", "modern tab active uses tab texture")
+modern.set_active(mock_btn, false, "tab")
+eq(btn_tex, "ui_homestead_tab_inactive", "modern tab inactive uses tab texture")
+modern.set_active(mock_btn, true)
+eq(btn_tex, "ui_homestead_btn_primary", "modern btn active uses primary texture")
+modern.set_active(mock_btn, false)
+eq(btn_tex, "ui_homestead_btn_tactical", "modern btn inactive uses tactical texture")
+theme.set_active(mock_btn, true, "tab")
+eq(btn_tex, "ui_homestead_btn_on", "core theme ignores optional tab kind cleanly (on)")
+theme.set_active(mock_btn, false, "tab")
+eq(btn_tex, "ui_button_ordinary", "core theme ignores optional tab kind cleanly (off)")
+
+local ban_tex, ban_shown
+local mock_bg = {
+    InitTexture = function(_, t) ban_tex = t end,
+    Show = function(_, v) ban_shown = v end,
+}
+modern.banner(mock_bg, "threat")
+eq(ban_tex, "ui_homestead_banner_threat", "modern banner threat")
+eq(ban_shown, true, "modern banner threat shown")
+modern.banner(mock_bg, "secure")
+eq(ban_tex, "ui_homestead_banner_secure", "modern banner secure")
+modern.banner(mock_bg, "neutral")
+eq(ban_tex, "ui_homestead_banner_neutral", "modern banner neutral")
+
+eq(modern.short("Guard (Camp)"), "Guard", "modern short strips parenthetical")
+eq(modern.recolor("%c[255,180,100]Warn"), "%c[255,238,155,23]Warn", "modern recolor swaps warn")
+
 if fails == 0 then print("test_pda_perf: all passed") else print("test_pda_perf: " .. fails .. " failed"); os.exit(1) end

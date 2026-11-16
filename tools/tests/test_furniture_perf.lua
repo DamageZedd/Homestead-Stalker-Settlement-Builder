@@ -623,6 +623,50 @@ end)()
     objects[952] = nil
 end)()
 
+-- Homestead custom HF-subclass binders (stations, purifiers, market stalls, flags) are swept and
+-- recover from missed_freeze, while static inv_backpack S_INVBOXes remain excluded.
+;(function()
+    local cases = {
+        { id = 960, sec = "placeable_test_station",  bind = "homestead_station_storage.init",          expect = true  },
+        { id = 961, sec = "placeable_test_purifier", bind = "homestead_station_storage.init_purifier", expect = true  },
+        { id = 962, sec = "placeable_test_stall",    bind = "homestead_market_stall.init",             expect = true  },
+        { id = 963, sec = "placeable_test_flag",     bind = "homestead_settlement_flag.init",          expect = true  },
+        { id = 964, sec = "placeable_test_invbox",   bind = "bind_physic_object.init",                 expect = false },
+    }
+    local objs = {}
+    local saved_len = #nearby
+    for _, c in ipairs(cases) do
+        ini_data[c.sec] = { script_binding = c.bind }
+        local o = make_obj(c.id, c.sec, 1, 0, 1)
+        objects[c.id] = nil             -- simulate initial freeze_obj failing before shell ready -> missed_freeze
+        bind_hf_base.freeze_obj(c.id)
+        objects[c.id] = o
+        objs[c.id] = o
+        nearby[#nearby + 1] = o
+    end
+    local reads_before_hf = ini_reads.script_binding or 0
+    now = now + 3000; tick()
+    local reads_after_1 = ini_reads.script_binding or 0
+    now = now + 3000; tick()
+    local reads_after_2 = ini_reads.script_binding or 0
+    ok(reads_after_1 - reads_before_hf == #cases, "homestead binder script_binding read once per section")
+    ok(reads_after_2 == reads_after_1, "homestead binder script_binding cached on later sweeps")
+    for _, c in ipairs(cases) do
+        local o = objs[c.id]
+        if c.expect then
+            ok(o.shell_freezes == 1 and o.in_door == true and wrappers[c.id].is_frozen == true,
+                c.bind .. " swept, frozen and locked after missed freeze")
+        else
+            ok(o.shell_freezes == 0 and not o.in_door,
+                c.bind .. " stays excluded from homestead_lock sweep")
+        end
+        objects[c.id] = nil
+        wrappers[c.id] = nil
+        se_vars[c.id] = nil
+    end
+    while #nearby > saved_len do nearby[#nearby] = nil end
+end)()
+
 ok(errors == 0, "no lock errors after the death burst (" .. errors .. ")")
 
 print(fails == 0 and ("all furniture perf tests passed (" .. checks .. " checks)") or (fails .. " FAILED"))

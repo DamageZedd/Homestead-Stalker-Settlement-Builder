@@ -119,6 +119,8 @@ local function get_info(section)
             info = { class = "furniture" }
         end
     end
+    info.key = string.format("%s|%s|%s|%s",
+        info.class, tostring(info.w or ""), tostring(info.t or ""), info.half and "1" or "0")
     info_cache[section] = info
     return info
 end
@@ -294,7 +296,15 @@ end
 ---------------------
 -- Each socket is a local position + yaw in the target's frame and an anchor: the point on the
 -- target the player aims at to pick it. quad = any of the 4 yaws, nearest to the preview wins.
-local function sockets(held, tinfo)
+local socket_cache = {}
+
+local function info_key(info)
+    if info.key then return info.key end
+    return string.format("%s|%s|%s|%s",
+        info.class or "", tostring(info.w or ""), tostring(info.t or ""), info.half and "1" or "0")
+end
+
+local function build_sockets(held, tinfo)
     local out = {}
     local function add(px, py, pz, dyaw, ax, ay, az, quad)
         out[#out + 1] = { px = px, py = py, pz = pz, dyaw = dyaw or 0, ax = ax, ay = ay, az = az, quad = quad }
@@ -456,22 +466,48 @@ local function sockets(held, tinfo)
     return out
 end
 
+local function sockets(held, tinfo)
+    local hkey, tkey = info_key(held), info_key(tinfo)
+    local row = socket_cache[hkey]
+    if not row then
+        row = {}
+        socket_cache[hkey] = row
+    end
+    local list = row[tkey]
+    if not list then
+        list = build_sockets(held, tinfo)
+        row[tkey] = list
+    end
+    return list
+end
+
 -- best socket for a building piece: nearest anchor to the aim point within snap_radius
 local function solve_building(held, f, tinfo, hit, preview_yaw)
-    local best, best_score
+    local best_s, best_yaw, best_score
+    local rad2 = settings.radius * settings.radius
+    local cy, sy = math.cos(f.yaw), math.sin(f.yaw)
+    local px, py, pz = f.pos.x, f.pos.y, f.pos.z
+    local hx, hy, hz = hit.x, hit.y, hit.z
     for _, s in ipairs(sockets(held, tinfo)) do
-        local d = to_world(f, s.ax, s.ay, s.az):distance_to(hit)
-        if d <= settings.radius then
+        local ax = px + s.ax * cy - s.az * sy
+        local ay = py + s.ay
+        local az = pz + s.ax * sy + s.az * cy
+        local dx, dy, dz = ax - hx, ay - hy, az - hz
+        local d2 = dx * dx + dy * dy + dz * dz
+        if d2 <= rad2 then
+            local d = math.sqrt(d2)
             local yaw = f.yaw + s.dyaw
             if s.quad then yaw = quad_yaw(yaw, preview_yaw) end
             local score = d + YAW_BIAS * math.abs(wrap_angle(yaw - preview_yaw)) / math.pi
             if not best_score or score < best_score then
                 best_score = score
-                best = { pos = to_world(f, s.px, s.py, s.pz), yaw = yaw }
+                best_s = s
+                best_yaw = yaw
             end
         end
     end
-    return best
+    if not best_s then return nil end
+    return { pos = to_world(f, best_s.px, best_s.py, best_s.pz), yaw = best_yaw }
 end
 
 local function solve_furniture(held, f, tinfo, hit, preview_yaw, cam_pos)
@@ -508,11 +544,14 @@ local function solve_furniture(held, f, tinfo, hit, preview_yaw, cam_pos)
     return { pos = to_world(f, lx, top - held.bottom, lz), yaw = quad_yaw(f.yaw, preview_yaw) }
 end
 
+local hit_vec = nil
+
 -- snapped { pos, yaw } for this frame, or nil to leave HF's own transform alone
 local function solve(bbox)
     local cam_pos = device().cam_pos
-    local hit = vector()
-    hit:mad(cam_pos, device().cam_dir, level.get_target_dist())
+    hit_vec = hit_vec or vector()
+    hit_vec:mad(cam_pos, device().cam_dir, level.get_target_dist())
+    local hit = hit_vec
 
     local obj, tinfo = find_target(snap.info, hit)
     if not obj then return nil end
@@ -538,25 +577,46 @@ end
 -- collision check treats any terrain poking into the preview box as a collision, so on a slope
 -- the first foundation could not be placed. Probe the ground under the footprint and put the
 -- pivot at its highest point: the box then clears the terrain, the skirt buries the low side.
-local FIT_STEPS  = 4      -- (FIT_STEPS + 1)^2 ground probes
-local FIT_SKIRT  = 0.9    -- the ground may fall this far below the pivot before the skirt stops covering it
-local FIT_REACH  = 1.5    -- probes start this far above the aimed point; the fit never moves further than this
+local FIT_STEPS   = 4      -- (FIT_STEPS + 1)^2 ground probes
+local FIT_SKIRT   = 0.9    -- the ground may fall this far below the pivot before the skirt stops covering it
+local FIT_REACH   = 1.5    -- probes start this far above the aimed point; the fit never moves further than this
+local FIT_POS_EPS = 0.01
+local FIT_YAW_EPS = 0.005
 local fit_ray = nil
+local fit_orig = nil
+local fit_dir = nil
+local fit_cache = nil
 
 local function ground_height(x, y, z)
     fit_ray = fit_ray or demonized_geometry_ray.geometry_ray({
         ray_range = FIT_REACH * 2 + 6, contact_range = FIT_REACH * 2 + 6, flags = 2, ignore_object = db.actor })
-    local res = fit_ray:get(vector():set(x, y + FIT_REACH, z), vector():set(0, -1, 0))
+    fit_orig = fit_orig or vector()
+    fit_dir = fit_dir or vector():set(0, -1, 0)
+    fit_orig:set(x, y + FIT_REACH, z)
+    fit_dir:set(0, -1, 0)
+    local res = fit_ray:get(fit_orig, fit_dir)
     if res and res.success then return res.position.y end
 end
 
 -- fitted pivot height and whether the ground is too uneven for the skirt, or nil without ground
 local function fit_foundation(pos, yaw)
+    local c = fit_cache
+    if c and math.abs(pos.x - c.x) <= FIT_POS_EPS
+        and math.abs(pos.y - c.y) <= FIT_POS_EPS
+        and math.abs(pos.z - c.z) <= FIT_POS_EPS
+        and math.abs(wrap_angle(yaw - c.yaw)) <= FIT_YAW_EPS then
+        return c.res_y, c.uneven, c.relief
+    end
     local hi, lo
     local half = TILE / 2 - 0.05
+    local step = 2 * half / FIT_STEPS
+    local cy, sy = math.cos(yaw), math.sin(yaw)
     for i = 0, FIT_STEPS do
+        local lx = -half + step * i
         for j = 0, FIT_STEPS do
-            local wx, wz = rot_y(-half + 2 * half * i / FIT_STEPS, -half + 2 * half * j / FIT_STEPS, yaw)
+            local lz = -half + step * j
+            local wx = lx * cy - lz * sy
+            local wz = lx * sy + lz * cy
             local gy = ground_height(pos.x + wx, pos.y, pos.z + wz)
             if gy then
                 hi = hi and math.max(hi, gy) or gy
@@ -564,8 +624,15 @@ local function fit_foundation(pos, yaw)
             end
         end
     end
-    if not hi then return nil end
-    return clamp(hi, pos.y - FIT_REACH, pos.y + FIT_REACH), (hi - lo) > FIT_SKIRT, hi - lo
+    if not hi then
+        fit_cache = { x = pos.x, y = pos.y, z = pos.z, yaw = yaw, res_y = nil }
+        return nil
+    end
+    local res_y = clamp(hi, pos.y - FIT_REACH, pos.y + FIT_REACH)
+    local relief = hi - lo
+    local uneven = relief > FIT_SKIRT
+    fit_cache = { x = pos.x, y = pos.y, z = pos.z, yaw = yaw, res_y = res_y, uneven = uneven, relief = relief }
+    return res_y, uneven, relief
 end
 
 ---------------------
@@ -581,6 +648,7 @@ local function install_hooks()
         if was_idle and placeable_furniture.in_placing_state() then
             local info = get_info(section)
             snap = { section = section, info = info }
+            fit_cache = nil
             yaw_offset = 0
             if info.class == "furniture" then
                 info.corners, info.bottom = get_corners(section)
@@ -598,6 +666,7 @@ local function install_hooks()
         hf_set_state(new_state)
         if new_state == states.IDLE then
             snap = {}
+            fit_cache = nil
             last_target = nil
             yaw_offset = 0
         end

@@ -257,7 +257,7 @@ function sb.set_settler_community(npc_id, comm)
     survivor.comm = safe_comm
     survivor.pending_community = safe_comm
     local obj = level and level.object_by_id and level.object_by_id(tonumber(id))
-    if obj and obj:alive() then
+    if obj and (not IsStalker or IsStalker(obj)) and obj.alive and obj:alive() then
         if pcall(function() obj:set_character_community(comm, 0, 0) end) then
             survivor.pending_community = nil
         end
@@ -285,7 +285,7 @@ function sb.set_trader_community(hub_id, comm)
     comm = prosper_clean_community(comm)
     camp.trader_community = sb.save_safe_faction and sb.save_safe_faction(comm) or comm
     local obj = level.object_by_id(camp.active_trader_id)
-    if obj and obj:alive() then
+    if obj and (not IsStalker or IsStalker(obj)) and obj.alive and obj:alive() then
         pcall(function() obj:set_character_community(comm, 0, 0) end)
     end
     return true

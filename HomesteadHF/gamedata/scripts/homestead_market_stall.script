@@ -10,6 +10,94 @@ local function state()
     return m.market_stashes
 end
 
+local OPEN_TIMEOUT_MS = 5000
+
+local function is_teardown_grace()
+    local sb = stalker_camp_builder
+    if not sb then return false end
+    if sb.homestead_is_disconnecting then return true end
+    local grace = sb.homestead_teardown_grace_until
+    return type(grace) == "number" and time_global and time_global() < grace
+end
+
+local function is_stash_empty(box_id, se_box)
+    local box = level and level.object_by_id and level.object_by_id(box_id)
+    if box and box.iterate_inventory_box then
+        local found = false
+        box:iterate_inventory_box(function(_, item)
+            if item then found = true end
+        end, box)
+        return not found
+    end
+    local sim = alife and alife()
+    if sim and sim.get_children then
+        local empty = true
+        local ok = pcall(function()
+            for child_id in sim:get_children(se_box) do
+                local child = child_id and sim:object(child_id)
+                if child and child.parent_id == box_id then
+                    empty = false
+                    break
+                end
+            end
+        end)
+        return ok and empty
+    end
+    if _G.server_objects_registry then
+        for _, child in pairs(_G.server_objects_registry) do
+            if child and child.parent_id == box_id then
+                return false
+            end
+        end
+        return true
+    end
+    return false
+end
+
+local function release_empty_stash(box_id)
+    local se_box = box_id and alife_object and alife_object(box_id)
+    if not (se_box and se_box:section_name() == "market_stash") then
+        return true
+    end
+    if is_stash_empty(box_id, se_box) then
+        alife_release(se_box)
+    end
+    return true
+end
+
+local function on_unregister(se_obj)
+    local obj_id = se_obj and se_obj.id
+    if not obj_id or is_teardown_grace() then return end
+    local m = alife_storage_manager and alife_storage_manager.get_state and alife_storage_manager.get_state()
+    local stashes = m and m.market_stashes
+    if not stashes then return end
+
+    local box_id = stashes[obj_id]
+    if box_id then
+        stashes[obj_id] = nil
+        if RemoveTimeEvent then
+            RemoveTimeEvent("homestead_market", "open_" .. obj_id)
+        end
+        local se_box = alife_object and alife_object(box_id)
+        if se_box and se_box:section_name() == "market_stash" and is_stash_empty(box_id, se_box) then
+            if CreateTimeEvent then
+                CreateTimeEvent("homestead_market", "release_" .. box_id, 0, release_empty_stash, box_id)
+            else
+                alife_release(se_box)
+            end
+        end
+        return
+    end
+
+    if se_obj.section_name and se_obj:section_name() == "market_stash" then
+        for owner_id, sid in pairs(stashes) do
+            if sid == obj_id then
+                stashes[owner_id] = nil
+            end
+        end
+    end
+end
+
 -- id of the stall's stash, creating it when there is none yet
 function get_stash(stall_id)
     local stashes = state()
@@ -30,11 +118,8 @@ function get_stash(stall_id)
             se_box = alife():create("market_stash", pos, lvid, gvid)
         end
         if not se_box then return nil end
+        stashes[stall_id] = se_box.id
     end
-    stashes[stall_id] = se_box.id
-    -- the box must be online to be opened
-    alife():set_switch_online(se_box.id, true)
-    alife():set_switch_offline(se_box.id, false)
     return se_box.id
 end
 
@@ -46,9 +131,18 @@ function find_stash(stall_id)
     return nil
 end
 
-local function open_stash(box_id)
-    local box = box_id and level.object_by_id(box_id)
-    if not box then return false end -- not online yet: the time event repeats
+local function open_stash(box_id, deadline)
+    local se_box = box_id and alife_object and alife_object(box_id)
+    if not (se_box and se_box:section_name() == "market_stash") then
+        return true
+    end
+    local box = level.object_by_id(box_id)
+    if not box then
+        if deadline and time_global and time_global() >= deadline then
+            return true
+        end
+        return false -- not online yet: the time event repeats
+    end
     hide_hud_inventory()
     box:use(db.actor)
     return true
@@ -59,7 +153,14 @@ end
 function use_stall(stall_id)
     local box_id = get_stash(stall_id)
     if not box_id then return end
-    CreateTimeEvent("homestead_market", "open_" .. stall_id, 0, open_stash, box_id)
+    -- the box must be online to be opened
+    local sim = alife and alife()
+    if sim then
+        sim:set_switch_online(box_id, true)
+        sim:set_switch_offline(box_id, false)
+    end
+    local deadline = (time_global and time_global() or 0) + OPEN_TIMEOUT_MS
+    CreateTimeEvent("homestead_market", "open_" .. stall_id, 0, open_stash, box_id, deadline)
 end
 
 function init(obj)
@@ -70,6 +171,13 @@ class "market_stall_wrapper" (bind_hf_base.hf_binder_wrapper)
 
 function market_stall_wrapper:__init(obj)
     super(obj)
+end
+
+function market_stall_wrapper:net_destroy()
+    if self.object then
+        RemoveTimeEvent("homestead_market", "open_" .. self.object:id())
+    end
+    bind_hf_base.hf_binder_wrapper.net_destroy(self)
 end
 
 -- picking the stall up hands the goods back first
@@ -96,4 +204,8 @@ function market_stall_wrapper:pickup()
     end
     if box_id then stashes[id] = nil end
     return bind_hf_base.hf_binder_wrapper.pickup(self)
+end
+
+function on_game_start()
+    RegisterScriptCallback("server_object_on_unregister", on_unregister)
 end

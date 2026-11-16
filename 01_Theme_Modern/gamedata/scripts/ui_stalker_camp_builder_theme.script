@@ -1,0 +1,173 @@
+-- Homestead Modern Tactical UI theme palette, textures, and color helpers.
+-- Keeps full API parity with 00_Core/ui_stalker_camp_builder_theme.script while
+-- driving 01_Theme_Modern's custom tab, button, and banner textures.
+
+local pairs_ = pairs
+local tonumber_ = tonumber
+local tostring_ = tostring
+local sformat = string.format
+
+local colors = {
+    heading = { 238, 196, 112 },
+    body    = { 220, 220, 220 },
+    dim     = { 150, 150, 150 },
+    danger  = { 255, 100, 100 },
+    warn    = { 238, 155, 23  },
+    good    = { 144, 238, 144 },
+    bright  = { 255, 255, 255 },
+}
+
+local textures = {
+    button    = "ui_homestead_btn_tactical",
+    button_on = "ui_homestead_btn_primary",
+    tab       = "ui_homestead_tab_inactive",
+    tab_on    = "ui_homestead_tab_active",
+    rule      = "ui_homestead_rule",
+    banner    = "ui_homestead_banner_neutral",
+}
+
+local banners = {
+    threat  = "ui_homestead_banner_threat",
+    neutral = "ui_homestead_banner_neutral",
+    secure  = "ui_homestead_banner_secure",
+}
+
+local factions = {
+    stalker   = { 238, 196, 112 },
+    loner     = { 238, 196, 112 },
+    dolg      = { 220, 70,  70  },
+    duty      = { 220, 70,  70  },
+    freedom   = { 100, 220, 100 },
+    svoboda   = { 100, 220, 100 },
+    killer    = { 100, 180, 255 },
+    mercenary = { 100, 180, 255 },
+    csky      = { 100, 220, 235 },
+    clear_sky = { 100, 220, 235 },
+    ecolog    = { 238, 155, 23  },
+    monolith  = { 190, 120, 255 },
+    bandit    = { 180, 150, 120 },
+    renegade  = { 200, 120, 100 },
+    army      = { 140, 180, 120 },
+    military  = { 140, 180, 120 },
+    greh      = { 200, 100, 140 },
+    isg       = { 130, 170, 220 },
+    zombied   = { 140, 140, 140 },
+}
+
+local legacy_roles = {
+    ["238,196,112"] = "heading", ["238,153,26"]  = "heading", ["255,230,150"] = "heading",
+    ["220,220,220"] = "body",    ["200,200,200"] = "body",
+    ["144,238,144"] = "bright",  ["100,200,255"] = "bright",  ["180,220,255"] = "bright",
+    ["128,222,234"] = "bright",
+    ["200,255,200"] = "good",    ["100,255,100"] = "good",
+    ["255,100,100"] = "danger",  ["255,120,120"] = "danger",
+    ["255,180,100"] = "warn",    ["255,160,60"]  = "warn",
+}
+
+local argb_cache = {}
+local markup_cache = {}
+local faction_argb_cache = {}
+local faction_code_cache = nil
+
+local function c(role)
+    return colors[role] or colors.body
+end
+
+function rgb(role)
+    local v = c(role)
+    return v[1], v[2], v[3]
+end
+
+function argb(role, alpha)
+    local key = role or "body"
+    local a = tonumber_(alpha) or 255
+    if a == 255 then
+        local cached = argb_cache[key]
+        if cached then return cached end
+        local v = c(key)
+        cached = GetARGB(255, v[1], v[2], v[3])
+        argb_cache[key] = cached
+        return cached
+    end
+    local v = c(key)
+    return GetARGB(a, v[1], v[2], v[3])
+end
+
+function markup(role)
+    local key = role or "body"
+    local cached = markup_cache[key]
+    if cached then return cached end
+    local v = c(key)
+    cached = sformat("%%c[255,%d,%d,%d]", v[1], v[2], v[3])
+    markup_cache[key] = cached
+    return cached
+end
+
+local function recolor_swap(r, g, b)
+    local role = legacy_roles[r .. "," .. g .. "," .. b]
+    return role and markup(role) or nil
+end
+
+local function recolor_swap3(r, g, b)
+    return recolor_swap(r, g, b) or sformat("%%c[255,%s,%s,%s]", r, g, b)
+end
+
+function recolor(text)
+    if type(text) ~= "string" or not text:find("%c[", 1, true) then
+        return text
+    end
+    text = text:gsub("%%c%[%d+,(%d+),(%d+),(%d+)%]", recolor_swap)
+    return (text:gsub("%%c%[(%d+),(%d+),(%d+)%]", recolor_swap3))
+end
+
+function texture(role)
+    return textures[role]
+end
+
+function faction(key)
+    if type(key) ~= "string" then return nil end
+    local k = string.lower(key)
+    local cached = faction_argb_cache[k]
+    if cached ~= nil then return cached end
+    local v = factions[k]
+    if not v then return nil end
+    cached = GetARGB(255, v[1], v[2], v[3])
+    faction_argb_cache[k] = cached
+    return cached
+end
+
+function faction_codes()
+    if faction_code_cache then return faction_code_cache end
+    local out = {}
+    for k, v in pairs_(factions) do
+        out[k] = sformat("255,%d,%d,%d", v[1], v[2], v[3])
+    end
+    faction_code_cache = out
+    return out
+end
+
+function set_active(btn, on, kind)
+    if btn and btn.InitTexture then
+        if kind == "tab" then
+            btn:InitTexture(on and textures.tab_on or textures.tab)
+        else
+            btn:InitTexture(on and textures.button_on or textures.button)
+        end
+    end
+end
+
+function banner(bg, kind)
+    if not bg then return end
+    if bg.InitTexture then
+        bg:InitTexture(banners[kind] or banners.neutral)
+    end
+    if bg.Show then
+        bg:Show(true)
+    end
+end
+
+function short(text)
+    if text == nil then return "" end
+    local s = tostring_(text):gsub("%s*%b()%s*$", "")
+    return s
+end

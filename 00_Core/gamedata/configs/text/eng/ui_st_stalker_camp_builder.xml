@@ -2942,12 +2942,6 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_ui_craft_homestead">
         <text>Homestead</text>
     </string>
-    <string id="st_ui_craft_furniture">
-        <text>Hideout Furniture</text>
-    </string>
-    <string id="st_craft_furniture">
-        <text>Hideout Furniture</text>
-    </string>
     <string id="ui_mcm_stalker_camp_builder_needs_enabled">
         <text>Living Needs (Food and Water)</text>
     </string>
@@ -3664,5 +3658,8 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     </string>
     <string id="st_pda_raid_recon">
         <text>Recon Intel: %d garrison | ~%d stash items (+25%% Tactical Board)</text>
+    </string>
+    <string id="st_unknown">
+        <text>Unknown</text>
     </string>
 </string_table>

@@ -102,11 +102,24 @@ local function is_solid(sec)
     return v
 end
 
+local HF_BINDERS = {
+    "bind_hf",
+    "homestead_station_storage.",
+    "homestead_market_stall.",
+    "homestead_settlement_flag.",
+}
+
 local function is_hf_bound(sec)
     local v = hf_sec[sec]
     if v == nil then
         local bind = ini_sys:r_string_ex(sec, "script_binding") or ""
-        v = string.find(bind, "bind_hf", 1, true) ~= nil
+        v = false
+        for i = 1, #HF_BINDERS do
+            if string.find(bind, HF_BINDERS[i], 1, true) ~= nil then
+                v = true
+                break
+            end
+        end
         hf_sec[sec] = v
     end
     return v

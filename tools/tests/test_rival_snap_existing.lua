@@ -105,5 +105,29 @@ near(chest2.position.x, 3, "placed chest keeps its x")
 near(chest2.position.y, ground(3) + 0.08, "placed chest goes down to the ground")
 eq(sb.rival_camps[2].site_checked, true, "site marked checked")
 
+-- BUG 5: an online chest and its camp metadata/decor must not be moved while the chest is online
+local chest3 = se(300, "inv_box", 1, 10.08, 0)
+local decor3 = se(301, "placeable_box_wood", 2, 10.03, 0)
+sb.rival_camps[3] = {
+    level = "l01_escape", chest_id = 300, position = { x = 1, y = 10.08, z = 0 },
+    decorations = { 301 },
+    decor_sections = { [301] = "placeable_box_wood" },
+}
+online[300] = {}
+sb.snap_rival_camps_to_ground()
+near(chest3.position.y, 10.08, "online chest server position untouched")
+near(sb.rival_camps[3].position.y, 10.08, "online chest camp position untouched")
+near(decor3.position.y, 10.03, "online chest decor position untouched")
+eq(sb.rival_camps[3].snapped, nil, "online chest stays unsnapped")
+eq(sb.rival_camps[3].ground_fix_v5, nil, "online chest not marked ground_fix_v5")
+
+online[300] = nil
+sb.snap_rival_camps_to_ground()
+near(chest3.position.y, ground(1) + 0.08, "offline chest snaps on next pass")
+near(sb.rival_camps[3].position.y, ground(1) + 0.08, "offline chest updates camp position")
+near(decor3.position.y, ground(2) + 0.03, "offline chest snaps decor")
+eq(sb.rival_camps[3].snapped, true, "offline chest marked snapped")
+eq(sb.rival_camps[3].ground_fix_v5, true, "offline camp marked ground_fix_v5")
+
 if fails == 0 then print("OK") end
 os.exit(fails == 0 and 0 or 1)

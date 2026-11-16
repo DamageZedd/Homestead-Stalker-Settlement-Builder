@@ -2855,12 +2855,6 @@
     <string id="st_ui_craft_homestead">
         <text>Поселение</text>
     </string>
-    <string id="st_ui_craft_furniture">
-        <text>Мебель для убежища</text>
-    </string>
-    <string id="st_craft_furniture">
-        <text>Мебель для убежища</text>
-    </string>
     <string id="ui_mcm_stalker_camp_builder_needs_enabled">
         <text>Жизненные потребности (еда и вода)</text>
     </string>

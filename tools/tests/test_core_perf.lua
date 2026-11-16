@@ -310,14 +310,37 @@ function reference_camp_iterate_inventory(hub_id, camp, callback, priority_box_i
                 camp._stored_items_complete = true
             end
 
+            local by_box = {}
+            local se_by_id = {}
             for iid, it in pairs(camp.stored_items) do
                 local se_obj = sim:object(iid)
+                local pid = se_obj and se_obj.parent_id
                 -- only what is still in one of this camp's boxes, and still the same item
-                if not se_obj or not seen_boxes[se_obj.parent_id] or se_obj:section_name() ~= it.sec then
+                if not se_obj or not seen_boxes[pid] or se_obj:section_name() ~= it.sec then
                     camp.stored_items[iid] = nil
                 else
-                    local stop = callback(iid, it.sec, it.cond or 1.0, it.uses or 1, se_obj, it.box_id, nil)
-                    if stop == true then return true end
+                    if it.box_id ~= pid then
+                        it.box_id = pid
+                    end
+                    se_by_id[iid] = se_obj
+                    local list = by_box[pid]
+                    if not list then
+                        list = {}
+                        by_box[pid] = list
+                    end
+                    list[#list + 1] = iid
+                end
+            end
+            for _, cid in ipairs(box_order) do
+                local list = by_box[cid]
+                if list then
+                    for _, iid in ipairs(list) do
+                        local it = camp.stored_items[iid]
+                        if it then
+                            local stop = callback(iid, it.sec, it.cond or 1.0, it.uses or 1, se_by_id[iid], cid, nil)
+                            if stop == true then return true end
+                        end
+                    end
                 end
             end
         else
@@ -499,6 +522,41 @@ ok(#idx[11] == 1 and idx[11][1] == 2, "single id box")
 local n = 0
 for _ in pairs(idx) do n = n + 1 end
 ok(n == 2, "no list for an entry without box_id")
+
+-- BUG 3: offline camp_iterate_inventory visits priority_box_id first even when _stored_items_complete is true
+do
+    local sbt = stalker_camp_builder
+    local box_a, box_b = 3001, 3002
+    local se = {
+        [box_a] = { parent_id = 65535, section_name = function() return "inventory_box" end },
+        [box_b] = { parent_id = 65535, section_name = function() return "inventory_box" end },
+        [4001] = { parent_id = box_a, condition = 1.0, section_name = function() return "bread" end },
+        [4002] = { parent_id = box_b, condition = 1.0, section_name = function() return "bread" end },
+    }
+    local sim = { object = function(_, id) return se[id] end }
+    alife = function() return sim end
+    level = { object_by_id = function() return nil end }
+    ini_sys = { section_exist = function() return true end, r_float_ex = function() return nil end }
+    local off_camp = {
+        structures = {},
+        _stored_items_complete = true,
+        stored_items = {
+            [4001] = { sec = "bread", cond = 1.0, uses = 1, box_id = box_a },
+            [4002] = { sec = "bread", cond = 1.0, uses = 1, box_id = box_b },
+        },
+    }
+    sbt.active_camps = { [600] = off_camp }
+    sbt.get_camp_containers = function() return { box_a, box_b } end
+    sbt.is_valid_camp_box = function(bid) return bid == box_a or bid == box_b end
+    sbt.iterate_server_container = function() end
+    local seen_cids = {}
+    local stop_r = new_iterate(600, off_camp, function(iid, sec, cond, uses, se_o, cid)
+        seen_cids[#seen_cids + 1] = cid
+        return true
+    end, box_b)
+    ok(stop_r == true and #seen_cids == 1 and seen_cids[1] == box_b,
+        "offline camp_iterate_inventory respects priority_box_id")
+end
 
 -- optional benchmark (tools/bench_perf.lua sets BENCH): camp_iterate_inventory before vs after
 if BENCH then

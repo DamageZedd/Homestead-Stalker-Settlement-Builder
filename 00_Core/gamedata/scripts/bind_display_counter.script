@@ -1,6 +1,7 @@
 local CHANNEL_MAX = 11
 local CHANNEL_OFF = 0
 local CHANNEL_PREVIEW_TIME = 3.0
+local CHANNEL_SYNC_INTERVAL = 2.0
 local KNOB_ANIM_PREFIX = "knob_"
 local display_counter_wrappers = {}
 local DIGIT_MESH_TENS = 11
@@ -57,6 +58,8 @@ function cycle_display_counter_channel(obj_id)
     set_data(obj_id, { channel = channel })
     local wrp = display_counter_wrappers[obj_id]
     if wrp then
+        wrp.channel = channel
+        wrp.channel_sync_t = CHANNEL_SYNC_INTERVAL
         wrp:apply_channel_animation(channel)
         wrp.preview_t = CHANNEL_PREVIEW_TIME
         wrp:apply_display_for_channel(channel)
@@ -76,8 +79,13 @@ function display_counter_wrapper:__init(obj)
     local d = ensure_defaults(obj_id)
     self.snd_switch = sound_object([[alarm_system_sounds\alarm_system_switch]])
     self.preview_t = 0
+    self.channel_sync_t = CHANNEL_SYNC_INTERVAL
     display_counter_wrappers[obj_id] = self
     local channel = tonumber(d.channel) or CHANNEL_OFF
+    if channel < CHANNEL_OFF or channel > CHANNEL_MAX then
+        channel = CHANNEL_OFF
+    end
+    self.channel = channel
     self:apply_channel_animation(channel)
     self:apply_display_for_channel(channel)
 end
@@ -143,11 +151,20 @@ function display_counter_wrapper:update(delta)
 
     self.preview_t = math.max(0, (self.preview_t or 0) - dt)
 
-    local d = ensure_defaults(self.object:id())
-    local channel = tonumber(d.channel) or CHANNEL_OFF
-    if channel < CHANNEL_OFF or channel > CHANNEL_MAX then
-        channel = CHANNEL_OFF
+    self.channel_sync_t = (self.channel_sync_t or 0) - dt
+    if self.channel == nil or self.channel_sync_t <= 0 then
+        self.channel_sync_t = CHANNEL_SYNC_INTERVAL
+        local d = ensure_defaults(self.object:id())
+        local synced = tonumber(d.channel) or CHANNEL_OFF
+        if synced < CHANNEL_OFF or synced > CHANNEL_MAX then
+            synced = CHANNEL_OFF
+        end
+        if self.channel ~= synced then
+            self.channel = synced
+            self:apply_channel_animation(synced)
+        end
     end
+    local channel = self.channel or CHANNEL_OFF
 
     if self.preview_t > 0 then
         self:apply_display_for_channel(channel)

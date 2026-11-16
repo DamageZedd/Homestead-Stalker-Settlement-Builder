@@ -11,6 +11,23 @@ local msqrt = math.sqrt
 
 local scan_camp_structures_cache = {}
 
+local function clear_camp_scan_caches(camp)
+    if not camp then return end
+    camp._cached_containers = nil
+    camp._cached_containers_tg = nil
+    camp._cached_categorized_boxes = nil
+    camp._cached_box_weights = nil
+    camp._stored_items_complete = nil
+    camp._inv_snapshot = nil
+    camp._inv_snapshot_tg = nil
+    camp._cached_chest_supplies_tg = nil
+    camp._cached_storage_metrics_tg = nil
+    camp._stats_cache_tick = nil
+    camp._stats_cache = nil
+    camp._inv_rev = (camp._inv_rev or 0) + 1
+    camp._struct_rev = (camp._struct_rev or 0) + 1
+end
+
 local function _se_sec_name(se_obj) return se_obj:section_name() end
 
 function stalker_camp_builder.reset_scan_camp_structures_cache()
@@ -132,15 +149,7 @@ function stalker_camp_builder.scan_camp_structures(hub_id, force)
     end
 
     camp.structures = new_structures
-    camp._cached_containers = nil
-    camp._cached_containers_tg = nil
-    camp._cached_categorized_boxes = nil
-    camp._inv_snapshot = nil
-    camp._inv_snapshot_tg = nil
-    camp._cached_chest_supplies_tg = nil
-    camp._cached_storage_metrics_tg = nil
-    camp._stats_cache_tick = nil
-    camp._stats_cache = nil
+    clear_camp_scan_caches(camp)
     if stalker_camp_builder.invalidate_roof_cover_cache then
         stalker_camp_builder.invalidate_roof_cover_cache()
     end
@@ -294,15 +303,7 @@ function stalker_camp_builder.scan_multiple_camp_structures(hub_ids, force)
         local camp = cdata.camp
         local hub_id = cdata.hub_id
         camp.structures = cdata.new_structures
-        camp._cached_containers = nil
-        camp._cached_containers_tg = nil
-        camp._cached_categorized_boxes = nil
-        camp._inv_snapshot = nil
-        camp._inv_snapshot_tg = nil
-        camp._cached_chest_supplies_tg = nil
-        camp._cached_storage_metrics_tg = nil
-        camp._stats_cache_tick = nil
-        camp._stats_cache = nil
+        clear_camp_scan_caches(camp)
         scan_camp_structures_cache[hub_id] = {
             structures = camp.structures,
             expires_tg = now_tg + 600000,
@@ -322,26 +323,14 @@ function stalker_camp_builder.invalidate_scan_camp_structures_cache(hub_id)
         stalker_camp_builder.camp_box_id_cache[hub_id] = nil
         local c = stalker_camp_builder.active_camps and stalker_camp_builder.active_camps[hub_id]
         if c then
-            c._cached_containers = nil
-            c._cached_containers_tg = nil
-            c._cached_categorized_boxes = nil
-            c._inv_snapshot = nil
-            c._inv_snapshot_tg = nil
-            c._cached_chest_supplies_tg = nil
-            c._cached_storage_metrics_tg = nil
+            clear_camp_scan_caches(c)
         end
     else
         scan_camp_structures_cache = {}
         stalker_camp_builder.camp_box_id_cache = {}
         if stalker_camp_builder.active_camps then
             for _, c in pairs_(stalker_camp_builder.active_camps) do
-                c._cached_containers = nil
-                c._cached_containers_tg = nil
-                c._cached_categorized_boxes = nil
-                c._inv_snapshot = nil
-                c._inv_snapshot_tg = nil
-                c._cached_chest_supplies_tg = nil
-                c._cached_storage_metrics_tg = nil
+                clear_camp_scan_caches(c)
             end
         end
     end

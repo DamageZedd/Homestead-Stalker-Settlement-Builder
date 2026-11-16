@@ -19,6 +19,90 @@ local function is_level_vertex(lvid)
     return lvid and lvid < 4294967295 and lvid ~= -1 and lvid >= 0
 end
 
+local function is_camp_same_level(camp, hub_obj)
+    local cur_lvl = level and level.name and level.name()
+    if not cur_lvl then return false end
+    if camp and camp.level then
+        return camp.level == cur_lvl
+    end
+    local sim = alife and alife()
+    local gg = game_graph and game_graph()
+    if sim and gg and hub_obj and hub_obj.m_game_vertex_id then
+        local gv = gg:vertex(hub_obj.m_game_vertex_id)
+        if gv then
+            return sim:level_name(gv:level_id()) == cur_lvl
+        end
+    end
+    return false
+end
+
+local function ensure_settler_online_or_flagged(camp, hub_obj, npc_id)
+    if not npc_id then return end
+    if is_camp_same_level(camp, hub_obj) then
+        if utils_obj and utils_obj.switch_online then
+            pcall(utils_obj.switch_online, npc_id)
+        end
+    else
+        local sim = alife and alife()
+        if sim then
+            pcall(sim.set_switch_online, sim, npc_id, true)
+            pcall(sim.set_switch_offline, sim, npc_id, true)
+        end
+    end
+end
+
+local function extract_stash_child_extras(child_id, child_se, sec, child_cond, is_wpn_child)
+    local child_uses = nil
+    local child_ammo = nil
+    local child_obj = level and level.object_by_id and level.object_by_id(child_id)
+    local box_size = ini_sys:r_float_ex(sec, "box_size")
+    local is_ammo_child = not is_wpn_child and ((IsItem and IsItem("ammo", sec)) or (box_size ~= nil and box_size > 0 and not sec:find("^wpn_")))
+    if is_ammo_child then
+        if child_obj and child_obj.ammo_get_count then
+            local ok_a, a = pcall(child_obj.ammo_get_count, child_obj)
+            if ok_a and type(a) == "number" and a > 0 then child_ammo = mfloor(a) end
+        end
+        if not child_ammo and utils_stpk and utils_stpk.get_ammo_data then
+            local ok_a, ad = pcall(utils_stpk.get_ammo_data, child_se)
+            if ok_a and ad and type(ad.ammo_left) == "number" and ad.ammo_left > 0 then
+                child_ammo = mfloor(ad.ammo_left)
+            end
+        end
+        if not child_ammo and child_se.elapsed and type(child_se.elapsed) == "number" and child_se.elapsed > 0 then
+            child_ammo = mfloor(child_se.elapsed)
+        end
+        if not child_ammo and child_se.ammo_get_count then
+            local ok_a, a = pcall(child_se.ammo_get_count, child_se)
+            if ok_a and type(a) == "number" and a > 0 then child_ammo = mfloor(a) end
+        end
+        return nil, child_ammo
+    end
+
+    local max_uses = ini_sys:r_float_ex(sec, "max_uses") or 1
+    if max_uses > 1 then
+        if child_obj and child_obj.get_remaining_uses then
+            local ok_u, u = pcall(child_obj.get_remaining_uses, child_obj)
+            if ok_u and type(u) == "number" and u >= 1 then child_uses = mfloor(u) end
+        end
+        if not child_uses and child_se.get_remaining_uses then
+            local ok_u, u = pcall(child_se.get_remaining_uses, child_se)
+            if ok_u and type(u) == "number" and u >= 1 then child_uses = mfloor(u) end
+        end
+        if not child_uses and utils_item and utils_item.get_item_remaining_uses then
+            local ok_u, u = pcall(utils_item.get_item_remaining_uses, child_obj or child_se)
+            if ok_u and type(u) == "number" and u >= 1 then child_uses = mfloor(u) end
+        end
+        if not child_uses and child_cond and child_cond < 0.99 then
+            child_uses = math.max(1, mfloor(child_cond * max_uses + 0.5))
+        end
+        if child_uses then
+            if child_uses < 1 then child_uses = 1 end
+            if child_uses > max_uses then child_uses = mfloor(max_uses) end
+        end
+    end
+    return child_uses, nil
+end
+
 -- REMOTE SCAVENGER STASH EXPEDITION SYSTEM (v1.2.0)
 stalker_camp_builder.active_stash_expeditions = stalker_camp_builder.active_stash_expeditions or {}
 
@@ -141,8 +225,11 @@ function stalker_camp_builder.get_scavenger_expedition_for_survivor(survivor, np
     local s_name = survivor and survivor.name
     for stash_id, exp in pairs(sb.active_stash_expeditions or {}) do
         local e_id = tonum(exp.npc_id)
-        if (n_id and e_id and n_id == e_id)
-           or (s_name and exp.survivor_name and exp.survivor_name == s_name) then
+        if n_id then
+            if e_id and n_id == e_id then
+                return exp
+            end
+        elseif s_name and exp.survivor_name and exp.survivor_name == s_name then
             return exp
         end
     end
@@ -167,7 +254,7 @@ function stalker_camp_builder.recall_scavenger_expedition(stash_id)
         for _, itm in ipairs(exp.haul or {}) do
             local count = (spec_mult > 1.0 and math.random() < (spec_mult - 1.0)) and 2 or 1
             for c = 1, count do
-                pcall(sb.deposit_item_to_camp, exp.hub_id, camp, itm.sec, itm.is_yellow, itm.map_tier, itm.cond, itm.parts, itm.uses, true)
+                pcall(sb.deposit_item_to_camp, exp.hub_id, camp, itm.sec, itm.is_yellow, itm.map_tier, itm.cond, itm.parts, itm.uses, true, itm.ammo)
             end
         end
     end
@@ -182,7 +269,7 @@ function stalker_camp_builder.recall_scavenger_expedition(stash_id)
         end
         -- set_switch_online on an id with no server object is an engine crash
         if se_npc then
-            utils_obj.switch_online(exp.npc_id)
+            ensure_settler_online_or_flagged(camp, hub_obj, exp.npc_id)
             if sb.allow_home_squad_online then
                 sb.allow_home_squad_online(exp.npc_id, true)
             end
@@ -221,7 +308,7 @@ function stalker_camp_builder.get_available_scavengers()
                     local se_npc = alife_object(n_id)
                     local hub_obj = alife_object(hub_id)
                     if se_npc and hub_obj and not se_npc:can_switch_online() then
-                        utils_obj.switch_online(n_id)
+                        ensure_settler_online_or_flagged(camp, hub_obj, n_id)
                         if sb.allow_home_squad_online then
                             sb.allow_home_squad_online(n_id, true)
                         end
@@ -231,7 +318,7 @@ function stalker_camp_builder.get_available_scavengers()
                         if sb.teleport_settler_to_camp_level then
                             sb.teleport_settler_to_camp_level(n_id, hub_id, true)
                         end
-                        pcall(utils_obj.switch_online, n_id)
+                        ensure_settler_online_or_flagged(camp, hub_obj, n_id)
                     end
                 end
 
@@ -472,18 +559,14 @@ function stalker_camp_builder.get_level_marked_stashes(target_level)
     local sb = stalker_camp_builder
 
     local function evaluate_stash_candidate(id, se)
-        if has_marked_stash_spot(id) then
-            if not sb.is_settlement_structure_or_hub(id) and not sb.is_quest_or_task_stash(id) then
-                if not (sb.get_expedition_for_stash and sb.get_expedition_for_stash(id)) then
-                    if se and gg and se.m_game_vertex_id then
-                        local gv = gg:vertex(se.m_game_vertex_id)
-                        if gv then
-                            local se_lvl = sim:level_name(gv:level_id())
-                            if se_lvl == target_level then
-                                stashes[#stashes+1] = id
-                            end
-                        end
-                    end
+        if se and gg and se.m_game_vertex_id then
+            local gv = gg:vertex(se.m_game_vertex_id)
+            if gv and sim:level_name(gv:level_id()) == target_level then
+                if has_marked_stash_spot(id)
+                   and not sb.is_settlement_structure_or_hub(id)
+                   and not sb.is_quest_or_task_stash(id)
+                   and not (sb.get_expedition_for_stash and sb.get_expedition_for_stash(id)) then
+                    stashes[#stashes+1] = id
                 end
             end
         end
@@ -921,10 +1004,11 @@ local function loot_and_clear_stash(s_id, exp)
                             local ok, p = pcall(item_parts.get_parts_con, nil, child_id)
                             if ok and p then child_parts = p end
                         end
+                        local child_uses, child_ammo = extract_stash_child_extras(child_id, child_se, sec, child_cond, is_wpn_child)
                         if sec:find("itm_basickit") or sec:find("itm_advancedkit") or sec:find("itm_expertkit") or sec:find("itm_ammokit") or sec:find("itm_drugkit") then
                             is_yellow = true
                         end
-                        stash_items[#stash_items+1] = { sec = sec, cond = child_cond, parts = child_parts, is_yellow = is_yellow, map_tier = map_tier }
+                        stash_items[#stash_items+1] = { sec = sec, cond = child_cond, parts = child_parts, uses = child_uses, ammo = child_ammo, is_yellow = is_yellow, map_tier = map_tier }
                     end
                     to_release[#to_release + 1] = child_se
                 end
@@ -1571,12 +1655,14 @@ end
 
 local function find_expedition_survivor(camp, exp)
     if not (camp and camp.survivors) then return nil end
-    local surv = camp.survivors[exp.npc_id]
-        or camp.survivors[tonum(exp.npc_id)]
-        or camp.survivors[tostr(exp.npc_id)]
-    if surv then return surv end
+    local n_id = exp and (tonum(exp.npc_id) or exp.npc_id)
+    if n_id then
+        return camp.survivors[exp.npc_id]
+            or camp.survivors[n_id]
+            or camp.survivors[tostr(n_id)]
+    end
 
-    if exp.survivor_name then
+    if exp and exp.survivor_name then
         for _, s in pairs_(camp.survivors) do
             if s.name == exp.survivor_name then return s end
         end
@@ -1756,7 +1842,7 @@ local function deposit_expedition_haul(exp, camp, bonus_loot)
             local dep_box = nil
             pcall(function()
                 dep_box = sb.deposit_item_to_camp(exp.hub_id, camp, itm.sec,
-                    itm.is_yellow, itm.map_tier, itm.cond, itm.parts, itm.uses, true)
+                    itm.is_yellow, itm.map_tier, itm.cond, itm.parts, itm.uses, true, itm.ammo)
             end)
             if dep_box then
                 items_recovered = items_recovered + 1
@@ -1898,8 +1984,7 @@ local function cleanup_expedition(stash_id)
                         or c.survivors[tonum(npc_id)]
                         or c.survivors[tostr(npc_id)]
                     if s then s.on_expedition = nil end
-                end
-                if surv_name then
+                elseif surv_name then
                     for _, s in pairs_(c.survivors) do
                         if s.name == surv_name then
                             s.on_expedition = nil

@@ -18,32 +18,68 @@
     <left_container x="40" y="106" width="162" height="603" stretch="1">
         <btn_tab_overview x="0" y="10" width="148" height="36" check_mode="0">
             <texture>ui_homestead_tab_active</texture>
-            <text font="letterica18" align="c" vert_align="c" r="238" g="196" b="112">st_pda_tab_overview</text>
+            <text font="letterica18" align="c" vert_align="c">st_pda_tab_overview</text>
+            <text_color>
+                <e r="238" g="196" b="112"/>
+                <h r="255" g="224" b="150"/>
+                <t r="255" g="224" b="150"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_tab_overview>
         
         <btn_tab_survivors x="0" y="52" width="148" height="36" check_mode="0">
             <texture>ui_homestead_tab_inactive</texture>
-            <text font="letterica18" align="c" vert_align="c" r="144" g="238" b="144">st_pda_tab_survivors</text>
+            <text font="letterica18" align="c" vert_align="c">st_pda_tab_survivors</text>
+            <text_color>
+                <e r="144" g="238" b="144"/>
+                <h r="185" g="255" b="185"/>
+                <t r="185" g="255" b="185"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_tab_survivors>
         
         <btn_tab_rivals x="0" y="94" width="148" height="36" check_mode="0">
             <texture>ui_homestead_tab_inactive</texture>
-            <text font="letterica18" align="c" vert_align="c" r="255" g="100" b="100">st_pda_tab_rivals</text>
+            <text font="letterica18" align="c" vert_align="c">st_pda_tab_rivals</text>
+            <text_color>
+                <e r="255" g="100" b="100"/>
+                <h r="255" g="150" b="150"/>
+                <t r="255" g="150" b="150"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_tab_rivals>
 
         <btn_tab_radio x="0" y="136" width="148" height="36" check_mode="0">
             <texture>ui_homestead_tab_inactive</texture>
-            <text font="letterica18" align="c" vert_align="c" r="100" g="200" b="255">st_pda_tab_radio</text>
+            <text font="letterica18" align="c" vert_align="c">st_pda_tab_radio</text>
+            <text_color>
+                <e r="100" g="200" b="255"/>
+                <h r="150" g="225" b="255"/>
+                <t r="150" g="225" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_tab_radio>
         
         <btn_tab_guide x="0" y="178" width="148" height="36" check_mode="0">
             <texture>ui_homestead_tab_inactive</texture>
-            <text font="letterica18" align="c" vert_align="c" r="128" g="222" b="234">st_pda_tab_guide</text>
+            <text font="letterica18" align="c" vert_align="c">st_pda_tab_guide</text>
+            <text_color>
+                <e r="128" g="222" b="234"/>
+                <h r="170" g="240" b="250"/>
+                <t r="170" g="240" b="250"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_tab_guide>
 
         <btn_refresh_survivors x="0" y="224" width="148" height="36" stretch="1">
             <texture>ui_homestead_btn_primary</texture>
-            <text font="letterica18" align="c" vert_align="c" r="238" g="196" b="112">st_pda_btn_refresh_survivors</text>
+            <text font="letterica18" align="c" vert_align="c">st_pda_btn_refresh_survivors</text>
+            <text_color>
+                <e r="238" g="196" b="112"/>
+                <h r="255" g="224" b="150"/>
+                <t r="255" g="224" b="150"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_refresh_survivors>
     </left_container>
 
@@ -231,61 +267,133 @@
         <!-- Primary Action: Full-Width Auto-Sort -->
         <btn_auto_sort x="6" y="116" width="338" height="28" check_mode="0">
             <texture>ui_homestead_btn_primary</texture>
-            <text font="letterica16" align="c" vert_align="c" r="238" g="196" b="112">st_pda_btn_auto_sort</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_auto_sort</text>
+            <text_color>
+                <e r="238" g="196" b="112"/>
+                <h r="255" g="224" b="150"/>
+                <t r="255" g="224" b="150"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_auto_sort>
 
         <!-- Row 1: Fast Travel & Track Map -->
         <btn_travel x="6" y="148" width="166" height="26" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="144" g="238" b="144">st_pda_btn_travel</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_travel</text>
+            <text_color>
+                <e r="144" g="238" b="144"/>
+                <h r="185" g="255" b="185"/>
+                <t r="185" g="255" b="185"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_travel>
         <btn_locate_map x="178" y="148" width="166" height="26" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="100" g="200" b="255">st_pda_btn_locate_map</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_locate_map</text>
+            <text_color>
+                <e r="100" g="200" b="255"/>
+                <h r="150" g="225" b="255"/>
+                <t r="150" g="225" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_locate_map>
 
         <!-- Row 2: Summon Caravan & Recall Settlers -->
         <btn_summon_caravan x="6" y="178" width="166" height="26" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="238" g="196" b="112">st_pda_btn_summon_caravan</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_summon_caravan</text>
+            <text_color>
+                <e r="238" g="196" b="112"/>
+                <h r="255" g="224" b="150"/>
+                <t r="255" g="224" b="150"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_summon_caravan>
         <btn_recall_settlers x="178" y="178" width="166" height="26" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="238" g="196" b="112">st_pda_btn_recall_settlers</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_recall_settlers</text>
+            <text_color>
+                <e r="238" g="196" b="112"/>
+                <h r="255" g="224" b="150"/>
+                <t r="255" g="224" b="150"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_recall_settlers>
 
         <!-- Row 3: Specialization & Rename -->
         <btn_specialization x="6" y="208" width="166" height="26" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_pda_specialization_lbl</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_specialization_lbl</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_specialization>
         <btn_rename x="178" y="208" width="166" height="26" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_pda_btn_rename</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_rename</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_rename>
 
         <!-- Row 4: Emergency Dismantle -->
         <btn_dismantle x="6" y="242" width="338" height="26" check_mode="0">
             <texture>ui_homestead_btn_danger</texture>
-            <text font="letterica16" align="c" vert_align="c" r="255" g="100" b="100">st_dismantle_camp</text>
+            <text font="letterica16" align="c" vert_align="c">st_dismantle_camp</text>
+            <text_color>
+                <e r="255" g="100" b="100"/>
+                <h r="255" g="150" b="150"/>
+                <t r="255" g="150" b="150"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_dismantle>
 
         <!-- Mini tabs, the extra cards and the bars (concept C); the script shows one page at a time -->
         <btn_ov_tab_status x="0" y="42" width="83" height="22" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="144" g="238" b="144">st_pda_ov_tab_status</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_ov_tab_status</text>
+            <text_color>
+                <e r="144" g="238" b="144"/>
+                <h r="185" g="255" b="185"/>
+                <t r="185" g="255" b="185"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_ov_tab_status>
         <btn_ov_tab_defense x="89" y="42" width="83" height="22" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="144" g="238" b="144">st_pda_ov_tab_defense</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_ov_tab_defense</text>
+            <text_color>
+                <e r="144" g="238" b="144"/>
+                <h r="185" g="255" b="185"/>
+                <t r="185" g="255" b="185"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_ov_tab_defense>
         <btn_ov_tab_supplies x="178" y="42" width="83" height="22" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="144" g="238" b="144">st_pda_ov_tab_supplies</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_ov_tab_supplies</text>
+            <text_color>
+                <e r="144" g="238" b="144"/>
+                <h r="185" g="255" b="185"/>
+                <t r="185" g="255" b="185"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_ov_tab_supplies>
         <btn_ov_tab_orders x="267" y="42" width="83" height="22" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="144" g="238" b="144">st_pda_ov_tab_orders</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_ov_tab_orders</text>
+            <text_color>
+                <e r="144" g="238" b="144"/>
+                <h r="185" g="255" b="185"/>
+                <t r="185" g="255" b="185"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_ov_tab_orders>
         <threat_card_bg x="0" y="180" width="350" height="60" stretch="1">
             <texture>ui_homestead_module_bg</texture>
@@ -365,19 +473,43 @@
         <!-- Roster Filter Chips -->
         <btn_filter_all x="0" y="0" width="90" height="22" check_mode="0">
             <texture>ui_homestead_btn_primary</texture>
-            <text font="letterica16" align="c" vert_align="c" r="238" g="196" b="112">st_pda_filter_all</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_filter_all</text>
+            <text_color>
+                <e r="238" g="196" b="112"/>
+                <h r="255" g="224" b="150"/>
+                <t r="255" g="224" b="150"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_filter_all>
         <btn_filter_exp x="93" y="0" width="90" height="22" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_pda_filter_exp</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_filter_exp</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_filter_exp>
         <btn_filter_work x="186" y="0" width="90" height="22" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_pda_filter_work</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_filter_work</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_filter_work>
         <btn_filter_idle x="280" y="0" width="90" height="22" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_pda_filter_idle</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_filter_idle</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_filter_idle>
 
         <sv_col_bg x="0" y="26" width="370" height="16" stretch="1">
@@ -459,72 +591,168 @@
         <!-- 8 Job buttons: 2 columns x 4 rows -->
         <btn_job_idle x="0" y="170" width="83" height="24" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_job_idle_btn</text>
+            <text font="letterica16" align="c" vert_align="c">st_job_idle_btn</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_job_idle>
         <btn_job_guard x="84" y="170" width="83" height="24" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_job_guard_btn</text>
+            <text font="letterica16" align="c" vert_align="c">st_job_guard_btn</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_job_guard>
 
         <btn_job_scavenge x="0" y="202" width="83" height="24" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_job_scavenge_btn</text>
+            <text font="letterica16" align="c" vert_align="c">st_job_scavenge_btn</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_job_scavenge>
         <btn_job_hunter x="84" y="202" width="83" height="24" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_job_hunter_btn</text>
+            <text font="letterica16" align="c" vert_align="c">st_job_hunter_btn</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_job_hunter>
 
         <btn_job_craft x="0" y="234" width="83" height="24" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_job_craft_btn</text>
+            <text font="letterica16" align="c" vert_align="c">st_job_craft_btn</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_job_craft>
         <btn_job_repair x="84" y="234" width="83" height="24" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_job_repair_btn</text>
+            <text font="letterica16" align="c" vert_align="c">st_job_repair_btn</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_job_repair>
 
         <btn_job_cook x="0" y="266" width="83" height="24" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_job_cook_btn</text>
+            <text font="letterica16" align="c" vert_align="c">st_job_cook_btn</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_job_cook>
         <btn_job_medic x="84" y="266" width="83" height="24" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_job_medic_btn</text>
+            <text font="letterica16" align="c" vert_align="c">st_job_medic_btn</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_job_medic>
 
         <btn_job_electrician x="0" y="298" width="83" height="24" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_job_electrician_btn</text>
+            <text font="letterica16" align="c" vert_align="c">st_job_electrician_btn</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_job_electrician>
         <btn_job_woodcutter x="84" y="298" width="83" height="24" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_job_woodcutter_btn</text>
+            <text font="letterica16" align="c" vert_align="c">st_job_woodcutter_btn</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_job_woodcutter>
 
         <btn_job_brewer x="0" y="330" width="83" height="24" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_job_brewer_btn</text>
+            <text font="letterica16" align="c" vert_align="c">st_job_brewer_btn</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_job_brewer>
         <btn_job_scrapper x="84" y="330" width="83" height="24" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_job_scrapper_btn</text>
+            <text font="letterica16" align="c" vert_align="c">st_job_scrapper_btn</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_job_scrapper>
         <btn_job_farmer x="0" y="362" width="83" height="24" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_job_farmer_btn</text>
+            <text font="letterica16" align="c" vert_align="c">st_job_farmer_btn</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_job_farmer>
         <btn_job_trader x="84" y="362" width="83" height="24" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_job_trader_btn</text>
+            <text font="letterica16" align="c" vert_align="c">st_job_trader_btn</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_job_trader>
         <btn_job_raider x="168" y="362" width="83" height="24" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_job_raider_btn</text>
+            <text font="letterica16" align="c" vert_align="c">st_job_raider_btn</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_job_raider>
         <btn_job_chemist x="252" y="362" width="83" height="24" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_job_raider_btn</text>
+            <text font="letterica16" align="c" vert_align="c">st_job_raider_btn</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_job_chemist>
 
         <!-- Module 4: Field Station & Orders -->
@@ -542,27 +770,63 @@
         </survivor_pos>
         <btn_position_here x="6" y="406" width="167" height="26" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="238" g="196" b="112">st_pda_btn_position_here</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_position_here</text>
+            <text_color>
+                <e r="238" g="196" b="112"/>
+                <h r="255" g="224" b="150"/>
+                <t r="255" g="224" b="150"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_position_here>
         <btn_position_recall x="6" y="432" width="167" height="26" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="144" g="238" b="144">st_pda_btn_position_recall</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_position_recall</text>
+            <text_color>
+                <e r="144" g="238" b="144"/>
+                <h r="185" g="255" b="185"/>
+                <t r="185" g="255" b="185"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_position_recall>
         <btn_job_directive x="6" y="458" width="338" height="26" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="100" g="200" b="255">st_pda_btn_job_directive</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_job_directive</text>
+            <text_color>
+                <e r="100" g="200" b="255"/>
+                <h r="150" g="225" b="255"/>
+                <t r="150" g="225" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_job_directive>
         <btn_rename_survivor x="6" y="484" width="338" height="26" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_pda_btn_rename_survivor</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_rename_survivor</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_rename_survivor>
         <btn_companion_loan x="6" y="510" width="167" height="26" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_pda_btn_companion_loan</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_companion_loan</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_companion_loan>
         <btn_sworn_toggle x="178" y="510" width="167" height="26" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_pda_btn_sworn_off</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_sworn_off</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_sworn_toggle>
 
         <!-- Module 5: Remote Outpost Transfer Module -->
@@ -585,31 +849,67 @@
         </transfer_list>
         <btn_transfer x="6" y="632" width="338" height="26" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="100" g="200" b="255">st_pda_btn_transfer</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_transfer</text>
+            <text_color>
+                <e r="100" g="200" b="255"/>
+                <h r="150" g="225" b="255"/>
+                <t r="150" g="225" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_transfer>
 
         <!-- Module 6: Banish Directive -->
         <btn_banish x="0" y="674" width="350" height="28" check_mode="0">
             <texture>ui_homestead_btn_danger</texture>
-            <text font="letterica16" align="c" vert_align="c" r="255" g="100" b="100">st_pda_btn_banish</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_banish</text>
+            <text_color>
+                <e r="255" g="100" b="100"/>
+                <h r="255" g="150" b="150"/>
+                <t r="255" g="150" b="150"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_banish>
 
         <!-- Survivor mini tabs (Job / Orders / Transfer / Stats): the script shows one page at a time -->
         <btn_sv_tab_job x="0" y="66" width="83" height="22" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="144" g="238" b="144">st_pda_sv_tab_job</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_sv_tab_job</text>
+            <text_color>
+                <e r="144" g="238" b="144"/>
+                <h r="185" g="255" b="185"/>
+                <t r="185" g="255" b="185"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_sv_tab_job>
         <btn_sv_tab_orders x="89" y="66" width="83" height="22" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="144" g="238" b="144">st_pda_sv_tab_orders</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_sv_tab_orders</text>
+            <text_color>
+                <e r="144" g="238" b="144"/>
+                <h r="185" g="255" b="185"/>
+                <t r="185" g="255" b="185"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_sv_tab_orders>
         <btn_sv_tab_transfer x="178" y="66" width="83" height="22" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="144" g="238" b="144">st_pda_sv_tab_transfer</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_sv_tab_transfer</text>
+            <text_color>
+                <e r="144" g="238" b="144"/>
+                <h r="185" g="255" b="185"/>
+                <t r="185" g="255" b="185"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_sv_tab_transfer>
         <btn_sv_tab_stats x="267" y="66" width="83" height="22" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="144" g="238" b="144">st_pda_sv_tab_stats</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_sv_tab_stats</text>
+            <text_color>
+                <e r="144" g="238" b="144"/>
+                <h r="185" g="255" b="185"/>
+                <t r="185" g="255" b="185"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_sv_tab_stats>
         <sv_sum_bg x="0" y="94" width="350" height="20" stretch="1">
             <texture>ui_homestead_banner_secure</texture>
@@ -741,15 +1041,33 @@
         <!-- Directives -->
         <btn_rival_locate x="0" y="400" width="170" height="28" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="100" g="200" b="255">st_pda_btn_locate_map</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_locate_map</text>
+            <text_color>
+                <e r="100" g="200" b="255"/>
+                <h r="150" g="225" b="255"/>
+                <t r="150" g="225" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_rival_locate>
         <btn_refresh x="180" y="400" width="170" height="28" stretch="1">
             <texture>ui_homestead_btn_primary</texture>
-            <text font="letterica16" align="c" vert_align="c" r="238" g="196" b="112">ui_st_refresh</text>
+            <text font="letterica16" align="c" vert_align="c">ui_st_refresh</text>
+            <text_color>
+                <e r="238" g="196" b="112"/>
+                <h r="255" g="224" b="150"/>
+                <t r="255" g="224" b="150"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_refresh>
         <btn_rival_raid x="0" y="432" width="350" height="28" stretch="1">
             <texture>ui_homestead_btn_primary</texture>
-            <text font="letterica16" align="c" vert_align="c" r="238" g="196" b="112">st_pda_raid_btn</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_raid_btn</text>
+            <text_color>
+                <e r="238" g="196" b="112"/>
+                <h r="255" g="224" b="150"/>
+                <t r="255" g="224" b="150"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_rival_raid>
         <rival_raid_info x="10" y="466" width="330" height="96">
             <text font="letterica16" r="200" g="200" b="200" align="l" complex_mode="1"></text>
@@ -797,24 +1115,54 @@
 
         <btn_radio_filter_exp x="0" y="230" width="150" height="26" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_pda_radio_filter_exp</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_radio_filter_exp</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_radio_filter_exp>
         <btn_radio_filter_work x="0" y="258" width="150" height="26" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_pda_radio_filter_work</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_radio_filter_work</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_radio_filter_work>
         <btn_radio_filter_combat x="0" y="286" width="150" height="26" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">st_pda_radio_filter_combat</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_radio_filter_combat</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_radio_filter_combat>
 
         <btn_radio_scan x="0" y="324" width="150" height="26" check_mode="0">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="100" g="200" b="255">st_pda_radio_scan</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_radio_scan</text>
+            <text_color>
+                <e r="100" g="200" b="255"/>
+                <h r="150" g="225" b="255"/>
+                <t r="150" g="225" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_radio_scan>
         <btn_radio_clear x="0" y="354" width="150" height="26" check_mode="0">
             <texture>ui_homestead_btn_danger</texture>
-            <text font="letterica16" align="c" vert_align="c" r="255" g="100" b="100">st_pda_radio_clear</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_radio_clear</text>
+            <text_color>
+                <e r="255" g="100" b="100"/>
+                <h r="255" g="150" b="150"/>
+                <t r="255" g="150" b="150"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_radio_clear>
 
         <radio_scroll x="156" y="28" width="408" height="506" always_show_scroll="1" stretch="1"/>
@@ -861,48 +1209,114 @@
         </guide_tp_lbl>
         <btn_guide_tile_1 x="0" y="286" width="138" height="48" check_mode="0" stretch="1">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="100" g="200" b="255">st_pda_guide_t_settle</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_settle</text>
+            <text_color>
+                <e r="100" g="200" b="255"/>
+                <h r="150" g="225" b="255"/>
+                <t r="150" g="225" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_guide_tile_1>
         <btn_guide_tile_2 x="141" y="286" width="138" height="48" check_mode="0" stretch="1">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="100" g="200" b="255">st_pda_guide_t_build</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_build</text>
+            <text_color>
+                <e r="100" g="200" b="255"/>
+                <h r="150" g="225" b="255"/>
+                <t r="150" g="225" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_guide_tile_2>
         <btn_guide_tile_3 x="282" y="286" width="138" height="48" check_mode="0" stretch="1">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="100" g="200" b="255">st_pda_guide_t_settlers</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_settlers</text>
+            <text_color>
+                <e r="100" g="200" b="255"/>
+                <h r="150" g="225" b="255"/>
+                <t r="150" g="225" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_guide_tile_3>
         <btn_guide_tile_4 x="423" y="286" width="138" height="48" check_mode="0" stretch="1">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="100" g="200" b="255">st_pda_guide_t_jobs</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_jobs</text>
+            <text_color>
+                <e r="100" g="200" b="255"/>
+                <h r="150" g="225" b="255"/>
+                <t r="150" g="225" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_guide_tile_4>
         <btn_guide_tile_5 x="0" y="340" width="138" height="48" check_mode="0" stretch="1">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="100" g="200" b="255">st_pda_guide_t_storage</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_storage</text>
+            <text_color>
+                <e r="100" g="200" b="255"/>
+                <h r="150" g="225" b="255"/>
+                <t r="150" g="225" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_guide_tile_5>
         <btn_guide_tile_6 x="141" y="340" width="138" height="48" check_mode="0" stretch="1">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="100" g="200" b="255">st_pda_guide_t_defense</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_defense</text>
+            <text_color>
+                <e r="100" g="200" b="255"/>
+                <h r="150" g="225" b="255"/>
+                <t r="150" g="225" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_guide_tile_6>
         <btn_guide_tile_7 x="282" y="340" width="138" height="48" check_mode="0" stretch="1">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="100" g="200" b="255">st_pda_guide_t_rivals</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_rivals</text>
+            <text_color>
+                <e r="100" g="200" b="255"/>
+                <h r="150" g="225" b="255"/>
+                <t r="150" g="225" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_guide_tile_7>
         <btn_guide_tile_8 x="423" y="340" width="138" height="48" check_mode="0" stretch="1">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="100" g="200" b="255">st_pda_guide_t_radio</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_radio</text>
+            <text_color>
+                <e r="100" g="200" b="255"/>
+                <h r="150" g="225" b="255"/>
+                <t r="150" g="225" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_guide_tile_8>
         <btn_guide_tile_9 x="0" y="394" width="138" height="48" check_mode="0" stretch="1">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="100" g="200" b="255">st_pda_guide_t_morale</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_morale</text>
+            <text_color>
+                <e r="100" g="200" b="255"/>
+                <h r="150" g="225" b="255"/>
+                <t r="150" g="225" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_guide_tile_9>
         <btn_guide_tile_10 x="141" y="394" width="138" height="48" check_mode="0" stretch="1">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="100" g="200" b="255">st_pda_guide_t_mcm</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_t_mcm</text>
+            <text_color>
+                <e r="100" g="200" b="255"/>
+                <h r="150" g="225" b="255"/>
+                <t r="150" g="225" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_guide_tile_10>
 
         <btn_guide_back x="0" y="30" width="150" height="26" check_mode="0" stretch="1">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="100" g="200" b="255">st_pda_guide_back</text>
+            <text font="letterica16" align="c" vert_align="c">st_pda_guide_back</text>
+            <text_color>
+                <e r="100" g="200" b="255"/>
+                <h r="150" g="225" b="255"/>
+                <t r="150" g="225" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_guide_back>
         <guide_reader_lbl x="160" y="34" width="394" height="18">
             <text font="letterica18" r="238" g="196" b="112" align="l" vert_align="c"/>
@@ -1013,14 +1427,27 @@
         </header>
         <input x="20" y="42" width="280" height="28" stretch="1">
             <text font="letterica16" r="238" g="196" b="112"/>
+            <texture>ui_inGame2_edit_box_2</texture>
         </input>
         <btn_ok x="30" y="86" width="120" height="28" stretch="1">
             <texture>ui_homestead_btn_primary</texture>
-            <text font="letterica16" align="c" vert_align="c" r="238" g="196" b="112">ui_st_ok</text>
+            <text font="letterica16" align="c" vert_align="c">ui_st_ok</text>
+            <text_color>
+                <e r="238" g="196" b="112"/>
+                <h r="255" g="224" b="150"/>
+                <t r="255" g="224" b="150"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_ok>
         <btn_cancel x="170" y="86" width="120" height="28" stretch="1">
             <texture>ui_homestead_btn_tactical</texture>
-            <text font="letterica16" align="c" vert_align="c" r="220" g="220" b="220">ui_st_cancel</text>
+            <text font="letterica16" align="c" vert_align="c">ui_st_cancel</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
         </btn_cancel>
     </backpack>
 </w>

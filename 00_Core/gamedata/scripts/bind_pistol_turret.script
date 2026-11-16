@@ -121,6 +121,36 @@ local function get_turret_channel_bus()
     return _G.hf_turret_channels
 end
 
+local v_shot_dir
+local v_scan_aim
+local v_vis_pos
+local v_yaw_to
+local v_yaw_proj
+local v_pitch_origin
+local v_pitch_d
+local v_pitch_proj
+local v_pitch_horiz
+local v_muzzle_pos
+local v_fire_muzzle
+local v_fire_off
+local v_fire_dir
+
+local function box_min(b) return b.min end
+local function box_max(b) return b.max end
+
+local sort_scores = nil
+local function cmp_target_score(a, b)
+    return sort_scores[a] < sort_scores[b]
+end
+
+local function normalize_channel(ch)
+    local c = tonumber(ch) or CHANNEL_OFF
+    if c < CHANNEL_OFF or c > CHANNEL_MAX then
+        return CHANNEL_OFF
+    end
+    return c
+end
+
 function toggle_pistol_turret(obj_id)
     local d = hf_ensure_defaults(obj_id)
 end
@@ -168,7 +198,8 @@ local function has_clear_shot(self, muzzle_pos, aim_pos, target_obj)
         return false
     end
 
-    local dir = vector()
+    v_shot_dir = v_shot_dir or vector()
+    local dir = v_shot_dir
     dir:set(aim_pos)
     dir:sub(muzzle_pos)
 
@@ -193,8 +224,14 @@ local function has_clear_shot(self, muzzle_pos, aim_pos, target_obj)
 
     local hit_obj = rp:get_object()
     if hit_obj then
-        local ok1, hid = pcall(function() return hit_obj:id() end)
-        local ok2, tid = pcall(function() return target_obj:id() end)
+        local ok1, hid = false, nil
+        if hit_obj.id then
+            ok1, hid = pcall(hit_obj.id, hit_obj)
+        end
+        local ok2, tid = false, nil
+        if target_obj.id then
+            ok2, tid = pcall(target_obj.id, target_obj)
+        end
         if ok1 and ok2 and hid == tid then
             return true
         end
@@ -267,8 +304,8 @@ end
 local function fbox_get_min_max(box)
     if not box then return nil, nil end
 
-    local ok, mn = pcall(function() return box.min end)
-    local ok2, mx = pcall(function() return box.max end)
+    local ok, mn = pcall(box_min, box)
+    local ok2, mx = pcall(box_max, box)
     if ok and ok2 and mn and mx then
         return mn, mx
     end
@@ -378,10 +415,48 @@ end
 -- Magazine persistence
 --------------------------------------------------------------------------------
 
+local function turret_recompute_channel(entry)
+    local best_id, best_ammo = nil, nil
+    for id, ammo in pairs(entry.by_id) do
+        local n_ammo = tonumber(ammo) or 0
+        if not best_id or n_ammo < best_ammo or (n_ammo == best_ammo and id < best_id) then
+            best_id = id
+            best_ammo = n_ammo
+        end
+    end
+    entry.turret_id = best_id
+    entry.ammo = best_ammo
+    return best_id ~= nil
+end
+
+local function turret_publish_mag_now(self)
+    local ch = self.cached_channel
+    if not ch or ch <= CHANNEL_OFF then return end
+    local id = self.object:id()
+    local ammo = self.mag_count or 0
+    local bus = get_turret_channel_bus()
+    local entry = bus[ch]
+    if not entry then
+        entry = { by_id = {} }
+        bus[ch] = entry
+    elseif not entry.by_id then
+        local old_id, old_ammo = entry.turret_id, entry.ammo
+        entry.by_id = {}
+        if old_id ~= nil then
+            entry.by_id[old_id] = tonumber(old_ammo) or 0
+        end
+    end
+    entry.by_id[id] = ammo
+    turret_recompute_channel(entry)
+    self.published_channel = ch
+    self.published_ammo = ammo
+end
+
 local function turret_sync_mag(self)
     local d = hf_ensure_defaults(self.object:id())
     self.mag = d.mag or {}
     self.mag_count = (self.mag and #self.mag) or 0
+    self.cached_channel = normalize_channel(d.channel)
     return self.mag
 end
 
@@ -389,6 +464,9 @@ local function turret_set_mag(self, mag_tbl)
     self.mag = mag_tbl or {}
     self.mag_count = #self.mag
     hf_set(self.object:id(), { mag = self.mag })
+    if self.cached_channel and self.cached_channel > CHANNEL_OFF then
+        turret_publish_mag_now(self)
+    end
     return self.mag
 end
 
@@ -531,11 +609,9 @@ end
 --------------------------------------------------------------------------------
 
 local function get_bbox_height(obj)
-    if not obj then return nil end
+    if not obj or not obj.bounding_box then return nil end
 
-    local ok, box = pcall(function()
-        return obj:bounding_box(false)
-    end)
+    local ok, box = pcall(obj.bounding_box, obj, false)
     if not ok or not box then return nil end
 
     local bb_min, bb_max = fbox_get_min_max(box)
@@ -546,9 +622,10 @@ local function get_bbox_height(obj)
     return h
 end
 
-local function get_target_aim_pos(target_obj)
+local function get_target_aim_pos(target_obj, out_vec)
     local p = target_obj:position()
-    local aim = vector(); aim:set(p)
+    local aim = out_vec or vector()
+    aim:set(p)
 
     local cls = target_obj:clsid()
 
@@ -585,7 +662,9 @@ local function turret_target_visible(self, target_obj, aim_pos)
 
     local mpos = self.object:position()
 
-    local turret_pos = vector(); turret_pos:set(mpos)
+    v_vis_pos = v_vis_pos or vector()
+    local turret_pos = v_vis_pos
+    turret_pos:set(mpos)
     turret_pos.y = turret_pos.y + 0.55
 
     return has_clear_shot(self, turret_pos, aim_pos, target_obj)
@@ -629,7 +708,9 @@ end
 local function compute_desired_yaw_deg(self, target_pos)
     local pos = self.object:position()
 
-    local to = vector()
+    v_yaw_to = v_yaw_to or vector()
+    v_yaw_proj = v_yaw_proj or vector()
+    local to = v_yaw_to
     to:set(target_pos)
     to:sub(pos)
 
@@ -637,7 +718,9 @@ local function compute_desired_yaw_deg(self, target_pos)
     if not f or not r or not u then return 0 end
 
     local up_comp = u:dotproduct(to)
-    local proj = vector(); proj:set(u); proj:mul(up_comp)
+    local proj = v_yaw_proj
+    proj:set(u)
+    proj:mul(up_comp)
     to:sub(proj)
 
     if to:magnitude() < 0.001 then return 0 end
@@ -651,31 +734,43 @@ local function compute_desired_yaw_deg(self, target_pos)
 end
 
 local function compute_desired_pitch_deg(self, target_pos)
-    local origin = nil
+    v_pitch_origin = v_pitch_origin or vector()
+    local origin = v_pitch_origin
+    local got_origin = false
     if self.pitch_idx and MUZZLE_BONES and MUZZLE_BONES[self.pitch_idx] then
         local muzzle_bone = MUZZLE_BONES[self.pitch_idx]
         local id = self.object:bone_id(muzzle_bone)
         if id then
             local m = self.object:bone_transform(id)
             if m then
-                origin = vector(); origin:set(m.c)
+                origin:set(m.c)
+                got_origin = true
             end
         end
     end
 
-    if not origin then
-        origin = vector(); origin:set(self.object:position())
+    if not got_origin then
+        origin:set(self.object:position())
     end
 
     local u = self.yaw_basis_u
     if not u then return 0 end
 
-    local d = vector(); d:set(target_pos); d:sub(origin)
+    v_pitch_d = v_pitch_d or vector()
+    v_pitch_proj = v_pitch_proj or vector()
+    v_pitch_horiz = v_pitch_horiz or vector()
+    local d = v_pitch_d
+    d:set(target_pos)
+    d:sub(origin)
 
     local vertical = u:dotproduct(d)
-    local proj = vector(); proj:set(u); proj:mul(vertical)
+    local proj = v_pitch_proj
+    proj:set(u)
+    proj:mul(vertical)
 
-    local horiz = vector(); horiz:set(d); horiz:sub(proj)
+    local horiz = v_pitch_horiz
+    horiz:set(d)
+    horiz:sub(proj)
 
     local dist_h = horiz:magnitude()
     if dist_h < 0.001 then return 0 end
@@ -795,7 +890,8 @@ local function find_best_target_cached(self, turret_obj, max_radius)
             local opos = o:position()
             local dist = opos:distance_to(tpos)
             if dist <= max_r then
-                local aim_pos = get_target_aim_pos(o)
+                v_scan_aim = v_scan_aim or vector()
+                local aim_pos = get_target_aim_pos(o, v_scan_aim)
 
                 -- Desired angles
                 local pitch_des = compute_desired_pitch_deg(self, aim_pos)
@@ -818,7 +914,9 @@ local function find_best_target_cached(self, turret_obj, max_radius)
         end
     end
 
-    table.sort(found, function(a, b) return score_of[a] < score_of[b] end)
+    sort_scores = score_of
+    table.sort(found, cmp_target_score)
+    sort_scores = nil
     return found
 end
 
@@ -903,42 +1001,33 @@ function pistol_turret_wrapper:mag_push(ammo_sect, n)
 end
 
 function pistol_turret_wrapper:get_channel()
+    if self.cached_channel ~= nil then
+        return self.cached_channel
+    end
     local d = hf_ensure_defaults(self.object:id())
-    local channel = tonumber(d.channel) or CHANNEL_OFF
-    if channel < CHANNEL_OFF or channel > CHANNEL_MAX then
-        channel = CHANNEL_OFF
-    end
+    local channel = normalize_channel(d.channel)
+    self.cached_channel = channel
     return channel
-end
-
-function pistol_turret_wrapper:set_channel(channel)
-    channel = tonumber(channel) or CHANNEL_OFF
-    if channel < CHANNEL_OFF or channel > CHANNEL_MAX then
-        channel = CHANNEL_OFF
-    end
-    hf_set(self.object:id(), { channel = channel })
-    return channel
-end
-
-function pistol_turret_wrapper:cycle_channel()
-    local channel = self:get_channel()
-    channel = channel + 1
-    if channel > CHANNEL_MAX then
-        channel = CHANNEL_OFF
-    end
-    return self:set_channel(channel)
 end
 
 local function turret_clear_channel(self, channel)
-    channel = tonumber(channel) or CHANNEL_OFF
+    channel = normalize_channel(channel)
     if channel <= CHANNEL_OFF then
         return
     end
 
+    local id = self.object:id()
     local bus = get_turret_channel_bus()
     local entry = bus[channel]
-    if entry and entry.turret_id == self.object:id() then
-        bus[channel] = nil
+    if entry then
+        if entry.by_id then
+            entry.by_id[id] = nil
+            if not turret_recompute_channel(entry) then
+                bus[channel] = nil
+            end
+        elseif entry.turret_id == id then
+            bus[channel] = nil
+        end
     end
 end
 
@@ -953,21 +1042,44 @@ local function turret_publish_channel(self, dt, force)
     self.published_channel = channel
     if channel <= CHANNEL_OFF then
         self.channel_pub_t = 0
+        self.published_ammo = nil
         return
     end
 
     self.channel_pub_t = (self.channel_pub_t or 0) - (dt or 0)
-    if not force and self.channel_pub_t > 0 then
+    if not force and self.channel_pub_t > 0 and prev == channel then
         return
     end
 
     self.channel_pub_t = CHANNEL_PUBLISH_INTERVAL
+    local ammo = self.mag_count or 0
+    if not force and prev == channel and self.published_ammo == ammo then
+        return
+    end
+    turret_publish_mag_now(self)
+end
 
-    local bus = get_turret_channel_bus()
-    bus[channel] = {
-        turret_id = self.object:id(),
-        ammo = self.mag_count or 0,
-    }
+function pistol_turret_wrapper:set_channel(channel)
+    channel = normalize_channel(channel)
+    local prev = self.cached_channel
+    if prev == nil then
+        prev = self:get_channel()
+    end
+    self.cached_channel = channel
+    hf_set(self.object:id(), { channel = channel })
+    if prev ~= channel then
+        turret_publish_channel(self, 0, true)
+    end
+    return channel
+end
+
+function pistol_turret_wrapper:cycle_channel()
+    local channel = self:get_channel()
+    channel = channel + 1
+    if channel > CHANNEL_MAX then
+        channel = CHANNEL_OFF
+    end
+    return self:set_channel(channel)
 end
 
 --------------------------------------------------------------------------------
@@ -1049,10 +1161,11 @@ function pistol_turret_wrapper:update(delta)
 
         -- the best-scored hostile can be behind cover (often the one just lost, which the turret
         -- still faces): take the first of the best few that is in sight
+        v_scan_aim = v_scan_aim or vector()
         for i = 1, math.min(#candidates, SCAN_LOS_TARGETS) do
             local picked_obj = get_obj_by_id_safe(candidates[i])
             if picked_obj then
-                local aim_pos = get_target_aim_pos(picked_obj)
+                local aim_pos = get_target_aim_pos(picked_obj, v_scan_aim)
                 if turret_target_visible(self, picked_obj, aim_pos) then
                     picked_id = candidates[i]
                     picked_aim = aim_pos
@@ -1083,7 +1196,13 @@ function pistol_turret_wrapper:update(delta)
             end
         end
         if take then
-            self.aim_pos_cached = picked_aim
+            if picked_aim then
+                self.aim_pos_vec = self.aim_pos_vec or vector()
+                self.aim_pos_vec:set(picked_aim)
+                self.aim_pos_cached = self.aim_pos_vec
+            else
+                self.aim_pos_cached = nil
+            end
             self.target_last_seen_t = 0
         end
     end
@@ -1110,7 +1229,8 @@ function pistol_turret_wrapper:update(delta)
     if self.aim_t <= 0 then
         self.aim_t = AIM_UPDATE_INTERVAL
 
-        local aim_pos = get_target_aim_pos(target)
+        self.aim_pos_vec = self.aim_pos_vec or vector()
+        local aim_pos = get_target_aim_pos(target, self.aim_pos_vec)
         local pitch_des = compute_desired_pitch_deg(self, aim_pos)
         local yaw_des = compute_desired_yaw_deg(self, aim_pos)
         yaw_des = wrap_deg_180(yaw_des + YAW_OFFSET_DEG)
@@ -1163,44 +1283,55 @@ function pistol_turret_wrapper:update(delta)
     if aimed and self.fire_cd <= 0 and self.los_cd <= 0 then
         self.los_cd = LOS_CHECK_COOLDOWN
 
-        local aim_pos = self.aim_pos_cached or get_target_aim_pos(target)
+        local aim_pos = self.aim_pos_cached
+        if not aim_pos then
+            self.aim_pos_vec = self.aim_pos_vec or vector()
+            aim_pos = get_target_aim_pos(target, self.aim_pos_vec)
+        end
         local muzzle_bone = MUZZLE_BONES[self.pitch_idx]
         local mpos, _ = get_muzzle_pos_dir(self.object, muzzle_bone)
         if mpos then
-            local muzzle_pos = vector(); muzzle_pos:set(mpos)
+            v_muzzle_pos = v_muzzle_pos or vector()
+            local muzzle_pos = v_muzzle_pos
+            muzzle_pos:set(mpos)
 
             if has_clear_shot(self, muzzle_pos, aim_pos, target) then
-                self:fire_once(aim_pos)
-                self.fire_cd = FIRE_COOLDOWN + random_float(0.1, 0.3)
+                if self:fire_once(aim_pos) then
+                    self.fire_cd = FIRE_COOLDOWN + random_float(0.1, 0.3)
+                end
             end
         end
     end
 end
 
 function pistol_turret_wrapper:fire_once(aim_pos)
-    if not self.pitch_idx then return end
+    if not self.pitch_idx then return false end
 
     local muzzle_bone = MUZZLE_BONES[self.pitch_idx]
-    if not muzzle_bone then return end
+    if not muzzle_bone then return false end
 
     local pos, barrel_dir = get_muzzle_pos_dir(self.object, muzzle_bone)
-    if not pos then return end
+    if not pos then return false end
 
-    local muzzle_pos = vector()
+    v_fire_muzzle = v_fire_muzzle or vector()
+    v_fire_off = v_fire_off or vector()
+    v_fire_dir = v_fire_dir or vector()
+
+    local muzzle_pos = v_fire_muzzle
     muzzle_pos:set(pos)
 
     if barrel_dir then
-        local off = vector()
+        local off = v_fire_off
         off:set(barrel_dir)
         off:mul(0.05)
         muzzle_pos:add(off)
     end
 
-    local dir = vector()
+    local dir = v_fire_dir
     dir:set(aim_pos)
     dir:sub(muzzle_pos)
 
-    if dir:magnitude() < 0.001 then return end
+    if dir:magnitude() < 0.001 then return false end
     dir:normalize()
 
     -- both unit vectors, so the dot product is the cosine of the steer angle
@@ -1209,12 +1340,12 @@ function pistol_turret_wrapper:fire_once(aim_pos)
         dot = clamp(dot, -1, 1)
         local ang = math.acos(dot) * 57.29577951308232
         if ang > MAX_STEER_DEG then
-            return
+            return false
         end
     end
 
     local ammo_sect = turret_mag_pop(self)
-    if not ammo_sect then return end
+    if not ammo_sect then return false end
 
     self.snd_shoot:play_no_feedback(self.object, sound_object.s3d, 0, self.object:position(), 1, random_float(0.9, 1.1))
 
@@ -1235,6 +1366,8 @@ function pistol_turret_wrapper:fire_once(aim_pos)
         self.fx_muzzle:move_to(muzzle_pos, dir)
         self.fx_muzzle:play()
     end
+
+    return true
 end
 
 -- The magazine goes back to the player here and not in net_destroy, which also runs every time

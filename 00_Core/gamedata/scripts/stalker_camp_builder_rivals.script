@@ -15,6 +15,14 @@ local function forget_player_stash(chest_id)
     if m_data and m_data.player_created_stashes then
         m_data.player_created_stashes[chest_id] = nil
     end
+    if treasure_manager then
+        if treasure_manager.release_stash_by_id then
+            pcall(treasure_manager.release_stash_by_id, chest_id)
+        end
+        if treasure_manager.caches then
+            treasure_manager.caches[chest_id] = nil
+        end
+    end
 end
 
 local sformat = string.format
@@ -30,6 +38,15 @@ local mrandom = math.random
 local mcos = math.cos
 local msin = math.sin
 local msqrt = math.sqrt
+
+local function return_self_id(self)
+    return self.id
+end
+
+local function timer_scale_factor()
+    local sb = stalker_camp_builder
+    return (sb and sb.game_timer_scale and sb.game_timer_scale()) or 1
+end
 
 -- Safe switch distance threshold: Anomaly's alife.ltx sets a switch distance of 750m,
 -- G.A.M.M.A.'s 450m. An object that came online goes offline only beyond
@@ -442,7 +459,7 @@ function stalker_camp_builder.setup_rival_squad_positions(squad, camp, sim_overr
         end
     end
 
-    squad.get_script_target = function(self) return self.id end
+    squad.get_script_target = return_self_id
 end
 
 -- restrain_rival_squads -- pin rival camp squads in place via script_target and dislodge anyone stuck on the blue box
@@ -455,9 +472,7 @@ function stalker_camp_builder.restrain_rival_squads()
             if camp.squad_id then
                 local squad = sim:object(camp.squad_id)
                 if squad and is_valid_camp_squad(camp, squad) then
-                    squad.get_script_target = function(self)
-                        return self.id
-                    end
+                    squad.get_script_target = return_self_id
 
                     -- Auto-dislodge NPCs in existing saves that are stuck on the blue box
                     if level and level.name() == camp.level and camp.position then
@@ -487,7 +502,7 @@ function stalker_camp_builder.restrain_rival_squads()
                 for _, ex_id in ipairs(camp.extra_squad_ids) do
                     local ex_sq = sim:object(ex_id)
                     if ex_sq and is_valid_camp_squad(camp, ex_sq) then
-                        ex_sq.get_script_target = function(self) return self.id end
+                        ex_sq.get_script_target = return_self_id
                     end
                 end
             end
@@ -502,9 +517,7 @@ function stalker_camp_builder.create_squad_at_pos(section, pos, lvid, gvid, no_p
     if squad then
         squad:create_npc(nil, pos, lvid, gvid)
         if not no_pin then
-            squad.get_script_target = function(self)
-                return self.id
-            end
+            squad.get_script_target = return_self_id
         end
         local sim = alife()
         for k in sb.safe_squad_members(squad) do
@@ -1029,7 +1042,7 @@ local function resolve_rival_camp_time_up(sb, camp, squad, sim, actor, same_leve
 
         camp.status = "unoccupied"
         camp.unoccupied_time = current_sec
-        camp.ruins_decay_time = mrandom(7200, 18000) -- 2 to 5 game hours
+        camp.ruins_decay_time = mrandom(7200, 18000) * timer_scale_factor() -- 2 to 5 game hours
         local old_faction = camp.faction
         camp.last_faction = old_faction
         camp.takeover_count = (camp.takeover_count or 0) + 1
@@ -1274,7 +1287,8 @@ end
 local function mark_rival_garrison_eliminated(sb, camp, actor, current_sec)
     camp.status = "unoccupied"
     camp.unoccupied_time = current_sec
-    camp.ruins_decay_time = mrandom(7200, 18000) -- 2 to 5 game hours
+    local ts = sb and sb.game_timer_scale and sb.game_timer_scale() or 1
+    camp.ruins_decay_time = mrandom(7200, 18000) * ts -- 2 to 5 game hours
     local old_faction = camp.faction
     -- as the time-up path does: the reclaim roll skips the faction that just lost the outpost and
     -- allows one reclaim before the ruins decay (without these, the same faction came back again and again)
@@ -1401,9 +1415,7 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                     resolve_rival_camp_time_up(sb, camp, squad, sim, actor, same_level, current_sec)
                 else
                     if squad then
-                        squad.get_script_target = function(self)
-                            return self.id
-                        end
+                        squad.get_script_target = return_self_id
                     end
 
                     if camp.status ~= "mutant_nest" and camp.faction ~= "monster" and camp.squad_id then
@@ -1444,7 +1456,7 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                         or (camp.setup_sec and (current_sec - camp.setup_sec < skirmish_cooldown_sec))
 
                     local actor_dist = 999
-                    if actor and camp.position then
+                    if same_level and actor and camp.position then
                         local act_p = actor:position()
                         local dx = act_p.x - camp.position.x
                         local dy = act_p.y - camp.position.y
@@ -1474,7 +1486,7 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
             if camp.takeover_at == nil then
                 camp.takeover_at = false
                 if (camp.takeover_count or 0) <= 1 and mrandom(100) <= (sb.cfg.rival_friendly_takeover or 25) then
-                    camp.takeover_at = current_sec + mrandom(3600, 10800)
+                    camp.takeover_at = current_sec + mrandom(3600, 10800) * timer_scale_factor()
                 end
             end
             local player_near = is_player_near(camp.level or level_name, camp.position)
@@ -1545,7 +1557,7 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                 -- the chest and furniture go in one update: not while the player can see them
                 local player_far = not is_player_near(camp.level or level_name, camp.position)
 
-                local decay_duration = camp.ruins_decay_time or 10800
+                local decay_duration = camp.ruins_decay_time or (10800 * timer_scale_factor())
                 local time_expired = camp.unoccupied_time and (current_sec - camp.unoccupied_time >= decay_duration)
 
                 if player_far and ((box_obj and is_empty) or time_expired) then
@@ -1554,7 +1566,7 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
                     cleanup_camp_convoys(camp.chest_id)
                     local lvl = camp.level or level_name
                     local cooldown_hours = mrandom(2, 4)
-                    sb.dismantled_levels[lvl] = current_sec + cooldown_hours * 3600
+                    sb.dismantled_levels[lvl] = current_sec + cooldown_hours * 3600 * timer_scale_factor()
                     release_rival_hold(sb, camp.squad_id and alife_object(camp.squad_id))
                     for _, ex_id in ipairs_(camp.extra_squad_ids or {}) do
                         release_rival_hold(sb, alife_object(ex_id))
@@ -1579,7 +1591,7 @@ local function process_single_rival_camp(key, camp, level_name, actor, current_s
 
         -- no new camp on this level for 2 to 4 game hours
         local cooldown_hours = mrandom(2, 4)
-        sb.dismantled_levels[lvl] = current_sec + cooldown_hours * 3600
+        sb.dismantled_levels[lvl] = current_sec + cooldown_hours * 3600 * timer_scale_factor()
 
         release_rival_hold(sb, camp.squad_id and alife_object(camp.squad_id))
         for _, ex_id in ipairs_(camp.extra_squad_ids or {}) do
@@ -2056,7 +2068,11 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
                     local height_diff = math.abs(pos.y - target_chest_y)
                     local needs_snap = (not camp.ground_snapped_v4) or (not camp.snapped) or is_underground or (height_diff > 0.10)
 
-                    if needs_snap then
+                    -- the camp is marked ground_fix_v5 only when every piece was offline: the server
+                    -- position of an online piece is not where it stands. Similarly, never move an
+                    -- online chest or its camp metadata while the live client object stays behind.
+                    local chest_offline = not level.object_by_id(camp.chest_id)
+                    if needs_snap and chest_offline then
                         se_chest.position = target_chest_pos
                         se_chest.m_level_vertex_id = target_lvid
                         se_chest.m_game_vertex_id = gvid
@@ -2066,9 +2082,7 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
                         camp.game_vertex_id = gvid
                     end
 
-                    -- the camp is marked ground_fix_v5 only when every piece was offline: the server
-                    -- position of an online piece is not where it stands
-                    local all_offline = not level.object_by_id(camp.chest_id)
+                    local all_offline = chest_offline
 
                     if camp.decorations then
                         -- a piece standing on another (the radio on its table) shares its x/z and stands
@@ -2129,9 +2143,9 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
                                 local decor_is_underground = (dpos.y < (d_surface_y - 0.15))
                                 local decor_is_floating = (dpos.y > (d_surface_y + 0.15))
 
-                                local should_reanchor = needs_snap or decor_is_underground or decor_is_floating
+                                local should_reanchor = chest_offline and (needs_snap or decor_is_underground or decor_is_floating)
 
-                                if should_reanchor and sec ~= "" and ini_sys:section_exist(sec) then
+                                if should_reanchor and sec ~= "" and ini_sys:section_exist(sec) and not level.object_by_id(dec_id) then
                                     local new_dpos = v_new_decor:set(decor_x, final_decor_y, decor_z)
                                     se_decor.position = new_dpos
                                     se_decor.m_level_vertex_id = final_dlvid
@@ -2181,7 +2195,7 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
 
                     -- the guards are placed around the chest only when it is snapped offline: an online
                     -- chest keeps its place until it next spawns, and online guards would jump in view
-                    if needs_snap and camp.squad_id and not level.object_by_id(camp.chest_id) then
+                    if needs_snap and camp.squad_id and chest_offline then
                         local squad = sim:object(camp.squad_id)
                         if squad and is_valid_camp_squad(camp, squad) then
                             sb.setup_rival_squad_positions(squad, camp, sim)
@@ -2190,7 +2204,7 @@ function stalker_camp_builder.snap_rival_camps_to_ground()
 
                     -- an inventory box takes its server position only when it spawns: while the chest
                     -- is online the camp stays marked unsnapped, so a later level entry snaps it again
-                    if not level.object_by_id(camp.chest_id) then
+                    if chest_offline then
                         camp.snapped = true
                         camp.ground_snapped_v2 = true
                         camp.ground_snapped_v4 = true
@@ -3468,6 +3482,38 @@ function stalker_camp_builder.check_sos_rescue_reward(actor)
                     stalker_camp_builder.camp_send_tip(actor, string.format(game.translate_string("st_recon_rescue_complete"), faction_name, reward_rubles), nil, "general_stalker", 12000, nil, "general", true)
                 end
             end
+        end
+    end
+end
+
+function stalker_camp_builder.rescale_rival_timers(old_factor, new_factor)
+    if not old_factor or not new_factor or old_factor <= 0 or old_factor == new_factor then
+        return
+    end
+    local sb = stalker_camp_builder
+    local ratio = new_factor / old_factor
+    local now = sb.game_sec and sb.game_sec() or 0
+    for _, camp in pairs_(sb.rival_camps or {}) do
+        if type_(camp) == "table" then
+            if type_(camp.ruins_decay_time) == "number" then
+                camp.ruins_decay_time = camp.ruins_decay_time * ratio
+            end
+            if type_(camp.unoccupied_time) == "number" and camp.unoccupied_time <= now then
+                camp.unoccupied_time = now - (now - camp.unoccupied_time) * ratio
+            end
+            if type_(camp.takeover_at) == "number" and camp.takeover_at > now then
+                camp.takeover_at = now + (camp.takeover_at - now) * ratio
+            end
+        end
+    end
+    for lvl, due in pairs_(sb.dismantled_levels or {}) do
+        if type_(due) == "number" and due > now then
+            sb.dismantled_levels[lvl] = now + (due - now) * ratio
+        end
+    end
+    for fac, due in pairs_(sb.faction_retaliation_timers or {}) do
+        if type_(due) == "number" and due > now then
+            sb.faction_retaliation_timers[fac] = now + (due - now) * ratio
         end
     end
 end

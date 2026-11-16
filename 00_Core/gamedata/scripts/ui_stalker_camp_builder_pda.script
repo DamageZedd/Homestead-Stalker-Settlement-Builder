@@ -68,7 +68,20 @@ local PDA_LABELS = {
     },
     wood_mode = { auto = "Auto-Rotate", timber = "Timber Focus", charcoal = "Charcoal Focus" },
     chem_mode = { auto = "Auto-Balanced", powder = "Gunpowder Focus", fuel = "Fuel Focus" },
+    craft_order = {
+        auto = "Auto-Balanced", pistol = "Handgun Ammo", shotgun = "Shotgun Shells",
+        rifle_soviet = "Soviet 5.45x39", rifle_nato = "NATO 5.56x45",
+        rifle_heavy = "Assault 7.62x39", sniper = "Sniper Calibers",
+        turret = "Turret Rounds", grenade = "Hand Grenades", underbarrel = "VOG / 40mm",
+    },
+    cook_mode = { auto = "Auto-Balanced", tier1 = "Simple Roast", tier2 = "Boiled Stew", tier3 = "Gourmet Feast" },
 }
+
+local function format_short_duration(sec)
+    local mins = math.floor(sec / 60)
+    local secs = math.floor(sec % 60)
+    return mins > 0 and string.format("%dm %02ds", mins, secs) or string.format("%ds", secs)
+end
 
 -- roster and detail refresh cadence while the page is drawn (ms)
 local LIVE_REFRESH_MS = 1000
@@ -96,10 +109,7 @@ function get_singleton() return SINGLETON end
 function homestead_pda_actor_on_update()
     if not stalker_camp_builder then return end
     local ui = SINGLETON
-    if not ui or ui._closing then
-        return
-    end
-    if ui.current_tab ~= "survivors" and ui.current_tab ~= "overview" then
+    if not ui or ui._closing or ui.current_tab ~= "survivors" then
         return
     end
     -- the window outlives a closed PDA; Update() refreshes it while it is on screen and
@@ -110,15 +120,12 @@ function homestead_pda_actor_on_update()
     if not due then
         return
     end
-    -- a closed PDA: look again in a second, not every frame
-    local idle_due, idle_keep = hs_perf.throttle_due(ui._aou_idle_tick, now, LIVE_REFRESH_MS)
-    if not idle_due then return end
-    ui._aou_idle_tick = idle_keep
     local pda_menu = ActorMenu.get_pda_menu()
     if not (pda_menu and pda_menu:IsShown()) or not ui:IsShown() then
+        -- Advance tick while closed so PDA-closed checks run once per cadence, not every frame
+        ui._last_survivors_tick = now
         return
     end
-    ui._aou_idle_tick = nil
     ui._last_survivors_tick = keep
     ui._last_refresh = now
     if ui.UpdateSurvivorsProgress then
@@ -458,6 +465,10 @@ function SettlementManagerPDA:OnKeyboard(dik, keyboard_action)
     end
     if keyboard_action == ui_events.WINDOW_KEY_PRESSED then
         if dik == DIK_keys.DIK_ESCAPE then
+            local pda_menu = ActorMenu.get_pda_menu()
+            if pda_menu and pda_menu:IsShown() then
+                return false
+            end
             if self:IsShown() then
                 self:HideDialog()
                 return true
@@ -495,6 +506,15 @@ function SettlementManagerPDA:InitControls()
     self:AddCallback("btn_tab_rivals", ui_events.BUTTON_CLICKED, function() self:SetTab("rivals") end, self)
     self:AddCallback("btn_tab_radio", ui_events.BUTTON_CLICKED, function() self:SetTab("radio") end, self)
     self:AddCallback("btn_tab_guide", ui_events.BUTTON_CLICKED, function() self:SetTab("guide") end, self)
+
+    if xml:NodeExist("top_status_bar") then
+        self.top_status_bar = xml:InitStatic("top_status_bar", self)
+    end
+    for _, key in ipairs({"status_signal", "status_weather", "status_clock", "status_camp"}) do
+        if xml:NodeExist(key) then
+            self[key] = xml:InitTextWnd(key, self)
+        end
+    end
 
     self.list_header_bg = xml:InitStatic("list_header_bg", self)
     self.settlement_header = xml:InitTextWnd("settlement_header", self)
@@ -1040,6 +1060,7 @@ end
 function SettlementManagerPDA:SetTab(tab_name)
     play_pda_ui_sound([[interface\inv_open]])
     local has_sb = (stalker_camp_builder ~= nil)
+    local prev_tab = self.current_tab
     self.current_tab = tab_name or "overview"
 
     self.btn_tab_overview:Enable(true)
@@ -1072,19 +1093,19 @@ function SettlementManagerPDA:SetTab(tab_name)
         self.btn_tab_radio:TextControl():SetText(self.current_tab == "radio" and game.translate_string("st_pda_tab_radio") or game.translate_string("st_pda_tab_radio"))
     end
     if self.btn_tab_overview and self.btn_tab_overview.InitTexture then
-        hs_theme.set_active(self.btn_tab_overview, self.current_tab == "overview")
+        hs_theme.set_active(self.btn_tab_overview, self.current_tab == "overview", "tab")
     end
     if self.btn_tab_survivors and self.btn_tab_survivors.InitTexture then
-        hs_theme.set_active(self.btn_tab_survivors, self.current_tab == "survivors")
+        hs_theme.set_active(self.btn_tab_survivors, self.current_tab == "survivors", "tab")
     end
     if self.btn_tab_rivals and self.btn_tab_rivals.InitTexture then
-        hs_theme.set_active(self.btn_tab_rivals, self.current_tab == "rivals")
+        hs_theme.set_active(self.btn_tab_rivals, self.current_tab == "rivals", "tab")
     end
     if self.btn_tab_radio and self.btn_tab_radio.InitTexture then
-        hs_theme.set_active(self.btn_tab_radio, self.current_tab == "radio")
+        hs_theme.set_active(self.btn_tab_radio, self.current_tab == "radio", "tab")
     end
     if self.btn_tab_guide and self.btn_tab_guide.InitTexture then
-        hs_theme.set_active(self.btn_tab_guide, self.current_tab == "guide")
+        hs_theme.set_active(self.btn_tab_guide, self.current_tab == "guide", "tab")
     end
 
     if self.btn_tab_guide and self.btn_tab_guide:TextControl() then
@@ -1147,6 +1168,11 @@ function SettlementManagerPDA:SetTab(tab_name)
 
     if self.current_tab == "guide" then
         self:ApplyGuideView()
+    end
+
+    if self.current_tab == "survivors" and prev_tab ~= "survivors" and not self._in_reset and has_sb and count > 0 then
+        self:UpdateSurvivorsProgress()
+        self._last_survivors_tick = time_global()
     end
 
     if self.current_tab == "radio" then
@@ -1237,25 +1263,29 @@ function SettlementManagerPDA:Update()
     if pda_menu and pda_menu:GetTabControl() and not pda_menu:GetTabControl():IsShown() then
         pda_menu:GetTabControl():Show(true)
     end
-    if self.current_tab == "survivors" or self.current_tab == "overview" then
-        local tg = time_global()
+    local tg = time_global()
+    local sb_due, sb_keep = hs_perf.throttle_due(self._last_statusbar_tick, tg, 5000)
+    if sb_due then
+        self._last_statusbar_tick = sb_keep
+        self:UpdateTopStatusBar()
+    end
+    if self.current_tab == "survivors" then
         -- once a second on a steady cadence: the roster's timers show whole seconds
         local due, keep = hs_perf.throttle_due(self._last_survivors_tick, tg, LIVE_REFRESH_MS)
         if due then
             self._last_survivors_tick = keep
             self:UpdateSurvivorsProgress()
         end
-        if self.current_tab == "overview" then
-            if not self._last_overview_tick or (tg - self._last_overview_tick) >= 5000 or (tg < self._last_overview_tick) then
-                self._last_overview_tick = tg
-                self:RefreshOverviewLive()
-            end
+    elseif self.current_tab == "overview" then
+        local ov_due, ov_keep = hs_perf.throttle_due(self._last_overview_tick, tg, 5000)
+        if ov_due then
+            self._last_overview_tick = ov_keep
+            self:RefreshOverviewLive()
         end
-    end
-    if self.current_tab == "rivals" then
-        local tg = time_global()
-        if not self._last_raid_tick or (tg - self._last_raid_tick) >= 2000 or (tg < self._last_raid_tick) then
-            self._last_raid_tick = tg
+    elseif self.current_tab == "rivals" then
+        local raid_due, raid_keep = hs_perf.throttle_due(self._last_raid_tick, tg, 2000)
+        if raid_due then
+            self._last_raid_tick = raid_keep
             self:RefreshRaidPanel()
         end
     end
@@ -1279,70 +1309,14 @@ local function row_of(list, field, value)
     return 0
 end
 
-function SettlementManagerPDA:Reset(tab_name)
-    self._last_survivors_tick = 0
-    self._last_overview_tick = 0
-    -- translations and colorized texts are looked up again once per open
-    hs_perf.reset()
-    local pda_menu = ActorMenu.get_pda_menu()
-    if pda_menu and pda_menu:GetTabControl() then
-        pda_menu:GetTabControl():Show(true)
-    end
+function SettlementManagerPDA:PopulateRivalsList()
     local sformat = string.format
-    self:UpdateTopStatusBar()
     local pairs_ = pairs
-    tab_name = tab_name or "overview"
-    local keep_hub = selected_value(self.settlement_list, "hub_id")
-    local keep_survivor = selected_value(self.survivor_list, "survivor_id")
     local keep_rival = selected_value(self.rival_list, "smart")
-    -- RemoveAll (CUIScrollView::Clear) scrolls a list back to the top: keep each list's place
-    local camps_scroll = self.settlement_list:GetCurrentScrollPos()
     local rivals_scroll = self.rival_list:GetCurrentScrollPos()
-    self.roster_scroll = self.survivor_list:GetCurrentScrollPos()
-    self.settlement_list:RemoveAll()
-    self.survivor_list:RemoveAll()
     self.rival_list:RemoveAll()
-    self:ClearDetails()
     self:ClearRivalDetails()
-
-    if not stalker_camp_builder then
-        self:SetTab(tab_name)
-        return
-    end
-
-    local active_camps = stalker_camp_builder.active_camps or {}
-    local count = 0
-    for hub_id, camp in pairs_(active_camps) do
-        count = count + 1
-        local name = stalker_camp_builder.get_camp_label(camp)
-        local num_survivors = 0
-        if camp.survivors then
-            for _ in pairs_(camp.survivors) do
-                num_survivors = num_survivors + 1
-            end
-        end
-        local level_name = game.translate_string(camp.level or "unknown")
-        local hub_obj = alife_object(hub_id)
-        local stats = hub_obj and stalker_camp_builder.get_camp_stats(camp, hub_obj) or { population = num_survivors, beds = 0, defense = 0 }
-        -- spawn_camp_raid records a raid in camp.active_raid until check_completed_raids ends it
-        local is_raid = camp.active_raid ~= nil
-        local spec = camp.specialization or "none"
-
-        local badge_str
-        if spec ~= "none" then
-            badge_str = (is_raid and "[! ATTACK !] | " or "[SECURE] | ") .. game.translate_string("st_pda_spec_" .. spec)
-        else
-            badge_str = is_raid and "[! ATTACK !]" or "[SECURE]"
-        end
-
-        local details_str = sformat("%s  |  Pop: %d/%d  |  Def: %d", level_name, stats.population, stats.beds, stats.defense)
-        local item = SettlementListItem(hub_id, name, badge_str, is_raid, details_str, self.xml)
-        local h = item.total_item_height or 88
-        self.settlement_list:SetItemHeight(h)
-        self.settlement_list:AddExistingItem(item)
-        item:SetWndSize(vector2():set(162, h))
-        item:SetHeight(h)
-    end
+    if not stalker_camp_builder then return end
 
     local rival_camps = stalker_camp_builder.rival_camps or {}
     local rival_count = 0
@@ -1410,21 +1384,95 @@ function SettlementManagerPDA:Reset(tab_name)
         end
     end
 
-    if count > 0 then
-        self.settlement_list:SetSelectedIndex(row_of(self.settlement_list, "hub_id", keep_hub))
-        self.settlement_list:SetScrollPos(camps_scroll)
-        self:OnSettlementSelected(keep_survivor)
-    else
-        if tab_name == "overview" then
-            tab_name = "guide"
-        end
-    end
     if rival_count > 0 then
         self.rival_list:SetSelectedIndex(row_of(self.rival_list, "smart", keep_rival))
         self.rival_list:SetScrollPos(rivals_scroll)
         self:OnRivalSelected()
     end
+end
+
+function SettlementManagerPDA:Reset(tab_name)
+    self._last_survivors_tick = 0
+    self._last_overview_tick = 0
+    self._last_statusbar_tick = 0
+    self._radio_chan_sig = nil
+    self._radio_feed_key = nil
+    -- translations and colorized texts are looked up again once per open
+    hs_perf.reset()
+    local pda_menu = ActorMenu.get_pda_menu()
+    if pda_menu and pda_menu:GetTabControl() then
+        pda_menu:GetTabControl():Show(true)
+    end
+    local sformat = string.format
+    local pairs_ = pairs
+    tab_name = tab_name or "overview"
+    local keep_hub = selected_value(self.settlement_list, "hub_id")
+    local keep_survivor = selected_value(self.survivor_list, "survivor_id")
+    -- RemoveAll (CUIScrollView::Clear) scrolls a list back to the top: keep each list's place
+    local camps_scroll = self.settlement_list:GetCurrentScrollPos()
+    self.roster_scroll = self.survivor_list:GetCurrentScrollPos()
+    self.settlement_list:RemoveAll()
+    self.survivor_list:RemoveAll()
+    self:ClearDetails()
+
+    if not stalker_camp_builder then
+        self:PopulateRivalsList()
+        self:UpdateTopStatusBar()
+        self._in_reset = true
+        self:SetTab(tab_name)
+        self._in_reset = nil
+        return
+    end
+
+    local active_camps = stalker_camp_builder.active_camps or {}
+    local count = 0
+    for hub_id, camp in pairs_(active_camps) do
+        count = count + 1
+        local name = stalker_camp_builder.get_camp_label(camp)
+        local num_survivors = 0
+        if camp.survivors then
+            for _ in pairs_(camp.survivors) do
+                num_survivors = num_survivors + 1
+            end
+        end
+        local level_name = game.translate_string(camp.level or "unknown")
+        local hub_obj = alife_object(hub_id)
+        local stats = hub_obj and stalker_camp_builder.get_camp_stats(camp, hub_obj) or { population = num_survivors, beds = 0, defense = 0 }
+        -- spawn_camp_raid records a raid in camp.active_raid until check_completed_raids ends it
+        local is_raid = camp.active_raid ~= nil
+        local spec = camp.specialization or "none"
+
+        local badge_str
+        if spec ~= "none" then
+            badge_str = (is_raid and "[! ATTACK !] | " or "[SECURE] | ") .. game.translate_string("st_pda_spec_" .. spec)
+        else
+            badge_str = is_raid and "[! ATTACK !]" or "[SECURE]"
+        end
+
+        local details_str = sformat("%s  |  Pop: %d/%d  |  Def: %d", level_name, stats.population, stats.beds, stats.defense)
+        local item = SettlementListItem(hub_id, name, badge_str, is_raid, details_str, self.xml)
+        local h = item.total_item_height or 88
+        self.settlement_list:SetItemHeight(h)
+        self.settlement_list:AddExistingItem(item)
+        item:SetWndSize(vector2():set(162, h))
+        item:SetHeight(h)
+    end
+
+    self:PopulateRivalsList()
+
+    if count > 0 then
+        self.settlement_list:SetSelectedIndex(row_of(self.settlement_list, "hub_id", keep_hub))
+        self.settlement_list:SetScrollPos(camps_scroll)
+        self:OnSettlementSelected(keep_survivor)
+    else
+        self:UpdateTopStatusBar()
+        if tab_name == "overview" then
+            tab_name = "guide"
+        end
+    end
+    self._in_reset = true
     self:SetTab(tab_name)
+    self._in_reset = nil
 end
 
 function SettlementManagerPDA:ClearDetails()
@@ -1800,9 +1848,9 @@ function SettlementManagerPDA:OnRivalRightClick()
 end
 
 function SettlementManagerPDA:OnRefreshClicked()
-    -- only reloads the list: update_rival_camps is the outposts' 10-second tick, and each extra
+    -- only reloads the rival list: update_rival_camps is the outposts' 10-second tick, and each extra
     -- call would advance their heat and event rolls
-    self:Reset("rivals")
+    self:PopulateRivalsList()
 end
 
 -- show the page of the selected mini tab and hide the others; the tab row marks the chosen one
@@ -1833,14 +1881,15 @@ end
 function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
     local mmin = math.min
     local sformat = string.format
+    local function tr(id) return hs_perf.tr(id) end
     local stats = stalker_camp_builder.get_camp_stats(camp, hub_obj)
     local name = stalker_camp_builder.get_camp_label(camp)
-    local level_name = game.translate_string(camp.level or "unknown")
+    local level_name = tr(camp.level or "unknown")
 
     self.camp_name:SetText(name)
 
     local spec = camp.specialization or "none"
-    local spec_str = (tostring(game.translate_string("st_pda_spec_" .. spec)):gsub("%s*%b()", ""))
+    local spec_str = (tostring(tr("st_pda_spec_" .. spec)):gsub("%s*%b()", ""))
     -- one line, region and specialization: the box is one line high, so nothing may wrap
     self.camp_spec_badge:SetText(sformat("%s  -  %s", level_name:upper(), spec_str:upper()))
 
@@ -1848,20 +1897,29 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
     -- on the settlement's level, not the player's: the list holds settlements from every level
     if not smart_hazard and camp.level and camp.level ~= "unknown"
         and stalker_camp_builder.get_nearby_smart_terrain_hazard and hub_obj and hub_obj.position then
-        smart_hazard, smart_dist = stalker_camp_builder.get_nearby_smart_terrain_hazard(hub_obj.position, nil, camp.level)
+        self._smart_hazard_cache = self._smart_hazard_cache or {}
+        local pos = hub_obj.position
+        local cached = self._smart_hazard_cache[hub_id]
+        if cached and cached.level == camp.level and cached.x == pos.x and cached.y == pos.y and cached.z == pos.z then
+            smart_hazard = cached.name or nil
+            smart_dist = cached.dist
+        else
+            smart_hazard, smart_dist = stalker_camp_builder.get_nearby_smart_terrain_hazard(pos, nil, camp.level)
+            self._smart_hazard_cache[hub_id] = {
+                level = camp.level, x = pos.x, y = pos.y, z = pos.z,
+                name = smart_hazard or false, dist = smart_dist,
+            }
+        end
     end
 
-    if self.raid_banner_bg then
-        hs_theme.banner(self.raid_banner_bg, (camp.active_raid or smart_hazard) and "threat" or "secure")
-    end
     -- the summary line under the tabs (set once the rows below are known): state word and its role
     local sum_word, sum_role
     if camp.active_raid then
-        sum_word, sum_role = game.translate_string("st_pda_ov_sum_raid"), "danger"
+        sum_word, sum_role = tr("st_pda_ov_sum_raid"), "danger"
     elseif smart_hazard then
-        sum_word, sum_role = sformat(game.translate_string("st_pda_ov_sum_spawn"), math.floor(smart_dist or 0)), "warn"
+        sum_word, sum_role = sformat(tr("st_pda_ov_sum_spawn"), math.floor(smart_dist or 0)), "warn"
     else
-        sum_word, sum_role = game.translate_string("st_pda_ov_sum_secure"), "good"
+        sum_word, sum_role = tr("st_pda_ov_sum_secure"), "good"
     end
 
     if self.btn_specialization and self.btn_specialization.TextControl and self.btn_specialization:TextControl() then
@@ -1874,7 +1932,6 @@ function SettlementManagerPDA:RenderOverviewStats(hub_id, camp, hub_obj)
         ctl:SetText(text)
         ctl:SetTextColor(hs_theme.argb(role or "body"))
     end
-    local function tr(id) return game.translate_string(id) end
 
     -- POPULATION
     local beds = math.max(1, stats.beds)
@@ -2008,6 +2065,7 @@ function SettlementManagerPDA:OnSettlementSelected(keep_survivor)
     end
 
     self:RenderOverviewStats(hub_id, camp, hub_obj)
+    self:UpdateTopStatusBar()
 
     keep_survivor = keep_survivor or selected_value(self.survivor_list, "survivor_id")
     -- the same camp's roster keeps its scroll place (Reset saved it before clearing the list)
@@ -2077,8 +2135,6 @@ end
 
 function SettlementManagerPDA:OnSurvivorSelected()
     local mmax = math.max
-    local mfloor = math.floor
-    local sformat = string.format
     local item = self.survivor_list:GetSelectedItem()
     if not item then
         self.job_panel:Show(false)
@@ -2125,295 +2181,19 @@ function SettlementManagerPDA:OnSurvivorSelected()
     set_bar(self.ov_bars.xp, progress_pct / 100, "good")
 
     local job = s_item.job or "idle"
-    local job_lbl = game.translate_string("st_pda_settlement_job_" .. job)
-    if job_lbl == "st_pda_settlement_job_" .. job then
-        job_lbl = job:sub(1,1):upper() .. job:sub(2)
-    end
-
     s_item.npc_id = s_item.npc_id or tonumber(survivor_id) or survivor_id
-    local is_paused, reason_short, reason_detail = false, nil, nil
     local si = self.settlement_list and self.settlement_list:GetSelectedItem()
-    s_item.hub_id = s_item.hub_id or (si and si.hub_id)
-    local camp = si and stalker_camp_builder and stalker_camp_builder.active_camps and stalker_camp_builder.active_camps[si.hub_id]
-    if stalker_camp_builder and stalker_camp_builder.get_job_paused_status then
-        is_paused, reason_short, reason_detail = stalker_camp_builder.get_job_paused_status(s_item, camp, si and si.hub_id)
-    end
+    local hub_id = si and si.hub_id
+    s_item.hub_id = s_item.hub_id or hub_id
+    local camp = hub_id and stalker_camp_builder and stalker_camp_builder.active_camps and stalker_camp_builder.active_camps[hub_id]
 
     self:RefreshRecallButton(survivor_id)
 
-    local progress = stalker_camp_builder.get_job_progress
-        and stalker_camp_builder.get_job_progress(s_item, camp, si and si.hub_id) or 0
-    local pct = mfloor(progress * 100)
-
-    local job_str = game.translate_string("st_pda_settlement_assign_job") .. " " .. job_lbl
-    if is_paused then
-        job_str = sformat("%s: %%c[255,255,100,100][PAUSED - %s]%%c[200,200,200]", job_lbl, reason_short or "Blocked")
-        self.survivor_pos_txt:SetText(sformat("Status: %s", reason_detail or "Job paused"))
-    elseif job == "scavenge" then
-        local exp = stalker_camp_builder.get_scavenger_expedition_for_survivor and stalker_camp_builder.get_scavenger_expedition_for_survivor(s_item, survivor_id)
-        if exp then
-            local current_sec = stalker_camp_builder.game_sec()
-            local game_elapsed = current_sec - exp.start_sec
-            local effective_elapsed = mmax(0, game_elapsed)
-            local sc_pct = mfloor(math.min(100, (effective_elapsed / exp.duration) * 100))
-            local rem_sec = mmax(0, exp.duration - effective_elapsed)
-            local time_str = stalker_camp_builder.format_expedition_time and stalker_camp_builder.format_expedition_time(rem_sec) or sformat("%dm", mfloor(rem_sec / 60))
-            local target_lvl = game.translate_string(exp.target_level or "unknown")
-
-            if exp.is_sweep and exp.all_stashes and #exp.all_stashes > 1 then
-                job_str = sformat("%s: Regional Sweep (%d Stashes in %s) - %d%% (%s remaining)", job_lbl, #exp.all_stashes, target_lvl, sc_pct, time_str)
-                self.survivor_pos_txt:SetText(sformat("Status: Sweeping %d Stashes in %s", #exp.all_stashes, target_lvl))
-            else
-                job_str = sformat("%s: Expedition to %s (%d%% - %s remaining)", job_lbl, target_lvl, sc_pct, time_str)
-                self.survivor_pos_txt:SetText(sformat("Status: En Route to Stash in %s", target_lvl))
-            end
-        else
-            local rem_sec = stalker_camp_builder.get_job_time_remaining
-                and stalker_camp_builder.get_job_time_remaining(s_item, camp, si and si.hub_id)
-            if rem_sec and rem_sec > 0 then
-                local mins = mfloor(rem_sec / 60)
-                local secs = mfloor(rem_sec % 60)
-                local time_str = mins > 0 and sformat("%dm %02ds", mins, secs) or sformat("%ds", secs)
-                job_str = sformat("%s: Patrolling Camp (%d%% - %s remaining)", job_lbl, pct, time_str)
-                self.survivor_pos_txt:SetText("Status: Camp Perimeter Patrol & Salvage")
-            else
-                job_str = sformat("%s (Available for Expedition)", job_lbl)
-                self.survivor_pos_txt:SetText("Status: Waiting at Camp for Expedition Orders")
-            end
-        end
-    elseif job == "hunter" then
-        local rem_sec = stalker_camp_builder.get_job_time_remaining
-            and stalker_camp_builder.get_job_time_remaining(s_item, camp, si and si.hub_id)
-
-        if rem_sec and rem_sec > 0 and pct < 100 then
-            local mins = mfloor(rem_sec / 60)
-            local secs = mfloor(rem_sec % 60)
-            local time_str = mins > 0 and sformat("%dm %02ds", mins, secs) or sformat("%ds", secs)
-            job_str = sformat("%s: Tracking Mutants (%d%% - %s remaining)", job_lbl, pct, time_str)
-            self.survivor_pos_txt:SetText("Status: Hunting from Camp")
-        elseif pct >= 100 then
-            job_str = sformat("%s (%d%% - Harvest Ready)", job_lbl, pct)
-            self.survivor_pos_txt:SetText("Status: Storing Harvested Meat at Camp")
-        else
-            job_str = sformat("%s (%d%%)", job_lbl, pct)
-            self.survivor_pos_txt:SetText("Status: Hunting from Camp")
-        end
-    elseif job ~= "idle" then
-        local rem_sec = stalker_camp_builder.get_job_time_remaining
-            and stalker_camp_builder.get_job_time_remaining(s_item, camp, si and si.hub_id)
-
-        local time_str = ""
-        if rem_sec and rem_sec > 0 and pct < 100 then
-            local mins = mfloor(rem_sec / 60)
-            local secs = mfloor(rem_sec % 60)
-            time_str = mins > 0 and sformat("%dm %02ds", mins, secs) or sformat("%ds", secs)
-        end
-
-        local boost_str = ""
-        if job == "woodcutter" and s_item.has_axe then
-            boost_str = " [Axe: 2x Boost]"
-        elseif (job == "brewer" or job == "chemist") and (s_item.has_drugkit or (camp and camp.has_drugkit)) then
-            boost_str = drugkit_boost_label(job, camp)
-        elseif job == "scrapper" and s_item.has_tools then
-            boost_str = " [Demolition Tools: 2x Boost]"
-        end
-
-        if job == "medic" then
-            local order_labels = {
-                auto = "Auto-Balanced",
-                bandage = "Bandages",
-                medkit = "AI-2 Medkits",
-                kalium = "Potassium Iodide",
-                akvatab = "Ibuprofen",
-            }
-            local ord = order_labels[s_item.medic_order or "auto"] or "Auto"
-            if s_item.shortfall_reason then
-                job_str = sformat("%s: [%s] (Waiting: %s)", job_lbl, ord, s_item.shortfall_reason)
-                self.survivor_pos_txt:SetText(sformat("Status: Waiting for supplies (%s)", s_item.shortfall_reason))
-            elseif time_str ~= "" then
-                job_str = sformat("%s: [%s] (%d%% - %s remaining)", job_lbl, ord, pct, time_str)
-            elseif pct >= 100 then
-                job_str = sformat("%s: [%s] (%d%% - Ready)", job_lbl, ord, pct)
-            else
-                job_str = sformat("%s: [%s] (%d%%)", job_lbl, ord, pct)
-            end
-            if not s_item.shortfall_reason then
-                self.survivor_pos_txt:SetText("Status: Synthesizing Pharmaceutical Supplies")
-            end
-        elseif job == "woodcutter" then
-            local mode_labels = {
-                auto = "Auto-Rotate",
-                timber = "Timber Focus",
-                charcoal = "Charcoal Focus",
-            }
-            local wm = mode_labels[s_item.woodcutter_mode or "auto"] or "Timber"
-            if s_item.shortfall_reason then
-                job_str = sformat("%s: [%s]%s (Waiting: %s)", job_lbl, wm, boost_str, s_item.shortfall_reason)
-                self.survivor_pos_txt:SetText(sformat("Status: Waiting for supplies (%s)", s_item.shortfall_reason))
-            elseif time_str ~= "" then
-                job_str = sformat("%s: [%s]%s (%d%% - %s remaining)", job_lbl, wm, boost_str, pct, time_str)
-            elseif pct >= 100 then
-                job_str = sformat("%s: [%s]%s (%d%% - Harvest Ready)", job_lbl, wm, boost_str, pct)
-            else
-                job_str = sformat("%s: [%s]%s (%d%%)", job_lbl, wm, boost_str, pct)
-            end
-            if not s_item.shortfall_reason then
-                self.survivor_pos_txt:SetText("Status: Logging & Processing Camp Fuel")
-            end
-        elseif job == "brewer" then
-            if s_item.shortfall_reason then
-                job_str = sformat("%s: Distilling Vodka%s (Waiting: %s)", job_lbl, boost_str, s_item.shortfall_reason)
-                self.survivor_pos_txt:SetText(sformat("Status: Waiting for supplies (%s)", s_item.shortfall_reason))
-            elseif time_str ~= "" then
-                job_str = sformat("%s: Distilling Vodka%s (%d%% - %s remaining)", job_lbl, boost_str, pct, time_str)
-            elseif pct >= 100 then
-                job_str = sformat("%s: Distilling Vodka%s (%d%% - Ready)", job_lbl, boost_str, pct)
-            else
-                job_str = sformat("%s: Distilling Vodka%s (%d%%)", job_lbl, boost_str, pct)
-            end
-            if not s_item.shortfall_reason then
-                self.survivor_pos_txt:SetText("Status: Fermenting & Distilling Spirits")
-            end
-        elseif job == "chemist" then
-            local cm = PDA_LABELS.chem_mode[s_item.chemist_mode or "auto"] or "Auto-Balanced"
-            if s_item.shortfall_reason then
-                job_str = sformat("%s: [%s]%s (Waiting: %s)", job_lbl, cm, boost_str, s_item.shortfall_reason)
-                self.survivor_pos_txt:SetText(sformat("Status: Waiting for supplies (%s)", s_item.shortfall_reason))
-            elseif time_str ~= "" then
-                job_str = sformat("%s: [%s]%s (%d%% - %s remaining)", job_lbl, cm, boost_str, pct, time_str)
-            elseif pct >= 100 then
-                job_str = sformat("%s: [%s]%s (%d%% - Synthesis Ready)", job_lbl, cm, boost_str, pct)
-            else
-                job_str = sformat("%s: [%s]%s (%d%%)", job_lbl, cm, boost_str, pct)
-            end
-            if not s_item.shortfall_reason then
-                self.survivor_pos_txt:SetText("Status: Synthesizing Gunpowder & Kerosene Fuel")
-            end
-        elseif job == "craft" then
-            local craft_labels = {
-                auto = "Auto-Balanced",
-                pistol = "Handgun Ammo",
-                shotgun = "Shotgun Shells",
-                rifle_soviet = "Soviet 5.45x39",
-                rifle_nato = "NATO 5.56x45",
-                rifle_heavy = "Assault 7.62x39",
-                sniper = "Sniper Calibers",
-                turret = "Turret Rounds",
-                grenade = "Hand Grenades",
-                underbarrel = "VOG / 40mm",
-            }
-            local ord = craft_labels[s_item.craft_order or "auto"] or "Auto"
-            if s_item.shortfall_reason then
-                job_str = sformat("%s: [%s]%s (Waiting: %s)", job_lbl, ord, boost_str, s_item.shortfall_reason)
-                self.survivor_pos_txt:SetText(sformat("Status: Waiting for supplies (%s)", s_item.shortfall_reason))
-            elseif time_str ~= "" then
-                job_str = sformat("%s: [%s]%s (%d%% - %s remaining)", job_lbl, ord, boost_str, pct, time_str)
-            elseif pct >= 100 then
-                job_str = sformat("%s: [%s]%s (%d%% - Ready)", job_lbl, ord, boost_str, pct)
-            else
-                job_str = sformat("%s: [%s]%s (%d%%)", job_lbl, ord, boost_str, pct)
-            end
-            if not s_item.shortfall_reason then
-                self.survivor_pos_txt:SetText("Status: Crafting Ammunition & Loading Shells")
-            end
-        elseif job == "cook" then
-            local cook_labels = {
-                auto = "Auto-Balanced",
-                tier1 = "Simple Roast",
-                tier2 = "Boiled Stew",
-                tier3 = "Gourmet Feast",
-            }
-            local ord = cook_labels[s_item.cook_mode or "auto"] or "Auto"
-            if s_item.shortfall_reason then
-                job_str = sformat("%s: [%s]%s (Waiting: %s)", job_lbl, ord, boost_str, s_item.shortfall_reason)
-                self.survivor_pos_txt:SetText(sformat("Status: Waiting for supplies (%s)", s_item.shortfall_reason))
-            elseif time_str ~= "" then
-                job_str = sformat("%s: [%s]%s (%d%% - %s remaining)", job_lbl, ord, boost_str, pct, time_str)
-            elseif pct >= 100 then
-                job_str = sformat("%s: [%s]%s (%d%% - Ready)", job_lbl, ord, boost_str, pct)
-            else
-                job_str = sformat("%s: [%s]%s (%d%%)", job_lbl, ord, boost_str, pct)
-            end
-            if not s_item.shortfall_reason then
-                local desc = game.translate_string("st_homestead_job_cook_desc")
-                desc = desc ~= "st_homestead_job_cook_desc" and desc or "Prepares meals and rations for the settlement."
-                -- Auto makes tier 3 only for a Master cook or with MCM Cook Output Tier 3: the card says so
-                -- in place of the description, which the 16 px line can't hold along with it
-                local tier_note = game.translate_string("st_homestead_job_cook_auto_tier")
-                if (s_item.cook_mode or "auto") == "auto" and tier_note ~= "st_homestead_job_cook_auto_tier" then
-                    desc = tier_note
-                end
-                self.survivor_pos_txt:SetText(desc)
-            end
-        elseif job == "farmer" then
-            if s_item.shortfall_reason then
-                job_str = sformat("%s: Tending Fields (Waiting: %s)", job_lbl, s_item.shortfall_reason)
-                self.survivor_pos_txt:SetText(sformat("Status: Waiting (%s)", s_item.shortfall_reason))
-            elseif time_str ~= "" then
-                job_str = sformat("%s: Tending Fields (%d%% - %s remaining)", job_lbl, pct, time_str)
-            elseif pct >= 100 then
-                job_str = sformat("%s: Tending Fields (%d%% - Harvest Ready)", job_lbl, pct)
-            else
-                job_str = sformat("%s: Tending Fields (%d%%)", job_lbl, pct)
-            end
-            if not s_item.shortfall_reason then
-                self.survivor_pos_txt:SetText("Status: Growing Potatoes & Grain, Baking Bread")
-            end
-            elseif job == "trader" then
-                if s_item.shortfall_reason then
-                    job_str = sformat("%s: Running the Stall (Waiting: %s)", job_lbl, s_item.shortfall_reason)
-                    self.survivor_pos_txt:SetText(sformat("Status: Waiting (%s)", s_item.shortfall_reason))
-                elseif time_str ~= "" then
-                    job_str = sformat("%s: Running the Stall (%d%% - %s remaining)", job_lbl, pct, time_str)
-                elseif pct >= 100 then
-                    job_str = sformat("%s: Running the Stall (%d%% - Ready to Sell)", job_lbl, pct)
-                else
-                    job_str = sformat("%s: Running the Stall (%d%%)", job_lbl, pct)
-                end
-                if not s_item.shortfall_reason then
-                    self.survivor_pos_txt:SetText("Status: Selling Stall Goods for RU")
-                end
-        elseif job == "scrapper" then
-            if time_str ~= "" then
-                job_str = sformat("%s: Salvaging Scrap%s (%d%% - %s remaining)", job_lbl, boost_str, pct, time_str)
-            elseif pct >= 100 then
-                job_str = sformat("%s: Salvaging Scrap%s (%d%% - Ready)", job_lbl, boost_str, pct)
-            else
-                job_str = sformat("%s: Salvaging Scrap%s (%d%%)", job_lbl, boost_str, pct)
-            end
-            self.survivor_pos_txt:SetText("Status: Stripping Metal & Hardware from Debris")
-        elseif job == "electrician" then
-            if time_str ~= "" then
-                job_str = sformat("%s: Grid & Batteries (%d%% - %s remaining)", job_lbl, pct, time_str)
-            elseif pct >= 100 then
-                job_str = sformat("%s: Grid & Batteries (%d%% - Ready)", job_lbl, pct)
-            else
-                job_str = sformat("%s: Grid & Batteries (%d%%)", job_lbl, pct)
-            end
-            self.survivor_pos_txt:SetText("Status: Maintaining Lights & Recharging Batteries")
-        else
-            if time_str ~= "" then
-                job_str = sformat("%s%s (%d%% - %s)", job_str, boost_str, pct, time_str)
-            elseif pct >= 100 then
-                job_str = sformat("%s%s (%d%% - Ready)", job_str, boost_str, pct)
-            else
-                job_str = sformat("%s%s (%d%%)", job_str, boost_str, pct)
-            end
-            if s_item.assigned_pos then
-                self.survivor_pos_txt:SetText(game.translate_string("st_pda_position_status_custom"))
-            else
-                self.survivor_pos_txt:SetText(game.translate_string("st_pda_position_status_default"))
-            end
-        end
-    else
-        if s_item.assigned_pos then
-            self.survivor_pos_txt:SetText(game.translate_string("st_pda_position_status_custom"))
-        else
-            self.survivor_pos_txt:SetText(game.translate_string("st_pda_position_status_default"))
-        end
-    end
-
+    local job_str, pos_str, is_paused, job_lbl = self:FormatSurvivorJobDetail(s_item, survivor_id, camp, hub_id)
     self.survivor_job_txt:SetText(colorize_pda_text(job_str))
+    if self.survivor_pos_txt and pos_str then
+        self.survivor_pos_txt:SetText(pos_str)
+    end
 
     local c_active = hs_theme.argb("heading") -- Gold active highlight
     local c_normal = hs_theme.argb("body") -- Slate neutral
@@ -3137,19 +2917,19 @@ function SettlementManagerPDA:FormatSurvivorStatus(survivor, camp, hub_id)
         if exp then
             local current_sec = stalker_camp_builder.game_sec()
             local game_elapsed = current_sec - (exp.start_sec or current_sec)
-            local tf = stalker_camp_builder.time_factor()
             local effective_elapsed = mmax(0, game_elapsed)
             local dur = mmax(1, exp.duration or 1)
             local prog = mfloor(math.min(100, (effective_elapsed / dur) * 100))
             local rem_game_sec = mmax(0, dur - effective_elapsed)
-            local rem_sec = mmax(0, math.floor(rem_game_sec / tf))
-            local mins = mfloor(rem_sec / 60)
-            local secs = mfloor(rem_sec % 60)
-            if mins > 0 then
-                return sformat("Expedition: %d%% (%dm %02ds)", prog, mins, secs), c_blue
+            local time_str
+            if stalker_camp_builder.format_expedition_time then
+                time_str = stalker_camp_builder.format_expedition_time(rem_game_sec)
             else
-                return sformat("Expedition: %d%% (%ds)", prog, secs), c_blue
+                local tf = tonumber(level and level.get_time_factor and level.get_time_factor()) or stalker_camp_builder.time_factor()
+                if not tf or tf <= 0 then tf = 1 end
+                time_str = format_short_duration(mmax(0, mfloor(rem_game_sec / tf)))
             end
+            return sformat("Expedition: %d%% (%s)", prog, time_str), c_blue
         else
             survivor.on_expedition = nil
             local rem_sec = stalker_camp_builder and stalker_camp_builder.get_job_time_remaining and stalker_camp_builder.get_job_time_remaining(survivor, camp, hub_id)
@@ -3325,10 +3105,156 @@ function SettlementManagerPDA:RefitSurvivorDetail()
     end
 end
 
-function SettlementManagerPDA:RefreshJobProgress(force, hub_id_override)
+function SettlementManagerPDA:FormatSurvivorJobDetail(survivor, survivor_id, camp, hub_id)
     local mmax = math.max
     local mfloor = math.floor
     local sformat = string.format
+    local job = survivor.job or "idle"
+    local job_lbl = hs_perf.job_label(job)
+
+    local is_paused, reason_short, reason_detail = false, nil, nil
+    if stalker_camp_builder and stalker_camp_builder.get_job_paused_status then
+        is_paused, reason_short, reason_detail = stalker_camp_builder.get_job_paused_status(survivor, camp, hub_id)
+    end
+    if is_paused then
+        return sformat("%s: %%c[255,255,100,100][PAUSED - %s]%%c[200,200,200]", job_lbl, reason_short or "Blocked"),
+            sformat("Status: %s", reason_detail or "Job paused"),
+            true,
+            job_lbl
+    end
+
+    if job == "idle" then
+        local pos_str = survivor.assigned_pos and hs_perf.tr("st_pda_position_status_custom") or "Status: Resting at Settlement Base"
+        return job_lbl, pos_str, false, job_lbl
+    elseif job == "guard" then
+        local pos_str = survivor.assigned_pos and hs_perf.tr("st_pda_position_status_custom") or "Status: Guarding Camp Perimeter"
+        return sformat("%s (+Defense)", job_lbl), pos_str, false, job_lbl
+    elseif job == "scavenge" or job == "scavenger" then
+        local exp = stalker_camp_builder.get_scavenger_expedition_for_survivor
+            and stalker_camp_builder.get_scavenger_expedition_for_survivor(survivor, survivor_id)
+        if exp then
+            local current_sec = stalker_camp_builder.game_sec()
+            local effective_elapsed = mmax(0, current_sec - (exp.start_sec or current_sec))
+            local dur = mmax(1, exp.duration or 1)
+            local sc_pct = mfloor(math.min(100, (effective_elapsed / dur) * 100))
+            local rem_sec = mmax(0, dur - effective_elapsed)
+            local time_str
+            if stalker_camp_builder.format_expedition_time then
+                time_str = stalker_camp_builder.format_expedition_time(rem_sec)
+            else
+                local tf = tonumber(level and level.get_time_factor and level.get_time_factor()) or stalker_camp_builder.time_factor()
+                if not tf or tf <= 0 then tf = 1 end
+                time_str = format_short_duration(mmax(0, mfloor(rem_sec / tf)))
+            end
+            local target_lvl = hs_perf.tr(exp.target_level or "unknown")
+            if exp.is_sweep and exp.all_stashes and #exp.all_stashes > 1 then
+                return sformat("%s: Regional Sweep (%d Stashes in %s) - %d%% (%s remaining)", job_lbl, #exp.all_stashes, target_lvl, sc_pct, time_str),
+                    sformat("Status: Sweeping %d Stashes in %s", #exp.all_stashes, target_lvl),
+                    false,
+                    job_lbl
+            else
+                return sformat("%s: Expedition to %s (%d%% - %s remaining)", job_lbl, target_lvl, sc_pct, time_str),
+                    sformat("Status: En Route to Stash in %s", target_lvl),
+                    false,
+                    job_lbl
+            end
+        end
+        local progress = stalker_camp_builder.get_job_progress and stalker_camp_builder.get_job_progress(survivor, camp, hub_id) or 0
+        local rem_sec = stalker_camp_builder.get_job_time_remaining and stalker_camp_builder.get_job_time_remaining(survivor, camp, hub_id) or 0
+        local pct = mfloor((progress or 0) * 100)
+        if rem_sec > 0 then
+            return sformat("%s: Patrolling Camp (%d%% - %s remaining)", job_lbl, pct, format_short_duration(rem_sec)),
+                "Status: Camp Perimeter Patrol & Salvage",
+                false,
+                job_lbl
+        end
+        return sformat("%s (Available for Expedition)", job_lbl),
+            "Status: Waiting at Camp for Expedition Orders",
+            false,
+            job_lbl
+    end
+
+    local progress = stalker_camp_builder.get_job_progress and stalker_camp_builder.get_job_progress(survivor, camp, hub_id) or 0
+    local rem_sec = stalker_camp_builder.get_job_time_remaining and stalker_camp_builder.get_job_time_remaining(survivor, camp, hub_id) or 0
+    local pct = mfloor((progress or 0) * 100)
+
+    if job == "hunter" then
+        if rem_sec > 0 and pct < 100 then
+            return sformat("%s: Tracking Mutants (%d%% - %s remaining)", job_lbl, pct, format_short_duration(rem_sec)),
+                "Status: Hunting from Camp",
+                false,
+                job_lbl
+        elseif pct >= 100 then
+            return sformat("%s (%d%% - Harvest Ready)", job_lbl, pct),
+                "Status: Storing Harvested Meat at Camp",
+                false,
+                job_lbl
+        end
+        return sformat("%s (%d%%)", job_lbl, pct), "Status: Hunting from Camp", false, job_lbl
+    end
+
+    local time_str = (rem_sec > 0 and pct < 100) and format_short_duration(rem_sec) or ""
+    local boost_str = ""
+    if job == "woodcutter" and survivor.has_axe then
+        boost_str = " [Axe: 2x Boost]"
+    elseif (job == "brewer" or job == "chemist") and (survivor.has_drugkit or (camp and camp.has_drugkit)) then
+        boost_str = drugkit_boost_label(job, camp)
+    elseif job == "scrapper" and survivor.has_tools then
+        boost_str = " [Demolition Tools: 2x Boost]"
+    end
+
+    local function format_prod(head, ready_word, default_pos, wait_prefix)
+        if survivor.shortfall_reason then
+            return sformat("%s (Waiting: %s)", head, survivor.shortfall_reason),
+                sformat("%s (%s)", wait_prefix or "Status: Waiting for supplies", survivor.shortfall_reason),
+                false,
+                job_lbl
+        elseif time_str ~= "" then
+            return sformat("%s (%d%% - %s remaining)", head, pct, time_str), default_pos, false, job_lbl
+        elseif pct >= 100 then
+            return sformat("%s (%d%% - %s)", head, pct, ready_word), default_pos, false, job_lbl
+        end
+        return sformat("%s (%d%%)", head, pct), default_pos, false, job_lbl
+    end
+
+    if job == "medic" then
+        local ord = PDA_LABELS.medic_order[survivor.medic_order or "auto"] or "Auto"
+        return format_prod(sformat("%s: [%s]", job_lbl, ord), "Ready", "Status: Synthesizing Pharmaceutical Supplies")
+    elseif job == "woodcutter" then
+        local wm = PDA_LABELS.wood_mode[survivor.woodcutter_mode or "auto"] or "Timber"
+        return format_prod(sformat("%s: [%s]%s", job_lbl, wm, boost_str), "Harvest Ready", "Status: Logging & Processing Camp Fuel")
+    elseif job == "brewer" then
+        return format_prod(sformat("%s: Distilling Vodka%s", job_lbl, boost_str), "Ready", "Status: Fermenting & Distilling Spirits")
+    elseif job == "chemist" then
+        local cm = PDA_LABELS.chem_mode[survivor.chemist_mode or "auto"] or "Auto-Balanced"
+        return format_prod(sformat("%s: [%s]%s", job_lbl, cm, boost_str), "Synthesis Ready", "Status: Synthesizing Gunpowder & Kerosene Fuel")
+    elseif job == "craft" then
+        local ord = PDA_LABELS.craft_order[survivor.craft_order or "auto"] or "Auto"
+        return format_prod(sformat("%s: [%s]%s", job_lbl, ord, boost_str), "Ready", "Status: Crafting Ammunition & Loading Shells")
+    elseif job == "cook" then
+        local ord = PDA_LABELS.cook_mode[survivor.cook_mode or "auto"] or "Auto"
+        local desc = hs_perf.tr("st_homestead_job_cook_desc")
+        if desc == "st_homestead_job_cook_desc" then desc = "Prepares meals and rations for the settlement." end
+        local tier_note = hs_perf.tr("st_homestead_job_cook_auto_tier")
+        if (survivor.cook_mode or "auto") == "auto" and tier_note ~= "st_homestead_job_cook_auto_tier" then
+            desc = tier_note
+        end
+        return format_prod(sformat("%s: [%s]%s", job_lbl, ord, boost_str), "Ready", desc)
+    elseif job == "farmer" then
+        return format_prod(sformat("%s: Tending Fields", job_lbl), "Harvest Ready", "Status: Growing Potatoes & Grain, Baking Bread", "Status: Waiting")
+    elseif job == "trader" then
+        return format_prod(sformat("%s: Running the Stall", job_lbl), "Ready to Sell", "Status: Selling Stall Goods for RU", "Status: Waiting")
+    elseif job == "scrapper" then
+        return format_prod(sformat("%s: Salvaging Scrap%s", job_lbl, boost_str), "Ready", "Status: Stripping Metal & Hardware from Debris")
+    elseif job == "electrician" then
+        return format_prod(sformat("%s: Grid & Batteries", job_lbl), "Ready", "Status: Maintaining Lights & Recharging Batteries")
+    end
+
+    local pos_str = survivor.assigned_pos and hs_perf.tr("st_pda_position_status_custom") or hs_perf.tr("st_pda_position_status_default")
+    return format_prod(job_lbl .. boost_str, "Ready", pos_str)
+end
+
+function SettlementManagerPDA:RefreshJobProgress(force, hub_id_override)
     if not stalker_camp_builder then return end
 
     if force then
@@ -3352,130 +3278,12 @@ function SettlementManagerPDA:RefreshJobProgress(force, hub_id_override)
                     survivor.npc_id = survivor.npc_id or tonumber(survivor_id) or survivor_id
                     survivor.hub_id = survivor.hub_id or hub_id
                     self:RefreshRecallButton(survivor_id)
-                    local job = survivor.job or "idle"
-                    local job_label = hs_perf.job_label(job)
-
-                    local is_paused, reason_short, reason_detail = false, nil, nil
-                    if stalker_camp_builder.get_job_paused_status then
-                        is_paused, reason_short, reason_detail = stalker_camp_builder.get_job_paused_status(survivor, camp, hub_id)
-                    end
-
-                    local display = ""
-                    if is_paused then
-                        display = sformat("%s %%c[255,255,100,100][PAUSED - %s]%%c[200,200,200]", job_label, reason_short or "Blocked")
-                        if self.survivor_pos_txt and reason_detail then
-                            self.survivor_pos_txt:SetText(sformat("Status: %s", reason_detail))
-                        end
-                    elseif job == "idle" then
-                        display = sformat("%s", job_label)
-                        if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Resting at Settlement Base") end
-                    elseif job == "guard" then
-                        display = sformat("%s (+Defense)", job_label)
-                        if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Guarding Camp Perimeter") end
-                    elseif job == "scavenge" then
-                        local exp = stalker_camp_builder.get_scavenger_expedition_for_survivor and stalker_camp_builder.get_scavenger_expedition_for_survivor(survivor, survivor_id)
-                        if exp then
-                            local current_sec = stalker_camp_builder.game_sec()
-                            local game_elapsed = current_sec - (exp.start_sec or current_sec)
-                            local tf = stalker_camp_builder.time_factor()
-                            local effective_elapsed = mmax(0, game_elapsed)
-                            local dur = mmax(1, exp.duration or 1)
-                            local sc_pct = math.floor(math.min(100, (effective_elapsed / dur) * 100))
-                            local rem_sec = mmax(0, math.floor(dur - effective_elapsed))
-                            local time_str = stalker_camp_builder.format_expedition_time and stalker_camp_builder.format_expedition_time(rem_sec) or sformat("%dm", math.floor(rem_sec / (tf * 60)))
-                            local target_lvl = game.translate_string(exp.target_level or "unknown")
-
-                            if exp.is_sweep and exp.all_stashes and #exp.all_stashes > 1 then
-                                display = sformat("%s: Regional Sweep (%d Stashes in %s) - %d%% (%s remaining)", job_label, #exp.all_stashes, target_lvl, sc_pct, time_str)
-                                if self.survivor_pos_txt then self.survivor_pos_txt:SetText(sformat("Status: Sweeping %d Stashes in %s", #exp.all_stashes, target_lvl)) end
-                            else
-                                display = sformat("%s: Expedition to %s (%d%% - %s remaining)", job_label, target_lvl, sc_pct, time_str)
-                                if self.survivor_pos_txt then self.survivor_pos_txt:SetText(sformat("Status: En Route to Stash in %s", target_lvl)) end
-                            end
-                        else
-                            -- at camp the scavenger patrols on the job's cycle, as the roster row shows
-                            local progress = stalker_camp_builder.get_job_progress and stalker_camp_builder.get_job_progress(survivor, camp, hub_id) or 0
-                            local time_remaining = stalker_camp_builder.get_job_time_remaining and stalker_camp_builder.get_job_time_remaining(survivor, camp, hub_id) or 0
-                            if time_remaining > 0 then
-                                local mins = math.floor(time_remaining / 60)
-                                local secs = math.floor(time_remaining % 60)
-                                local time_str = mins > 0 and sformat("%dm %02ds", mins, secs) or sformat("%ds", secs)
-                                display = sformat("%s: Patrolling Camp (%d%% - %s remaining)", job_label, math.floor(progress * 100), time_str)
-                                if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Camp Perimeter Patrol & Salvage") end
-                            else
-                                display = sformat("%s (Available for Expedition)", job_label)
-                                if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Waiting at Camp for Expedition Orders") end
-                            end
-                        end
-                    elseif job == "hunter" then
-                        local progress = stalker_camp_builder.get_job_progress and stalker_camp_builder.get_job_progress(survivor, camp, hub_id) or 0
-                        local time_remaining = stalker_camp_builder.get_job_time_remaining and stalker_camp_builder.get_job_time_remaining(survivor, camp, hub_id) or 0
-                        local pct = math.floor((progress or 0) * 100)
-                        if time_remaining and time_remaining > 0 and pct < 100 then
-                            local mins = math.floor(time_remaining / 60)
-                            local secs = math.floor(time_remaining % 60)
-                            local time_str = mins > 0 and sformat("%dm %02ds", mins, secs) or sformat("%ds", secs)
-                            display = sformat("%s: Tracking Mutants (%d%% - %s remaining)", job_label, pct, time_str)
-                            if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Hunting from Camp") end
-                        elseif pct >= 100 then
-                            display = sformat("%s (%d%% - Harvest Ready)", job_label, pct)
-                            if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Storing Harvested Meat at Camp") end
-                        else
-                            display = sformat("%s (%d%%)", job_label, pct)
-                            if self.survivor_pos_txt then self.survivor_pos_txt:SetText("Status: Hunting from Camp") end
-                        end
-                    else
-                        local progress = stalker_camp_builder.get_job_progress
-                            and stalker_camp_builder.get_job_progress(survivor, camp, hub_id) or 0
-                        local time_remaining = stalker_camp_builder.get_job_time_remaining
-                            and stalker_camp_builder.get_job_time_remaining(survivor, camp, hub_id) or 0
-                        local pct = math.floor((progress or 0) * 100)
-                        local time_str = ""
-                        if time_remaining and time_remaining > 0 and pct < 100 then
-                            local mins = math.floor(time_remaining / 60)
-                            local secs = math.floor(time_remaining % 60)
-                            time_str = sformat(" - %dm %02ds remaining", mins, secs)
-                        elseif pct >= 100 then
-                            time_str = " - Ready"
-                        end
-
-                        local boost_str = ""
-                        if job == "woodcutter" and survivor.has_axe then
-                            boost_str = " [Axe: 2x Boost]"
-                        elseif (job == "brewer" or job == "chemist") and (survivor.has_drugkit or (camp and camp.has_drugkit)) then
-                            boost_str = drugkit_boost_label(job, camp)
-                        elseif job == "scrapper" and survivor.has_tools then
-                            boost_str = " [Demolition Tools: 2x Boost]"
-                        end
-
-                        if job == "medic" then
-                            local ord = PDA_LABELS.medic_order[survivor.medic_order or "auto"] or "Auto"
-                            if survivor.shortfall_reason then
-                                display = sformat("%s: [%s] (Waiting: %s)", job_label, ord, survivor.shortfall_reason)
-                            else
-                                display = sformat("%s: [%s] (%d%%%s)", job_label, ord, pct, time_str)
-                            end
-                        elseif job == "woodcutter" then
-                            local wm = PDA_LABELS.wood_mode[survivor.woodcutter_mode or "auto"] or "Timber"
-                            display = sformat("%s: [%s]%s (%d%%%s)", job_label, wm, boost_str, pct, time_str)
-                        elseif job == "brewer" then
-                            display = sformat("%s: Distilling Vodka%s (%d%%%s)", job_label, boost_str, pct, time_str)
-                        elseif job == "chemist" then
-                            local cm = PDA_LABELS.chem_mode[survivor.chemist_mode or "auto"] or "Auto-Balanced"
-                            display = sformat("%s: [%s]%s (%d%%%s)", job_label, cm, boost_str, pct, time_str)
-                        elseif job == "farmer" then
-                            display = sformat("%s: Tending Fields (%d%%%s)", job_label, pct, time_str)
-                        elseif job == "trader" then
-                            display = sformat("%s: Running the Stall (%d%%%s)", job_label, pct, time_str)
-                        elseif job == "scrapper" then
-                            display = sformat("%s: Salvaging Scrap%s (%d%%%s)", job_label, boost_str, pct, time_str)
-                        elseif job == "electrician" then
-                            display = sformat("%s: Grid & Batteries (%d%%%s)", job_label, pct, time_str)
-                        else
-                            display = sformat("%s%s (%d%%%s)", job_label, boost_str, pct, time_str)
-                        end
-                    end
+                    local display, pos_str, is_paused, job_lbl = self:FormatSurvivorJobDetail(survivor, survivor_id, camp, hub_id)
                     self.survivor_job_txt:SetText(colorize_pda_text(display))
+                    if self.survivor_pos_txt and pos_str then
+                        self.survivor_pos_txt:SetText(pos_str)
+                    end
+                    self:UpdateSurvivorHeader(survivor, survivor.job or "idle", job_lbl, is_paused, camp)
                 end
             end
         end
@@ -3855,18 +3663,36 @@ end
 function SettlementManagerPDA:PopulateRadioChannels()
     if not self.radio_chan_list then return end
     local keep = self.radio_chan or "all"
-    self.radio_chan_list:RemoveAll()
-    self.radio_chan_list:AddExistingItem(RadioChanListItem("all", game.translate_string("st_pda_radio_chan_all")))
+    local active_camps = (stalker_camp_builder and stalker_camp_builder.active_camps) or {}
     local camp_ids = {}
-    for hub_id, _ in pairs((stalker_camp_builder and stalker_camp_builder.active_camps) or {}) do
+    for hub_id, _ in pairs(active_camps) do
         camp_ids[#camp_ids + 1] = hub_id
     end
     table.sort(camp_ids)
-    local sel = 0
-    for _, hub_id in ipairs(camp_ids) do
-        local camp = stalker_camp_builder.active_camps[hub_id]
+
+    local sig_parts = {}
+    local labels = {}
+    for i, hub_id in ipairs(camp_ids) do
+        local camp = active_camps[hub_id]
         local ok, label = pcall(stalker_camp_builder.get_camp_label, camp)
-        self.radio_chan_list:AddExistingItem(RadioChanListItem(hub_id, ok and label or tostring(hub_id)))
+        local lbl = ok and label or tostring(hub_id)
+        labels[i] = lbl
+        sig_parts[i] = tostring(hub_id) .. ":" .. tostring(lbl)
+    end
+    local list_sig = table.concat(sig_parts, "|")
+    if self._radio_chan_sig == list_sig and self.radio_chan_list:GetSize() == (#camp_ids + 1) then
+        local sel = row_of(self.radio_chan_list, "hub_id", keep)
+        if sel == 0 then self.radio_chan = "all" end
+        self.radio_chan_list:SetSelectedIndex(sel)
+        return
+    end
+    self._radio_chan_sig = list_sig
+
+    self.radio_chan_list:RemoveAll()
+    self.radio_chan_list:AddExistingItem(RadioChanListItem("all", hs_perf.tr("st_pda_radio_chan_all")))
+    local sel = 0
+    for i, hub_id in ipairs(camp_ids) do
+        self.radio_chan_list:AddExistingItem(RadioChanListItem(hub_id, labels[i]))
         if hub_id == keep then sel = self.radio_chan_list:GetSize() - 1 end
     end
     if sel == 0 then self.radio_chan = "all" end
@@ -3895,12 +3721,12 @@ function SettlementManagerPDA:OnRadioClearClicked()
     -- the feed seeds any log with fewer than two entries; after Clear only new reports
     -- and Scan fill it again
     self.radio_cleared = true
+    self._radio_feed_key = nil
     self:PopulateRadioFeed()
 end
 
 function SettlementManagerPDA:PopulateRadioFeed()
     if not self.radio_scroll then return end
-    self.radio_scroll:Clear()
     self.radio_types = self.radio_types or { exp = true, work = true, combat = true }
     self.radio_chan = self.radio_chan or "all"
 
@@ -3911,6 +3737,26 @@ function SettlementManagerPDA:PopulateRadioFeed()
     local all_logs = (stalker_camp_builder and stalker_camp_builder.radio_logs) or {}
     local logs = all_logs[self.radio_chan] or {}
     local types = self.radio_types
+    local n_logs = #logs
+    local first_log = logs[1]
+    local last_log = logs[n_logs]
+    local rev = stalker_camp_builder and stalker_camp_builder.radio_log_rev or 0
+    local feed_key = string.format("%s|%s|%s|%s|%s|%s|%d|%s|%s",
+        tostring(self.radio_chan),
+        tostring(types.exp == true),
+        tostring(types.work == true),
+        tostring(types.combat == true),
+        tostring(self.radio_cleared == true),
+        tostring(rev),
+        n_logs,
+        type(first_log) == "table" and ((first_log.time_str or "") .. ":" .. (first_log.text or "")) or tostring(first_log),
+        type(last_log) == "table" and ((last_log.time_str or "") .. ":" .. (last_log.text or "")) or tostring(last_log))
+    if self._radio_feed_key == feed_key then
+        return
+    end
+    self._radio_feed_key = feed_key
+
+    self.radio_scroll:Clear()
 
     local tag_defs = {
         combat     = { "DEF", "danger" },

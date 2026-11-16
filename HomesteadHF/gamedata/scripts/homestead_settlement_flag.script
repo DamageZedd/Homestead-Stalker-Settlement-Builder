@@ -10,12 +10,17 @@ local PATCH_PREFIX = "homestead_hf\\flag_patch_"   -- the model's patch textures
 local PATCH_SHADER = "models\\model_aref"          -- alpha-tested, so the patch keeps its outline
 local FOTZ_PATCH   = "fotz_own_patch"              -- Factions of the Zone's patch item (fotz_patch.SECTION)
 local CHECK_MS     = 1000
+local WATCH_MS     = 2500                          -- settled flags check faction / FotZ changes at a slower shared cadence
 local MAX_TRIES    = 30                            -- give up on an engine without set_shader
 
 local FACTIONS = {
     stalker = true, bandit = true, csky = true, dolg = true, freedom = true, killer = true,
     army = true, ecolog = true, monolith = true, greh = true, renegade = true, isg = true, zombied = true,
 }
+
+local fotz_tex_cache = {}   -- section -> texture path or false (cached once per section)
+local shared_tex = nil
+local shared_tex_at = -1
 
 local function lower_path(t)
     return t and string.lower((string.gsub(t, "/", "\\")))
@@ -24,14 +29,20 @@ end
 -- the patch art of the Factions of the Zone faction the player leads, or nil: the texture its
 -- patch item gives Wearable Devices' bracer (wd_bracer_patch), so replacing that art replaces this
 local function fotz_texture()
-    local ok, leading = pcall(function() return fotz_faction ~= nil and fotz_faction.F ~= nil end)
-    if not (ok and leading) then return nil end
-    local sec = FOTZ_PATCH
-    local ok_sec, name = pcall(function() return fotz_patch and fotz_patch.SECTION end)
-    if ok_sec and type(name) == "string" then sec = name end
-    if not ini_sys:section_exist(sec) then return nil end
-    local tex = ini_sys:r_string_ex(sec, "wd_bracer_patch")
-    return (tex and tex ~= "") and tex or nil
+    if type(fotz_faction) ~= "table" or fotz_faction.F == nil then return nil end
+    local sec = (type(fotz_patch) == "table" and type(fotz_patch.SECTION) == "string")
+        and fotz_patch.SECTION or FOTZ_PATCH
+    local tex = fotz_tex_cache[sec]
+    if tex == nil then
+        if ini_sys:section_exist(sec) then
+            local t = ini_sys:r_string_ex(sec, "wd_bracer_patch")
+            tex = (t and t ~= "") and t or false
+        else
+            tex = false
+        end
+        fotz_tex_cache[sec] = tex
+    end
+    return tex or nil
 end
 
 -- the player's true faction (a disguise doesn't change it), or one a faction mod provides
@@ -40,12 +51,26 @@ local function actor_faction()
     local comm = sb and sb.get_player_faction and sb.get_player_faction()
     if not comm then comm = get_actor_true_community and get_actor_true_community() end
     if not comm and db.actor then comm = db.actor:character_community() end
-    comm = comm and comm:gsub("^actor_", "") or "stalker"
-    return FACTIONS[comm] and comm or "stalker"
+    if comm then
+        if FACTIONS[comm] then return comm end
+        if string.sub(comm, 1, 6) == "actor_" then
+            comm = string.sub(comm, 7)
+            if FACTIONS[comm] then return comm end
+        end
+    end
+    return "stalker"
 end
 
 local function wanted_texture()
     return fotz_texture() or (PATCH_PREFIX .. actor_faction())
+end
+
+local function wanted_texture_cached(now)
+    if not shared_tex or now < shared_tex_at or (now - shared_tex_at) >= CHECK_MS then
+        shared_tex = wanted_texture()
+        shared_tex_at = now
+    end
+    return shared_tex
 end
 
 -- the visual ids of the model's patch meshes: whichever still wear one of its patch textures
@@ -76,9 +101,9 @@ end
 
 -- put the patch the player's faction wants on the banner; a flag that has just spawned retries
 -- until its model is ready
-function flag_wrapper:sync_patch()
+function flag_wrapper:sync_patch(tex)
     local obj = self.object
-    local tex = wanted_texture()
+    tex = tex or wanted_texture()
     if not obj or self.patch_tex == tex then return end
     self.patch_ids = self.patch_ids or find_patch_ids(obj)
     if not self.patch_ids then
@@ -97,8 +122,13 @@ function flag_wrapper:update(delta)
     if self.patch_tries >= MAX_TRIES then return end
     local now = time_global()
     if now < self.next_patch_check then return end
-    self.next_patch_check = now + CHECK_MS
-    self:sync_patch()
+    local tex = wanted_texture_cached(now)
+    if self.patch_ids and self.patch_tex == tex then
+        self.next_patch_check = now + WATCH_MS
+        return
+    end
+    self:sync_patch(tex)
+    self.next_patch_check = now + (self.patch_ids and WATCH_MS or CHECK_MS)
 end
 
 -- picking the flag up takes the settlement down with it, like picking up a Workshop hub

@@ -727,12 +727,31 @@ local function raw_game_now() return num(sb.game_sec and sb.game_sec(), 0) end
 -- the mission clock (see sb.raiders_clock_advance). MC lives in memory; its offset is saved on every camp's
 -- raider_state (mc_off, mc_g) and read back from there after a load, before the first step.
 local MC = { off = nil, g = nil, r = nil }
+local next_tick_tg = 0
 local function mc_load()
     if MC.off ~= nil then return end
     MC.off = 0
     for _, camp in pairs(sb.active_camps or {}) do
         local st = camp.raider_state
         if type(st) == "table" and st.mc_g ~= nil then MC.off, MC.g = num(st.mc_off, 0), num(st.mc_g, 0); break end
+    end
+end
+function sb.raiders_save_state(m_data)
+    if type(m_data) ~= "table" then return end
+    if MC.g ~= nil then
+        m_data.homestead_raiders_mc_off = MC.off
+        m_data.homestead_raiders_mc_g = MC.g
+    else
+        m_data.homestead_raiders_mc_off = nil
+        m_data.homestead_raiders_mc_g = nil
+    end
+end
+function sb.raiders_load_state(m_data)
+    MC.off, MC.g, MC.r = nil, nil, nil
+    next_tick_tg = 0
+    if type(m_data) == "table" and m_data.homestead_raiders_mc_g ~= nil then
+        MC.off = num(m_data.homestead_raiders_mc_off, 0)
+        MC.g = num(m_data.homestead_raiders_mc_g, 0)
     end
 end
 local function game_now() mc_load(); return raw_game_now() + MC.off end
@@ -865,9 +884,29 @@ local function squad_alive_count(squad)
     return n
 end
 
+local function own_faction()
+    local own = sb.get_player_faction and sb.get_player_faction()
+    if type(own) ~= "string" and db and db.actor and db.actor.character_community then
+        local ok, comm = pcall(db.actor.character_community, db.actor)
+        if ok and type(comm) == "string" then own = comm end
+    end
+    return type(own) == "string" and (string.gsub(own, "^actor_", "")) or nil
+end
+
 local function faction_goodwill(faction)
-    local ok, v = pcall(relation_registry.community_goodwill, faction, db.actor:id())
-    return ok and num(v, 0) or 0
+    local gw = 0
+    local rr = relation_registry
+    local actor_id = db and db.actor and db.actor:id()
+    if rr and rr.community_goodwill and actor_id ~= nil then
+        local ok, v = pcall(rr.community_goodwill, faction, actor_id)
+        if ok then gw = gw + num(v, 0) end
+    end
+    local own = own_faction()
+    if own and faction and rr and rr.community_relation then
+        local ok_r, r = pcall(rr.community_relation, faction, own)
+        if ok_r then gw = gw + num(r, 0) end
+    end
+    return gw
 end
 
 local function valid_camp_squad(rc, sid)
@@ -1213,11 +1252,6 @@ local function share_spent(merged)
         local sp = raider_state(c).spent
         for f, v in pairs(merged) do sp[f] = v end
     end
-end
-
-local function own_faction()
-    local own = sb.get_player_faction and sb.get_player_faction()
-    return type(own) == "string" and (string.gsub(own, "^actor_", "")) or nil
 end
 
 -- the running mission against an outpost, and the camp it left from
@@ -1898,7 +1932,6 @@ function sb.raiders_process()
     end
 end
 
-local next_tick_tg = 0
 local function on_update()
     local tg = time_global()
     if tg < next_tick_tg then return end
@@ -1915,4 +1948,6 @@ end
 function on_game_start()
     RegisterScriptCallback("actor_on_update", on_update)
     RegisterScriptCallback("actor_on_first_update", on_first_update)
+    RegisterScriptCallback("save_state", sb.raiders_save_state)
+    RegisterScriptCallback("load_state", sb.raiders_load_state)
 end

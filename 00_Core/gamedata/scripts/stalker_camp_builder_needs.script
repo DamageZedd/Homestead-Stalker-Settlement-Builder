@@ -290,8 +290,19 @@ function sb.needs_process(hub_id, camp)
         wounded_count = (sb.cfg.needs_medical ~= false) and wounded_count or 0,
     }
     local res
+    local total_treated = 0
+    local had_medical_gap = false
+    local gap_unserved_med = 0
     for _ = 1, due do
         res = sb.needs_round(st, n, opts, { eat = eat, drink = drink, med = med })
+        if res.treated and res.treated > 0 then
+            total_treated = total_treated + res.treated
+            opts.wounded_count = mmax(0, opts.wounded_count - res.treated)
+        end
+        if res.medical_gap then
+            had_medical_gap = true
+            gap_unserved_med = res.unserved_med or 1
+        end
     end
     if not res then return end
 
@@ -304,21 +315,21 @@ function sb.needs_process(hub_id, camp)
     -- the old hunger penalty must not stack on top of this one
     camp.hungry_until, camp.hungry_count = nil, nil
 
-    if res.treated and res.treated > 0 then
-        for i = 1, mmin(res.treated, #wounded_survivors) do
+    if total_treated > 0 then
+        for i = 1, mmin(total_treated, #wounded_survivors) do
             local ws = wounded_survivors[i]
             if ws.raider and ws.raider.wounded_until then ws.raider.wounded_until = nil end
             if ws.wounded_until then ws.wounded_until = nil end
         end
         if db.actor and sb.camp_send_tip then
-            sb.camp_send_tip(db.actor, string.format(game.translate_string("st_homestead_needs_med_treated"), camp.name or "Settlement", res.treated),
+            sb.camp_send_tip(db.actor, string.format(game.translate_string("st_homestead_needs_med_treated"), camp.name or "Settlement", total_treated),
                 nil, "general_stalker", 8000, hub_id, "general", true)
         end
     end
 
-    if res.medical_gap and db.actor and sb.camp_send_tip and (now - (st.last_med_warn or -1e9)) >= 43200 then
+    if had_medical_gap and db.actor and sb.camp_send_tip and (now - (st.last_med_warn or -1e9)) >= 43200 then
         st.last_med_warn = now
-        sb.camp_send_tip(db.actor, string.format(game.translate_string("st_homestead_needs_medical_gap"), camp.name or "Settlement", res.unserved_med or 1),
+        sb.camp_send_tip(db.actor, string.format(game.translate_string("st_homestead_needs_medical_gap"), camp.name or "Settlement", gap_unserved_med > 0 and gap_unserved_med or (res.unserved_med or 1)),
             nil, "red_danger", 9000, hub_id, "combat", true)
     end
 

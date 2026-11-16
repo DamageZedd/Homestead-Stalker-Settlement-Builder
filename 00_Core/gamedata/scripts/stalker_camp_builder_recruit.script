@@ -987,6 +987,7 @@ function stalker_camp_builder.recruit_npc_to_camp(actor, npc, hub_id)
     local restored_job = "idle"
     local restored_xp = 0
     local restored_tier = 0
+    local restored_job_start_time = sb.game_sec()
     local restored_job_start_realtime = time_global()
     local prev_record = nil
     local prev_hub_id = nil
@@ -1004,8 +1005,11 @@ function stalker_camp_builder.recruit_npc_to_camp(actor, npc, hub_id)
                     local rt_interval = (sb.get_job_rt_interval and sb.get_job_rt_interval(restored_job, s, search_camp)) or 300
                     -- get_job_progress measures against the time-of-day adjusted interval, so restore with the same one
                     local rt_tod = sb.get_time_of_day_mult and sb.get_time_of_day_mult(restored_job) or 1.0
-                    rt_interval = (rt_interval or 300) / (rt_tod > 0 and rt_tod or 1.0)
-                    restored_job_start_realtime = time_global() - (s.paused_job_progress * (rt_interval or 300) * 1000)
+                    local effective_interval = (rt_interval or 300) / (rt_tod > 0 and rt_tod or 1.0)
+                    local elapsed_sec = math.max(0, math.min(effective_interval - 1, s.paused_job_progress * effective_interval))
+                    local tf = (sb.time_factor and sb.time_factor()) or 10
+                    restored_job_start_realtime = time_global() - (elapsed_sec * 1000)
+                    restored_job_start_time = restored_job_start_time - (elapsed_sec * tf)
                 end
                 -- printf(sformat("[Homestead] recruit_npc_to_camp: restoring paused job '%s' (xp=%d, tier=%d) for npc %d", restored_job, restored_xp, restored_tier, npc_id))
             end
@@ -1020,7 +1024,7 @@ function stalker_camp_builder.recruit_npc_to_camp(actor, npc, hub_id)
     camp.survivors[npc_id] = {
         name = npc:character_name(),
         job = restored_job,
-        job_start_time = sb.game_sec(),
+        job_start_time = restored_job_start_time,
         job_start_realtime = restored_job_start_realtime,
         was_companion = was_comp,
         xp = restored_xp,

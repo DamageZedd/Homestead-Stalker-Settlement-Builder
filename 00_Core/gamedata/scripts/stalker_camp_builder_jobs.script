@@ -22,6 +22,83 @@ local function consume_one_use(item_id)
     return true
 end
 
+local function is_camp_same_level(camp, hub_obj)
+    local cur_lvl = level and level.name and level.name()
+    if not cur_lvl then return false end
+    if camp and camp.level then
+        return camp.level == cur_lvl
+    end
+    local sim = alife and alife()
+    local gg = game_graph and game_graph()
+    if sim and gg and hub_obj and hub_obj.m_game_vertex_id then
+        local gv = gg:vertex(hub_obj.m_game_vertex_id)
+        if gv then
+            return sim:level_name(gv:level_id()) == cur_lvl
+        end
+    end
+    return false
+end
+
+local function ensure_settler_online_or_flagged(camp, hub_obj, npc_id)
+    if not npc_id then return end
+    if is_camp_same_level(camp, hub_obj) then
+        if utils_obj and utils_obj.switch_online then
+            pcall(utils_obj.switch_online, npc_id)
+        end
+    else
+        local sim = alife and alife()
+        if sim then
+            pcall(sim.set_switch_online, sim, npc_id, true)
+            pcall(sim.set_switch_offline, sim, npc_id, true)
+        end
+    end
+end
+
+local function refund_consumed_uses(hub_id, camp, ...)
+    local sb = stalker_camp_builder
+    if not (sb and sb.deposit_item_to_camp and camp and hub_id) then return end
+    local n = select("#", ...)
+    for i = 1, n do
+        local v = select(i, ...)
+        if type_(v) == "table" then
+            for _, sec in ipairs_(v) do
+                if sec then
+                    sb.deposit_item_to_camp(hub_id, camp, sec, nil, nil, nil, nil, 1)
+                end
+            end
+            elseif v then
+                sb.deposit_item_to_camp(hub_id, camp, v, nil, nil, nil, nil, 1)
+            end
+        end
+    end
+
+local function build_paused_status_sig(survivor, rev_camp, hub_id)
+    local struct_rev = rev_camp and rev_camp._struct_rev
+    if not struct_rev and rev_camp and rev_camp.structures then
+        local sc = 0
+        for _ in pairs_(rev_camp.structures) do sc = sc + 1 end
+        struct_rev = sc
+    end
+    return sformat("%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s",
+        tostr(hub_id or (rev_camp and rev_camp.hub_id) or ""),
+        tostr((rev_camp and rev_camp._inv_rev) or 0),
+        (rev_camp and rev_camp._inv_snapshot_dirty) and "1" or "0",
+        tostr(struct_rev or 0),
+        tostr((rev_camp and rev_camp.specialization) or ""),
+        tostr(survivor.tier or 0),
+        survivor.on_expedition and "1" or "0",
+        survivor.has_tools and "1" or "0",
+        survivor.has_axe and "1" or "0",
+        tostr(survivor.job_directive or ""),
+        tostr(survivor.cook_mode or ""),
+        tostr(survivor.craft_order or ""),
+        tostr(survivor.medic_order or ""),
+        tostr(survivor.woodcutter_mode or ""),
+        tostr(survivor.chemist_mode or ""),
+        tostr(survivor.farmer_mode or "")
+    )
+end
+
 -- Data tables (assigned to the main global so other modules / PDA can read)
 
 stalker_camp_builder.meat_cooking_map = {
@@ -325,7 +402,7 @@ function stalker_camp_builder.set_survivor_job(npc_id, job)
                     local se_npc = alife_object(matched_id)
                     local hub_obj = alife_object(hub_id)
                     if se_npc and hub_obj and not se_npc:can_switch_online() then
-                        utils_obj.switch_online(matched_id)
+                        ensure_settler_online_or_flagged(camp, hub_obj, matched_id)
                         if sb.allow_home_squad_online then
                             sb.allow_home_squad_online(matched_id, true)
                         end
@@ -335,7 +412,7 @@ function stalker_camp_builder.set_survivor_job(npc_id, job)
                         if sb.teleport_settler_to_camp_level then
                             sb.teleport_settler_to_camp_level(matched_id, hub_id, true)
                         end
-                        pcall(utils_obj.switch_online, matched_id)
+                        ensure_settler_online_or_flagged(camp, hub_obj, matched_id)
                     end
                 end
                 if sb.non_settler_cache then
@@ -727,12 +804,14 @@ function stalker_camp_builder.is_camp_supply_capped(hub_id, camp, category, surv
             if camp and camp.structures then
                 local total_turret_deficit = 0
                 for id, stype in pairs(camp.structures) do
-                    local se_t = alife_object(id)
-                    local tsec = se_t and se_t:section_name()
-                    if tsec and tsec:find("turret") and not tsec:find("table") then
-                        local cur_rounds = (sb.get_turret_ammo_count and sb.get_turret_ammo_count(id)) or 0
-                        if cur_rounds < 40 then
-                            total_turret_deficit = total_turret_deficit + (40 - cur_rounds)
+                    if stype == "gadget" or stype == "turret" then
+                        local se_t = alife_object(id)
+                        local tsec = se_t and se_t:section_name()
+                        if tsec and tsec:find("turret") and not tsec:find("table") then
+                            local cur_rounds = (sb.get_turret_ammo_count and sb.get_turret_ammo_count(id)) or 0
+                            if cur_rounds < 40 then
+                                total_turret_deficit = total_turret_deficit + (40 - cur_rounds)
+                            end
                         end
                     end
                 end
@@ -779,12 +858,14 @@ function stalker_camp_builder.is_camp_supply_capped(hub_id, camp, category, surv
             if camp and camp.structures then
                 local total_turret_deficit = 0
                 for id, stype in pairs(camp.structures) do
-                    local se_t = alife_object(id)
-                    local tsec = se_t and se_t:section_name()
-                    if tsec and tsec:find("turret") and not tsec:find("table") then
-                        local cur_rounds = (sb.get_turret_ammo_count and sb.get_turret_ammo_count(id)) or 0
-                        if cur_rounds < 40 then
-                            total_turret_deficit = total_turret_deficit + (40 - cur_rounds)
+                    if stype == "gadget" or stype == "turret" then
+                        local se_t = alife_object(id)
+                        local tsec = se_t and se_t:section_name()
+                        if tsec and tsec:find("turret") and not tsec:find("table") then
+                            local cur_rounds = (sb.get_turret_ammo_count and sb.get_turret_ammo_count(id)) or 0
+                            if cur_rounds < 40 then
+                                total_turret_deficit = total_turret_deficit + (40 - cur_rounds)
+                            end
                         end
                     end
                 end
@@ -848,6 +929,7 @@ function stalker_camp_builder.process_ammo_crafting(npc_id, box_id, camp, surviv
 
     local found_powders = {}
     local scrap_id = nil
+    local scrap_sec = nil
 
     local function check_sec(sec, item_id)
         if not sec then return end
@@ -857,6 +939,7 @@ function stalker_camp_builder.process_ammo_crafting(npc_id, box_id, camp, surviv
         elseif is_scrap(s) then
             if not scrap_id then
                 scrap_id = item_id
+                scrap_sec = sec
             end
         end
     end
@@ -1007,6 +1090,7 @@ function stalker_camp_builder.process_ammo_crafting(npc_id, box_id, camp, surviv
         end
 
         if deposited_count <= 0 then
+            refund_consumed_uses(h_id, camp, gp_sec, scrap_sec)
             if survivor then survivor.shortfall_reason = "Storage Full" end
             return false
         end
@@ -1548,7 +1632,7 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         return false, nil, nil
     end
 
-    if not snap and sb.get_camp_inventory_snapshot and hub_id then
+    if (not snap or (camp._inv_snapshot_dirty and hub_id)) and sb.get_camp_inventory_snapshot and hub_id then
         snap = sb.get_camp_inventory_snapshot(hub_id, camp, false)
     end
 
@@ -2028,8 +2112,29 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         for _, struct_type in pairs_(camp.structures or {}) do
             if struct_type == "salvage_table" then can_refine = true break end
         end
-        if not can_refine and sb.is_camp_supply_capped(hub_id, camp, "scrap") then
-            return true, "Stockpile Full", "Scrap metal stockpile is full (" .. sb.get_stock_cap("scrap") .. "+ stored)"
+        if sb.is_camp_supply_capped(hub_id, camp, "scrap") then
+            local can_refine_now = false
+            if can_refine and sb.camp_count_item and sb.camp_has_item and sb.deposit_item_to_camp then
+                local cloth_sec = first_existing_section("prt_i_cloth", "bandage")
+                local cloth_cnt = sb.camp_count_item(hub_id, camp, function(s) return s == cloth_sec or is_cloth(s) end, 15) or 0
+                local copper_cnt = sb.camp_count_item(hub_id, camp, function(s) return s and (s:lower() == "prt_i_copper" or s:lower() == "prt_i_resistors") end, 10) or 0
+                local char_cnt = sb.camp_count_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, 2) or 0
+                local has_pelt = sb.camp_has_item(hub_id, camp, is_mutant_pelt)
+                if cloth_cnt < 15 and has_pelt and char_cnt >= 1 then
+                    can_refine_now = true
+                else
+                    local scrap_stock = sb.camp_count_item(hub_id, camp, is_scrap, 16) or 0
+                    local fast_stock = sb.camp_count_item(hub_id, camp, function(s) return s == "prt_i_fasteners" end, 6) or 0
+                    if scrap_stock >= 15 and fast_stock >= 5 and copper_cnt < 8 then
+                        can_refine_now = true
+                    end
+                end
+            elseif can_refine then
+                can_refine_now = true
+            end
+            if not can_refine_now then
+                return true, "Stockpile Full", "Scrap metal stockpile is full (" .. sb.get_stock_cap("scrap") .. "+ stored)"
+            end
         end
         return false, nil, nil
 
@@ -2111,14 +2216,20 @@ function stalker_camp_builder.get_job_paused_status(survivor, camp, hub_id, max_
 
     local now_tg = time_global()
     local cache_ttl = max_age_ms or 10000 -- 10 seconds default matches master job update tick
+    local rev_camp = camp
+    if not rev_camp and hub_id and stalker_camp_builder.active_camps then
+        rev_camp = stalker_camp_builder.active_camps[hub_id]
+    end
+    local cache_sig = build_paused_status_sig(survivor, rev_camp, hub_id)
     local c_tg = survivor._cached_paused_tg
-    if c_tg and survivor._cached_paused_job == job and now_tg >= c_tg and (now_tg - c_tg) < cache_ttl then
+    if not (rev_camp and rev_camp._inv_snapshot_dirty) and c_tg and survivor._cached_paused_job == job and survivor._cached_paused_sig == cache_sig and now_tg >= c_tg and (now_tg - c_tg) < cache_ttl then
         return survivor._cached_is_paused, survivor._cached_reason_short, survivor._cached_reason_detail
     end
 
     local is_p, r_short, r_detail = stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, snap)
-    survivor._cached_paused_tg = now_tg
+    survivor._cached_paused_tg = time_global()
     survivor._cached_paused_job = job
+    survivor._cached_paused_sig = build_paused_status_sig(survivor, rev_camp, hub_id)
     survivor._cached_is_paused = is_p
     survivor._cached_reason_short = r_short
     survivor._cached_reason_detail = r_detail
@@ -2277,6 +2388,7 @@ function stalker_camp_builder.process_cook_job(npc_id, hub_id, camp, survivor, b
 
     local consumed_meat = sb.find_and_consume_item(hub_id, camp, is_raw_meat, fridge_id)
     if not consumed_meat then
+        refund_consumed_uses(hub_id, camp, consumed_fuel, consumed_vodka, consumed_water)
         return false
     end
 
@@ -2286,7 +2398,10 @@ function stalker_camp_builder.process_cook_job(npc_id, hub_id, camp, survivor, b
     end
 
     local dest_box_id = (sb.get_auto_sort_target_box and sb.get_auto_sort_target_box(camp, hub_id, cooked)) or fridge_id or box_id
-    if not dest_box_id then return false end
+    if not dest_box_id then
+        refund_consumed_uses(hub_id, camp, consumed_fuel, consumed_vodka, consumed_water, consumed_meat)
+        return false
+    end
 
     local base_mult = math.max(1, math.floor(sb.cfg.craft_output_multiplier or 1))
     local spec_mult = (sb.get_specialization_mult and camp and sb.get_specialization_mult(camp, "food")) or 1.0
@@ -2310,6 +2425,7 @@ function stalker_camp_builder.process_cook_job(npc_id, hub_id, camp, survivor, b
     end
 
     if deposited_food <= 0 then
+        refund_consumed_uses(hub_id, camp, consumed_fuel, consumed_vodka, consumed_water, consumed_meat)
         if survivor then survivor.shortfall_reason = "Storage Full" end
         return false
     end
@@ -2324,9 +2440,11 @@ function stalker_camp_builder.process_cook_job(npc_id, hub_id, camp, survivor, b
             local p2 = p1 and sb.find_and_consume_item(hub_id, camp, is_potato, meat_box_id)
             if p1 and p2 then
                 local canned_sec = first_existing_section("tushonka", "conserva")
-                sb.deposit_item_to_camp(hub_id, camp, canned_sec)
+                if not sb.deposit_item_to_camp(hub_id, camp, canned_sec) then
+                    refund_consumed_uses(hub_id, camp, p1, p2)
+                end
             elseif p1 then
-                sb.deposit_item_to_camp(hub_id, camp, p1)
+                refund_consumed_uses(hub_id, camp, p1)
             end
         end
     end
@@ -2577,21 +2695,30 @@ function stalker_camp_builder.process_medic_job(npc_id, box_id, camp, survivor)
         if sb.deposit_item_to_camp and camp and hub_id and output_box(camp, hub_id, target_sec) == nil then
             break
         end
+        local unit_b = nil
+        local unit_c = nil
+        local unit_v = {}
+        local unit_trophy = nil
         if req_bandage then
-            local b_sec = sb.camp_consume_item and sb.camp_consume_item(hub_id, camp, function(s) return s == "bandage" end)
-            if not b_sec then break end
+            unit_b = sb.camp_consume_item and sb.camp_consume_item(hub_id, camp, function(s) return s == "bandage" end)
+            if not unit_b then break end
         end
         if use_cloth then
-            local c_sec = sb.camp_consume_item and sb.camp_consume_item(hub_id, camp, is_cloth)
-            if c_sec then
+            unit_c = sb.camp_consume_item and sb.camp_consume_item(hub_id, camp, is_cloth)
+            if unit_c then
                 used_cloth_any = true
-                consumed_desc = sec_name_fn(c_sec)
+                consumed_desc = sec_name_fn(unit_c)
             elseif req_vodka > 0 then
                 local v_sec = sb.camp_consume_item and sb.camp_consume_item(hub_id, camp, is_medic_ethanol)
-                if not v_sec then break end
+                if not v_sec then
+                    refund_consumed_uses(hub_id, camp, unit_b)
+                    break
+                end
+                unit_v[1] = v_sec
                 last_v_sec = v_sec
                 consumed_desc = sec_name_fn(v_sec)
             else
+                refund_consumed_uses(hub_id, camp, unit_b)
                 break
             end
         else
@@ -2601,9 +2728,13 @@ function stalker_camp_builder.process_medic_job(npc_id, box_id, camp, survivor)
                 if v_sec then
                     last_v_sec = v_sec
                     got_v = got_v + 1
+                    unit_v[got_v] = v_sec
                 end
             end
-            if got_v < req_vodka then break end
+            if got_v < req_vodka then
+                refund_consumed_uses(hub_id, camp, unit_b, unit_v)
+                break
+            end
         end
 
         local out_sec = target_sec
@@ -2611,16 +2742,28 @@ function stalker_camp_builder.process_medic_job(npc_id, box_id, camp, survivor)
             -- the trophy is spent only when the upgraded medkit has a box to go to
             local up_sec = first_existing_section("stimpack", "medkit_army", "medkit_scientic", "medkit")
             local up_room = not (sb.deposit_item_to_camp and camp and hub_id) or output_box(camp, hub_id, up_sec) ~= nil
-            if up_room and sb.find_and_consume_item(hub_id, camp, is_mutant_trophy, nil) then
-                out_sec = up_sec
+            if up_room then
+                unit_trophy = sb.find_and_consume_item(hub_id, camp, is_mutant_trophy, nil)
+                if unit_trophy then
+                    out_sec = up_sec
+                end
             end
         end
 
         if sb.deposit_item_to_camp and camp and hub_id then
             -- the inputs are spent: if the upgraded medkit does not fit, the plain one still pays for them
             local stored = sb.deposit_item_to_camp(hub_id, camp, out_sec)
-            if not stored and out_sec ~= target_sec then stored = sb.deposit_item_to_camp(hub_id, camp, target_sec) end
-            if not stored then break end
+            if not stored and out_sec ~= target_sec then
+                stored = sb.deposit_item_to_camp(hub_id, camp, target_sec)
+                if stored and unit_trophy then
+                    refund_consumed_uses(hub_id, camp, unit_trophy)
+                    unit_trophy = nil
+                end
+            end
+            if not stored then
+                refund_consumed_uses(hub_id, camp, unit_b, unit_c, unit_trophy, unit_v)
+                break
+            end
             deposited_med = deposited_med + 1
         else
             alife():create(out_sec, box_pos, box_lvid, box_gvi, target_box_id)
@@ -2901,19 +3044,19 @@ function stalker_camp_builder.process_woodcutter_job(npc_id, hub_id, camp, survi
             end
         end
         if has_camp_brewer then
+            local char_reserve = has_camp_chemist and 7 or 5
             local wood_avail = 0
             local charcoal_count = 0
-            if camp and camp._inv_snapshot then
+            if camp and camp._inv_snapshot and not camp._inv_snapshot_dirty then
                 wood_avail = camp._inv_snapshot.wood_count or 0
                 charcoal_count = camp._inv_snapshot.charcoal_count or 0
             elseif sb.camp_count_item then
                 wood_avail = sb.camp_count_item(hub_id, camp, is_wood_part, 10) or 0
-                charcoal_count = sb.camp_count_item(hub_id, camp, function(s) return s == "charcoal" or s:find("charcoal") end, 5) or 0
+                charcoal_count = sb.camp_count_item(hub_id, camp, function(s) return s == "charcoal" or s:find("charcoal") end, char_reserve) or 0
             end
-            -- Maintain a critical charcoal reserve (up to 5 bags) for stoves & water pumps.
-            -- If charcoal is low (< 5 bags) and we have at least 5 wood to burn, produce charcoal.
-            -- Once charcoal reserve is met (>= 5 bags), prioritize the brewery by requiring 10+ wood.
-            local char_reserve = has_camp_chemist and 7 or 5
+            -- Maintain a critical charcoal reserve (up to 5/7 bags) for stoves, water pumps & chemist.
+            -- If charcoal is low and we have at least 5 wood to burn, produce charcoal.
+            -- Once charcoal reserve is met, prioritize the brewery by requiring 10+ wood.
             if charcoal_count < char_reserve then
                 if wood_avail < 5 then
                     do_charcoal = false
@@ -2955,11 +3098,13 @@ function stalker_camp_builder.process_woodcutter_job(npc_id, hub_id, camp, survi
 
     if do_charcoal then
         local consumed_count = 0
+        local consumed_woods = {}
         local max_burn = 5 -- Burn a fixed batch of 5 wood scraps for 3-5 charcoal
         for i = 1, max_burn do
             local consumed = sb.find_and_consume_item(hub_id, camp, is_wood_part, nil)
             if consumed then
                 consumed_count = consumed_count + 1
+                consumed_woods[consumed_count] = consumed
             else
                 break
             end
@@ -2982,6 +3127,7 @@ function stalker_camp_builder.process_woodcutter_job(npc_id, hub_id, camp, survi
                 deposited_charcoal = deposited_charcoal + 1
             end
             if deposited_charcoal <= 0 then
+                refund_consumed_uses(hub_id, camp, consumed_woods)
                 if survivor then survivor.shortfall_reason = "Storage Full" end
                 return false
             end
@@ -2992,9 +3138,7 @@ function stalker_camp_builder.process_woodcutter_job(npc_id, hub_id, camp, survi
             sb.camp_send_tip(actor, tip, nil, "general_stalker", 10000)
             return true
         else
-            for i = 1, consumed_count do
-                sb.deposit_item_to_camp(hub_id, camp, "prt_i_wood")
-            end
+            refund_consumed_uses(hub_id, camp, consumed_woods)
             if mode == "charcoal" then
                 if survivor then survivor.shortfall_reason = "Need 5 Wood Scraps" end
                 sb.camp_send_tip(actor, sformat(game.translate_string("st_job_woodcutter_need_wood"), name), nil, "general_stalker", 8000)
@@ -3531,6 +3675,8 @@ function stalker_camp_builder.process_scrapper_job(npc_id, hub_id, camp, survivo
     end
 
     local salvaged_gear_name = nil
+    local pending_se_junk = nil
+    local pending_junk_sec = nil
     if not scrap_full and survivor and survivor.has_tools and sb.camp_iterate_inventory then
         -- gear left at a workbench waits for the technician (process_gear_repair works there), in
         -- the bench's hidden stash: a workshop_stash, or a station_stash (Repair Bench, Settlement Flag)
@@ -3552,15 +3698,10 @@ function stalker_camp_builder.process_scrapper_job(npc_id, hub_id, camp, survivo
         if junk_id then
             local se_junk = alife_object(junk_id)
             if se_junk then
-                alife_release(se_junk)
                 scrap_count = scrap_count + 3
                 fastener_count = fastener_count + 2
-                if junk_sec and (junk_sec:find("helm_") or junk_sec:find("armor_") or junk_sec:find("outfit")) and sb.deposit_item_to_camp then
-                    local suit_cloth_sec = first_existing_section("prt_i_cloth", "bandage")
-                    sb.deposit_item_to_camp(hub_id, camp, suit_cloth_sec)
-                    sb.deposit_item_to_camp(hub_id, camp, suit_cloth_sec)
-                end
-                salvaged_gear_name = ui_item and ui_item.get_sec_name and ui_item.get_sec_name(junk_sec) or junk_sec
+                pending_se_junk = se_junk
+                pending_junk_sec = junk_sec
             end
         end
     end
@@ -3590,6 +3731,15 @@ function stalker_camp_builder.process_scrapper_job(npc_id, hub_id, camp, survivo
         if survivor then survivor.shortfall_reason = "Storage Full" end
         return false
     end
+    if pending_se_junk then
+        alife_release(pending_se_junk)
+        if pending_junk_sec and (pending_junk_sec:find("helm_") or pending_junk_sec:find("armor_") or pending_junk_sec:find("outfit")) and sb.deposit_item_to_camp then
+            local suit_cloth_sec = first_existing_section("prt_i_cloth", "bandage")
+            sb.deposit_item_to_camp(hub_id, camp, suit_cloth_sec)
+            sb.deposit_item_to_camp(hub_id, camp, suit_cloth_sec)
+        end
+        salvaged_gear_name = ui_item and ui_item.get_sec_name and ui_item.get_sec_name(pending_junk_sec) or pending_junk_sec
+    end
 
     -- Closed-loop refining at Salvage Table / with tools: cure mutant pelts with charcoal into cloth,
     -- and refine surplus scrap + fasteners into scarce cloth (for Medic/filters) or copper wire (for Electrician).
@@ -3610,11 +3760,16 @@ function stalker_camp_builder.process_scrapper_job(npc_id, hub_id, camp, survivo
             local pelt_used = sb.find_and_consume_item(hub_id, camp, is_mutant_pelt, nil)
             local char_used = pelt_used and sb.find_and_consume_item(hub_id, camp, function(s) return s == "charcoal" or (s and s:find("charcoal") ~= nil) end, nil)
             if pelt_used and char_used then
-                sb.deposit_item_to_camp(hub_id, camp, cloth_sec)
-                sb.deposit_item_to_camp(hub_id, camp, cloth_sec)
-                refined_extra = "2x " .. (ui_item and ui_item.get_sec_name and ui_item.get_sec_name(cloth_sec) or cloth_sec)
+                local made_cloth = 0
+                if sb.deposit_item_to_camp(hub_id, camp, cloth_sec) then made_cloth = made_cloth + 1 end
+                if sb.deposit_item_to_camp(hub_id, camp, cloth_sec) then made_cloth = made_cloth + 1 end
+                if made_cloth > 0 then
+                    refined_extra = made_cloth .. "x " .. (ui_item and ui_item.get_sec_name and ui_item.get_sec_name(cloth_sec) or cloth_sec)
+                else
+                    refund_consumed_uses(hub_id, camp, pelt_used, char_used)
+                end
             elseif pelt_used then
-                sb.deposit_item_to_camp(hub_id, camp, pelt_used)
+                refund_consumed_uses(hub_id, camp, pelt_used)
             end
         else
             local scrap_stock = sb.camp_count_item(hub_id, camp, is_scrap, 16) or 0
@@ -3624,11 +3779,13 @@ function stalker_camp_builder.process_scrapper_job(npc_id, hub_id, camp, survivo
                 local s2 = s1 and sb.find_and_consume_item(hub_id, camp, is_scrap, nil)
                 local f1 = s2 and sb.find_and_consume_item(hub_id, camp, function(s) return s == "prt_i_fasteners" end, nil)
                 if s1 and s2 and f1 then
-                    sb.deposit_item_to_camp(hub_id, camp, copper_sec)
-                    refined_extra = ui_item and ui_item.get_sec_name and ui_item.get_sec_name(copper_sec) or copper_sec
+                    if sb.deposit_item_to_camp(hub_id, camp, copper_sec) then
+                        refined_extra = ui_item and ui_item.get_sec_name and ui_item.get_sec_name(copper_sec) or copper_sec
+                    else
+                        refund_consumed_uses(hub_id, camp, s1, s2, f1)
+                    end
                 else
-                    if s1 then sb.deposit_item_to_camp(hub_id, camp, s1) end
-                    if s2 then sb.deposit_item_to_camp(hub_id, camp, s2) end
+                    refund_consumed_uses(hub_id, camp, s1, s2, f1)
                 end
             end
         end
@@ -3959,10 +4116,12 @@ function stalker_camp_builder.process_turret_maintenance(npc_id, box_id, camp, f
     local sb = stalker_camp_builder
     local turrets = {}
     for id, struct_type in pairs(camp.structures or {}) do
-        local se_obj = alife_object(id)
-        local sec = se_obj and se_obj:section_name()
-        if sec and sec:find("turret") and not sec:find("table") then
-            turrets[#turrets+1] = id
+        if struct_type == "gadget" or struct_type == "turret" then
+            local se_obj = alife_object(id)
+            local sec = se_obj and se_obj:section_name()
+            if sec and sec:find("turret") and not sec:find("table") then
+                turrets[#turrets+1] = id
+            end
         end
     end
 
@@ -4626,6 +4785,9 @@ function stalker_camp_builder.update_camp_jobs()
                         survivor.job_start_time = current_sec - (max_backlog_sec * tf)
                     end
 
+                    if camp._inv_snapshot_dirty and sb.get_camp_inventory_snapshot then
+                        camp_snap = sb.get_camp_inventory_snapshot(hub_id, camp, false)
+                    end
                     -- (an `a and f()` keeps only f's first result, which dropped the reason)
                     local is_paused, reason_short, reason_detail
                     if sb.get_job_paused_status then

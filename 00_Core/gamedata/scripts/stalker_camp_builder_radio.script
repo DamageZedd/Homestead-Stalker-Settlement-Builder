@@ -95,8 +95,21 @@ end
 
 function clear_camp_radio_logs(hub_id)
     stalker_camp_builder.radio_logs = stalker_camp_builder.radio_logs or {}
-    if hub_id then
-        stalker_camp_builder.radio_logs[hub_id] = {}
+    if hub_id and hub_id ~= "all" then
+        local logs = stalker_camp_builder.radio_logs
+        logs[hub_id] = {}
+        local str_id = tostring(hub_id)
+        if logs[str_id] ~= nil then
+            logs[str_id] = {}
+        end
+        local num_id = tonumber(hub_id)
+        if num_id and logs[num_id] ~= nil then
+            logs[num_id] = {}
+        end
+        return
+    end
+    for k in pairs_(stalker_camp_builder.radio_logs) do
+        stalker_camp_builder.radio_logs[k] = {}
     end
     stalker_camp_builder.radio_logs["all"] = {}
 end
