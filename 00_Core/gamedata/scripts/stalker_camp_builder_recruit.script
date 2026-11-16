@@ -4440,6 +4440,198 @@ function stalker_camp_builder.toggle_settler_sworn(npc_id)
     return false, false
 end
 
+-- ============================================================================
+-- Settler Inventory Access & Equipment Lock (Dialogue + PDA)
+-- ============================================================================
+local function safe_inv_obj_id(obj)
+    if not obj then return nil end
+    local t = type(obj)
+    if t ~= "userdata" and t ~= "table" then return nil end
+    if type(obj.id) == "function" then
+        local ok, id = pcall(obj.id, obj)
+        return ok and id or nil
+    end
+    if type(obj.id) == "number" then
+        return obj.id
+    end
+    return nil
+end
+
+local function resolve_settler_speaker(p1, p2)
+    local actor = db and db.actor
+    local actor_id = safe_inv_obj_id(actor) or 0
+    if type(p1) == "userdata" or type(p2) == "userdata" then
+        local _, resolved = resolve_speakers(p1, p2)
+        if resolved and safe_inv_obj_id(resolved) ~= actor_id then
+            return resolved
+        end
+    end
+    local id1 = safe_inv_obj_id(p1)
+    local id2 = safe_inv_obj_id(p2)
+    if p1 and p2 then
+        if id1 == actor_id and id2 and id2 ~= actor_id then return p2 end
+        if id2 == actor_id and id1 and id1 ~= actor_id then return p1 end
+        if id2 and id2 ~= actor_id then return p2 end
+        if id1 and id1 ~= actor_id then return p1 end
+    elseif p1 and id1 and id1 ~= actor_id then
+        return p1
+    elseif p2 and id2 and id2 ~= actor_id then
+        return p2
+    end
+    return nil
+end
+
+local function is_alive_settler_obj(obj)
+    if not obj then return false end
+    if IsStalker and not IsStalker(obj) then return false end
+    if not obj.alive then return false end
+    local ok, alive = pcall(obj.alive, obj)
+    return ok and alive == true
+end
+
+local function find_camp_survivor_entry(npc_id, hub_id)
+    local sb = stalker_camp_builder
+    if not (sb and sb.active_camps and npc_id) then return nil, nil, nil end
+    local id_num = tonumber(npc_id) or npc_id
+    local id_str = tostring(id_num)
+    local function lookup_in_camp(camp)
+        if type(camp) == "table" and camp.survivors then
+            return camp.survivors[npc_id]
+                or camp.survivors[id_num]
+                or camp.survivors[id_str]
+        end
+        return nil
+    end
+    if hub_id ~= nil then
+        local h_num = tonumber(hub_id)
+        local camp = sb.active_camps[hub_id] or (h_num and sb.active_camps[h_num]) or sb.active_camps[tostring(hub_id)]
+        local s = lookup_in_camp(camp)
+        if s then return hub_id, camp, s end
+    end
+    for h_id, camp in pairs(sb.active_camps) do
+        local s = lookup_in_camp(camp)
+        if s then return h_id, camp, s end
+    end
+    return nil, nil, nil
+end
+
+function stalker_camp_builder.can_open_settler_inventory(first_speaker, second_speaker)
+    local npc = resolve_settler_speaker(first_speaker, second_speaker)
+    local npc_id = safe_inv_obj_id(npc)
+    local actor_id = safe_inv_obj_id(db and db.actor) or 0
+    if not npc_id or npc_id == 0 or npc_id == actor_id then return false end
+    if level and level.object_by_id and not level.object_by_id(npc_id) then return false end
+    if not is_alive_settler_obj(npc) then return false end
+    local _, _, surv = find_camp_survivor_entry(npc_id)
+    if not surv or surv.on_expedition or surv.released_id == npc_id then return false end
+    return true
+end
+
+function stalker_camp_builder.can_open_settler_inventory_by_id(hub_id, npc_id)
+    local id_num = tonumber(npc_id) or npc_id
+    local actor_id = safe_inv_obj_id(db and db.actor) or 0
+    if not id_num or id_num == 0 or id_num == actor_id then
+        return false, "st_pda_open_inv_offline"
+    end
+    local _, _, surv = find_camp_survivor_entry(id_num, hub_id)
+    if not surv then
+        return false, "st_pda_open_inv_offline"
+    end
+    if surv.on_expedition then
+        return false, "st_pda_open_inv_expedition"
+    end
+    if surv.released_id == id_num then
+        return false, "st_pda_open_inv_offline"
+    end
+    local npc = level and level.object_by_id and level.object_by_id(id_num)
+    if not is_alive_settler_obj(npc) then
+        return false, "st_pda_open_inv_offline"
+    end
+    return true, nil
+end
+
+function stalker_camp_builder.open_settler_inventory(first_speaker, second_speaker)
+    local npc = resolve_settler_speaker(first_speaker, second_speaker)
+    local npc_id = safe_inv_obj_id(npc)
+    local actor = db and db.actor
+    local actor_id = safe_inv_obj_id(actor) or 0
+    if not npc_id or npc_id == 0 or npc_id == actor_id then return false end
+    if level and level.object_by_id and not level.object_by_id(npc_id) then return false end
+    if not is_alive_settler_obj(npc) then return false end
+    local sb = stalker_camp_builder
+    local _, _, surv = find_camp_survivor_entry(npc_id)
+    if not surv or surv.on_expedition or surv.released_id == npc_id then return false end
+
+    -- Active companions use axr_companions loot handling; never toggle npcx_is_companion on stationary settlers
+    if npc.has_info and npc:has_info("npcx_is_companion") then
+        if axr_companions and axr_companions.start_trade then
+            axr_companions.start_trade(actor, npc)
+            return true
+        end
+        return false
+    end
+
+    local mfl = _G.mag_field_load
+    if mfl and mfl.loading_in_progress then
+        return false
+    end
+
+    if sb.sanitize_se_profile and alife_object then
+        local se_obj = alife_object(npc_id)
+        if se_obj then
+            pcall(sb.sanitize_se_profile, se_obj)
+        end
+    end
+
+    local get_menu = _G.GetActorMenu
+    if not (get_menu and ui_inventory and ui_inventory.change_last_mode) then
+        return false
+    end
+    local GUI = get_menu()
+    if not GUI or (GUI.IsShown and GUI:IsShown()) then
+        return false
+    end
+
+    -- Bypass ui_inventory.start so FDDA Redone does not queue a corpse-search crouch
+    -- while keeping LMode_Init, ShowDialog, and Register_UI intact.
+    sb._settler_inv_id = npc_id
+    local ok_open, err_open = pcall(function()
+        ui_inventory.change_last_mode(4)
+        GUI:LMode_Init(npc)
+        GUI:ShowDialog(true)
+        _G._GUIs_keyfree = _G._GUIs_keyfree or {}
+        _G._GUIs_keyfree["UIInventory"] = false
+        if Register_UI then
+            Register_UI("UIInventory", "ui_inventory")
+        end
+    end)
+    if not ok_open then
+        sb._settler_inv_id = nil
+        if printf then
+            printf("[Homestead] open_settler_inventory failed for npc_id=%s: %s", tostring(npc_id), tostring(err_open))
+        end
+        return false
+    end
+    return true
+end
+
+function stalker_camp_builder.open_settler_inventory_by_id(npc_id)
+    local id_num = tonumber(npc_id) or npc_id
+    if not id_num or id_num == 0 then return false end
+    local npc = level and level.object_by_id and level.object_by_id(id_num)
+    if not npc then return false end
+    return stalker_camp_builder.open_settler_inventory(npc)
+end
+
+function stalker_camp_builder.toggle_settler_equipment_lock(hub_id, npc_id)
+    if npc_id == nil then return nil end
+    local _, _, surv = find_camp_survivor_entry(npc_id, hub_id)
+    if not surv then return nil end
+    local new_state = not surv.equipment_locked
+    surv.equipment_locked = new_state
+    return new_state
+end
+
 -- A settler who joins the player through the vanilla companion dialog keeps their camp job, so
 -- npc_on_update kept sending them back to their station: pause the job as recruit_back does
 function stalker_camp_builder.mark_settler_companion(npc_id)

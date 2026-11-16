@@ -7,6 +7,136 @@ local function _se_clsid(se_obj) return se_obj:clsid() end
 local function _se_profile_name(se_obj) return se_obj:profile_name() end
 local function _se_set_profile_name(se_obj, fallback) se_obj:set_profile_name(fallback) end
 
+local SETTLER_INV_INTERNAL_SECTIONS = {
+    hand_radio = true,
+    hand_radio_r = true,
+    anim_knife = true,
+    anim_binoc = true,
+    device_torch = true,
+    bolt = true,
+    wpn_binoc_inv = true,
+    guitar_a = true,
+    harmonica_a = true,
+}
+
+local _settler_inv_callbacks_registered = false
+
+-- Returns true when an item in a living settler's inventory should be visible in loot UI
+-- (excludes engine/NPC internal props, bolts, animation items, quest items, untradeables).
+local function is_settler_inventory_item_visible(obj)
+    if not obj then return false end
+    local sec = obj.section and obj:section()
+    if not sec or sec == "" then return false end
+    if SETTLER_INV_INTERNAL_SECTIONS[sec] then return false end
+    local is_bolt = _G.IsBolt
+    if is_bolt and is_bolt(obj) then return false end
+    if IsItem and IsItem("anim", sec) then return false end
+    if ini_sys and ini_sys.r_bool_ex then
+        if ini_sys:r_bool_ex(sec, "can_trade", true) == false then
+            return false
+        end
+        if ini_sys:r_bool_ex(sec, "quest_item", false) == true then
+            return false
+        end
+    end
+    return true
+end
+
+if stalker_camp_builder then
+    stalker_camp_builder.is_settler_inventory_item_visible = is_settler_inventory_item_visible
+end
+
+local function find_camp_survivor_record(npc_id)
+    local sb = stalker_camp_builder
+    if not (sb and sb.active_camps and npc_id) then return nil end
+    local num_id = tonumber(npc_id)
+    local str_id = tostring(npc_id)
+    for _, camp in pairs(sb.active_camps) do
+        if type(camp) == "table" and camp.survivors then
+            local surv = camp.survivors[npc_id]
+                or (num_id and camp.survivors[num_id])
+                or camp.survivors[str_id]
+            if surv then
+                return surv
+            end
+        end
+    end
+    return nil
+end
+
+local function sync_settler_inventory_state(npc_id, activate_weapon)
+    if not npc_id then return end
+    local lookup_id = tonumber(npc_id) or npc_id
+    local npc = level and level.object_by_id and level.object_by_id(lookup_id)
+    if not (npc and npc.best_weapon) then return end
+    local ok_wpn, best_wpn = pcall(npc.best_weapon, npc)
+    if not ok_wpn then
+        best_wpn = nil
+    end
+    local surv = find_camp_survivor_record(npc_id)
+    if surv then
+        surv.has_weapon = (best_wpn ~= nil)
+    end
+    if not best_wpn then
+        local st = db and db.storage and (db.storage[npc_id] or (lookup_id and db.storage[lookup_id]))
+        if st then
+            st.old_aim_time = nil
+        end
+    elseif activate_weapon then
+        local is_stalker = (not IsStalker) or IsStalker(npc)
+        if is_stalker and npc.alive then
+            local ok_alive, alive = pcall(npc.alive, npc)
+            if ok_alive and alive and npc.make_item_active then
+                pcall(npc.make_item_active, npc, best_wpn)
+            end
+        end
+    end
+end
+
+local function on_settler_gui_hide(name)
+    if name ~= "UIInventory" then return end
+    local sb = stalker_camp_builder
+    local tracked_id = sb and sb._settler_inv_id
+    if not tracked_id then return end
+    sb._settler_inv_id = nil
+    sync_settler_inventory_state(tracked_id, true)
+end
+
+local function on_settler_item_after_move(npc_id, obj, mode, bag_id)
+    local sb = stalker_camp_builder
+    local tracked_id = sb and sb._settler_inv_id
+    if not tracked_id then return end
+    if npc_id ~= nil and npc_id ~= tracked_id then return end
+    if mode ~= nil and mode ~= "loot" then return end
+    sync_settler_inventory_state(tracked_id, false)
+end
+
+local function on_settler_inv_npc_death(npc)
+    local sb = stalker_camp_builder
+    local tracked_id = sb and sb._settler_inv_id
+    if not tracked_id then return end
+    local npc_id = (type(npc) == "number" and npc) or nil
+    if not npc_id and npc and npc.id then
+        local ok, id = pcall(npc.id, npc)
+        if ok then npc_id = id end
+    end
+    if npc_id and npc_id == tracked_id then
+        sb._settler_inv_id = nil
+        local lookup_id = tonumber(tracked_id) or tracked_id
+        local st = db and db.storage and (db.storage[tracked_id] or (lookup_id and db.storage[lookup_id]))
+        if st then
+            st.old_aim_time = nil
+        end
+    end
+end
+
+local function on_settler_inv_net_destroy()
+    local sb = stalker_camp_builder
+    if sb then
+        sb._settler_inv_id = nil
+    end
+end
+
 function on_game_start()
     -- Safely monkeypatch bind_hf_base's is_pickupable to prevent crashes on non-player placed furniture and protect rival camp decor
     if bind_hf_base and bind_hf_base.hf_binder_wrapper then
@@ -414,9 +544,20 @@ function on_game_start()
     end
 
     -- 2. Intercept UI inventory / loot opening before CUICharacterInfo::InitCharacter queries the entity
-    if ui_inventory and ui_inventory.start then
+    if stalker_camp_builder then
+        stalker_camp_builder.is_settler_inventory_item_visible = is_settler_inventory_item_visible
+        stalker_camp_builder.sanitize_se_profile = sanitize_se_profile
+    end
+
+    if ui_inventory and ui_inventory.start and not ui_inventory._homestead_start_patched then
+        ui_inventory._homestead_start_patched = true
         local og_ui_inventory_start = ui_inventory.start
         ui_inventory.start = function(mode, obj)
+            -- Ensure stale settler tracking never leaks into normal loot/trade/repair opens
+            local sb = stalker_camp_builder
+            if sb and sb._settler_inv_id and not (ui_inventory.GUI and ui_inventory.GUI.IsShown and ui_inventory.GUI:IsShown()) then
+                sb._settler_inv_id = nil
+            end
             if obj and (mode == "loot" or mode == "trade" or mode == "repair") then
                 local obj_id = (type(obj.id) == "function" and obj:id()) or obj.id
                 if obj_id then
@@ -428,6 +569,71 @@ function on_game_start()
             end
             return og_ui_inventory_start(mode, obj)
         end
+    end
+
+    -- 2b. Settler Inventory ("loot" mode): scan full inventory (slotted gear + ruck) for the active
+    -- settler session while filtering internal/untradeable engine items and keeping Sorting Tabs intact.
+    if ui_inventory and ui_inventory.UIInventory then
+        local inv_cls = ui_inventory.UIInventory
+        if inv_cls.ParseInventory and not inv_cls._homestead_settler_parse_patched then
+            inv_cls._homestead_settler_parse_patched = true
+            local orig_parse = inv_cls.ParseInventory
+            inv_cls.ParseInventory = function(self, npc, all, id_list, ignore_kind)
+                local sb = stalker_camp_builder
+                local tracked_id = sb and sb._settler_inv_id
+                if self and self.mode == "loot" and not self.npc_is_companion and tracked_id and npc and npc.id then
+                    local ok_id, npc_id = pcall(npc.id, npc)
+                    local actor = db and db.actor
+                    local actor_id = (actor and actor.id) and actor:id() or 0
+                    if ok_id and npc_id and npc_id ~= 0 and npc_id ~= actor_id and npc_id == tracked_id then
+                        local inv = orig_parse(self, npc, true, id_list, ignore_kind)
+                        if type(inv) ~= "table" then
+                            return inv
+                        end
+                        if id_list then
+                            for k, obj in pairs(inv) do
+                                if not is_settler_inventory_item_visible(obj) then
+                                    inv[k] = nil
+                                end
+                            end
+                            return inv
+                        end
+                        local out = {}
+                        for i = 1, #inv do
+                            local obj = inv[i]
+                            if obj and is_settler_inventory_item_visible(obj) then
+                                out[#out + 1] = obj
+                            end
+                        end
+                        return out
+                    end
+                end
+                return orig_parse(self, npc, all, id_list, ignore_kind)
+            end
+        end
+
+        if inv_cls.Close and not inv_cls._homestead_settler_close_patched then
+            inv_cls._homestead_settler_close_patched = true
+            local orig_close = inv_cls.Close
+            inv_cls.Close = function(self, ...)
+                local ret = orig_close(self, ...)
+                local sb = stalker_camp_builder
+                local tracked_id = sb and sb._settler_inv_id
+                if tracked_id then
+                    sb._settler_inv_id = nil
+                    sync_settler_inventory_state(tracked_id, true)
+                end
+                return ret
+            end
+        end
+    end
+
+    if RegisterScriptCallback and not _settler_inv_callbacks_registered then
+        _settler_inv_callbacks_registered = true
+        RegisterScriptCallback("GUI_on_hide", on_settler_gui_hide)
+        RegisterScriptCallback("ActorMenu_on_item_after_move", on_settler_item_after_move)
+        RegisterScriptCallback("npc_on_death_callback", on_settler_inv_npc_death)
+        RegisterScriptCallback("actor_on_net_destroy", on_settler_inv_net_destroy)
     end
 
     -- 3. Intercept corpse loot generation in death_manager

@@ -857,6 +857,18 @@ function SettlementManagerPDA:InitControls()
         self:AddCallback("btn_sworn_toggle", ui_events.BUTTON_CLICKED, self.OnSwornToggleClicked, self)
     end
 
+    self.btn_open_inventory = job_node_exists("btn_open_inventory") and xml:Init3tButton("job_content:btn_open_inventory", self.job_content) or nil
+    if self.btn_open_inventory then
+        self:Register(self.btn_open_inventory, "btn_open_inventory")
+        self:AddCallback("btn_open_inventory", ui_events.BUTTON_CLICKED, self.OnOpenInventoryClicked, self)
+    end
+
+    self.btn_lock_equipment = job_node_exists("btn_lock_equipment") and xml:Init3tButton("job_content:btn_lock_equipment", self.job_content) or nil
+    if self.btn_lock_equipment then
+        self:Register(self.btn_lock_equipment, "btn_lock_equipment")
+        self:AddCallback("btn_lock_equipment", ui_events.BUTTON_CLICKED, self.OnLockEquipmentClicked, self)
+    end
+
     self.btn_refresh_survivors = xml:Init3tButton("left_container:btn_refresh_survivors", self.left_container)
     self:Register(self.btn_refresh_survivors, "btn_refresh_survivors")
     self:AddCallback("btn_refresh_survivors", ui_events.BUTTON_CLICKED, self.OnManualRefresh, self)
@@ -913,7 +925,7 @@ function SettlementManagerPDA:InitControls()
         job = job_page,
         orders = { self.pos_header_bg, self.pos_header_lbl, self.pos_bg, self.survivor_pos_txt,
             self.btn_position_here, self.btn_position_recall, self.btn_companion_loan, self.btn_sworn_toggle,
-            self.btn_rename_survivor },
+            self.btn_open_inventory, self.btn_lock_equipment, self.btn_rename_survivor },
         transfer = { self.transfer_header_bg, self.transfer_lbl, self.transfer_bg, self.transfer_list,
             self.btn_transfer, self.btn_banish },
         stats = { self.stats_header_bg, self.stats_lbl, self.stats_bg },
@@ -2350,7 +2362,7 @@ function SettlementManagerPDA:UpdateSurvivorHeader(s_item, job, job_lbl, is_paus
         { tr("st_pda_sv_stat_needs"), needs_txt, needs_role },
         { tr("st_pda_sv_stat_morale"), morale_txt, morale_role },
         { tr("st_pda_sv_stat_rank"), string.format("%s (T%d)%s", tiers[tier] or tiers[0], tier, s_item.sworn and " [Sworn]" or ""), "good" },
-        { tr("st_pda_sv_stat_xp"), string.format("%d / %d", xp, caps[tier] or 500), "body" },
+        { tr("st_pda_sv_stat_xp"), string.format("%d / %d%s", xp, caps[tier] or 500, s_item.equipment_locked and "  [Auto-Equip: OFF]" or ""), "body" },
     }
     for i, r in ipairs(rows) do
         local l, v = self.sv_stat_lbls and self.sv_stat_lbls[i], self.sv_stat_vals and self.sv_stat_vals[i]
@@ -2406,6 +2418,13 @@ function SettlementManagerPDA:LayoutSurvivorPages()
         size(self.btn_companion_loan, 172, 26)
         pos(self.btn_sworn_toggle, 178, oy)
         size(self.btn_sworn_toggle, 172, 26)
+        oy = oy + 30
+    end
+    if self.btn_open_inventory or self.btn_lock_equipment then
+        pos(self.btn_open_inventory, 0, oy)
+        size(self.btn_open_inventory, 172, 26)
+        pos(self.btn_lock_equipment, 178, oy)
+        size(self.btn_lock_equipment, 172, 26)
         oy = oy + 30
     end
     if self.lay_has_dir then
@@ -2513,6 +2532,31 @@ function SettlementManagerPDA:RefreshRecallButton(survivor_id)
         end
         hs_theme.set_active(sbtn, is_sworn == true)
     end
+
+    local ibtn = self.btn_open_inventory
+    if ibtn then
+        local hub_id = (s_item and s_item.hub_id) or (self.settlement_list and selected_value(self.settlement_list, "hub_id"))
+        local can_open = false
+        if stalker_camp_builder and stalker_camp_builder.can_open_settler_inventory_by_id then
+            can_open = stalker_camp_builder.can_open_settler_inventory_by_id(hub_id, survivor_id) == true
+        end
+        ibtn:Enable(can_open)
+        if ibtn:TextControl() and self.inv_btn_label ~= "st_pda_btn_open_inv" then
+            self.inv_btn_label = "st_pda_btn_open_inv"
+            ibtn:TextControl():SetText(game.translate_string("st_pda_btn_open_inv"))
+        end
+    end
+
+    local ebtn = self.btn_lock_equipment
+    if ebtn and ebtn:TextControl() then
+        local is_locked = s_item and s_item.equipment_locked == true
+        local eq_lbl = is_locked and "st_pda_btn_auto_equip_off" or "st_pda_btn_auto_equip_on"
+        if self.equip_btn_label ~= eq_lbl then
+            self.equip_btn_label = eq_lbl
+            ebtn:TextControl():SetText(game.translate_string(eq_lbl))
+        end
+        hs_theme.set_active(ebtn, not is_locked)
+    end
 end
 
 function SettlementManagerPDA:OnCompanionLoanClicked()
@@ -2557,6 +2601,85 @@ function SettlementManagerPDA:OnSwornToggleClicked()
                 tmpl = is_sworn and "%s is now sworn to the settlement and will not move on." or "%s is no longer sworn and may move on at Master tier."
             end
             actor_menu.set_msg(1, string.format(tmpl, name), 3)
+        end
+    end
+    self:OnSurvivorSelected()
+end
+
+local function tr_fallback(key, fallback)
+    local text = game and game.translate_string and game.translate_string(key)
+    if not text or text == key then
+        return fallback
+    end
+    return text
+end
+
+local function selected_survivor_ctx(pda)
+    local item = pda.survivor_list and pda.survivor_list:GetSelectedItem()
+    if not item then return nil end
+    local surv_id = item.survivor_id
+    local s_item = pda:GetSurvivorInfo(surv_id)
+    local hub_id = (pda.settlement_list and selected_value(pda.settlement_list, "hub_id")) or (s_item and s_item.hub_id)
+    return surv_id, s_item, hub_id
+end
+
+function SettlementManagerPDA:close_pda()
+    close_pda()
+end
+
+function SettlementManagerPDA:OnOpenInventoryClicked()
+    play_pda_ui_sound([[interface\inv_slot]])
+    local surv_id, _, hub_id = selected_survivor_ctx(self)
+    if not surv_id then return end
+
+    local can_open, err_key = false, "st_pda_open_inv_offline"
+    if stalker_camp_builder and stalker_camp_builder.can_open_settler_inventory_by_id then
+        can_open, err_key = stalker_camp_builder.can_open_settler_inventory_by_id(hub_id, surv_id)
+    end
+    if not can_open then
+        if actor_menu and actor_menu.set_msg then
+            local key = err_key or "st_pda_open_inv_offline"
+            local fallback = (key == "st_pda_open_inv_expedition")
+                and "Cannot inspect inventory while settler is away on expedition."
+                or "Settler must be online nearby to open inventory."
+            actor_menu.set_msg(1, tr_fallback(key, fallback), 3)
+        end
+        self:RefreshRecallButton(surv_id)
+        return
+    end
+
+    self:close_pda()
+    if CreateTimeEvent then
+        CreateTimeEvent("homestead_open_inv", "open_" .. tostring(surv_id), 0.1, function()
+            local gui = ui_inventory and ui_inventory.GUI
+            local am = ActorMenu and ActorMenu.get_actor_menu and ActorMenu.get_actor_menu()
+            if (gui and gui:IsShown()) or (am and am:IsShown()) then
+                return true
+            end
+            if stalker_camp_builder and stalker_camp_builder.open_settler_inventory_by_id then
+                stalker_camp_builder.open_settler_inventory_by_id(surv_id)
+            end
+            return true
+        end)
+    elseif stalker_camp_builder and stalker_camp_builder.open_settler_inventory_by_id then
+        stalker_camp_builder.open_settler_inventory_by_id(surv_id)
+    end
+end
+
+function SettlementManagerPDA:OnLockEquipmentClicked()
+    play_pda_ui_sound([[interface\inv_slot]])
+    local survivor_id, s_item, hub_id = selected_survivor_ctx(self)
+    if not survivor_id then return end
+    if stalker_camp_builder and stalker_camp_builder.toggle_settler_equipment_lock then
+        local new_state = stalker_camp_builder.toggle_settler_equipment_lock(hub_id, survivor_id)
+        if new_state ~= nil and actor_menu and actor_menu.set_msg then
+            local is_locked = (new_state == true)
+            local name = (s_item and s_item.name) or "Settler"
+            local msg_key = is_locked and "st_pda_auto_equip_locked_msg" or "st_pda_auto_equip_unlocked_msg"
+            local fallback = is_locked
+                and "Auto-Equip disabled for %s (Armory & Quartermaster swaps locked)."
+                or "Auto-Equip enabled for %s (will upgrade from Armory & Quartermaster)."
+            actor_menu.set_msg(1, string.format(tr_fallback(msg_key, fallback), name), 3)
         end
     end
     self:OnSurvivorSelected()

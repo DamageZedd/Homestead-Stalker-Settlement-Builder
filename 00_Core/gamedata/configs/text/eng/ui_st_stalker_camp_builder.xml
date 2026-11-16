@@ -3662,4 +3662,34 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_unknown">
         <text>Unknown</text>
     </string>
+    <string id="st_camp_open_inv_ask">
+        <text>Let me check your gear and inventory.</text>
+    </string>
+    <string id="st_camp_open_inv_reply">
+        <text>Sure, Boss. Take whatever you need.</text>
+    </string>
+    <string id="st_pda_btn_open_inv">
+        <text>Open Inventory</text>
+    </string>
+    <string id="st_pda_open_inv_tip">
+        <text>Inspect and transfer items with this settler (must be nearby/online)</text>
+    </string>
+    <string id="st_pda_open_inv_offline">
+        <text>Settler must be online nearby to open inventory.</text>
+    </string>
+    <string id="st_pda_open_inv_expedition">
+        <text>Cannot inspect inventory while settler is away on expedition.</text>
+    </string>
+    <string id="st_pda_btn_auto_equip_on">
+        <text>Auto-Equip: ON</text>
+    </string>
+    <string id="st_pda_btn_auto_equip_off">
+        <text>Auto-Equip: OFF</text>
+    </string>
+    <string id="st_pda_auto_equip_locked_msg">
+        <text>Auto-Equip disabled for %s (Armory &amp; Quartermaster swaps locked).</text>
+    </string>
+    <string id="st_pda_auto_equip_unlocked_msg">
+        <text>Auto-Equip enabled for %s (will upgrade from Armory &amp; Quartermaster).</text>
+    </string>
 </string_table>

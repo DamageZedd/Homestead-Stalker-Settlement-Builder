@@ -4255,6 +4255,7 @@ local last_round_robin_camp_idx = 1
 -- process_settler_equipment -- survivors inspect Armory Crate and Quartermaster Locker for weapon and armor upgrades
 function stalker_camp_builder.process_settler_equipment(hub_id, camp, survivor, npc_id)
     if not (camp and survivor and npc_id) then return end
+    if survivor.equipment_locked then return end
     local sb = stalker_camp_builder
     if sb.is_companion and sb.is_companion(npc_id) then return end
     if survivor.on_expedition then return end

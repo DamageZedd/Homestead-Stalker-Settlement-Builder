@@ -828,6 +828,26 @@
                 <d r="110" g="110" b="110"/>
             </text_color>
         </btn_sworn_toggle>
+        <btn_open_inventory x="6" y="540" width="167" height="26" check_mode="0">
+            <texture>ui_homestead_btn_tactical</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_open_inv</text>
+            <text_color>
+                <e r="100" g="200" b="255"/>
+                <h r="150" g="225" b="255"/>
+                <t r="150" g="225" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
+        </btn_open_inventory>
+        <btn_lock_equipment x="178" y="540" width="167" height="26" check_mode="0">
+            <texture>ui_homestead_btn_tactical</texture>
+            <text font="letterica16" align="c" vert_align="c">st_pda_btn_auto_equip_on</text>
+            <text_color>
+                <e r="220" g="220" b="220"/>
+                <h r="255" g="255" b="255"/>
+                <t r="255" g="255" b="255"/>
+                <d r="110" g="110" b="110"/>
+            </text_color>
+        </btn_lock_equipment>
 
         <!-- Module 5: Remote Outpost Transfer Module -->
         <transfer_header_bg x="0" y="534" width="350" height="20" stretch="1">

@@ -3662,5 +3662,35 @@
     <string id="st_pda_raid_recon">
         <text>Разведданные: гарнизон %d | ~%d предм. в тайнике (+25%% тактический стол)</text>
     </string>
+    <string id="st_camp_open_inv_ask">
+        <text>Дай-ка проверю твоё снаряжение и инвентарь.</text>
+    </string>
+    <string id="st_camp_open_inv_reply">
+        <text>Конечно, босс. Бери всё, что нужно.</text>
+    </string>
+    <string id="st_pda_btn_open_inv">
+        <text>Открыть инвентарь</text>
+    </string>
+    <string id="st_pda_open_inv_tip">
+        <text>Проверить снаряжение поселенца и обменяться вещами (должен быть рядом)</text>
+    </string>
+    <string id="st_pda_open_inv_offline">
+        <text>Поселенец должен находиться поблизости, чтобы открыть инвентарь.</text>
+    </string>
+    <string id="st_pda_open_inv_expedition">
+        <text>Нельзя открыть инвентарь, пока поселенец находится в вылазке.</text>
+    </string>
+    <string id="st_pda_btn_auto_equip_on">
+        <text>Автоэкипировка: ВКЛ</text>
+    </string>
+    <string id="st_pda_btn_auto_equip_off">
+        <text>Автоэкипировка: ВЫКЛ</text>
+    </string>
+    <string id="st_pda_auto_equip_locked_msg">
+        <text>Автоэкипировка отключена для %s (замена из Оружейной и Интенданта заблокирована).</text>
+    </string>
+    <string id="st_pda_auto_equip_unlocked_msg">
+        <text>Автоэкипировка включена для %s (будет обновлять снаряжение из Оружейной и Интенданта).</text>
+    </string>
 </string_table>
 

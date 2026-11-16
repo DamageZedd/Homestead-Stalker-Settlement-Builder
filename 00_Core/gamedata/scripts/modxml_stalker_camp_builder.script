@@ -102,6 +102,7 @@ local dialogues = [[
             <next>73</next>
             <next>74</next>
             <next>75</next>
+            <next>24</next>
             <next>50</next>
             <next>60</next>
             <next>62</next>
@@ -276,6 +277,15 @@ local dialogues = [[
         <phrase id="231">
             <text>st_job_scrapper_done</text>
             <action>dialogs.break_dialog</action>
+        </phrase>
+        <phrase id="24">
+            <precondition>stalker_camp_builder.can_open_settler_inventory</precondition>
+            <text>st_camp_open_inv_ask</text>
+            <next>241</next>
+        </phrase>
+        <phrase id="241">
+            <text>st_camp_open_inv_reply</text>
+            <action>stalker_camp_builder.open_settler_inventory</action>
         </phrase>
         <phrase id="26">
             <text>st_job_farmer_ask</text>

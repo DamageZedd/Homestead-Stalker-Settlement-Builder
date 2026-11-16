@@ -19,6 +19,8 @@ for path in src:gmatch('xml:Init3tButton%("(job_content:[%w_]+)",') do
     if not seen[path] then seen[path] = true; paths[#paths + 1] = path end
 end
 assert(#paths > 0, "no job_content buttons found")
+assert(seen["job_content:btn_open_inventory"], "PDA script missing job_content:btn_open_inventory")
+assert(seen["job_content:btn_lock_equipment"], "PDA script missing job_content:btn_lock_equipment")
 
 local required_top_bar = {
     "top_status_bar",
@@ -28,14 +30,30 @@ local required_top_bar = {
     "status_camp",
 }
 
+local required_orders_buttons = {
+    "btn_open_inventory",
+    "btn_lock_equipment",
+}
+
 local fails = 0
 for _, xp in ipairs(xmls) do
     local x = slurp(xp)
+    local job_block = x:match("<job_content[%s>].-</job_content>")
+    if not job_block then
+        fails = fails + 1
+        print("FAIL " .. xp .. " lacks <job_content> block")
+    end
     for _, path in ipairs(paths) do
         local leaf = path:match(":([%w_]+)$")
         if not x:find("<" .. leaf .. "[%s>]") then
             fails = fails + 1
             print("FAIL " .. xp .. " lacks <" .. leaf .. ">")
+        end
+    end
+    for _, obtn in ipairs(required_orders_buttons) do
+        if job_block and not job_block:find("<" .. obtn .. "[%s>]") then
+            fails = fails + 1
+            print("FAIL " .. xp .. " <job_content> lacks <" .. obtn .. ">")
         end
     end
     for _, node in ipairs(required_top_bar) do
@@ -50,6 +68,7 @@ end
 -- and <backpack><input> must carry a background texture so the filter box renders visibly.
 local modern_xml = slurp("01_Theme_Modern/gamedata/configs/ui/ui_stalker_camp_builder_pda.xml")
 local modern_btns = 0
+local modern_seen = {}
 local pos = 1
 while true do
     local s, _, tag = modern_xml:find("<(btn_[%w_]+)[%s>]", pos)
@@ -59,6 +78,7 @@ while true do
     local block = modern_xml:sub(s, close_end)
     if block:find("<text[%s>]") then
         modern_btns = modern_btns + 1
+        modern_seen[tag] = true
         if block:find("<text[^>]*%sr=") then
             fails = fails + 1
             print("FAIL 01_Theme_Modern <" .. tag .. "> uses legacy <text r=...> instead of <text_color>")
@@ -71,6 +91,56 @@ while true do
     pos = close_end + 1
 end
 assert(modern_btns > 0, "no <btn_*> with <text> found in 01_Theme_Modern")
+for _, obtn in ipairs(required_orders_buttons) do
+    if not modern_seen[obtn] then
+        fails = fails + 1
+        print("FAIL 01_Theme_Modern <" .. obtn .. "> not verified with <text_color>")
+    end
+end
+
+-- Localization key & encoding parity for Settler Inventory UI/dialog strings
+local eng_path = "00_Core/gamedata/configs/text/eng/ui_st_stalker_camp_builder.xml"
+local rus_path = "00_Core/gamedata/configs/text/rus/ui_st_stalker_camp_builder.xml"
+local eng_xml = slurp(eng_path)
+local rus_xml = slurp(rus_path)
+for i = 1, #eng_xml do
+    if eng_xml:byte(i) > 127 then
+        fails = fails + 1
+        print("FAIL " .. eng_path .. " contains non-ASCII byte at offset " .. i)
+        break
+    end
+end
+if rus_xml:sub(1, 3) == "\239\187\191" then
+    fails = fails + 1
+    print("FAIL " .. rus_path .. " has UTF-8 BOM")
+end
+if not rus_xml:sub(1, 200):lower():find('encoding="windows%-1251"') then
+    fails = fails + 1
+    print("FAIL " .. rus_path .. " does not declare windows-1251 encoding")
+end
+local inv_strings = {
+    "st_camp_open_inv_ask",
+    "st_camp_open_inv_reply",
+    "st_pda_btn_open_inv",
+    "st_pda_open_inv_tip",
+    "st_pda_open_inv_offline",
+    "st_pda_open_inv_expedition",
+    "st_pda_btn_auto_equip_on",
+    "st_pda_btn_auto_equip_off",
+    "st_pda_auto_equip_locked_msg",
+    "st_pda_auto_equip_unlocked_msg",
+}
+for _, sid in ipairs(inv_strings) do
+    local pat = '<string%s+id="' .. sid .. '">'
+    if not eng_xml:find(pat) then
+        fails = fails + 1
+        print("FAIL " .. eng_path .. " missing string id " .. sid)
+    end
+    if not rus_xml:find(pat) then
+        fails = fails + 1
+        print("FAIL " .. rus_path .. " missing string id " .. sid)
+    end
+end
 
 local bp_block = modern_xml:match("<backpack[%s>].-</backpack>")
 assert(bp_block, "missing <backpack> in 01_Theme_Modern")
