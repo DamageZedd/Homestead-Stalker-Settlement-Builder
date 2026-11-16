@@ -7,7 +7,7 @@
 
 *Build camps. Recruit survivors. Automate production. Hold the line.*
 
-![Version](https://img.shields.io/badge/version-v1.4.3-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-v1.4.4-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
 
 **[GAMMA Discord Thread](https://discord.com/channels/912320241713958912/1515669053606334504/1542893750408315030)** · **[Full Changelog](CHANGELOG.md)** · **[ModDB](https://www.moddb.com/mods/stalker-anomaly/addons/homestead-stalker-settlement-builder)** · **[Latest Release](https://github.com/DamageZedd/Homestead-Stalker-Settlement-Builder/releases/latest)**
 
@@ -22,7 +22,31 @@ Plant a Settlement Flag to establish a 50-meter settlement boundary. Construct b
 
 ---
 
-## 🆕 New in v1.4.3
+## 🆕 New in v1.4.4
+
+### ⚔️ Settlement Retaliation Raids
+Wiping out or plundering a hostile faction's outpost now has consequences: a few in-game hours later that faction sends a hit squad against your nearest settlement, announced by an intercepted radio alert. Your raiders fight beside your guards. If you are away for more than a day, the battle is resolved from your camp's defense rating, at a cost in ammo and medicine, or in wounds and morale if the defense fails.
+
+### 🗺️ Tactical Planning Board
+A new Raider workstation (vanilla textures): a command table with a war map, recon boards and an armory crate. It holds 300 kg of weapons, ammo and grenades, gives raids +25% attack strength, and unlocks Recon Intel (defenders and stash size) in the PDA raid briefing. Raids now loot the outpost's real stash and leave the rest in its chest for you.
+
+### 🎒 Settler Inventory & Auto-Equip Lock
+Open a settler's inventory from dialogue or with the new Open Inventory button in PDA Survivors -> Orders. A per-settler Auto-Equip: ON/OFF toggle stops the Armory and Quartermaster from swapping out gear you handed them.
+
+### 🛡️ Bodyguards & Sworn Veterans
+Borrow a settler as a companion from the PDA (Request Bodyguard / Return to Settlement); they keep their job progress and earned rank. Sworn Veterans never leave the settlement when Settlers May Move On is on.
+
+### 🍞 Living Needs: Medical Care, Guard Ammo & Starvation
+Wounded settlers work at half speed until bandages or medkits from storage treat them, guards use ammo boxes during raids, a starving settlement works at half speed (MCM option), and a working water pump now really supplies free drinking water.
+
+### 🛠️ Fixes & Performance
+Fixes the "Alive" script error from despawned settlers, outposts floating on slopes, the same faction reclaiming an outpost over and over, turrets fixating on enemies behind cover, alarms going off at your own settlers, and production inputs lost when storage is full (Medic, Cook, Chemist, crafting and more). Job pause checks, PDA refreshes, binders and snapping do less work per frame.
+
+Full list in the [changelog](CHANGELOG.md).
+
+---
+
+## 📦 Previous in v1.4.3
 
 ### 🖼️ HD Icons & Workstation Sheet Fixes
 Restored the lossless `v1.4.0` Level 0 DXT5 blocks across all 45 pre-existing models in `ui_icon_homestead_hd_1.dds` (eliminating the Level 0 alpha quantization and edge specks introduced by Pillow's DXT5 writer in `v1.4.1`), rebuilt `ui_icon_homestead_workstations.dds` cleanly via `dxt5_encode`, and added a runtime guard so `ico_homestead.ltx` is ignored whenever the HD Inventory Icons Framework (`zz_hd_inventory_icons_patches`) is not active (including after an MO2 Merge upgrade).
@@ -32,30 +56,6 @@ Added MCM sliders for **Wood Stockpile Cap (`wood_stock_cap`)** and **Scrap Meta
 
 ### 📡 Rival Outpost Placement & Takeover Tuning
 Outposts spawned on unloaded maps now check for a flat, walkable 3 m AI-grid perimeter on level entry and relocate to the nearest open AI ground around their smart terrain instead of anchoring against walls, roofs, or cliffs. Abandoned outposts can now be reclaimed at most once (preferring a different faction than the one that just left) before their ruins decay and a fresh site is chosen.
-
----
-
-## 📦 Previous in v1.4.2
-
-### 🛠️ Base-Building & Furniture Fixes
-Pieces and colliders that reused a freed id no longer inherit a stale broken-collider count; a piece frozen again from the radial menu is healed at once; physics strikes from placed pieces are recognised by their shape and cancelled (weapon, blast and creature hits still land); furniture on triangle foundations stands on the paving instead of floating.
-
-### ⚗️ Chemist Fixes
-The Chemist counts charcoal and vodka in uses, so one bag or bottle is enough to work; each can or tin of fuel pays its own inputs (no more 3-4 free cans per batch), no inputs are lost when storage fills mid-batch, and the Focus directive survives a move to another camp.
-
-### 🪵 Wood & Scrap Stock Cap
-With the Supply Surplus Cap on, a Timber woodcutter stops at 40 wood and a scrapper at 40 scrap metal in camp storage (`Stockpile Full`), instead of filling every box with one non-stacking item per unit.
-
-### 🎯 Turrets Spare Your Settlers
-Turrets never target your own settlers, refugees or companions, whatever their relation to the player reads.
-
-### 🏕️ Needs, Raiders & Rival Camps
-The Woodcutter keeps working while the camp is short of water (the charcoal he makes filters it), and raw mutant meat is eaten last instead of never. Raiders re-check their weapon each time a band is made up, and raider toasts follow Verbose Notifications. A takeover on another level now reaches the PDA.
-
-### 🖼️ FOMOD, HD Icons & Russian
-The FOMOD finds the HD Inventory Icons Framework by its own file, the HD icon edges are cleaner, and the Russian raid-reputation message no longer raises a script error.
-
-Full list in the [changelog](CHANGELOG.md).
 
 ---
 
