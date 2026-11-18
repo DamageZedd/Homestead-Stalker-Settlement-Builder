@@ -1284,6 +1284,35 @@ function stalker_camp_builder.queue_faction_retaliation(faction, target_hub_id)
     sb.faction_retaliation_targets[faction] = target_hub_id
 end
 
+-- whether who is the player or one of the player's people: a settler (raiders included) or a companion, as
+-- the turrets and the alarm tell them (is_own_resident)
+local function is_player_side(who)
+    local ok, id = pcall(who.id, who)
+    if not (ok and id) then return false end
+    if db.actor and id == db.actor:id() then return true end
+    local sb = stalker_camp_builder
+    local lookup = sb.settler_lookup and sb.settler_lookup[id]
+    if type_(lookup) == "table" and not lookup.is_rival then return true end
+    if sb.is_companion then
+        local ok_c, comp = pcall(sb.is_companion, who)
+        if ok_c and comp then return true end
+    end
+    return false
+end
+
+-- npc_on_death_callback: a garrison member killed by the player's side marks its outpost for the faction holding
+-- it (an online member's rival lookup names the outpost). Only a marked outpost's fall brings a retaliation raid;
+-- an emission, mutants or another faction's squad leave no mark
+local function note_garrison_death(npc, who)
+    if not (npc and who) then return end
+    local sb = stalker_camp_builder
+    local lookup = sb.settler_lookup and sb.settler_lookup[npc:id()]
+    local camp = type_(lookup) == "table" and lookup.is_rival and lookup.rival_camp
+    if type_(camp) == "table" and camp.faction and is_player_side(who) then
+        camp.player_struck = camp.faction
+    end
+end
+
 local function mark_rival_garrison_eliminated(sb, camp, actor, current_sec)
     camp.status = "unoccupied"
     camp.unoccupied_time = current_sec
@@ -1309,7 +1338,10 @@ local function mark_rival_garrison_eliminated(sb, camp, actor, current_sec)
         stalker_camp_builder.camp_send_tip(actor, sformat(game.translate_string("st_recon_garrison_eliminated"), camp.name, faction_name), nil, "general_stalker", 10000, nil, "general")
     end
 
-    if sb.cfg.rival_camp_retaliation_raids ~= false and old_faction and old_faction ~= "monster" and old_faction ~= "zombied" then
+    -- only the fall of a garrison the player's side fought (note_garrison_death) brings a retaliation raid
+    local struck = old_faction ~= nil and camp.player_struck == old_faction
+    camp.player_struck = nil
+    if struck and sb.cfg.rival_camp_retaliation_raids ~= false and old_faction and old_faction ~= "monster" and old_faction ~= "zombied" then
         local actor_comm = (actor and actor.character_community) and actor:character_community() or "stalker"
         local rel = relation_registry.community_relation(old_faction, actor_comm)
         if rel <= -1000 then
@@ -3516,4 +3548,8 @@ function stalker_camp_builder.rescale_rival_timers(old_factor, new_factor)
             sb.faction_retaliation_timers[fac] = now + (due - now) * ratio
         end
     end
+end
+
+function on_game_start()
+    RegisterScriptCallback("npc_on_death_callback", note_garrison_death)
 end
