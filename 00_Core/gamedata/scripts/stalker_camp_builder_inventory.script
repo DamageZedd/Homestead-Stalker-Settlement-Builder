@@ -601,6 +601,7 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
         has_powder = false,
         powder_count = 0,
         has_scrap = false,
+        scrap_count = 0,
         ammo_counts = {
             pistol = 0,
             shotgun = 0,
@@ -710,10 +711,10 @@ function stalker_camp_builder.get_camp_inventory_snapshot(hub_id, camp, force)
                 snapshot.powder_count = snapshot.powder_count + 1
             end
 
-            if not snapshot.has_scrap then
-                if sb.is_scrap and sb.is_scrap(sec) then
-                    snapshot.has_scrap = true
-                end
+            -- every unit, not only the first: the Scrapper's stock cap reads the count (get_job_paused_status)
+            if sb.is_scrap and sb.is_scrap(sec) then
+                snapshot.has_scrap = true
+                snapshot.scrap_count = snapshot.scrap_count + u
             end
 
             if s:find("^ammo_") then
