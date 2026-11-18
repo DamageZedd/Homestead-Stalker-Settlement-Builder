@@ -598,9 +598,10 @@ function on_game_start()
                             end
                             return inv
                         end
+                        -- by pairs: a ParseInventory wrapped before this one may key the items by object id
+                        -- (FDDA Redone's does), and #inv is 0 then
                         local out = {}
-                        for i = 1, #inv do
-                            local obj = inv[i]
+                        for _, obj in pairs(inv) do
                             if obj and is_settler_inventory_item_visible(obj) then
                                 out[#out + 1] = obj
                             end
