@@ -2112,7 +2112,14 @@ function stalker_camp_builder._calc_job_paused_status(survivor, camp, hub_id, sn
         for _, struct_type in pairs_(camp.structures or {}) do
             if struct_type == "salvage_table" then can_refine = true break end
         end
-        if sb.is_camp_supply_capped(hub_id, camp, "scrap") then
+        -- the snapshot counts the pile, as the Timber cap above reads its wood_count; a walk of every box otherwise
+        local scrap_full
+        if snap and snap.scrap_count then
+            scrap_full = sb.cfg.enable_surplus_cap ~= false and snap.scrap_count >= sb.get_stock_cap("scrap")
+        else
+            scrap_full = sb.is_camp_supply_capped(hub_id, camp, "scrap")
+        end
+        if scrap_full then
             local can_refine_now = false
             if can_refine and sb.camp_count_item and sb.camp_has_item and sb.deposit_item_to_camp then
                 local cloth_sec = first_existing_section("prt_i_cloth", "bandage")
