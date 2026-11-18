@@ -3224,6 +3224,9 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_pda_sv_needs_starving">
         <text>Starving</text>
     </string>
+    <string id="st_pda_sv_needs_wounded">
+        <text>Wounded</text>
+    </string>
     <string id="st_pda_sv_needs_off">
         <text>Off</text>
     </string>

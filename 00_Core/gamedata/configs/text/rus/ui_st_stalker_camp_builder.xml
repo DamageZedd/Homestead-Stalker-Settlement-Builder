@@ -3137,6 +3137,9 @@
     <string id="st_pda_sv_needs_starving">
         <text>Истощён</text>
     </string>
+    <string id="st_pda_sv_needs_wounded">
+        <text>Ранен</text>
+    </string>
     <string id="st_pda_sv_needs_off">
         <text>Выкл</text>
     </string>
