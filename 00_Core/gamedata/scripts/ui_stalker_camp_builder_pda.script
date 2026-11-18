@@ -207,6 +207,7 @@ local function survivor_needs_cell(survivor)
         and stalker_camp_builder.needs_survivor_state(survivor)
     if state == "starving" then return hs_perf.tr("st_pda_sv_needs_starving"), hs_theme.argb("danger") end
     if state == "hungry" then return hs_perf.tr("st_pda_sv_needs_hungry"), hs_theme.argb("warn") end
+    if state == "wounded" then return hs_perf.tr("st_pda_sv_needs_wounded"), hs_theme.argb("warn") end
     if state == "fed" then return hs_perf.tr("st_pda_sv_needs_fed"), hs_theme.argb("good") end
     return "-", hs_theme.argb("dim")
 end
@@ -2332,6 +2333,7 @@ function SettlementManagerPDA:UpdateSurvivorHeader(s_item, job, job_lbl, is_paus
     local needs_txt, needs_role = tr("st_pda_sv_needs_off"), "dim"
     if state == "starving" then needs_txt, needs_role = tr("st_pda_sv_needs_starving"), "danger"
     elseif state == "hungry" then needs_txt, needs_role = tr("st_pda_sv_needs_hungry"), "warn"
+    elseif state == "wounded" then needs_txt, needs_role = tr("st_pda_sv_needs_wounded"), "warn"
     elseif state == "fed" then needs_txt, needs_role = tr("st_pda_sv_needs_fed"), "good" end
 
     local word, kind, role
