@@ -173,6 +173,11 @@ function stalker_camp_builder.restore_missing_settler(hub_id, npc_id, survivor)
         local new_id = new_se.id
         camp.survivors[npc_id] = nil
         stalker_camp_builder.settler_lookup[npc_id] = nil
+        -- an expedition under way goes on with the new settler: it finds them by this id when it ends, to bring
+        -- them home and clear on_expedition
+        for _, exp in pairs(stalker_camp_builder.active_stash_expeditions or {}) do
+            if exp.npc_id ~= nil and tonumber(exp.npc_id) == tonumber(npc_id) then exp.npc_id = new_id end
+        end
 
         -- the section the object was made with, so survivor_record_matches sees it as this settler
         survivor.section = sec
