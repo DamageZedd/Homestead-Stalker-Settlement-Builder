@@ -952,20 +952,23 @@ local function distance_to(hub_obj, rc, camp)
     return math.sqrt(dx * dx + dz * dz)
 end
 
--- the nearest rival camp this camp may raid now (temporary, until the Outposts tab picks one)
+-- the rival camp this camp may raid now (temporary, until the Outposts tab picks one): the nearest hostile or
+-- neutral one, else the nearest friendly one (raiders_send then asks first, as the Outposts tab does)
 local function pick_target(hub_id, info, now_sec, camp)
     local hub_obj = alife_object(hub_id)
-    local best, best_d, best_squad, best_key
+    local best, best_d, best_squad, best_key, best_t
     for key, rc in pairs(sb.rival_camps or {}) do
         if type(rc) == "table" and rc.chest_id then
             local t, squad = target_info(key, rc, now_sec)
             if sb.raiders_can_send(info, t) then
                 local d = distance_to(hub_obj, rc, camp)
-                if not best_d or d < best_d then best, best_d, best_squad, best_key = rc, d, squad, key end
+                if not best_t or (best_t.friendly and not t.friendly) or (t.friendly == best_t.friendly and d < best_d) then
+                    best, best_d, best_squad, best_key, best_t = rc, d, squad, key, t
+                end
             end
         end
     end
-    return best, best_key, best_d, best_squad
+    return best, best_key, best_d, best_squad, best_t
 end
 
 -- ---------------------------------------------------------------- send
@@ -1016,8 +1019,26 @@ local function band_odds(band, rc, squad, camp)
         sb.raiders_defender_strength(squad_alive_count(squad), rc.tier or 1, 0))
 end
 
+-- the goodwill each faction lost today, every settlement's raids together (defined with the goodwill helpers)
+local spent_today
+
+-- a quick send at a friendly outpost asks twice, as the Outposts tab's Raid button does: the first click arms it,
+-- a second for the same raider and outpost within RAID_ARM_MS sends
+local RAID_ARM_MS = 15000
+local quick_armed = nil
+local function quick_confirmed(npc_id, key)
+    local tg = time_global and time_global() or 0
+    local a = quick_armed
+    if a and a.npc_id == npc_id and a.key == key and tg - a.tg < RAID_ARM_MS then
+        quick_armed = nil
+        return true
+    end
+    quick_armed = { npc_id = npc_id, key = key, tg = tg }
+    return false
+end
+
 -- Player-directed send. npc_id = the raider picked on the Job page (nil: the first free raiders go);
--- key = the outpost chosen on the Outposts tab (nil: the nearest valid one). Up to three free raiders go.
+-- key = the outpost chosen on the Outposts tab (nil: pick_target's, friendly ones last). Up to three free raiders go.
 function sb.raiders_send(hub_id, camp, npc_id, key)
     if not (camp and camp.survivors and db.actor) then return false end
     local now_sec = game_now()
@@ -1042,7 +1063,7 @@ function sb.raiders_send(hub_id, camp, npc_id, key)
     local band, ids = ready_band(camp, lead_id, now_sec)
     local info = { guards = guard_count(camp), ready = #band, missions_today = st.missions_today or 0,
         raid_active = camp.active_raid ~= nil }
-    local rc, dist, squad
+    local rc, dist, squad, picked
     if key ~= nil then
         rc = sb.rival_camps and sb.rival_camps[key]
         if type(rc) ~= "table" then tip(tr("st_homestead_raider_no_target")); return false end
@@ -1052,7 +1073,7 @@ function sb.raiders_send(hub_id, camp, npc_id, key)
         if not ok then tip(tr("st_pda_raid_why_" .. why)); return false end
         dist = distance_to(alife_object(hub_id), rc, camp)
     else
-        rc, key, dist, squad = pick_target(hub_id, info, now_sec, camp)
+        rc, key, dist, squad, picked = pick_target(hub_id, info, now_sec, camp)
     end
     if not rc then
         -- say why: the camp's own limits first (no guard, daily cap), else there is simply nothing to hit
@@ -1065,6 +1086,14 @@ function sb.raiders_send(hub_id, camp, npc_id, key)
     end
 
     local odds = band_odds(band, rc, squad, camp)
+    -- the Outposts tab previews a raid before it sends: a quick send that could only pick a friendly outpost shows
+    -- the same preview and goes on the second click
+    if picked and picked.friendly and not quick_confirmed(lead_id, key) then
+        tip(string.format(tr("st_pda_raid_preview"), tr(rc.faction), #band, mfloor(odds * 100 + 0.5),
+            sb.raiders_faction_loss(rc.faction, true, spent_today(), own_faction())) .. "\\n" .. tr("st_pda_raid_preview_friendly"),
+            15000, true)
+        return false
+    end
     local id = st.next_id; st.next_id = id + 1
     local m = sb.raiders_new_mission(id, key, rc.level, rc.faction, ids, now_sec, sb.raiders_mission_duration(dist), odds)
     camp.raider_missions = camp.raider_missions or {}
@@ -1239,7 +1268,7 @@ end
 
 -- the daily goodwill cap is per player, not per camp: every camp's record keeps the same running totals
 -- (the largest seen), so several camps cannot each spend a full cap
-local function spent_today()
+function spent_today()
     local merged = {}
     for _, c in pairs(sb.active_camps or {}) do
         for f, v in pairs(raider_state(c).spent) do merged[f] = mmax(merged[f] or 0, v) end
