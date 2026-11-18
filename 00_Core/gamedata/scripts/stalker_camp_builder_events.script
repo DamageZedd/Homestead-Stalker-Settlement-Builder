@@ -718,6 +718,9 @@ function stalker_camp_builder.resolve_offline_retaliation(hub_id, camp, retal_fa
                 nil, "red_danger", 15000, hub_id, "combat", true)
         end
         camp.happiness = math.max(0, (camp.happiness or 50) - 15)
+        -- get_camp_stats rebuilds camp.happiness on every pass: breach_until keeps the 15 off there, for the day the
+        -- settlers go hungry
+        camp.breach_until = sb.game_sec() + 86400
         camp._stats_cache = nil
         if camp.survivors then
             local hungry_until = sb.game_sec() + 86400
