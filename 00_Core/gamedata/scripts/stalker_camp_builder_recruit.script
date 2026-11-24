@@ -1542,6 +1542,17 @@ function stalker_camp_builder.loan_settler_as_companion(npc_id)
             return false, "wrong_level"
         end
     end
+    -- an offline settler comes online only within the engine's online radius, switch_distance * (1 - switch_factor)
+    -- (alife.ltx; the factor isn't exported): farther off, switch_online below does nothing, and the settler would be
+    -- marked a companion who never joins
+    if se_npc and db.actor and level and level.object_by_id and level.object_by_id(id_num) == nil then
+        local sim = alife()
+        local f = ini_sys and ini_sys.r_float_ex and ini_sys:r_float_ex("alife", "switch_factor") or 0.1
+        local radius = sim and sim.switch_distance and sim:switch_distance() * (1 - f)
+        if radius and se_npc.position and db.actor:position():distance_to(se_npc.position) > radius then
+            return false, "too_far"
+        end
+    end
 
     survivor.paused_job = (survivor.job ~= "companion") and (survivor.job or "idle") or (survivor.paused_job or "idle")
     survivor.paused_xp = survivor.xp or 0

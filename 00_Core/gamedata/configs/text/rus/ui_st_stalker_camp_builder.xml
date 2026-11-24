@@ -3659,6 +3659,9 @@
     <string id="st_pda_companion_loan_already_companion">
         <text>Поселенец уже в вашем отряде.</text>
     </string>
+    <string id="st_pda_companion_loan_too_far">
+        <text>Нельзя взять в отряд: поселенец слишком далеко. Подойдите ближе к поселению.</text>
+    </string>
     <string id="st_pda_raid_recon">
         <text>Разведданные: гарнизон %d | ~%d предм. в тайнике (+25%% тактический стол)</text>
     </string>

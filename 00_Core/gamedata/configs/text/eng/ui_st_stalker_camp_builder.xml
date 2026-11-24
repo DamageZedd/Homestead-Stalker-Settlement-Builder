@@ -3656,6 +3656,9 @@ Experience: +%d XP (Total: %d XP - Tier %d)</text>
     <string id="st_pda_companion_loan_already_companion">
         <text>Settler is already in your companion squad.</text>
     </string>
+    <string id="st_pda_companion_loan_too_far">
+        <text>Cannot request bodyguard: the settler is too far away. Get closer to the settlement first.</text>
+    </string>
     <string id="st_pda_raid_recon">
         <text>Recon Intel: %d garrison | ~%d stash items (+25%% Tactical Board)</text>
     </string>
