@@ -1250,7 +1250,14 @@ function SettlementManagerPDA:UpdateTopStatusBar()
 
     if self.status_weather and level_weathers then
         local mgr = level_weathers.get_weather_manager and level_weathers.get_weather_manager()
-        local w_name = (mgr and mgr.get_weather_cycle and mgr:get_weather_cycle()) or "clear"
+        -- WeatherManager names its cycle with get_curr_weather (clear, partly, cloudy, rain, storm, foggy); an emission
+        -- or psi storm under way is shown instead, in the danger color below
+        local w_name = (mgr and mgr.get_curr_weather and mgr:get_curr_weather()) or "clear"
+        if surge_manager and surge_manager.is_started and surge_manager.is_started() then
+            w_name = "emission"
+        elseif psi_storm_manager and psi_storm_manager.is_started and psi_storm_manager.is_started() then
+            w_name = "psi storm"
+        end
         local w_upper = tostring(w_name):upper()
         self.status_weather:SetText(sformat("ATMOS: %s", w_upper))
         if w_name:find("psy") or w_name:find("surge") or w_name:find("emission") or w_name:find("storm") then
