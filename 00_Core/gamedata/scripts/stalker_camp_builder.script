@@ -338,7 +338,7 @@ stalker_camp_builder.game_timer_scale = game_timer_scale
 -- keeps the same share of its interval instead of firing early or late. `ratio` = new scale / old scale.
 local ELAPSED_STAMPS = { "last_water_time", "last_fridge_time", "last_food_consumption_time", "last_event_check_time",
     "last_raid_check_time", "trader_spawn_time", "last_convoy_time", "setup_sec", "created_time" }
-local DUE_STAMPS = { "hungry_until", "skirmish_cooldown_until" }
+local DUE_STAMPS = { "hungry_until", "skirmish_cooldown_until", "breach_until" }
 local NEEDS_ELAPSED = { "last_round_sec" }
 local NEEDS_DUE = { "grace_until", "until_sec" }
 local SURVIVOR_ELAPSED = { "last_equip_check" }
@@ -5508,6 +5508,11 @@ function get_camp_stats(camp, hub_obj)
         if now_s < camp.hungry_until then
             score = score - mmin(30, camp.hungry_count * 5)
         end
+    end
+
+    -- an offline retaliation that broke through (resolve_offline_retaliation) costs 15 for a day
+    if camp.breach_until and game_sec() < camp.breach_until then
+        score = score - 15
     end
 
     -- living needs (off by default) replace the hunger penalty above: needs_process clears the hunger
