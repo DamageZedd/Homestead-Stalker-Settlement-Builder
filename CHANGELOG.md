@@ -1,5 +1,22 @@
 # Homestead (Stalker Settlement Builder) - Changelog
 
+## v1.4.5 — Raid, Retaliation & Settler Fixes
+
+- **Guards use ammo their guns take**: a raid's defense took any `ammo_*` item per guard, including RPG rockets and launcher grenades, and the ammo shortage never reached the defense rating (only the toast mentioned it). Guards now take rounds their guns fire, and unsupplied guards lower the raid's defense.
+- **Retaliation only for your fights**: a hostile outpost wiped out by an emission, mutants or another faction no longer sends a hit squad at your settlement. Retaliation follows only outposts your side fought.
+- **An offline breach costs morale for a day**: the -15 morale from a lost offline retaliation was written over by the next stats pass, so it never counted. It now lasts a day.
+- **Raider quick send picks hostile and neutral outposts first**: choosing Raider again on the Job page sent the band to the nearest outpost, friendly ones included, with no warning. It now prefers hostile and neutral outposts, and asks before raiding a friendly one (friendly targets stay allowed).
+- **Raider loot keeps part boxes**: a box of 12 rounds out of 50 taken from an outpost came home as a full box. It keeps its round count, as transfers and expedition loot already did.
+- **Request Bodyguard says when the settler is out of range**: a settler offline beyond the engine's switch distance was marked a companion but never joined, with no message. The request now says the settler is too far away.
+- **Recruiting a settler back keeps Sworn Veteran and Auto-Equip**: both toggles were lost when a loaned bodyguard was recruited back with the camp dialog.
+- **Settler inventory keeps the settler's items**: with FDDA Redone (G.A.M.M.A.), a category tab could show the settler's side empty. The settler filter now reads the item list keyed by object id too.
+- **A settler re-created mid-expedition comes home**: when a scavenger on a stash expedition was re-created on level entry, the expedition still named the old id, so they never came back from it and got no XP.
+- **PDA: wounded settlers read Wounded**: a wounded settler's needs showed "Off" on the Stats page and "-" in the roster.
+- **PDA status bar shows the weather**: ATMOS always read CLEAR. It now shows the weather (clear, partly, cloudy, rain, storm, foggy) and EMISSION or PSI STORM while one is under way.
+- **Faster Scrapper pause check**: the scrap stock cap is counted from the inventory snapshot the check already builds, instead of walking every box each time.
+
+Thanks to **devinhorowitz** for all twelve fixes.
+
 ## v1.4.4 — Retaliation Raids, Tactical Planning Board, Settler Inventory & Bug Fixes
 
 - **Settler Inventory Access & Auto-Equip Lock (`z_stalker_camp_builder_pda_monkeypatch.script`, `stalker_camp_builder_recruit.script`, `modxml_stalker_camp_builder.script`, `stalker_camp_builder_jobs.script`, `ui_stalker_camp_builder_pda.script`, `ui_stalker_camp_builder_pda.xml`, `ui_st_stalker_camp_builder.xml`)**:

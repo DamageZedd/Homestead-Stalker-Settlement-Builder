@@ -7,7 +7,7 @@
 
 *Build camps. Recruit survivors. Automate production. Hold the line.*
 
-![Version](https://img.shields.io/badge/version-v1.4.4-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
+![Version](https://img.shields.io/badge/version-v1.4.5-e0a43c?style=for-the-badge) ![Author](https://img.shields.io/badge/by-Damage__Zedd-8fae5a?style=for-the-badge) ![Game](https://img.shields.io/badge/S.T.A.L.K.E.R.-Anomaly%201.5.3-555555?style=for-the-badge)
 
 **[GAMMA Discord Thread](https://discord.com/channels/912320241713958912/1515669053606334504/1542893750408315030)** · **[Full Changelog](CHANGELOG.md)** · **[ModDB](https://www.moddb.com/mods/stalker-anomaly/addons/homestead-stalker-settlement-builder)** · **[Latest Release](https://github.com/DamageZedd/Homestead-Stalker-Settlement-Builder/releases/latest)**
 
@@ -22,7 +22,25 @@ Plant a Settlement Flag to establish a 50-meter settlement boundary. Construct b
 
 ---
 
-## 🆕 New in v1.4.4
+## 🆕 New in v1.4.5
+
+### 🛡️ Raid & Retaliation Fixes
+Guards now spend ammo their guns actually fire, and an ammo shortage really lowers the raid's defense. Retaliation hit squads only come after outposts your side fought, a lost offline defense costs morale for a full day, and raider loot keeps part boxes of ammo as part boxes.
+
+### 🎯 Raider Quick Send
+Picking Raider again on the Job page now sends the band at a hostile or neutral outpost first, and asks before raiding a friendly one.
+
+### 👥 Settler Fixes
+Request Bodyguard tells you when the settler is too far away, recruiting a settler back keeps Sworn Veteran and Auto-Equip, the settler inventory no longer hides items on some tabs, and a scavenger re-created mid-expedition comes home from it.
+
+### 📟 PDA
+Wounded settlers read Wounded instead of Off, and the status bar's ATMOS shows the real weather plus EMISSION or PSI STORM.
+
+Full list in the [changelog](CHANGELOG.md). Thanks to **devinhorowitz** for all twelve fixes.
+
+---
+
+## 📦 Previous in v1.4.4
 
 ### ⚔️ Settlement Retaliation Raids
 Wiping out or plundering a hostile faction's outpost now has consequences: a few in-game hours later that faction sends a hit squad against your nearest settlement, announced by an intercepted radio alert. Your raiders fight beside your guards. If you are away for more than a day, the battle is resolved from your camp's defense rating, at a cost in ammo and medicine, or in wounds and morale if the defense fails.
@@ -43,19 +61,6 @@ Wounded settlers work at half speed until bandages or medkits from storage treat
 Fixes the "Alive" script error from despawned settlers, outposts floating on slopes, the same faction reclaiming an outpost over and over, turrets fixating on enemies behind cover, alarms going off at your own settlers, and production inputs lost when storage is full (Medic, Cook, Chemist, crafting and more). Job pause checks, PDA refreshes, binders and snapping do less work per frame.
 
 Full list in the [changelog](CHANGELOG.md).
-
----
-
-## 📦 Previous in v1.4.3
-
-### 🖼️ HD Icons & Workstation Sheet Fixes
-Restored the lossless `v1.4.0` Level 0 DXT5 blocks across all 45 pre-existing models in `ui_icon_homestead_hd_1.dds` (eliminating the Level 0 alpha quantization and edge specks introduced by Pillow's DXT5 writer in `v1.4.1`), rebuilt `ui_icon_homestead_workstations.dds` cleanly via `dxt5_encode`, and added a runtime guard so `ico_homestead.ltx` is ignored whenever the HD Inventory Icons Framework (`zz_hd_inventory_icons_patches`) is not active (including after an MO2 Merge upgrade).
-
-### 🪵 Configurable Wood & Scrap Stockpile Caps
-Added MCM sliders for **Wood Stockpile Cap (`wood_stock_cap`)** and **Scrap Metal Stockpile Cap (`scrap_stock_cap`)** under *Jobs & Production* (`20–500`, default `200`, up from the fixed `40` in `v1.4.2`).
-
-### 📡 Rival Outpost Placement & Takeover Tuning
-Outposts spawned on unloaded maps now check for a flat, walkable 3 m AI-grid perimeter on level entry and relocate to the nearest open AI ground around their smart terrain instead of anchoring against walls, roofs, or cliffs. Abandoned outposts can now be reclaimed at most once (preferring a different faction than the one that just left) before their ruins decay and a fresh site is chosen.
 
 ---
 
