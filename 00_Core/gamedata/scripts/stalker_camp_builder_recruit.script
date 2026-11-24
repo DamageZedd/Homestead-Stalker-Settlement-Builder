@@ -1048,6 +1048,8 @@ function stalker_camp_builder.recruit_npc_to_camp(actor, npc, hub_id)
         s.woodcutter_mode = prev_record.woodcutter_mode
         s.farmer_mode = prev_record.farmer_mode
         s.chemist_mode = prev_record.chemist_mode
+        s.sworn = prev_record.sworn
+        s.equipment_locked = prev_record.equipment_locked
         s.has_axe = prev_record.has_axe
         s.has_drugkit = prev_record.has_drugkit
         s.has_tools = prev_record.has_tools
