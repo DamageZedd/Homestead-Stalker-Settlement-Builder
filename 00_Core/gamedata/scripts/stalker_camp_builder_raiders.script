@@ -1207,10 +1207,27 @@ local function chest_items(rc)
             local ok, p = pcall(item_parts.get_parts_con, nil, id)
             if ok and p then parts = p end
         end
+        -- an ammo box's rounds, read as transfer_supplies reads them: deposit_item_to_camp makes a full box without
+        -- them. A part box is worth its share of a full one
+        local box_size = ini and ini.r_float_ex and num(ini:r_float_ex(sec, "box_size"), 0) or 0
+        local ammo
+        if box_size > 0 then
+            if cl_item and cl_item.ammo_get_count then
+                local ok, a = pcall(cl_item.ammo_get_count, cl_item)
+                if ok and type(a) == "number" and a > 0 then ammo = mfloor(a) end
+            end
+            if not ammo and se_item and utils_stpk and utils_stpk.get_ammo_data then
+                local ok, d = pcall(utils_stpk.get_ammo_data, se_item)
+                if ok and type(d) == "table" and type(d.ammo_left) == "number" and d.ammo_left > 0 then
+                    ammo = mfloor(d.ammo_left)
+                end
+            end
+        end
         local kind, value = sb.raiders_item_info(sec, ini, cond)
+        if ammo and ammo < box_size then value = mfloor(value * ammo / box_size + 0.5) end
         items[#items + 1] = {
             id = id, sec = sec, kind = kind, value = value,
-            cond = cond, parts = parts, uses = uses, is_yellow = is_yellow_kit(sec),
+            cond = cond, parts = parts, uses = uses, ammo = ammo, is_yellow = is_yellow_kit(sec),
         }
     end
 
@@ -1461,7 +1478,7 @@ local function pay_success(hub_id, camp, m, rc, home)
         for _, it in ipairs(split.taken) do
             local deposited_ok = false
             if sb.deposit_item_to_camp then
-                local ok, dep = pcall(sb.deposit_item_to_camp, hub_id, camp, it.sec, it.is_yellow or false, tier, it.cond, it.parts, it.uses, true)
+                local ok, dep = pcall(sb.deposit_item_to_camp, hub_id, camp, it.sec, it.is_yellow or false, tier, it.cond, it.parts, it.uses, true, it.ammo)
                 if ok and dep then n = n + 1; deposited_ok = true end
             end
             if deposited_ok then
