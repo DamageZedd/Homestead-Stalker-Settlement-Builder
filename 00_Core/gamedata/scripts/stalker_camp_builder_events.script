@@ -393,10 +393,14 @@ function spawn_camp_raid(hub_id, camp, hub_obj, opts)
 
         -- Guard ammo check (Living Needs Phase 5)
         if stalker_camp_builder.needs_process_guard_ammo then
+            -- counted afresh: the raiders mobilized above are full guards now
+            camp._stats_cache = nil
             local stats = stalker_camp_builder.get_camp_stats(camp, hub_obj)
             local guards = (stats.guards or 0) + (stats.raider_guards or 0)
             if guards > 0 then
-                stalker_camp_builder.needs_process_guard_ammo(hub_id, camp, guards)
+                -- kept for the raid: needs_guard_mult scales the guard part of the camp's defense by it
+                camp.active_raid.ammo_mult = stalker_camp_builder.needs_process_guard_ammo(hub_id, camp, guards)
+                camp._stats_cache = nil
             end
         end
 
@@ -708,7 +712,8 @@ function stalker_camp_builder.resolve_offline_retaliation(hub_id, camp, retal_fa
                 nil, "general_stalker", 12000, hub_id, "combat", true)
         end
         if sb.find_and_consume_item then
-            sb.find_and_consume_item(hub_id, camp, function(sec) return type(sec) == "string" and sec:find("^ammo_") and not sec:find("battery") end, nil)
+            -- a round the guards fire, not a rocket or launcher grenade (needs_is_guard_round)
+            sb.find_and_consume_item(hub_id, camp, sb.needs_is_guard_round or function(sec) return type(sec) == "string" and sec:find("^ammo_") and not sec:find("battery") end, nil)
             sb.find_and_consume_item(hub_id, camp, sb.needs_is_med or function(sec) return sec == "bandage" or sec:find("medkit") end, nil)
         end
     else

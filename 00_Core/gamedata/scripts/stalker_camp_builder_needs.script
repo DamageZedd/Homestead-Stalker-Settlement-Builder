@@ -80,6 +80,12 @@ function sb.needs_is_ammo(sec)
     return is_ammo_box(sec)
 end
 
+-- a round a guard can fire, not a launcher grenade or rocket (grenade_ammo: VOG-25, M209, OG-7B)
+local function is_guard_round(sec)
+    return is_ammo_box(sec) and not (ini_sys and ini_sys.r_bool_ex and ini_sys:r_bool_ex(sec, "grenade_ammo", false))
+end
+sb.needs_is_guard_round = is_guard_round
+
 -- how many rounds are due after elapsed seconds; a sleep never costs more than catchup_cap rounds,
 -- which is also what the old code did (one round, then the timer restarts)
 function sb.needs_rounds_due(elapsed, interval, catchup_cap)
@@ -397,13 +403,42 @@ function sb.needs_is_wounded(survivor)
     return false
 end
 
--- guards consume ammo during raids; ammo deficit reduces defense effectiveness for that raid
+-- the rounds the guards' guns take: the ammo_class of each online guard's and raider's best weapon, or nil when
+-- no gun can be read (then any round a guard can fire does)
+local function guard_gun_rounds(camp)
+    local rounds = nil
+    for id, s in pairs(camp.survivors or {}) do
+        if s.job == "guard" or s.job == "raider" then
+            local npc = level and level.object_by_id and level.object_by_id(tonumber(id) or id)
+            if npc and IsStalker and IsStalker(npc) and npc:alive() then
+                local ok, wpn = pcall(npc.best_weapon, npc)
+                local ac = ok and wpn and ini_sys and ini_sys:r_string_ex(wpn:section(), "ammo_class")
+                if ac then
+                    for sec in string.gmatch(ac, "[^,%s]+") do
+                        rounds = rounds or {}
+                        rounds[sec] = true
+                    end
+                end
+            end
+        end
+    end
+    return rounds
+end
+
+-- guards consume ammo during raids; ammo deficit reduces defense effectiveness for that raid (spawn_camp_raid keeps
+-- the result in camp.active_raid.ammo_mult, and needs_guard_mult applies it)
 function sb.needs_process_guard_ammo(hub_id, camp, guard_count)
     if not (camp and guard_count and guard_count > 0 and sb.needs_enabled_now()) then return 1.0 end
     if sb.cfg and sb.cfg.needs_ammo == false then return 1.0 end
+    -- one box per gun: an idle raider is half a guard in the defense, but carries a whole gun
+    guard_count = math.ceil(guard_count - 1e-6)
+    local rounds = guard_gun_rounds(camp)
+    local function fits(sec)
+        return is_guard_round(sec) and (rounds == nil or rounds[sec] == true)
+    end
     local supplied = 0
     for _ = 1, guard_count do
-        local got = sb.find_and_consume_item(hub_id, camp, is_ammo_box, nil)
+        local got = sb.find_and_consume_item(hub_id, camp, fits, nil)
         if got then
             supplied = supplied + 1
         else
@@ -421,12 +456,16 @@ function sb.needs_process_guard_ammo(hub_id, camp, guard_count)
     return 1.0
 end
 
--- starving guards count for less in the camp's defense (the raid chance reads it)
+-- starving guards count for less in the camp's defense (the raid chance reads it), and so do guards short of ammo,
+-- until the raid ends (needs_process_guard_ammo, kept in camp.active_raid.ammo_mult)
 function sb.needs_guard_mult(camp)
-    if not sb.needs_enabled_now() or sb.cfg.needs_guard_penalty == false then return 1 end
+    if not sb.needs_enabled_now() then return 1 end
+    local raid = camp and camp.active_raid
+    local m = (raid and raid.ammo_mult and sb.cfg.needs_ammo ~= false) and raid.ammo_mult or 1
+    if sb.cfg.needs_guard_penalty == false then return m end
     local n = live_needs(camp)
-    if n and (n.tier or 0) >= 3 then return GUARD_MULT end
-    return 1
+    if n and (n.tier or 0) >= 3 then return GUARD_MULT * m end
+    return m
 end
 
 -- production slowdown from needs: settlers work at 0.5x speed (double cycle interval) while starving
